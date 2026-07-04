@@ -66,21 +66,10 @@ export async function getTopCustomersReport() { return await request("/reports/t
 export async function getInventoryReport() { return await request("/reports/inventory"); }
 export async function getSalesReport() { return await request("/reports/sales"); }
 export async function getPurchasesReport() { return await request("/reports/purchases"); }
-export async function getReportsCharts() {
-  return await request("/reports/charts");
-}
-
-export async function getProductProfitReport() {
-  return await request("/reports/product-profit");
-}
-
-export async function getCustomerBalanceReport() {
-  return await request("/reports/customer-balances");
-}
-
-export async function getInventoryMovementReport() {
-  return await request("/reports/inventory-movements");
-}
+export async function getReportsCharts() { return await request("/reports/charts"); }
+export async function getProductProfitReport() { return await request("/reports/product-profit"); }
+export async function getCustomerBalanceReport() { return await request("/reports/customer-balances"); }
+export async function getInventoryMovementReport() { return await request("/reports/inventory-movements"); }
 
 export async function getPdfTemplates() {
   const res = await fetch(`${API_URL}/designer/templates`);
@@ -97,15 +86,16 @@ export async function savePdfTemplate(payload) {
 }
 
 export async function deletePdfTemplate(id) {
-  const res = await fetch(`${API_URL}/designer/template/${id}`, {
-    method: "DELETE",
-  });
+  const res = await fetch(`${API_URL}/designer/template/${id}`, { method: "DELETE" });
   return await res.json();
 }
 
-
-// Vetrix CRM API - safe extension
+// Vetrix CRM API - Enterprise Customer 360
+export async function getCrmDashboard() { return await request(`/api/crm/dashboard`); }
+export async function getCrmCustomer360(id) { return await request(`/api/crm/customers/${id}`); }
 export async function getCrmCustomerProfile(id) { return await request(`/api/crm/customers/${id}/profile`); }
+export async function getCrmCustomerTimeline(id) { return await request(`/api/crm/customers/${id}/timeline`); }
+export async function getCrmCustomerAi(id) { return await request(`/api/crm/customers/${id}/ai`); }
 export async function getCrmNotes(customerId) { return await request(`/api/crm/customers/${customerId}/notes`); }
 export async function createCrmNote(customerId, data) { return await request(`/api/crm/customers/${customerId}/notes`, { method: "POST", body: JSON.stringify(data) }); }
 export async function deleteCrmNote(noteId) { return await request(`/api/crm/notes/${noteId}`, { method: "DELETE" }); }
@@ -113,13 +103,13 @@ export async function getCrmTasks(customerId) { return await request(`/api/crm/c
 export async function createCrmTask(customerId, data) { return await request(`/api/crm/customers/${customerId}/tasks`, { method: "POST", body: JSON.stringify(data) }); }
 export async function updateCrmTask(taskId, data) { return await request(`/api/crm/tasks/${taskId}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteCrmTask(taskId) { return await request(`/api/crm/tasks/${taskId}`, { method: "DELETE" }); }
-export async function getCrmDashboard() { return await request(`/api/crm/dashboard`); }
+export async function getCrmInteractions(customerId) { return await request(`/api/crm/customers/${customerId}/interactions`); }
+export async function createCrmInteraction(customerId, data) { return await request(`/api/crm/customers/${customerId}/interactions`, { method: "POST", body: JSON.stringify(data) }); }
 
 // Vetrix AI Business Intelligence API
 export async function getAiBiSummary() { return await request(`/api/ai-bi/summary`); }
 export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`); }
 export async function getAiBiRecommendations() { return await request(`/api/ai-bi/recommendations`); }
-
 
 // Vetrix Smart Inventory API - Enterprise Phase 2
 export async function getSmartInventoryOverview(params = {}) {
