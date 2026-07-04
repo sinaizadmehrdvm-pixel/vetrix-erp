@@ -1,0 +1,15 @@
+export default {
+  invoiceSystem: "سیستم فاکتور",
+  saleInvoice: "فاکتور فروش",
+  buyInvoice: "فاکتور خرید",
+  customer: "مشتری",
+  product: "محصول",
+  quantity: "تعداد",
+  unitPrice: "قیمت واحد",
+  remove: "حذف",
+  addItem: "افزودن آیتم",
+  createInvoice: "ثبت فاکتور",
+  discount: "تخفیف",
+  tax: "مالیات",
+  grandTotal: "مبلغ نهایی",
+};

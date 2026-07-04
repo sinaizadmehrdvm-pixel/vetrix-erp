@@ -1,0 +1,15 @@
+export default {
+  invoiceSystem: "Invoice System",
+  saleInvoice: "Sale Invoice",
+  buyInvoice: "Purchase Invoice",
+  customer: "Customer",
+  product: "Product",
+  quantity: "Quantity",
+  unitPrice: "Unit Price",
+  remove: "Remove",
+  addItem: "Add Item",
+  createInvoice: "Create Invoice",
+  discount: "Discount",
+  tax: "Tax",
+  grandTotal: "Grand Total",
+};

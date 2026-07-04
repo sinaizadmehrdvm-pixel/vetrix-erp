@@ -1,0 +1,18 @@
+html, body, #root { width: 100%; min-height: 100%; }
+.rtl { direction: rtl; }
+.ltr { direction: ltr; }
+.rtl table { direction: rtl; }
+.rtl input, .rtl textarea, .rtl select { text-align: right; }
+.ltr input, .ltr textarea, .ltr select { text-align: left; }
+.rtl .sidebar-menu-item { flex-direction: row-reverse; }
+.rtl th, .rtl td { text-align: right; }
+.ltr th, .ltr td { text-align: left; }
+.recharts-wrapper { direction: ltr !important; }
+table { width: 100%; border-collapse: collapse; }
+input, select, textarea { color: white; }
+button, a { transition: all 0.2s ease; }
+@media (max-width: 900px) {
+  .erp-layout { flex-direction: column; }
+  .erp-sidebar { width: 100% !important; height: auto !important; max-height: none !important; }
+  .erp-main { padding: 18px !important; }
+}

@@ -1,0 +1,13 @@
+@font-face {
+  font-family: "VetrixPersian";
+  src: local("Vazirmatn"), local("Tahoma");
+}
+
+body {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+[lang="fa"] body,
+[dir="rtl"] body {
+  font-family: "VetrixPersian", Tahoma, Arial, sans-serif;
+}

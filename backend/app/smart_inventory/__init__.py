@@ -1,0 +1,1 @@
+# Vetrix Smart Inventory module

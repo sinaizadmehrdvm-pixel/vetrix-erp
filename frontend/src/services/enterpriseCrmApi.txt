@@ -1,0 +1,17 @@
+
+// Vetrix Enterprise CRM AI API - Phase 3
+export async function getEnterpriseCrmOverview() { return await request(`/api/enterprise-crm/overview`); }
+export async function getEnterpriseCustomerScore(customerId) { return await request(`/api/enterprise-crm/customers/${customerId}/score`); }
+export async function getEnterpriseCustomerTimeline(customerId) { return await request(`/api/enterprise-crm/customers/${customerId}/timeline`); }
+export async function getEnterpriseLeads() { return await request(`/api/enterprise-crm/leads`); }
+export async function createEnterpriseLead(data) { return await request(`/api/enterprise-crm/leads`, { method: "POST", body: JSON.stringify(data) }); }
+export async function updateEnterpriseLead(id, data) { return await request(`/api/enterprise-crm/leads/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function deleteEnterpriseLead(id) { return await request(`/api/enterprise-crm/leads/${id}`, { method: "DELETE" }); }
+export async function getEnterpriseOpportunities() { return await request(`/api/enterprise-crm/opportunities`); }
+export async function createEnterpriseOpportunity(data) { return await request(`/api/enterprise-crm/opportunities`, { method: "POST", body: JSON.stringify(data) }); }
+export async function moveEnterpriseOpportunityStage(id, stage) { return await request(`/api/enterprise-crm/opportunities/${id}/stage`, { method: "PUT", body: JSON.stringify({ stage }) }); }
+export async function deleteEnterpriseOpportunity(id) { return await request(`/api/enterprise-crm/opportunities/${id}`, { method: "DELETE" }); }
+export async function getEnterpriseFollowups() { return await request(`/api/enterprise-crm/followups`); }
+export async function createEnterpriseFollowup(data) { return await request(`/api/enterprise-crm/followups`, { method: "POST", body: JSON.stringify(data) }); }
+export async function markEnterpriseFollowupDone(id) { return await request(`/api/enterprise-crm/followups/${id}/done`, { method: "PUT" }); }
+export async function deleteEnterpriseFollowup(id) { return await request(`/api/enterprise-crm/followups/${id}`, { method: "DELETE" }); }

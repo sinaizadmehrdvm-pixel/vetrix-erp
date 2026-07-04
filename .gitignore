@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
+*.sqlite3
+.env
+node_modules/
+dist/
+build/
+.vite/
+.DS_Store
+*.log
+uploads/
+backend/uploads/
+frontend/node_modules/
