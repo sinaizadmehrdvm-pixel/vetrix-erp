@@ -127,4 +127,7 @@ export async function getSmartInventoryProductInsight(productId, params = {}) {
   return await request(`/api/smart-inventory/product/${productId}/insight${q ? `?${q}` : ""}`);
 }
 
+export async function getCrmCustomerLoyalty(id) { return await request(`/api/crm/customers/${id}/loyalty`); }
+export async function redeemCrmCustomerPoints(id, data) { return await request(`/api/crm/customers/${id}/loyalty/redeem`, { method: "POST", body: JSON.stringify(data) }); }
+
 export { API_URL };
