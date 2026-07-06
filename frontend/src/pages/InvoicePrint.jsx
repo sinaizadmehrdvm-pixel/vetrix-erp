@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  ArrowUp,
-  ArrowDown,
   Copy,
   Edit3,
-  ExternalLink,
   FileText,
+  Grid3X3,
   Maximize2,
-  Move,
   Printer,
   RefreshCw,
   Save,
@@ -19,14 +16,9 @@ import {
 
 import { useLanguage } from "../localization/LanguageContext";
 import { getCache } from "../storage/db";
-import {
-  API_URL,
-  getPdfTemplates,
-  savePdfTemplate,
-} from "../services/api";
+import { getPdfTemplates, savePdfTemplate } from "../services/api";
 
 const INVOICES_CACHE_KEY = "invoices";
-const GRID = 10;
 
 const PAGE_SIZES = {
   A4: { w: 794, h: 1123, label: "A4" },
@@ -35,7 +27,7 @@ const PAGE_SIZES = {
   THERMAL58: { w: 220, h: 980, label: "Thermal 58" },
 };
 
-const defaultPrintConfig = {
+const defaultConfig = {
   page_size: "A4",
   theme: { primary: "#0f172a", accent: "#06b6d4" },
   elements: [
@@ -45,7 +37,7 @@ const defaultPrintConfig = {
     { id: "invoiceInfo", type: "box", label: "اطلاعات فاکتور", text: "شماره: {{invoice_id}}\nتاریخ: {{invoice_date}}\nوضعیت: {{payment_status}}", x: 520, y: 120, w: 220, h: 90, fontSize: 13, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
     { id: "customer", type: "box", label: "طرف حساب", text: "طرف حساب\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", x: 55, y: 145, w: 400, h: 95, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 14, align: "right", bold: false },
     { id: "table", type: "table", label: "جدول اقلام", text: "جدول اقلام فاکتور", x: 55, y: 275, w: 685, h: 265, fontSize: 13, color: "#0f172a", bg: "#ffffff", border: "#94a3b8", radius: 10, align: "center", bold: true },
-    { id: "totals", type: "totals", label: "جمع فاکتور", text: "جمع جزء: {{subtotal}}\nتخفیف: {{discount}}\nمالیات: {{tax}}\nحمل: {{shipping}}\nمبلغ نهایی: {{total}}", x: 55, y: 570, w: 300, h: 160, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
+    { id: "totals", type: "totals", label: "جمع فاکتور", text: "جمع فاکتور", x: 55, y: 570, w: 300, h: 160, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
     { id: "qr", type: "qr", label: "QR Code", text: "QR", x: 590, y: 600, w: 105, h: 105, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
     { id: "note", type: "box", label: "توضیحات", text: "توضیحات\n{{invoice_note}}", x: 55, y: 760, w: 685, h: 75, fontSize: 13, color: "#334155", bg: "#ffffff", border: "#e2e8f0", radius: 12, align: "right", bold: false },
     { id: "signature", type: "box", label: "امضا", text: "امضاء فروشنده / حسابدار", x: 55, y: 900, w: 250, h: 85, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
@@ -54,13 +46,8 @@ const defaultPrintConfig = {
   ],
 };
 
-
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
-}
-
-function snap(value) {
-  return Math.round(Number(value || 0) / GRID) * GRID;
 }
 
 function toNumber(value) {
@@ -69,59 +56,8 @@ function toNumber(value) {
     .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
     .replace(/[,،]/g, "")
     .replace(/[^\d.-]/g, "");
-
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
-}
-
-
-function asPlainText(value, fallback = "") {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    const text = String(value);
-    return text === "[object Object]" ? fallback : text;
-  }
-  if (typeof value === "object") {
-    return (
-      value.title_fa ||
-      value.title ||
-      value.label_fa ||
-      value.label ||
-      value.name_fa ||
-      value.name ||
-      value.text_fa ||
-      value.text ||
-      fallback
-    );
-  }
-  return fallback;
-}
-
-function normalizeElement(element, index = 0) {
-  const fallbackLabel = element?.type ? String(element.type) : `بخش ${index + 1}`;
-  return {
-    ...element,
-    id: element?.id || `${element?.type || "element"}_${index}_${Date.now()}`,
-    label: asPlainText(element?.label, fallbackLabel),
-    text: asPlainText(element?.text, ""),
-    type: asPlainText(element?.type, "text"),
-    x: toNumber(element?.x),
-    y: toNumber(element?.y),
-    w: toNumber(element?.w || 120),
-    h: toNumber(element?.h || 40),
-    fontSize: toNumber(element?.fontSize || 13),
-    radius: toNumber(element?.radius || 0),
-    color: asPlainText(element?.color, "#0f172a"),
-    bg: asPlainText(element?.bg, "#ffffff"),
-    border: asPlainText(element?.border, "transparent"),
-    align: asPlainText(element?.align, "center"),
-    bold: !!element?.bold,
-  };
-}
-
-function resolveTemplateName(tpl, index = 0) {
-  const raw = tpl?.name ?? tpl?.title ?? tpl?.config?.name ?? tpl?.config?.title;
-  return asPlainText(raw, `قالب ${index + 1}`);
 }
 
 function getInvoiceItems(invoice) {
@@ -129,6 +65,16 @@ function getInvoiceItems(invoice) {
   if (Array.isArray(invoice?.invoice_items)) return invoice.invoice_items;
   if (Array.isArray(invoice?.details)) return invoice.details;
   return [];
+}
+
+function normalizeConfig(config) {
+  const source = config && typeof config === "object" ? config : defaultConfig;
+  return {
+    ...defaultConfig,
+    ...source,
+    theme: { ...defaultConfig.theme, ...(source.theme || {}) },
+    elements: Array.isArray(source.elements) && source.elements.length ? source.elements : defaultConfig.elements,
+  };
 }
 
 function getInvoiceTitle(invoice, fa) {
@@ -158,145 +104,47 @@ function paymentLabel(status, fa) {
     unpaid: "تسویه نشده",
     partial: "تسویه ناقص",
     draft: "پیش‌نویس",
+    final: "نهایی",
   }[key] || key || "-";
 }
 
-function normalizeConfig(config) {
-  const source = config && typeof config === "object" ? config : defaultPrintConfig;
-  return {
-    ...defaultPrintConfig,
-    ...source,
-    theme: { ...defaultPrintConfig.theme, ...(source.theme || {}) },
-    elements: (Array.isArray(source.elements) && source.elements.length ? source.elements : defaultPrintConfig.elements).map(normalizeElement),
-  };
-}
-
-
-function getBackendBase() {
-  const raw = String(API_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
-  return raw.replace(/\/api$/i, "");
-}
-
-function normalizeTemplateList(payload) {
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload?.templates)
-    ? payload.templates
-    : [];
-
-  return list
-    .filter(Boolean)
-    .map((tpl, index) => {
-      const normalizedConfig = normalizeConfig(tpl.config || tpl.template || tpl);
-      return {
-        id: tpl.id ?? tpl.template_id ?? resolveTemplateName(tpl, index),
-        name: resolveTemplateName(tpl, index),
-        page_size: tpl.page_size || normalizedConfig.page_size || "A4",
-        config: normalizedConfig,
-        raw: tpl,
-      };
-    })
-    .filter((tpl) => tpl.id !== undefined && tpl.id !== null);
-}
-
-async function fetchJsonSafe(url, options = {}) {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} - ${url}`);
-  return await res.json();
-}
-
-async function loadPdfTemplatesUnified() {
-  const base = getBackendBase();
-  const urls = [
-    `${base}/designer/templates`,
-    `${base}/api/designer/templates`,
-  ];
-
+function formatJalali(value, fa) {
+  if (!value) return "-";
   try {
-    const data = await getPdfTemplates();
-    const normalized = normalizeTemplateList(data);
-    if (normalized.length) return normalized;
-  } catch (err) {
-    console.warn("getPdfTemplates failed, trying direct endpoints", err);
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(d);
+  } catch {
+    return String(value);
   }
-
-  for (const url of urls) {
-    try {
-      const data = await fetchJsonSafe(url);
-      const normalized = normalizeTemplateList(data);
-      if (normalized.length) return normalized;
-    } catch (err) {
-      console.warn("template endpoint failed", url, err);
-    }
-  }
-
-  return [];
 }
 
-async function savePdfTemplateUnified(payload) {
-  const base = getBackendBase();
-  const body = {
-    name: payload.name,
-    page_size: payload.page_size || payload.config?.page_size || "A4",
-    config: normalizeConfig(payload.config),
-  };
-
-  try {
-    return await savePdfTemplate(body);
-  } catch (err) {
-    console.warn("savePdfTemplate failed, trying direct endpoint", err);
-  }
-
-  const urls = [
-    `${base}/designer/template`,
-    `${base}/designer/templates`,
-    `${base}/api/designer/template`,
-    `${base}/api/designer/templates`,
-  ];
-
-  let lastError = null;
-  for (const url of urls) {
-    try {
-      return await fetchJsonSafe(url, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-    } catch (err) {
-      lastError = err;
-      console.warn("save template endpoint failed", url, err);
-    }
-  }
-  throw lastError || new Error("Template save failed");
+function snap(value) {
+  return Math.round(Number(value || 0) / 10) * 10;
 }
 
 export default function InvoicePrint({ invoice: propInvoice = null }) {
   const { id } = useParams();
-  const { language, n, money, date, dir } = useLanguage();
+  const { language, n, money, dir } = useLanguage();
   const fa = language === "fa";
 
   const [cachedInvoice, setCachedInvoice] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [templateName, setTemplateName] = useState(fa ? "قالب چاپ فاکتور" : "Invoice print template");
-  const [config, setConfig] = useState(defaultPrintConfig);
+  const [config, setConfig] = useState(defaultConfig);
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [editMode, setEditMode] = useState(true);
   const [drag, setDrag] = useState(null);
   const [resize, setResize] = useState(null);
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(0.82);
   const [showGrid, setShowGrid] = useState(true);
   const [message, setMessage] = useState("");
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-
-  const canvasRef = useRef(null);
 
   const invoice = propInvoice || cachedInvoice;
   const items = useMemo(() => getInvoiceItems(invoice), [invoice]);
@@ -306,9 +154,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const totals = useMemo(() => {
     const subtotal =
       invoice?.subtotal ??
-      items.reduce((sum, item) => {
-        return sum + toNumber(item.quantity) * toNumber(item.unit_price ?? item.price);
-      }, 0);
+      items.reduce((sum, item) => sum + toNumber(item.quantity) * toNumber(item.unit_price ?? item.price), 0);
 
     const discount = toNumber(invoice?.discount ?? invoice?.discount_amount);
     const tax = toNumber(invoice?.tax ?? invoice?.tax_amount);
@@ -323,52 +169,35 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   useEffect(() => {
     async function loadCachedInvoice() {
       if (propInvoice || !id) return;
-
-      const cached = await getCache(INVOICES_CACHE_KEY);
-      if (Array.isArray(cached)) {
-        const found = cached.find((x) => String(x.id) === String(id));
-        setCachedInvoice(found || null);
+      try {
+        const cached = await getCache(INVOICES_CACHE_KEY);
+        if (Array.isArray(cached)) {
+          const found = cached.find((x) => String(x.id) === String(id));
+          setCachedInvoice(found || null);
+        }
+      } catch (e) {
+        console.error("Invoice cache error:", e);
       }
     }
-
     loadCachedInvoice();
   }, [id, propInvoice]);
 
   useEffect(() => {
     loadTemplates();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    function refreshOnFocus() {
-      loadTemplates();
-    }
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) refreshOnFocus();
-    });
-    return () => {
-      window.removeEventListener("focus", refreshOnFocus);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadTemplates() {
     try {
       setLoadingTemplates(true);
-      const normalized = await loadPdfTemplatesUnified();
+      const data = await getPdfTemplates();
+      const normalized = (Array.isArray(data) ? data : []).map((tpl) => ({
+        ...tpl,
+        config: normalizeConfig(tpl.config),
+      }));
       setTemplates(normalized);
-      if (!normalized.length) {
-        setMessage(
-          fa
-            ? "قالبی از بک‌اند دریافت نشد. آدرس /designer/templates را بررسی کن."
-            : "No template was received from backend. Check /designer/templates."
-        );
-      }
     } catch (err) {
       console.error("Print templates loading error", err);
       setTemplates([]);
-      setMessage(fa ? "خطا در دریافت قالب‌های چاپ." : "Template loading error.");
     } finally {
       setLoadingTemplates(false);
     }
@@ -390,22 +219,19 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
     if (templateId === "default") {
       setTemplateName(fa ? "قالب چاپ فاکتور" : "Invoice print template");
-      updateConfig(defaultPrintConfig);
+      updateConfig(defaultConfig);
       setSelectedElementId("title");
+      setMessage(fa ? "قالب پیش‌فرض اعمال شد." : "Default template applied.");
       return;
     }
 
     const template = templates.find((tpl) => String(tpl.id) === String(templateId));
-    if (!template) {
-      setMessage(fa ? "قالب انتخاب‌شده پیدا نشد. دوباره دریافت را بزن." : "Selected template was not found. Refresh templates.");
-      return;
-    }
+    if (!template) return;
 
-    const normalizedConfig = normalizeConfig(template.config);
-    setTemplateName(asPlainText(template.name, fa ? "قالب چاپ" : "Print template"));
-    updateConfig(normalizedConfig);
-    setSelectedElementId((normalizedConfig.elements || [])[0]?.id || "title");
-    setMessage(fa ? "قالب انتخاب شد و در پیش‌نمایش اعمال شد." : "Template loaded in preview.");
+    setTemplateName(template.name || (fa ? "قالب چاپ" : "Print template"));
+    updateConfig(template.config || defaultConfig);
+    setSelectedElementId((template.config?.elements || [])[0]?.id || "title");
+    setMessage(fa ? "قالب انتخاب شد و روی پیش‌نمایش اعمال شد." : "Template loaded in preview.");
   }
 
   async function saveAsTemplate() {
@@ -417,28 +243,25 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
     if (!newName) return;
 
-    await savePdfTemplateUnified({
+    await savePdfTemplate({
       name: newName,
       page_size: config.page_size,
-      config: normalizeConfig(config),
+      config,
     });
 
-    setTemplateName(newName);
-    setMessage(fa ? "قالب جدید ذخیره شد و لیست قالب‌ها دوباره دریافت شد." : "New template saved and template list refreshed.");
+    setMessage(fa ? "قالب جدید ذخیره شد." : "New template saved.");
     await loadTemplates();
   }
 
   function duplicateElement() {
     if (!selectedElement) return;
-
     const copy = {
-      ...selectedElement,
+      ...clone(selectedElement),
       id: `${selectedElement.id}_copy_${Date.now()}`,
-      label: `${asPlainText(selectedElement.label, selectedElement.type)} کپی`,
+      label: `${selectedElement.label || selectedElement.type} کپی`,
       x: selectedElement.x + 20,
       y: selectedElement.y + 20,
     };
-
     setConfig((prev) => ({ ...prev, elements: [...prev.elements, copy] }));
     setSelectedElementId(copy.id);
   }
@@ -448,22 +271,6 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     const nextElements = config.elements.filter((el) => el.id !== selectedElement.id);
     setConfig((prev) => ({ ...prev, elements: nextElements }));
     setSelectedElementId(nextElements[0]?.id || "");
-  }
-
-  function bringToFront() {
-    if (!selectedElement) return;
-    setConfig((prev) => ({
-      ...prev,
-      elements: [...prev.elements.filter((el) => el.id !== selectedElement.id), selectedElement],
-    }));
-  }
-
-  function sendToBack() {
-    if (!selectedElement) return;
-    setConfig((prev) => ({
-      ...prev,
-      elements: [selectedElement, ...prev.elements.filter((el) => el.id !== selectedElement.id)],
-    }));
   }
 
   function onElementMouseDown(event, element) {
@@ -525,28 +332,11 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setResize(null);
   }
 
-  function handlePrint() {
-    setTimeout(() => window.print(), 100);
-  }
-
-  function openBackendPrint() {
-    const query = new URLSearchParams({
-      page_size: config.page_size || "A4",
-      edit: "1",
-    });
-
-    if (selectedTemplateId && selectedTemplateId !== "default") {
-      query.set("template_id", selectedTemplateId);
-    }
-
-    window.open(`${API_URL}/print/invoice/${invoice.id}?${query.toString()}`, "_blank", "noreferrer");
-  }
-
   function replaceTokens(text) {
     const customerName = invoice?.customerName || invoice?.customer_name || invoice?.customer?.name || "-";
     const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || "ثبت نشده";
     const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || "ثبت نشده";
-    const invoiceDate = date(invoice?.created_at || new Date());
+    const invoiceDate = formatJalali(invoice?.created_at || new Date(), fa);
     const invoiceTitle = getInvoiceTitle(invoice, fa);
     const status = paymentLabel(invoice?.payment_status || invoice?.status, fa);
 
@@ -572,46 +362,36 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   function renderElement(element) {
-    if (element.type === "table") {
-      return <InvoiceItemsTable items={items} fa={fa} n={n} money={money} />;
-    }
-
-    if (element.type === "totals") {
-      return <InvoiceTotals totals={totals} fa={fa} money={money} />;
-    }
+    if (element.type === "table") return <ItemsTable items={items} fa={fa} n={n} money={money} />;
+    if (element.type === "totals") return <TotalsBox totals={totals} fa={fa} money={money} />;
 
     if (element.type === "qr") {
       return (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-700">
           <div className="w-14 h-14 border-4 border-slate-800 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-white">
-            <span className="bg-slate-900" />
-            <span />
-            <span className="bg-slate-900" />
-            <span />
-            <span className="bg-slate-900" />
-            <span />
-            <span className="bg-slate-900" />
-            <span />
-            <span className="bg-slate-900" />
+            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
+            <span /><span className="bg-slate-900" /><span />
+            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
           </div>
           <small>QR #{n(invoice?.id || "")}</small>
         </div>
       );
     }
 
-    if (element.type === "logo") {
+    if (element.type === "barcode") {
       return (
-        <div className="w-full h-full flex items-center justify-center text-cyan-700 font-black">
-          {replaceTokens(asPlainText(element.text, "LOGO"))}
+        <div className="w-full h-full flex flex-col items-center justify-center text-slate-800">
+          <div className="tracking-[6px] text-3xl">|||| || ||| |||| || |</div>
+          <small>{invoice?.id || ""}</small>
         </div>
       );
     }
 
-    return (
-      <div className="whitespace-pre-line leading-relaxed w-full">
-        {replaceTokens(asPlainText(element.text, ""))}
-      </div>
-    );
+    if (element.type === "logo") {
+      return <div className="w-full h-full flex items-center justify-center text-cyan-700 font-black">{replaceTokens(element.text || "LOGO")}</div>;
+    }
+
+    return <div className="whitespace-pre-line leading-relaxed w-full">{replaceTokens(element.text)}</div>;
   }
 
   if (!invoice) {
@@ -621,21 +401,21 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           {fa ? "بازگشت به فاکتورها" : "Back to invoices"}
         </Link>
         <div className="mt-6 text-slate-300">
-          {fa ? "فاکتور پیدا نشد یا هنوز در کش آفلاین موجود نیست." : "Invoice not found."}
+          {fa ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود." : "Invoice not found."}
         </div>
       </section>
     );
   }
 
   return (
-    <section dir={dir || (fa ? "rtl" : "ltr")} className="print-studio-page min-h-screen bg-slate-950 text-white p-5">
+    <section dir={dir} className="print-studio-page min-h-screen bg-slate-950 text-white p-5">
       <div className="no-print flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-3xl font-black text-cyan-400">
             {fa ? "استودیوی چاپ فاکتور" : "Invoice Print Studio"}
           </h1>
           <p className="text-slate-400 mt-2">
-            {fa ? `فاکتور شماره ${n(invoice.id)} را با قالب دلخواه چاپ یا قبل چاپ ویرایش کن.` : `Print invoice #${invoice.id} with a saved template.`}
+            {fa ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.` : `Print invoice #${invoice.id} with a saved template.`}
           </p>
         </div>
 
@@ -650,7 +430,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
             {fa ? "ذخیره به عنوان قالب" : "Save as template"}
           </button>
 
-          <button type="button" onClick={handlePrint} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
             <Printer size={18} />
             {fa ? "چاپ / ذخیره PDF" : "Print / PDF"}
           </button>
@@ -670,13 +450,11 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
             {fa ? "قالب چاپ" : "Print Template"}
           </h2>
 
-          <Field label={fa ? `انتخاب قالب (${templates.length})` : `Template (${templates.length})`}>
+          <Field label={fa ? "انتخاب قالب ذخیره‌شده" : "Saved template"}>
             <select value={selectedTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className="studio-input">
               <option value="default">{fa ? "قالب پیش‌فرض سریع" : "Default template"}</option>
               {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {asPlainText(template.name, fa ? "قالب چاپ" : "Print template")}
-                </option>
+                <option key={template.id} value={template.id}>{template.name}</option>
               ))}
             </select>
           </Field>
@@ -715,13 +493,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           </div>
 
           <button onClick={() => setShowGrid((v) => !v)} className="w-full studio-tool-button">
-            <Move size={16} />
+            <Grid3X3 size={16} />
             {showGrid ? (fa ? "Grid روشن" : "Grid on") : fa ? "Grid خاموش" : "Grid off"}
-          </button>
-
-          <button onClick={openBackendPrint} className="w-full px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex justify-center gap-2">
-            <ExternalLink size={18} />
-            {fa ? "باز کردن چاپ بک‌اند" : "Open backend print"}
           </button>
         </aside>
 
@@ -732,38 +505,22 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           onMouseLeave={stopPointerActions}
         >
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-cyan-300 font-black flex items-center gap-2">
-              <Move size={20} />
-              {fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}
-            </div>
-            <div className="text-slate-400 text-sm">
-              {PAGE_SIZES[config.page_size]?.label || config.page_size} • {Math.round(zoom * 100)}%
-            </div>
+            <div className="text-cyan-300 font-black">{fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}</div>
+            <div className="text-slate-400 text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
           </div>
 
-          <InvoiceCanvas
-            refObj={canvasRef}
-            page={page}
-            zoom={zoom}
-            showGrid={showGrid}
-            config={config}
-            selectedElementId={selectedElementId}
-            editMode={editMode}
-            onElementMouseDown={onElementMouseDown}
-            onResizeMouseDown={onResizeMouseDown}
-            renderElement={renderElement}
-          />
+          <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} fa={fa} />
         </main>
 
         <aside className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
           <h2 className="text-cyan-300 font-black flex items-center gap-2">
             <Settings2 size={20} />
-            {fa ? "تنظیمات بخش انتخاب‌شده" : "Selected element"}
+            {fa ? "تنظیمات بخش" : "Selected element"}
           </h2>
 
           {selectedElement ? (
             <>
-              <div className="font-black text-white">{asPlainText(selectedElement.label, selectedElement.type)}</div>
+              <div className="font-black text-white">{selectedElement.label || selectedElement.type}</div>
 
               <div className="grid grid-cols-2 gap-2">
                 <NumberProp label="X" value={selectedElement.x} onChange={(v) => updateElement(selectedElement.id, { x: Number(v) })} />
@@ -773,34 +530,18 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
               </div>
 
               <Field label={fa ? "متن" : "Text"}>
-                <textarea value={asPlainText(selectedElement.text, "")} onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })} rows={4} className="studio-input" />
+                <textarea value={selectedElement.text || ""} onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })} rows={4} className="studio-input" />
               </Field>
 
               <NumberProp label={fa ? "سایز فونت" : "Font size"} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />
+              <NumberProp label={fa ? "گردی گوشه" : "Radius"} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />
 
               <ColorProp label={fa ? "رنگ متن" : "Text color"} value={selectedElement.color} onChange={(v) => updateElement(selectedElement.id, { color: v })} />
               <ColorProp label={fa ? "پس‌زمینه" : "Background"} value={selectedElement.bg} onChange={(v) => updateElement(selectedElement.id, { bg: v })} />
               <ColorProp label={fa ? "خط دور" : "Border"} value={selectedElement.border} onChange={(v) => updateElement(selectedElement.id, { border: v })} />
 
-              <Field label={fa ? "چینش" : "Align"}>
-                <select value={selectedElement.align || "center"} onChange={(e) => updateElement(selectedElement.id, { align: e.target.value })} className="studio-input">
-                  <option value="right">{fa ? "راست" : "Right"}</option>
-                  <option value="center">{fa ? "وسط" : "Center"}</option>
-                  <option value="left">{fa ? "چپ" : "Left"}</option>
-                </select>
-              </Field>
-
-              <label className="bg-slate-800 rounded-2xl p-3 flex justify-between">
-                <span>Bold</span>
-                <input type="checkbox" checked={!!selectedElement.bold} onChange={(e) => updateElement(selectedElement.id, { bold: e.target.checked })} />
-              </label>
-
-              <div className="grid grid-cols-1 gap-2">
-                <button onClick={duplicateElement} className="studio-tool-button"><Copy size={16} /> {fa ? "کپی از بخش" : "Duplicate"}</button>
-                <button onClick={bringToFront} className="studio-tool-button"><ArrowUp size={16} /> {fa ? "آوردن جلو" : "Bring front"}</button>
-                <button onClick={sendToBack} className="studio-tool-button"><ArrowDown size={16} /> {fa ? "فرستادن عقب" : "Send back"}</button>
-                <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
-              </div>
+              <button onClick={duplicateElement} className="studio-tool-button w-full"><Copy size={16} /> {fa ? "کپی از بخش" : "Duplicate"}</button>
+              <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
             </>
           ) : (
             <div className="text-slate-400">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
@@ -809,17 +550,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       </div>
 
       <div className="print-only">
-        <InvoiceCanvas
-          page={page}
-          zoom={1}
-          showGrid={false}
-          config={config}
-          selectedElementId={null}
-          editMode={false}
-          onElementMouseDown={() => {}}
-          onResizeMouseDown={() => {}}
-          renderElement={renderElement}
-        />
+        <Canvas page={page} zoom={1} showGrid={false} config={config} selectedElementId={null} editMode={false} onElementMouseDown={() => {}} onResizeMouseDown={() => {}} renderElement={renderElement} fa={fa} />
       </div>
 
       <style>{`
@@ -867,63 +598,43 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   );
 }
 
-function InvoiceCanvas({
-  refObj,
-  page,
-  zoom,
-  showGrid,
-  config,
-  selectedElementId,
-  editMode,
-  onElementMouseDown,
-  onResizeMouseDown,
-  renderElement,
-}) {
-  const scaledW = Math.ceil(page.w * zoom);
-  const scaledH = Math.ceil(page.h * zoom);
-
+function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, fa }) {
   return (
-    <div className="w-full overflow-auto pb-10">
-      <div className="mx-auto relative" style={{ width: scaledW, height: scaledH, minWidth: scaledW }}>
-        <div
-          ref={refObj}
-          className="print-canvas relative bg-white text-slate-950 shadow-2xl origin-top-left"
-          style={{
-            width: page.w,
-            height: page.h,
-            transform: `scale(${zoom})`,
-            transformOrigin: "top left",
-            backgroundImage: showGrid
-              ? "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)"
-              : "none",
-            backgroundSize: "20px 20px",
-          }}
-        >
+    <div className="min-w-max flex justify-center pb-10">
+      <div
+        className="print-canvas relative bg-white text-slate-950 shadow-2xl origin-top"
+        style={{
+          width: page.w,
+          height: page.h,
+          transform: `scale(${zoom})`,
+          backgroundImage: showGrid
+            ? "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)"
+            : "none",
+          backgroundSize: "20px 20px",
+        }}
+      >
         {(config.elements || []).map((element) => (
           <div
             key={element.id}
             onMouseDown={(e) => onElementMouseDown(e, element)}
-            className={`absolute select-none overflow-hidden flex items-center justify-center ${
-              editMode ? "cursor-move" : ""
-            } ${selectedElementId === element.id ? "ring-2 ring-cyan-500" : ""}`}
+            className={`absolute select-none overflow-hidden flex items-center justify-center ${editMode ? "cursor-move" : ""} ${selectedElementId === element.id ? "ring-2 ring-cyan-500" : ""}`}
             style={{
-              left: toNumber(element.x),
-              top: toNumber(element.y),
-              width: toNumber(element.w),
-              height: toNumber(element.h),
-              color: asPlainText(element.color, "#0f172a"),
-              background: asPlainText(element.bg, "#ffffff"),
-              border: `1px solid ${asPlainText(element.border, "transparent")}`,
-              borderRadius: toNumber(element.radius),
-              fontSize: toNumber(element.fontSize),
+              left: element.x,
+              top: element.y,
+              width: element.w,
+              height: element.h,
+              color: element.color,
+              background: element.bg,
+              border: `1px solid ${element.border || "transparent"}`,
+              borderRadius: element.radius,
+              fontSize: element.fontSize,
               fontWeight: element.bold ? 900 : 500,
-              textAlign: asPlainText(element.align, "center"),
+              textAlign: element.align || "center",
               padding: 8,
-              direction: "rtl",
+              direction: fa ? "rtl" : "ltr",
             }}
           >
             {renderElement(element)}
-
             {editMode && selectedElementId === element.id && (
               <div
                 data-resize="true"
@@ -933,13 +644,12 @@ function InvoiceCanvas({
             )}
           </div>
         ))}
-        </div>
       </div>
     </div>
   );
 }
 
-function InvoiceItemsTable({ items, fa, n, money }) {
+function ItemsTable({ items, fa, n, money }) {
   return (
     <table className="w-full border-collapse text-[11px]">
       <thead>
@@ -968,9 +678,7 @@ function InvoiceItemsTable({ items, fa, n, money }) {
           })
         ) : (
           <tr>
-            <td colSpan={5} className="border p-2 text-center">
-              {fa ? "اقلامی ثبت نشده است." : "No items."}
-            </td>
+            <td colSpan={5} className="border p-2 text-center">{fa ? "اقلامی ثبت نشده است." : "No items."}</td>
           </tr>
         )}
       </tbody>
@@ -978,7 +686,7 @@ function InvoiceItemsTable({ items, fa, n, money }) {
   );
 }
 
-function InvoiceTotals({ totals, fa, money }) {
+function TotalsBox({ totals, fa, money }) {
   const rows = [
     [fa ? "جمع جزء" : "Subtotal", totals.subtotal],
     [fa ? "تخفیف" : "Discount", totals.discount],

@@ -937,7 +937,7 @@ export default function Customers() {
                           className="px-3 py-2 bg-slate-700 text-white rounded-xl flex items-center gap-1"
                         >
                           <Eye size={15} />
-                          {fa ? "پرونده" : "Profile"}
+                          {fa ? "پرونده 360°" : "360° Profile"}
                         </Link>
 
                         <button

@@ -115,7 +115,7 @@ export default function CustomerDetails() {
   function formatDate(value) {
     if (!value) return "-";
     try {
-      return new Intl.DateTimeFormat(isFa ? "fa-IR" : "en-US", {
+      return new Intl.DateTimeFormat(isFa ? "fa-IR-u-ca-persian" : "en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -393,10 +393,10 @@ export default function CustomerDetails() {
 
         <div className="text-right">
           <h1 className="text-4xl font-black text-cyan-400">
-            {isFa ? "پرونده طرف‌حساب" : "Party Profile"}
+            {isFa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Profile"}
           </h1>
           <p className="text-slate-400 mt-2">
-            {isFa ? `طرف‌حساب #${n(party.id)} - ${party.customer_type || "مشتری"}` : `Party #${party.id}`}
+            {isFa ? `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}` : `Complete finance and CRM profile #${party.id}`}
           </p>
         </div>
       </div>
@@ -467,8 +467,9 @@ export default function CustomerDetails() {
             <input
               value={followupDate}
               onChange={(e) => saveFollowupDate(e.target.value)}
-              type="date"
+              type="text"
               className="bg-slate-800 text-white rounded-2xl p-4 outline-none border border-cyan-500/10"
+              placeholder={isFa ? "مثال: ۱۴۰۵/۰۴/۲۵" : "Example: 2026/07/16"}
             />
             <button
               onClick={openWhatsApp}

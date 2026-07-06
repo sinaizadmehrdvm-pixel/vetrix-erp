@@ -30,6 +30,7 @@ from app.ai_bi.router import router as ai_bi_router
 from app.crm.router import router as crm_router
 from app.crm.sales_pipeline_routes import router as pipeline_router
 from app.smart_inventory.routes import router as smart_inventory_router
+from app.crm.files import router as crm_files_router
 
 
 class AppSettings(Base):
@@ -154,6 +155,7 @@ app.include_router(finance_router)
 app.include_router(ai_bi_router)
 app.include_router(pipeline_router)
 app.include_router(smart_inventory_router)
+app.include_router(crm_files_router)
 
 app.add_middleware(
     CORSMiddleware,
