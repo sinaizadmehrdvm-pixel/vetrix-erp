@@ -17,3 +17,5 @@ export const seedAccountingChart = () => request("/api/accounting/seed", { metho
 export const createAccountingAccount = (data) => request("/api/accounting/chart", { method: "POST", body: JSON.stringify(data) });
 export const updateAccountingAccount = (id, data) => request(`/api/accounting/chart/${id}`, { method: "PUT", body: JSON.stringify(data) });
 export const toggleAccountingAccount = (id) => request(`/api/accounting/chart/${id}/toggle`, { method: "POST" });
+export const deleteAccountingAccount = (id) =>
+  request(`/api/accounting/chart/${id}`, { method: "DELETE" });

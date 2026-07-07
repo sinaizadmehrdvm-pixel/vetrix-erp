@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -31,6 +30,7 @@ from app.crm.router import router as crm_router
 from app.crm.sales_pipeline_routes import router as pipeline_router
 from app.smart_inventory.routes import router as smart_inventory_router
 from app.crm.files import router as crm_files_router
+from app.accounting.router import router as accounting_router
 
 
 class AppSettings(Base):

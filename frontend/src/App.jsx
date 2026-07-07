@@ -27,6 +27,8 @@ import Customer360 from "./pages/crm/Customer360";
 import CrmDashboard from "./pages/CrmDashboard";
 import SmartInventory from "./pages/SmartInventory";
 import AiBusinessIntelligence from "./pages/AiBusinessIntelligence";
+import AccountingCore from "./pages/AccountingCore";
+import BusinessIntelligence from "./pages/BusinessIntelligence";
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -73,9 +75,11 @@ function AppContent() {
     <Route path="reports" element={<Reports />} />
     <Route path="ai-bi" element={<AiBusinessIntelligence />} />
     <Route path="finance" element={<FinanceCenter />} />
+     <Route path="accounting" element={<AccountingCore />} />
     <Route path="settings" element={<Settings />} />
     <Route path="crm" element={<CrmDashboard />} />
     <Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="business-intelligence" element={<BusinessIntelligence />} />
   </Route>
 </Routes>
     </>
