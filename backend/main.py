@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
+from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime, timedelta
 import hashlib
