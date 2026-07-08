@@ -11,6 +11,7 @@ import {
   Boxes,
   Warehouse as WarehouseIcon,
   BrainCircuit,
+  BookOpenCheck,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -24,6 +25,7 @@ const items = [
   { key: "products", icon: Package, path: "/products" },
   { key: "productCategories", icon: Boxes, path: "/product-categories" },
   { key: "invoices", icon: Receipt, path: "/invoices" },
+  { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries" },
   { key: "transactions", icon: ArrowRightLeft, path: "/transactions" },
   { key: "warehouse", icon: WarehouseIcon, path: "/warehouse" },
   { key: "expenses", icon: Wallet, path: "/expenses" },
