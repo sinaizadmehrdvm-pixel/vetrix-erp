@@ -50,42 +50,54 @@ function AppContent() {
 
   return (
     <>
-      <Toaster position={dir === "rtl" ? "top-left" : "top-right"} toastOptions={{ style: { background: "#111827", color: "#fff", border: "1px solid #1f2937" } }} />
+      <Toaster
+        position={dir === "rtl" ? "top-left" : "top-right"}
+        toastOptions={{
+          style: {
+            background: "#111827",
+            color: "#fff",
+            border: "1px solid #1f2937",
+          },
+        }}
+      />
       <Routes>
-  <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/invoice-designer" element={<InvoiceDesigner />} />
 
-  <Route path="/invoice-designer" element={<InvoiceDesigner />} />
-
-  <Route path="/" element={<MainLayout />}>
-    <Route index element={<Dashboard />} />
-    <Route path="dashboard" element={<Dashboard />} />
-    <Route path="customers" element={<Customers />} />
-    <Route path="customers/:id" element={<CustomerDetails />} />
-    <Route path="customers/:id/360" element={<Customer360 />} />
-    <Route path="products" element={<Products />} />
-    <Route path="product-categories" element={<ProductCategories />} />
-    <Route path="invoices" element={<Invoices />} />
-    <Route path="invoice-print/:id" element={<InvoicePrint />} />
-    <Route path="warehouse" element={<Warehouse />} />
-    <Route path="smart-inventory" element={<SmartInventory />} />
-    <Route path="transactions" element={<Transactions />} />
-    <Route path="payments" element={<Payments />} />
-    <Route path="receipts" element={<Receipts />} />
-    <Route path="expenses" element={<Expenses />} />
-    <Route path="reports" element={<Reports />} />
-    <Route path="ai-bi" element={<AiBusinessIntelligence />} />
-    <Route path="finance" element={<FinanceCenter />} />
-     <Route path="accounting" element={<AccountingCore />} />
-    <Route path="settings" element={<Settings />} />
-    <Route path="crm" element={<CrmDashboard />} />
-    <Route path="*" element={<Navigate to="/" replace />} />
-    <Route path="business-intelligence" element={<BusinessIntelligence />} />
-  </Route>
-</Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="customers/:id" element={<CustomerDetails />} />
+          <Route path="customers/:id/360" element={<Customer360 />} />
+          <Route path="products" element={<Products />} />
+          <Route path="product-categories" element={<ProductCategories />} />
+          <Route path="invoices" element={<Invoices />} />
+          <Route path="invoice-print/:id" element={<InvoicePrint />} />
+          <Route path="warehouse" element={<Warehouse />} />
+          <Route path="smart-inventory" element={<SmartInventory />} />
+          <Route path="transactions" element={<Transactions />} />
+          <Route path="payments" element={<Payments />} />
+          <Route path="receipts" element={<Receipts />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="ai-bi" element={<AiBusinessIntelligence />} />
+          <Route path="finance" element={<FinanceCenter />} />
+          <Route path="accounting" element={<AccountingCore />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="crm" element={<CrmDashboard />} />
+          <Route path="business-intelligence" element={<BusinessIntelligence />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
     </>
   );
 }
 
 export default function App() {
-  return <AuthProvider><AppContent /></AuthProvider>;
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
