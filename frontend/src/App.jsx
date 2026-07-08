@@ -28,6 +28,7 @@ import CrmDashboard from "./pages/CrmDashboard";
 import SmartInventory from "./pages/SmartInventory";
 import AiBusinessIntelligence from "./pages/AiBusinessIntelligence";
 import AccountingCore from "./pages/AccountingCore";
+import AccountingEntries from "./pages/AccountingEntries";
 import BusinessIntelligence from "./pages/BusinessIntelligence";
 
 function ProtectedRoute({ children }) {
@@ -60,6 +61,7 @@ function AppContent() {
           },
         }}
       />
+
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/invoice-designer" element={<InvoiceDesigner />} />
@@ -84,6 +86,7 @@ function AppContent() {
           <Route path="ai-bi" element={<AiBusinessIntelligence />} />
           <Route path="finance" element={<FinanceCenter />} />
           <Route path="accounting" element={<AccountingCore />} />
+          <Route path="accounting-entries" element={<AccountingEntries />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />
