@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8001";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001";
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -101,7 +101,7 @@ export async function createCrmNote(customerId, data) { return await request(`/a
 export async function deleteCrmNote(noteId) { return await request(`/api/crm/notes/${noteId}`, { method: "DELETE" }); }
 export async function getCrmTasks(customerId) { return await request(`/api/crm/customers/${customerId}/tasks`); }
 export async function createCrmTask(customerId, data) { return await request(`/api/crm/customers/${customerId}/tasks`, { method: "POST", body: JSON.stringify(data) }); }
-export async function updateCrmTask(taskId, data) { return await request(`/api/crm/tasks/${taskId}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function updateCrmTask(taskId, data) { return await request(`/api/crm/tasks/${taskId}`, { method: "PUT" , body: JSON.stringify(data) }); }
 export async function deleteCrmTask(taskId) { return await request(`/api/crm/tasks/${taskId}`, { method: "DELETE" }); }
 export async function getCrmInteractions(customerId) { return await request(`/api/crm/customers/${customerId}/interactions`); }
 export async function createCrmInteraction(customerId, data) { return await request(`/api/crm/customers/${customerId}/interactions`, { method: "POST", body: JSON.stringify(data) }); }
