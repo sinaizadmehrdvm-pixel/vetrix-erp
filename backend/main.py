@@ -44,6 +44,11 @@ from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
+from app.accounting.posting import (
+    cash_account_for_method,
+    delete_source_voucher,
+    post_balanced_voucher,
+)
 from app.accounting.integrity import (
     ALLOWED_INVOICE_TYPES,
     ALLOWED_PAYMENT_STATUSES,
@@ -985,6 +990,75 @@ def add_invoice_customer_entry(db: Session, invoice: Invoice):
         add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=invoice.total_amount)
     elif invoice.invoice_type == "return_buy":
         add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
+
+
+def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products):
+    description = f"ثبت خودکار فاکتور شماره {invoice.id}"
+    total = float(accounting_money(invoice.total_amount))
+    cost = float(accounting_money(sum(
+        float(item.quantity) * float(getattr(products[item.product_id], "buy_price", 0) or 0)
+        for item in items
+    )))
+    lines = []
+
+    if invoice.invoice_type == "sale":
+        lines = [
+            {"account_code": "1103", "debit": total, "description": description},
+            {"account_code": "4101", "credit": total, "description": description},
+            {"account_code": "5101", "debit": cost, "description": description},
+            {"account_code": "1201", "credit": cost, "description": description},
+        ]
+    elif invoice.invoice_type == "buy":
+        lines = [
+            {"account_code": "1201", "debit": total, "description": description},
+            {"account_code": "2101", "credit": total, "description": description},
+        ]
+    elif invoice.invoice_type == "return_sale":
+        lines = [
+            {"account_code": "4102", "debit": total, "description": description},
+            {"account_code": "1103", "credit": total, "description": description},
+            {"account_code": "1201", "debit": cost, "description": description},
+            {"account_code": "5101", "credit": cost, "description": description},
+        ]
+    elif invoice.invoice_type == "return_buy":
+        lines = [
+            {"account_code": "2101", "debit": total, "description": description},
+            {"account_code": "1201", "credit": total, "description": description},
+        ]
+    else:
+        delete_source_voucher("invoice", invoice.id, connection=db.connection())
+        return
+
+    post_balanced_voucher(
+        "invoice",
+        invoice.id,
+        description,
+        lines,
+        connection=db.connection(),
+    )
+
+
+def post_transaction_to_general_ledger(db: Session, entry: AccountingEntry, method: str):
+    amount = float(accounting_money(entry.credit or entry.debit))
+    cash_account = cash_account_for_method(method)
+    description = entry.description
+    if entry.source_type == "receipt":
+        lines = [
+            {"account_code": cash_account, "debit": amount, "description": description},
+            {"account_code": "1103", "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": "2101", "debit": amount, "description": description},
+            {"account_code": cash_account, "credit": amount, "description": description},
+        ]
+    post_balanced_voucher(
+        entry.source_type,
+        entry.id,
+        description,
+        lines,
+        connection=db.connection(),
+    )
 
 
 @app.post("/invoices")
