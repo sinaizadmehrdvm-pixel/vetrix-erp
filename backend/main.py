@@ -43,6 +43,15 @@ from app.smart_inventory.routes import router as smart_inventory_router
 from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
+from app.accounting.integrity import (
+    ALLOWED_INVOICE_TYPES,
+    ALLOWED_PAYMENT_STATUSES,
+    aggregate_item_quantities,
+    calculate_invoice_totals,
+    calculate_payment_status,
+    expected_settlement_type,
+    money as accounting_money,
+)
 
 
 class AppSettings(Base):
@@ -891,256 +900,205 @@ def delete_product(product_id: int):
         db.close()
         return {"status": "error", "message": str(e)}
 
+def invoice_settled_amount(db: Session, invoice: Invoice) -> float:
+    settlement_type = expected_settlement_type(invoice.invoice_type)
+    if not settlement_type:
+        return 0.0
+    entries = db.query(AccountingEntry).filter(
+        AccountingEntry.source_id == invoice.id,
+        AccountingEntry.source_type == settlement_type,
+    ).all()
+    if settlement_type == "receipt":
+        return float(sum(float(entry.credit or 0) for entry in entries))
+    return float(sum(float(entry.debit or 0) for entry in entries))
+
+
+def sync_invoice_payment_status(db: Session, invoice: Invoice):
+    settled = invoice_settled_amount(db, invoice)
+    invoice.payment_status = calculate_payment_status(invoice.total_amount, settled)
+    return settled
+
+
+def linked_invoice_settlements(db: Session, invoice_id: int):
+    return db.query(AccountingEntry).filter(
+        AccountingEntry.source_id == invoice_id,
+        AccountingEntry.source_type.in_(["receipt", "payment"]),
+    ).all()
+
+
+def validate_invoice_products(db: Session, data: InvoiceCreate):
+    quantities = aggregate_item_quantities(data.items)
+    products = {}
+    for product_id, required_quantity in quantities.items():
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            raise ValueError(f"Product with id {product_id} not found")
+        if data.invoice_type in {"sale", "return_buy"} and float(product.stock or 0) < required_quantity:
+            raise ValueError(
+                f"Not enough stock for product: {product.name}. "
+                f"Required: {required_quantity}, current: {float(product.stock or 0)}"
+            )
+        products[product_id] = product
+    return products
+
+
+def apply_invoice_stock(invoice_type: str, product: Product, quantity: float):
+    if invoice_type == "sale":
+        product.stock -= quantity
+    elif invoice_type == "buy":
+        product.stock += quantity
+    elif invoice_type == "return_sale":
+        product.stock += quantity
+    elif invoice_type == "return_buy":
+        product.stock -= quantity
+
+
+def reverse_invoice_stock(invoice_type: str, product: Product, quantity: float):
+    if invoice_type == "sale":
+        product.stock += quantity
+    elif invoice_type == "buy":
+        product.stock -= quantity
+    elif invoice_type == "return_sale":
+        product.stock -= quantity
+    elif invoice_type == "return_buy":
+        product.stock += quantity
+
+
+def add_invoice_customer_entry(db: Session, invoice: Invoice):
+    if invoice.invoice_type == "sale":
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice.id}", debit=invoice.total_amount)
+    elif invoice.invoice_type == "buy":
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice.id}", credit=invoice.total_amount)
+    elif invoice.invoice_type == "return_sale":
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=invoice.total_amount)
+    elif invoice.invoice_type == "return_buy":
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
+
+
 @app.post("/invoices")
 def create_invoice(data: InvoiceCreate):
     db: Session = SessionLocal()
     try:
-        allowed_types = ["sale", "buy", "proforma", "return_sale", "return_buy"]
-        if data.invoice_type not in allowed_types:
-            db.close()
-            return {"status": "error", "message": "Invalid invoice_type"}
-
+        if data.invoice_type not in ALLOWED_INVOICE_TYPES:
+            raise ValueError("Invalid invoice_type")
+        if data.payment_status not in ALLOWED_PAYMENT_STATUSES:
+            raise ValueError("Invalid payment_status")
+        if data.payment_status != "unpaid":
+            raise ValueError("New invoices must start with unpaid payment_status")
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
         if not customer:
-            db.close()
-            return {"status": "error", "message": "Customer not found"}
-        if not data.items:
-            db.close()
-            return {"status": "error", "message": "Invoice must have at least one item"}
-
-        subtotal = 0
-        for item in data.items:
-            product = db.query(Product).filter(Product.id == item.product_id).first()
-            if not product:
-                db.close()
-                return {"status": "error", "message": f"Product with id {item.product_id} not found"}
-            if item.quantity <= 0:
-                db.close()
-                return {"status": "error", "message": "Quantity must be greater than zero"}
-            if item.unit_price < 0:
-                db.close()
-                return {"status": "error", "message": "Unit price cannot be negative"}
-            if data.invoice_type in ["sale", "return_buy"] and product.stock < item.quantity:
-                db.close()
-                return {"status": "error", "message": f"Not enough stock for product: {product.name}", "current_stock": product.stock}
-            subtotal += item.quantity * item.unit_price
-
-        discount_amount = subtotal * (float(data.discount_percent or 0) / 100)
-        after_discount = subtotal - discount_amount
-        tax_amount = after_discount * (float(data.tax_percent or 0) / 100)
-        shipping_cost = float(data.shipping_cost or 0)
-        total_amount = after_discount + tax_amount + shipping_cost
-
+            raise ValueError("Customer not found")
+        totals = calculate_invoice_totals(data.items, data.discount_percent, data.tax_percent, data.shipping_cost)
+        products = validate_invoice_products(db, data)
         invoice = Invoice(
             invoice_type=data.invoice_type,
             customer_id=data.customer_id,
-            subtotal=subtotal,
-            discount_percent=data.discount_percent,
-            discount_amount=discount_amount,
-            tax_percent=data.tax_percent,
-            tax_amount=tax_amount,
-            shipping_cost=shipping_cost,
-            total_amount=total_amount,
-            payment_status=data.payment_status,
+            **totals,
+            payment_status="unpaid",
             status="draft" if data.invoice_type == "proforma" else "final",
             invoice_note=data.invoice_note,
             qr_enabled=data.qr_enabled,
         )
         db.add(invoice)
-        db.commit()
-        db.refresh(invoice)
-
+        db.flush()
         for item in data.items:
-            product = db.query(Product).filter(Product.id == item.product_id).first()
-            item_total = item.quantity * item.unit_price
-            invoice_item = InvoiceItem(invoice_id=invoice.id, product_id=item.product_id, quantity=item.quantity, unit_price=item.unit_price, total_price=item_total)
-
-            if data.invoice_type == "sale":
-                product.stock -= item.quantity
-            elif data.invoice_type == "buy":
-                product.stock += item.quantity
-            elif data.invoice_type == "return_sale":
-                product.stock += item.quantity
-            elif data.invoice_type == "return_buy":
-                product.stock -= item.quantity
-
-            db.add(invoice_item)
-
-        if data.invoice_type == "sale":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice.id}", debit=total_amount)
-        elif data.invoice_type == "buy":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice.id}", credit=total_amount)
-        elif data.invoice_type == "return_sale":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=total_amount)
-        elif data.invoice_type == "return_buy":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=total_amount)
-
+            product = products[item.product_id]
+            db.add(InvoiceItem(
+                invoice_id=invoice.id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                unit_price=float(accounting_money(item.unit_price)),
+                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price))),
+            ))
+            apply_invoice_stock(data.invoice_type, product, item.quantity)
+        add_invoice_customer_entry(db, invoice)
         db.commit()
         db.refresh(invoice)
-        result = {"status": "created", "invoice_id": invoice.id, "invoice_type": invoice.invoice_type, "customer_id": invoice.customer_id, "total_amount": invoice.total_amount, "items_count": len(data.items)}
-        db.close()
-        return result
-    except Exception as e:
+        return {
+            "status": "created", "invoice_id": invoice.id,
+            "invoice_type": invoice.invoice_type, "customer_id": invoice.customer_id,
+            "total_amount": invoice.total_amount, "payment_status": invoice.payment_status,
+            "items_count": len(data.items),
+        }
+    except ValueError as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
-
-
 
 
 @app.put("/invoices/{invoice_id}")
 def update_invoice(invoice_id: int, data: InvoiceCreate):
     db: Session = SessionLocal()
     try:
-        allowed_types = ["sale", "buy", "proforma", "return_sale", "return_buy"]
-        if data.invoice_type not in allowed_types:
-            db.close()
-            return {"status": "error", "message": "Invalid invoice_type"}
-
+        if data.invoice_type not in ALLOWED_INVOICE_TYPES:
+            raise ValueError("Invalid invoice_type")
+        if data.payment_status not in ALLOWED_PAYMENT_STATUSES:
+            raise ValueError("Invalid payment_status")
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
-            db.close()
-            return {"status": "error", "message": "Invoice not found"}
-
+            raise ValueError("Invoice not found")
+        if linked_invoice_settlements(db, invoice_id):
+            raise ValueError("Cannot edit an invoice with linked payment or receipt transactions")
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
         if not customer:
-            db.close()
-            return {"status": "error", "message": "Customer not found"}
-
-        if not data.items:
-            db.close()
-            return {"status": "error", "message": "Invoice must have at least one item"}
-
-        # 1) Reverse previous inventory effect.
+            raise ValueError("Customer not found")
+        old_customer_id = invoice.customer_id
         old_items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
         for old_item in old_items:
             product = db.query(Product).filter(Product.id == old_item.product_id).first()
             if product:
-                if invoice.invoice_type == "sale":
-                    product.stock += old_item.quantity
-                elif invoice.invoice_type == "buy":
-                    product.stock -= old_item.quantity
-                elif invoice.invoice_type == "return_sale":
-                    product.stock -= old_item.quantity
-                elif invoice.invoice_type == "return_buy":
-                    product.stock += old_item.quantity
-
-        # 2) Remove previous items and accounting entries.
-        for old_item in old_items:
+                reverse_invoice_stock(invoice.invoice_type, product, old_item.quantity)
             db.delete(old_item)
-
-        old_entries = db.query(AccountingEntry).filter(
+        db.query(AccountingEntry).filter(
             AccountingEntry.source_type == "invoice",
             AccountingEntry.source_id == invoice_id,
-        ).all()
-        for old_entry in old_entries:
-            db.delete(old_entry)
-
+        ).delete(synchronize_session=False)
         db.flush()
-
-        # 3) Validate and calculate the new invoice.
-        subtotal = 0
-        product_cache = {}
-        for item in data.items:
-            product = db.query(Product).filter(Product.id == item.product_id).first()
-            if not product:
-                db.rollback()
-                db.close()
-                return {"status": "error", "message": f"Product with id {item.product_id} not found"}
-
-            if item.quantity <= 0:
-                db.rollback()
-                db.close()
-                return {"status": "error", "message": "Quantity must be greater than zero"}
-
-            if item.unit_price < 0:
-                db.rollback()
-                db.close()
-                return {"status": "error", "message": "Unit price cannot be negative"}
-
-            if data.invoice_type in ["sale", "return_buy"] and product.stock < item.quantity:
-                db.rollback()
-                db.close()
-                return {
-                    "status": "error",
-                    "message": f"Not enough stock for product: {product.name}",
-                    "current_stock": product.stock,
-                }
-
-            product_cache[item.product_id] = product
-            subtotal += item.quantity * item.unit_price
-
-        discount_amount = subtotal * (float(data.discount_percent or 0) / 100)
-        after_discount = subtotal - discount_amount
-        tax_amount = after_discount * (float(data.tax_percent or 0) / 100)
-        shipping_cost = float(data.shipping_cost or 0)
-        total_amount = after_discount + tax_amount + shipping_cost
-
-        # 4) Update invoice header.
+        totals = calculate_invoice_totals(data.items, data.discount_percent, data.tax_percent, data.shipping_cost)
+        products = validate_invoice_products(db, data)
         invoice.invoice_type = data.invoice_type
         invoice.customer_id = data.customer_id
-        invoice.subtotal = subtotal
-        invoice.discount_percent = data.discount_percent
-        invoice.discount_amount = discount_amount
-        invoice.tax_percent = data.tax_percent
-        invoice.tax_amount = tax_amount
-        invoice.shipping_cost = shipping_cost
-        invoice.total_amount = total_amount
-        invoice.payment_status = data.payment_status
+        for key, value in totals.items():
+            setattr(invoice, key, value)
+        invoice.payment_status = "unpaid"
         invoice.status = "draft" if data.invoice_type == "proforma" else "final"
         invoice.invoice_note = data.invoice_note
         invoice.qr_enabled = data.qr_enabled
-
-        # 5) Insert new items and apply new stock effect.
         for item in data.items:
-            product = product_cache[item.product_id]
-            item_total = item.quantity * item.unit_price
-
-            invoice_item = InvoiceItem(
+            product = products[item.product_id]
+            db.add(InvoiceItem(
                 invoice_id=invoice.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                unit_price=item.unit_price,
-                total_price=item_total,
-            )
-
-            if data.invoice_type == "sale":
-                product.stock -= item.quantity
-            elif data.invoice_type == "buy":
-                product.stock += item.quantity
-            elif data.invoice_type == "return_sale":
-                product.stock += item.quantity
-            elif data.invoice_type == "return_buy":
-                product.stock -= item.quantity
-
-            db.add(invoice_item)
-
-        # 6) Insert new accounting entry.
-        if data.invoice_type == "sale":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice.id}", debit=total_amount)
-        elif data.invoice_type == "buy":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice.id}", credit=total_amount)
-        elif data.invoice_type == "return_sale":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=total_amount)
-        elif data.invoice_type == "return_buy":
-            add_customer_entry(db, data.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=total_amount)
-
+                unit_price=float(accounting_money(item.unit_price)),
+                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price))),
+            ))
+            apply_invoice_stock(data.invoice_type, product, item.quantity)
+        add_invoice_customer_entry(db, invoice)
+        db.flush()
+        rebuild_customer_balances(db, old_customer_id)
+        if data.customer_id != old_customer_id:
+            rebuild_customer_balances(db, data.customer_id)
         db.commit()
         db.refresh(invoice)
-        result = {
-            "status": "updated",
-            "invoice_id": invoice.id,
-            "invoice_type": invoice.invoice_type,
-            "customer_id": invoice.customer_id,
-            "total_amount": invoice.total_amount,
+        return {
+            "status": "updated", "invoice_id": invoice.id,
+            "invoice_type": invoice.invoice_type, "customer_id": invoice.customer_id,
+            "total_amount": invoice.total_amount, "payment_status": invoice.payment_status,
             "items_count": len(data.items),
         }
-        db.close()
-        return result
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @app.get("/invoices")
