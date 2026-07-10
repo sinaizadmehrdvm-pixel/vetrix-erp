@@ -14,6 +14,7 @@ import {
   BookOpenCheck,
   CalendarClock,
   History,
+  UserCog,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -27,15 +28,16 @@ const items = [
   { key: "products", icon: Package, path: "/products" },
   { key: "productCategories", icon: Boxes, path: "/product-categories" },
   { key: "invoices", icon: Receipt, path: "/invoices" },
-  { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries" },
-  { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods" },
-  { key: "auditTrail", icon: History, path: "/audit-trail", adminOnly: true },
-  { key: "transactions", icon: ArrowRightLeft, path: "/transactions" },
-  { key: "warehouse", icon: WarehouseIcon, path: "/warehouse" },
-  { key: "expenses", icon: Wallet, path: "/expenses" },
+  { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries", roles: ["admin", "accountant", "viewer", "user"] },
+  { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods", roles: ["admin", "accountant", "viewer", "user"] },
+  { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
+  { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
+  { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
+  { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
+  { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "reports", icon: BarChart3, path: "/reports" },
-  { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi" },
-  { key: "settings", icon: Settings, path: "/settings" },
+  { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi", roles: ["admin", "accountant", "viewer", "user"] },
+  { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
 ];
 
 export default function Sidebar() {
@@ -83,7 +85,7 @@ export default function Sidebar() {
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {items.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
+        {items.filter((item) => !item.roles || item.roles.includes(user?.role || "viewer")).map((item) => {
           const Icon = item.icon;
 
           return (
