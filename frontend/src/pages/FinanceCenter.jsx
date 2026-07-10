@@ -19,8 +19,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useLanguage } from "../localization/LanguageContext";
+import { API_URL, getAuthHeaders } from "../services/api";
 
-const API_URL = "http://127.0.0.1:8001";
 
 const demoAccounts = [
   { id: 1, name: "صندوق اصلی", type: "cash", balance: 25000000, color: "#22d3ee" },
@@ -91,9 +91,10 @@ export default function FinanceCenter() {
   });
 
   async function api(path, options = {}) {
+    const { headers, ...requestOptions } = options;
     const res = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      ...options,
+      ...requestOptions,
+      headers: getAuthHeaders(headers),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok || data?.status === "error") {
