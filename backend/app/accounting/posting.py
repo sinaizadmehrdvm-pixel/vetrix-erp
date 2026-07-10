@@ -123,7 +123,14 @@ def _delete_source(conn, source_type, source_id):
     )
 
 
-def post_balanced_voucher(source_type, source_id, description, lines, voucher_date=None):
+def post_balanced_voucher(
+    source_type,
+    source_id,
+    description,
+    lines,
+    voucher_date=None,
+    connection=None,
+):
     normalized = []
     total_debit = Decimal("0")
     total_credit = Decimal("0")
@@ -145,8 +152,8 @@ def post_balanced_voucher(source_type, source_id, description, lines, voucher_da
             f"Unbalanced automatic voucher: debit={total_debit}, credit={total_credit}"
         )
 
-    now = datetime.utcnow().isoformat()
-    with engine.begin() as conn:
+    def write(conn):
+        now = datetime.utcnow().isoformat()
         _ensure_schema(conn)
         _delete_source(conn, source_type, source_id)
         voucher_no = (
@@ -171,7 +178,6 @@ def post_balanced_voucher(source_type, source_id, description, lines, voucher_da
             "now": now,
         })
         voucher_id = result.lastrowid
-
         for line in normalized:
             account = conn.execute(
                 text("SELECT id, code, name FROM chart_accounts WHERE code=:code"),
@@ -194,14 +200,24 @@ def post_balanced_voucher(source_type, source_id, description, lines, voucher_da
                 "credit": float(line["credit"]),
                 "now": now,
             })
-
         return voucher_id
 
-
-def delete_source_voucher(source_type, source_id):
+    if connection is not None:
+        return write(connection)
     with engine.begin() as conn:
+        return write(conn)
+
+
+def delete_source_voucher(source_type, source_id, connection=None):
+    def delete(conn):
         _ensure_schema(conn)
         _delete_source(conn, source_type, source_id)
+
+    if connection is not None:
+        delete(connection)
+        return
+    with engine.begin() as conn:
+        delete(conn)
 
 
 def cash_account_for_method(method):
