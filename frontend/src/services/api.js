@@ -9,6 +9,54 @@ export function getAuthHeaders(headers = {}, includeJsonContentType = true) {
   };
 }
 
+function resolveApiResource(urlOrPath) {
+  return /^https?:\/\//i.test(urlOrPath) ? urlOrPath : `${API_URL}${urlOrPath}`;
+}
+
+export async function fetchAuthenticatedResource(urlOrPath, options = {}) {
+  const { headers, ...requestOptions } = options;
+  const response = await fetch(resolveApiResource(urlOrPath), {
+    ...requestOptions,
+    headers: getAuthHeaders(headers, false),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  }
+  return response;
+}
+
+export async function openAuthenticatedDocument(urlOrPath) {
+  const popup = window.open("", "_blank");
+  try {
+    const response = await fetchAuthenticatedResource(urlOrPath);
+    const objectUrl = URL.createObjectURL(await response.blob());
+
+    if (popup) {
+      popup.location.replace(objectUrl);
+    } else {
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+    }
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (error) {
+    popup?.close();
+    throw error;
+  }
+}
+
+export async function downloadAuthenticatedFile(urlOrPath, filename) {
+  const response = await fetchAuthenticatedResource(urlOrPath);
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
 async function request(path, options = {}) {
   const { headers, ...requestOptions } = options;
   const response = await fetch(`${API_URL}${path}`, {
