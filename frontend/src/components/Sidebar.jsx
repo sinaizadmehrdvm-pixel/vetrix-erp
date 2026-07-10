@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   BookOpenCheck,
   CalendarClock,
+  History,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -28,6 +29,7 @@ const items = [
   { key: "invoices", icon: Receipt, path: "/invoices" },
   { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries" },
   { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods" },
+  { key: "auditTrail", icon: History, path: "/audit-trail", adminOnly: true },
   { key: "transactions", icon: ArrowRightLeft, path: "/transactions" },
   { key: "warehouse", icon: WarehouseIcon, path: "/warehouse" },
   { key: "expenses", icon: Wallet, path: "/expenses" },
@@ -38,7 +40,7 @@ const items = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { t, dir } = useLanguage();
 
   function label(item) {
@@ -81,7 +83,7 @@ export default function Sidebar() {
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {items.map((item) => {
+        {items.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
           const Icon = item.icon;
 
           return (
