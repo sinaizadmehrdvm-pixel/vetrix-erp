@@ -24,13 +24,15 @@ export function AuthProvider({ children }) {
     let active = true;
 
     async function restoreSession() {
-      if (!token || !user) {
+      if (!token || !readStoredUser()) {
         if (active) setAuthReady(true);
         return;
       }
 
       try {
-        const response = await fetch(`${API_URL}/me-token/${encodeURIComponent(token)}`);
+        const response = await fetch(`${API_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await response.json().catch(() => null);
 
         if (response.ok && data?.status === "success" && data.user) {
@@ -66,7 +68,7 @@ export function AuthProvider({ children }) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok || data?.status !== "success" || !data?.access_token || !data?.user) {
-      throw new Error(data?.message || "Unable to sign in");
+      throw new Error(data?.message || data?.detail || "Unable to sign in");
     }
 
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
