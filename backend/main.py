@@ -48,6 +48,7 @@ from app.accounting.posting import (
     cash_account_for_method,
     delete_source_voucher,
     post_balanced_voucher,
+    settlement_counterpart_account,
 )
 from app.accounting.integrity import (
     ALLOWED_INVOICE_TYPES,
@@ -1038,18 +1039,27 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
     )
 
 
-def post_transaction_to_general_ledger(db: Session, entry: AccountingEntry, method: str):
+def post_transaction_to_general_ledger(
+    db: Session,
+    entry: AccountingEntry,
+    method: str,
+    invoice: Optional[Invoice] = None,
+):
     amount = float(accounting_money(entry.credit or entry.debit))
     cash_account = cash_account_for_method(method)
+    counterpart = settlement_counterpart_account(
+        invoice.invoice_type if invoice else None,
+        entry.source_type,
+    )
     description = entry.description
     if entry.source_type == "receipt":
         lines = [
             {"account_code": cash_account, "debit": amount, "description": description},
-            {"account_code": "1103", "credit": amount, "description": description},
+            {"account_code": counterpart, "credit": amount, "description": description},
         ]
     else:
         lines = [
-            {"account_code": "2101", "debit": amount, "description": description},
+            {"account_code": counterpart, "debit": amount, "description": description},
             {"account_code": cash_account, "credit": amount, "description": description},
         ]
     post_balanced_voucher(
@@ -1333,7 +1343,7 @@ def create_payment_or_receipt(data: PaymentCreate):
             float(accounting_money(invoice.total_amount - settled))
             if invoice else None
         )
-        post_transaction_to_general_ledger(db, entry, data.method)
+        post_transaction_to_general_ledger(db, entry, data.method, invoice)
         db.commit()
         return {
             "status": "created",
