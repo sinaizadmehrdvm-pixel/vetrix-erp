@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -6,7 +6,6 @@ from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime, timedelta
-import hashlib
 import os
 
 from app.database import SessionLocal, engine, Base
@@ -15,6 +14,14 @@ from app.models.customer import Customer
 from app.models.product import Product
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
+from app.auth import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    password_needs_upgrade,
+    verify_password,
+)
+from jwt import PyJWTError
 
 from app.notifications.alerts import get_low_stock_alerts
 from app.notifications.live import build_live_notifications
@@ -293,10 +300,6 @@ class AppSettingsUpdate(BaseModel):
     sms_api_key: str = ""
 
 
-def make_token(username: str):
-    return hashlib.sha256(username.encode()).hexdigest()
-
-
 def customer_balance(db: Session, customer_id: int) -> float:
     entries = (
         db.query(AccountingEntry)
@@ -501,57 +504,92 @@ def update_settings(data: AppSettingsUpdate):
 @app.post("/users")
 def create_user(data: UserCreate):
     db: Session = SessionLocal()
-    existing = db.query(User).filter(User.username == data.username).first()
-    if existing:
+    try:
+        existing = db.query(User).filter(User.username == data.username).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="User already exists")
+
+        user = User(
+            full_name=data.full_name,
+            username=data.username,
+            password=hash_password(data.password),
+            role=data.role,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {
+            "status": "created",
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+        }
+    finally:
         db.close()
-        return {"status": "error", "message": "User already exists"}
-    user = User(full_name=data.full_name, username=data.username, password=data.password, role=data.role)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    result = {"status": "created", "id": user.id, "username": user.username, "role": user.role}
-    db.close()
-    return result
+
+
+def user_to_auth_dict(user: User):
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "username": user.username,
+        "role": user.role,
+    }
 
 
 @app.get("/users")
 def list_users():
     db: Session = SessionLocal()
-    users = db.query(User).all()
-    db.close()
-    return users
+    try:
+        return [user_to_auth_dict(user) for user in db.query(User).all()]
+    finally:
+        db.close()
 
 
 @app.post("/login")
 def login(data: LoginRequest):
     db: Session = SessionLocal()
-    user = db.query(User).filter(User.username == data.username, User.password == data.password).first()
-    if not user:
+    try:
+        user = db.query(User).filter(User.username == data.username).first()
+        if not user or not verify_password(data.password, user.password):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+
+        if password_needs_upgrade(user.password):
+            user.password = hash_password(data.password)
+            db.commit()
+
+        token = create_access_token(user.id, user.username, user.role)
+        return {
+            "status": "success",
+            "message": "Login successful",
+            "access_token": token,
+            "token_type": "Bearer",
+            "user": user_to_auth_dict(user),
+        }
+    finally:
         db.close()
-        return {"status": "error", "message": "Invalid username or password"}
-    token = make_token(user.username)
-    result = {
-        "status": "success",
-        "message": "Login successful",
-        "access_token": token,
-        "token_type": "Bearer",
-        "user": {"id": user.id, "full_name": user.full_name, "username": user.username, "role": user.role},
-    }
-    db.close()
-    return result
 
 
-@app.get("/me-token/{token}")
-def me_token(token: str):
+@app.get("/me")
+def me(authorization: Optional[str] = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        claims = decode_access_token(token)
+        user_id = int(claims["sub"])
+    except (PyJWTError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
     db: Session = SessionLocal()
-    users = db.query(User).all()
-    for user in users:
-        if make_token(user.username) == token:
-            result = {"status": "success", "user": {"id": user.id, "full_name": user.full_name, "username": user.username, "role": user.role}}
-            db.close()
-            return result
-    db.close()
-    return {"status": "error", "message": "Invalid token"}
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        return {"status": "success", "user": user_to_auth_dict(user)}
+    finally:
+        db.close()
 
 
 @app.get("/customers")
