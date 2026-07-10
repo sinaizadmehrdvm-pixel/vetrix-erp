@@ -29,6 +29,7 @@ const SmartInventory = lazy(() => import("./pages/SmartInventory"));
 const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
 const AccountingCore = lazy(() => import("./pages/AccountingCore"));
 const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
+const FiscalPeriods = lazy(() => import("./pages/FiscalPeriods"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
@@ -117,6 +118,7 @@ function AppContent() {
           <Route path="finance" element={<FinanceCenter />} />
           <Route path="accounting" element={<AccountingCore />} />
           <Route path="accounting-entries" element={<AccountingEntries />} />
+          <Route path="fiscal-periods" element={<FiscalPeriods />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />
