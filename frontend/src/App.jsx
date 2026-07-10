@@ -32,7 +32,16 @@ import AccountingEntries from "./pages/AccountingEntries";
 import BusinessIntelligence from "./pages/BusinessIntelligence";
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+        Vetrix ERP...
+      </div>
+    );
+  }
+
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
@@ -64,9 +73,23 @@ function AppContent() {
 
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/invoice-designer" element={<InvoiceDesigner />} />
+        <Route
+          path="/invoice-designer"
+          element={
+            <ProtectedRoute>
+              <InvoiceDesigner />
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="/" element={<MainLayout />}>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />
