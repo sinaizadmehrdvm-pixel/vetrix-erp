@@ -1,10 +1,13 @@
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 TEST_DATABASE = Path(tempfile.gettempdir()) / f"vetrix-test-{os.getpid()}.db"
+TEST_BACKUP_DIR = Path(tempfile.gettempdir()) / f"vetrix-backups-{os.getpid()}"
 os.environ["VETRIX_DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
+os.environ["VETRIX_BACKUP_DIR"] = str(TEST_BACKUP_DIR)
 os.environ["VETRIX_JWT_SECRET"] = "integration-test-secret-not-for-production"
 
 from fastapi.testclient import TestClient
@@ -23,6 +26,7 @@ class ApiAccessControlTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.client.close()
         TEST_DATABASE.unlink(missing_ok=True)
+        shutil.rmtree(TEST_BACKUP_DIR, ignore_errors=True)
 
     def test_complete_authentication_and_authorization_flow(self):
         protected = self.client.get("/customers")
@@ -798,6 +802,114 @@ class ApiAccessControlTests(unittest.TestCase):
             json={"name": "Promoted sales customer"},
         )
         self.assertEqual(promoted_write.status_code, 200, promoted_write.text)
+
+
+    def test_zz_backup_verify_download_and_restore_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        viewer_login = self.client.post(
+            "/login",
+            json={
+                "username": "ci-warehouse",
+                "password": "StrongWarehousePassword!42",
+            },
+        )
+        viewer_headers = {
+            "Authorization": f"Bearer {viewer_login.json()['access_token']}"
+        }
+
+        forbidden = self.client.get(
+            "/api/backups",
+            headers=viewer_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403, forbidden.text)
+
+        created = self.client.post(
+            "/api/backups",
+            headers=admin_headers,
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        backup = created.json()
+        self.assertEqual(backup["status"], "success")
+        self.assertTrue(backup["valid"])
+        self.assertEqual(len(backup["sha256"]), 64)
+        filename = backup["filename"]
+
+        listed = self.client.get(
+            "/api/backups",
+            headers=admin_headers,
+        )
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertTrue(
+            any(item["filename"] == filename for item in listed.json()["items"])
+        )
+
+        verified = self.client.get(
+            f"/api/backups/{filename}/verify",
+            headers=admin_headers,
+        )
+        self.assertEqual(verified.status_code, 200, verified.text)
+        self.assertTrue(verified.json()["valid"])
+        self.assertEqual(verified.json()["sha256"], backup["sha256"])
+
+        download = self.client.get(
+            f"/api/backups/{filename}/download",
+            headers=admin_headers,
+        )
+        self.assertEqual(download.status_code, 200, download.text)
+        self.assertTrue(download.content.startswith(b"SQLite format 3"))
+
+        wrong_confirmation = self.client.post(
+            f"/api/backups/{filename}/restore",
+            headers=admin_headers,
+            json={"confirmation": "RESTORE wrong-file.db"},
+        )
+        self.assertEqual(wrong_confirmation.status_code, 400)
+
+        marker = self.client.post(
+            "/customers",
+            headers=admin_headers,
+            json={"name": "Must disappear after restore"},
+        )
+        self.assertEqual(marker.status_code, 200, marker.text)
+        marker_id = marker.json()["id"]
+
+        restored = self.client.post(
+            f"/api/backups/{filename}/restore",
+            headers=admin_headers,
+            json={"confirmation": f"RESTORE {filename}"},
+        )
+        self.assertEqual(restored.status_code, 200, restored.text)
+        self.assertEqual(restored.json()["status"], "restored")
+        self.assertTrue(restored.json()["safety_backup"].startswith(
+            "vetrix_pre_restore_"
+        ))
+
+        customers = self.client.get(
+            "/customers",
+            headers=admin_headers,
+        )
+        self.assertEqual(customers.status_code, 200, customers.text)
+        self.assertFalse(
+            any(item["id"] == marker_id for item in customers.json())
+        )
+
+        deleted = self.client.delete(
+            f"/api/backups/{filename}",
+            headers=admin_headers,
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json()["status"], "deleted")
+        missing = self.client.get(
+            f"/api/backups/{filename}/verify",
+            headers=admin_headers,
+        )
+        self.assertEqual(missing.status_code, 404)
 
 
 if __name__ == "__main__":
