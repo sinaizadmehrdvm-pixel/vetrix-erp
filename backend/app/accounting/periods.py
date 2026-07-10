@@ -83,6 +83,13 @@ def _period_dict(row):
 def assign_unassigned_vouchers(conn):
     """Attach legacy vouchers to periods without changing their global numbers."""
     ensure_fiscal_schema(conn)
+    voucher_table = conn.execute(text("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='accounting_vouchers'
+    """)).fetchone()
+    if not voucher_table:
+        return
+
     vouchers = conn.execute(text("""
         SELECT id, voucher_date
         FROM accounting_vouchers
@@ -305,16 +312,28 @@ def list_fiscal_periods():
     with engine.begin() as conn:
         ensure_fiscal_schema(conn)
         assign_unassigned_vouchers(conn)
-        rows = conn.execute(text("""
-            SELECT p.*,
-                   COUNT(v.id) AS vouchers_count,
-                   COALESCE(SUM(v.total_debit), 0) AS total_debit,
-                   COALESCE(SUM(v.total_credit), 0) AS total_credit
-            FROM fiscal_periods p
-            LEFT JOIN accounting_vouchers v ON v.fiscal_period_id = p.id
-            GROUP BY p.id
-            ORDER BY p.start_date DESC
-        """)).mappings().all()
+        voucher_table = conn.execute(text("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='accounting_vouchers'
+        """)).fetchone()
+        if voucher_table:
+            rows = conn.execute(text("""
+                SELECT p.*,
+                       COUNT(v.id) AS vouchers_count,
+                       COALESCE(SUM(v.total_debit), 0) AS total_debit,
+                       COALESCE(SUM(v.total_credit), 0) AS total_credit
+                FROM fiscal_periods p
+                LEFT JOIN accounting_vouchers v ON v.fiscal_period_id = p.id
+                GROUP BY p.id
+                ORDER BY p.start_date DESC
+            """)).mappings().all()
+        else:
+            rows = conn.execute(text("""
+                SELECT p.*, 0 AS vouchers_count,
+                       0 AS total_debit, 0 AS total_credit
+                FROM fiscal_periods p
+                ORDER BY p.start_date DESC
+            """)).mappings().all()
         return [dict(row) for row in rows]
 
 
