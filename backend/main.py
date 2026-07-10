@@ -1187,80 +1187,82 @@ def list_invoices():
 def create_payment_or_receipt(data: PaymentCreate):
     db: Session = SessionLocal()
     try:
+        if data.transaction_type not in {"receipt", "payment"}:
+            raise ValueError("transaction_type must be receipt or payment")
+        amount = float(accounting_money(data.amount))
+        if amount <= 0:
+            raise ValueError("Amount must be greater than zero")
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
         if not customer:
-            db.close()
-            return {"status": "error", "message": "Customer not found"}
+            raise ValueError("Customer not found")
 
-        if data.amount <= 0:
-            db.close()
-            return {"status": "error", "message": "Amount must be greater than zero"}
-
+        invoice = None
         invoice_id = data.invoice_id if data.invoice_id else None
-
         if invoice_id:
             invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
             if not invoice:
-                db.close()
-                return {"status": "error", "message": "Invoice not found"}
-
+                raise ValueError("Invoice not found")
             if invoice.customer_id != data.customer_id:
-                db.close()
-                return {"status": "error", "message": "این فاکتور متعلق به این طرف‌حساب نیست"}
+                raise ValueError("این فاکتور متعلق به این طرف‌حساب نیست")
+            expected_type = expected_settlement_type(invoice.invoice_type)
+            if not expected_type:
+                raise ValueError("Proforma invoices cannot receive settlement transactions")
+            if data.transaction_type != expected_type:
+                raise ValueError(
+                    f"{invoice.invoice_type} invoices require a {expected_type} transaction"
+                )
+            settled_before = invoice_settled_amount(db, invoice)
+            remaining_before = float(accounting_money(invoice.total_amount - settled_before))
+            if amount > remaining_before:
+                raise ValueError(
+                    f"Transaction exceeds invoice remaining amount: {remaining_before}"
+                )
 
         if data.transaction_type == "receipt":
-            desc = f"دریافت از طرف حساب"
+            description = "دریافت از طرف حساب"
             if invoice_id:
-                desc = f"دریافت از طرف حساب - فاکتور شماره {invoice_id}"
+                description = f"دریافت از طرف حساب - فاکتور شماره {invoice_id}"
             if data.note:
-                desc += f" - {data.note}"
-
+                description += f" - {data.note}"
             entry = add_customer_entry(
-                db,
-                data.customer_id,
-                "receipt",
-                invoice_id,
-                desc,
-                credit=data.amount,
+                db, data.customer_id, "receipt", invoice_id,
+                description, credit=amount,
             )
-
-        elif data.transaction_type == "payment":
-            desc = f"پرداخت به طرف حساب"
-            if invoice_id:
-                desc = f"پرداخت به طرف حساب - فاکتور شماره {invoice_id}"
-            if data.note:
-                desc += f" - {data.note}"
-
-            entry = add_customer_entry(
-                db,
-                data.customer_id,
-                "payment",
-                invoice_id,
-                desc,
-                debit=data.amount,
-            )
-
         else:
-            db.close()
-            return {"status": "error", "message": "transaction_type must be receipt or payment"}
+            description = "پرداخت به طرف حساب"
+            if invoice_id:
+                description = f"پرداخت به طرف حساب - فاکتور شماره {invoice_id}"
+            if data.note:
+                description += f" - {data.note}"
+            entry = add_customer_entry(
+                db, data.customer_id, "payment", invoice_id,
+                description, debit=amount,
+            )
 
+        db.flush()
+        settled = sync_invoice_payment_status(db, invoice) if invoice else 0.0
+        remaining = (
+            float(accounting_money(invoice.total_amount - settled))
+            if invoice else None
+        )
         db.commit()
-
-        result = {
+        return {
             "status": "created",
             "entry_id": entry.id,
             "customer_id": data.customer_id,
             "invoice_id": invoice_id,
             "balance": customer_balance(db, data.customer_id),
+            "invoice_payment_status": invoice.payment_status if invoice else None,
+            "invoice_remaining": remaining,
         }
-
-        db.close()
-        return result
-
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @app.get("/transactions")
@@ -1398,6 +1400,13 @@ def delete_invoice(invoice_id: int):
             db.close()
             return {"status": "error", "message": "Invoice not found"}
 
+        if linked_invoice_settlements(db, invoice_id):
+            db.close()
+            return {
+                "status": "error",
+                "message": "Cannot delete an invoice with linked payment or receipt transactions",
+            }
+
         customer_id = invoice.customer_id
         invoice_type = invoice.invoice_type
 
@@ -1466,12 +1475,17 @@ def delete_transaction(transaction_id: int):
         customer_id = entry.customer_id
         source_type = entry.source_type
         source_id = entry.source_id
+        linked_invoice = None
+        if source_type in {"receipt", "payment"} and source_id:
+            linked_invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
 
         db.delete(entry)
         db.flush()
 
         if customer_id:
             rebuild_customer_balances(db, customer_id)
+        if linked_invoice:
+            sync_invoice_payment_status(db, linked_invoice)
 
         db.commit()
         db.close()
