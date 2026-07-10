@@ -815,36 +815,40 @@ def delete_customer(customer_id: int):
 @app.get("/products")
 def list_products():
     db: Session = SessionLocal()
-    products = db.query(Product).all()
-    result = []
-    for p in products:
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "code": p.barcode,
-            "barcode": p.barcode,
-            "unit": "عدد",
-            "buy_price": 0,
-            "sell_price": p.price,
-            "price": p.price,
-            "stock": p.stock,
-        })
-    db.close()
-    return result
+    try:
+        return [product_to_dict(product) for product in db.query(Product).all()]
+    finally:
+        db.close()
 
 
 @app.post("/products")
 def create_product(data: ProductCreate):
     db: Session = SessionLocal()
-    final_barcode = data.barcode or data.code or ""
-    final_price = data.price if data.price is not None else data.sell_price or 0
-    product = Product(name=data.name, barcode=final_barcode, price=final_price, stock=data.stock)
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-    result = {"status": "created", "id": product.id, "name": product.name, "code": product.barcode, "barcode": product.barcode, "sell_price": product.price, "price": product.price, "stock": product.stock}
-    db.close()
-    return result
+    try:
+        sell_price = (
+            data.sell_price
+            if data.sell_price is not None
+            else data.price if data.price is not None else 0
+        )
+        product = Product(
+            name=data.name,
+            code=data.code or "",
+            barcode=data.barcode or data.code or "",
+            unit=data.unit or "عدد",
+            buy_price=float(accounting_money(data.buy_price or 0)),
+            sell_price=float(accounting_money(sell_price)),
+            price=float(accounting_money(sell_price)),
+            stock=float(data.stock or 0),
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        return {"status": "created", **product_to_dict(product)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
+        db.close()
 
 
 @app.put("/products/{product_id}")
@@ -853,21 +857,28 @@ def update_product(product_id: int, data: ProductCreate):
     try:
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
-            db.close()
             return {"status": "error", "message": "Product not found"}
+        sell_price = (
+            data.sell_price
+            if data.sell_price is not None
+            else data.price if data.price is not None else product.sell_price or product.price or 0
+        )
         product.name = data.name
+        product.code = data.code or product.code or ""
         product.barcode = data.barcode or data.code or product.barcode or ""
-        product.price = data.price if data.price is not None else data.sell_price or product.price or 0
-        product.stock = data.stock
+        product.unit = data.unit or product.unit or "عدد"
+        product.buy_price = float(accounting_money(data.buy_price or 0))
+        product.sell_price = float(accounting_money(sell_price))
+        product.price = float(accounting_money(sell_price))
+        product.stock = float(data.stock or 0)
         db.commit()
         db.refresh(product)
-        result = {"status": "updated", "id": product.id, "name": product.name, "code": product.barcode, "barcode": product.barcode, "sell_price": product.price, "price": product.price, "stock": product.stock}
-        db.close()
-        return result
-    except Exception as e:
+        return {"status": "updated", **product_to_dict(product)}
+    except Exception as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @app.delete("/products/{product_id}")
