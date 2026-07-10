@@ -94,6 +94,49 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(all("password" not in item for item in users.json()))
 
 
+    def test_general_ledger_is_balanced(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        trial = self.client.get(
+            "/api/accounting/entries/reports/trial-balance",
+            headers=headers,
+            params={"status": "posted", "include_zero": "false"},
+        )
+        self.assertEqual(trial.status_code, 200, trial.text)
+        payload = trial.json()
+        self.assertTrue(payload["totals"]["balanced"], payload)
+        self.assertEqual(payload["totals"]["difference"], 0.0)
+
+        rows = {row["account_code"]: row for row in payload["rows"]}
+        self.assertEqual(rows["1103"]["debit_balance"], 1000.0)
+        self.assertEqual(rows["4101"]["credit_balance"], 2000.0)
+        self.assertEqual(rows["4102"]["debit_balance"], 1000.0)
+        self.assertEqual(rows["5101"]["debit_balance"], 400.0)
+        self.assertEqual(rows["1201"]["credit_balance"], 400.0)
+        self.assertEqual(rows["5102"]["debit_balance"], 100.0)
+        self.assertEqual(rows["1101"]["credit_balance"], 100.0)
+
+        journal = self.client.get(
+            "/api/accounting/entries/reports/journal",
+            headers=headers,
+            params={"status": "posted"},
+        )
+        self.assertEqual(journal.status_code, 200, journal.text)
+        self.assertGreaterEqual(len(journal.json()), 10)
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted"},
+        )
+        sources = {item["source_type"] for item in vouchers.json()}
+        self.assertIn("invoice", sources)
+        self.assertIn("expense", sources)
+
     def test_invoice_integrity_flow(self):
         login = self.client.post(
             "/login",
