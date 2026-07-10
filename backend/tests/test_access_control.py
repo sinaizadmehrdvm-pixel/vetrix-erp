@@ -350,5 +350,159 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(inventory_product["stock_value_sell"], 19000.0)
 
 
+    def test_fiscal_period_closing_and_period_numbering(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        user_login = self.client.post(
+            "/login",
+            json={"username": "ci-user", "password": "StrongUserPassword!42"},
+        )
+        user_headers = {
+            "Authorization": f"Bearer {user_login.json()['access_token']}"
+        }
+
+        periods_response = self.client.get(
+            "/api/accounting/periods",
+            headers=admin_headers,
+        )
+        self.assertEqual(periods_response.status_code, 200, periods_response.text)
+        periods = periods_response.json()
+        self.assertTrue(periods)
+        period = next(item for item in periods if item["status"] == "open")
+        period_id = period["id"]
+        self.assertGreater(period["vouchers_count"], 0)
+        self.assertAlmostEqual(
+            float(period["total_debit"]),
+            float(period["total_credit"]),
+            places=2,
+        )
+
+        vouchers_response = self.client.get(
+            "/api/accounting/entries",
+            headers=admin_headers,
+            params={"status": "posted", "limit": 500},
+        )
+        self.assertEqual(vouchers_response.status_code, 200, vouchers_response.text)
+        period_vouchers = [
+            item
+            for item in vouchers_response.json()
+            if item["fiscal_period_id"] == period_id
+        ]
+        numbers = sorted(item["period_voucher_no"] for item in period_vouchers)
+        self.assertEqual(numbers, list(range(1, len(numbers) + 1)))
+
+        forbidden = self.client.post(
+            f"/api/accounting/periods/{period_id}/close",
+            headers=user_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403, forbidden.text)
+
+        overlap = self.client.post(
+            "/api/accounting/periods",
+            headers=admin_headers,
+            json={
+                "name": "Overlapping test period",
+                "start_date": period["start_date"],
+                "end_date": period["end_date"],
+            },
+        )
+        self.assertEqual(overlap.status_code, 400, overlap.text)
+
+        close = self.client.post(
+            f"/api/accounting/periods/{period_id}/close",
+            headers=admin_headers,
+        )
+        self.assertEqual(close.status_code, 200, close.text)
+        self.assertEqual(close.json()["status"], "closed")
+
+        expenses_before = self.client.get(
+            "/expenses",
+            headers=admin_headers,
+        ).json()
+        blocked_create = self.client.post(
+            "/expenses",
+            headers=admin_headers,
+            json={"title": "Blocked closed-period expense", "amount": 25},
+        )
+        self.assertEqual(blocked_create.json()["status"], "error")
+        self.assertIn("closed", blocked_create.json()["message"].lower())
+        expenses_after = self.client.get(
+            "/expenses",
+            headers=admin_headers,
+        ).json()
+        self.assertEqual(len(expenses_after), len(expenses_before))
+
+        existing_expense = next(
+            item for item in expenses_before if item["title"] == "Reporting expense"
+        )
+        blocked_delete = self.client.delete(
+            f"/expenses/{existing_expense['id']}",
+            headers=admin_headers,
+        )
+        self.assertEqual(blocked_delete.json()["status"], "error")
+        self.assertTrue(
+            any(
+                item["id"] == existing_expense["id"]
+                for item in self.client.get(
+                    "/expenses",
+                    headers=admin_headers,
+                ).json()
+            )
+        )
+
+        chart = self.client.get(
+            "/api/accounting/entries/chart",
+            headers=admin_headers,
+        ).json()
+        cash_id = next(item["id"] for item in chart if item["code"] == "1101")
+        expense_id = next(item["id"] for item in chart if item["code"] == "5102")
+        blocked_manual = self.client.post(
+            "/api/accounting/entries",
+            headers=admin_headers,
+            json={
+                "description": "Blocked manual voucher",
+                "status": "posted",
+                "lines": [
+                    {"account_id": expense_id, "debit": 10},
+                    {"account_id": cash_id, "credit": 10},
+                ],
+            },
+        )
+        self.assertEqual(blocked_manual.status_code, 400, blocked_manual.text)
+        self.assertIn("closed", blocked_manual.json()["detail"].lower())
+
+        reopen = self.client.post(
+            f"/api/accounting/periods/{period_id}/reopen",
+            headers=admin_headers,
+        )
+        self.assertEqual(reopen.status_code, 200, reopen.text)
+        self.assertEqual(reopen.json()["status"], "open")
+
+        created = self.client.post(
+            "/expenses",
+            headers=admin_headers,
+            json={"title": "Reopened-period expense", "amount": 25},
+        )
+        self.assertEqual(created.json()["status"], "created", created.text)
+        vouchers_after = self.client.get(
+            "/api/accounting/entries",
+            headers=admin_headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        created_voucher = next(
+            item
+            for item in vouchers_after
+            if item["source_type"] == "expense"
+            and item["source_id"] == created.json()["id"]
+        )
+        self.assertEqual(created_voucher["fiscal_period_id"], period_id)
+        self.assertEqual(created_voucher["period_voucher_no"], max(numbers) + 1)
+
+
 if __name__ == "__main__":
     unittest.main()
