@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from typing import Optional, List
 from datetime import datetime, timedelta
 import os
@@ -44,6 +45,7 @@ from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
 from app.accounting.periods import router as fiscal_periods_router
+from app.audit import record_audit_event, router as audit_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -187,6 +189,7 @@ app.include_router(smart_inventory_router)
 app.include_router(crm_files_router)
 app.include_router(accounting_entries_router)
 app.include_router(fiscal_periods_router)
+app.include_router(audit_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -202,6 +205,20 @@ allowed_origins = [
 
 @app.middleware("http")
 async def require_authenticated_api(request: Request, call_next):
+    async def call_and_audit():
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            try:
+                await run_in_threadpool(record_audit_event, request, status_code)
+            except Exception:
+                # Audit storage must never turn a completed business operation
+                # into a client-visible failure.
+                pass
+
     if is_public_request(request.url.path, request.method):
         return await call_next(request)
 
@@ -210,7 +227,7 @@ async def require_authenticated_api(request: Request, call_next):
         try:
             if db.query(User).count() == 0:
                 request.state.auth = {"role": "bootstrap"}
-                return await call_next(request)
+                return await call_and_audit()
         finally:
             db.close()
 
@@ -229,7 +246,7 @@ async def require_authenticated_api(request: Request, call_next):
             content={"detail": "Invalid or expired token"},
         )
 
-    return await call_next(request)
+    return await call_and_audit()
 
 
 app.add_middleware(
