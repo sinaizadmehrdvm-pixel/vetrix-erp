@@ -1,9 +1,19 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001";
 
+export function getAuthHeaders(headers = {}) {
+  const token = localStorage.getItem("vetrix_access_token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
+  };
+}
+
 async function request(path, options = {}) {
+  const { headers, ...requestOptions } = options;
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
+    ...requestOptions,
+    headers: getAuthHeaders(headers),
   });
 
   const data = await response.json().catch(() => null);
@@ -72,21 +82,21 @@ export async function getCustomerBalanceReport() { return await request("/report
 export async function getInventoryMovementReport() { return await request("/reports/inventory-movements"); }
 
 export async function getPdfTemplates() {
-  const res = await fetch(`${API_URL}/designer/templates`);
+  const res = await fetch(`${API_URL}/designer/templates`, { headers: getAuthHeaders() });
   return await res.json();
 }
 
 export async function savePdfTemplate(payload) {
   const res = await fetch(`${API_URL}/designer/template`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   return await res.json();
 }
 
 export async function deletePdfTemplate(id) {
-  const res = await fetch(`${API_URL}/designer/template/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_URL}/designer/template/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   return await res.json();
 }
 
