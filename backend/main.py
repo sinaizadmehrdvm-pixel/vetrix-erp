@@ -1098,6 +1098,7 @@ def create_invoice(data: InvoiceCreate):
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
+        post_invoice_to_general_ledger(db, invoice, data.items, products)
         db.commit()
         db.refresh(invoice)
         return {
@@ -1165,6 +1166,7 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
+        post_invoice_to_general_ledger(db, invoice, data.items, products)
         db.flush()
         rebuild_customer_balances(db, old_customer_id)
         if data.customer_id != old_customer_id:
@@ -1331,6 +1333,7 @@ def create_payment_or_receipt(data: PaymentCreate):
             float(accounting_money(invoice.total_amount - settled))
             if invoice else None
         )
+        post_transaction_to_general_ledger(db, entry, data.method)
         db.commit()
         return {
             "status": "created",
@@ -1402,14 +1405,28 @@ def create_expense(data: ExpenseCreate):
                 "created_at": datetime.utcnow(),
             },
         )
+        expense_id = result.lastrowid
+        amount = float(accounting_money(data.amount))
+        post_balanced_voucher(
+            "expense",
+            expense_id,
+            f"ثبت خودکار هزینه: {data.title}",
+            [
+                {"account_code": "5102", "debit": amount, "description": data.title},
+                {"account_code": "1101", "credit": amount, "description": data.title},
+            ],
+            voucher_date=data.expense_date or datetime.utcnow().date().isoformat(),
+            connection=conn,
+        )
         conn.commit()
-        return {"status": "created", "id": result.lastrowid, "amount": data.amount}
+        return {"status": "created", "id": expense_id, "amount": amount}
 
 
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int):
     with engine.connect() as conn:
         conn.execute(text("DELETE FROM expenses WHERE id=:id"), {"id": expense_id})
+        delete_source_voucher("expense", expense_id, connection=conn)
         conn.commit()
         return {"status": "deleted", "id": expense_id}
 
@@ -1521,6 +1538,7 @@ def delete_invoice(invoice_id: int):
         for item in items:
             db.delete(item)
 
+        delete_source_voucher("invoice", invoice_id, connection=db.connection())
         db.delete(invoice)
         db.flush()
 
@@ -1565,6 +1583,7 @@ def delete_transaction(transaction_id: int):
         if source_type in {"receipt", "payment"} and source_id:
             linked_invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
 
+        delete_source_voucher(source_type, entry.id, connection=db.connection())
         db.delete(entry)
         db.flush()
 
