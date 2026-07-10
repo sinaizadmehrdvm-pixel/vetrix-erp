@@ -6,10 +6,28 @@ import jwt
 from app.auth import (
     create_access_token,
     decode_access_token,
+    extract_bearer_token,
     hash_password,
+    is_public_request,
     password_needs_upgrade,
     verify_password,
 )
+
+
+class AuthenticationPolicyTests(unittest.TestCase):
+    def test_only_documented_public_routes_bypass_authentication(self):
+        self.assertTrue(is_public_request("/login", "POST"))
+        self.assertTrue(is_public_request("/docs", "GET"))
+        self.assertTrue(is_public_request("/customers", "OPTIONS"))
+        self.assertFalse(is_public_request("/customers", "GET"))
+        self.assertFalse(is_public_request("/export/invoices-pdf", "GET"))
+
+    def test_bearer_token_parser_is_strict(self):
+        self.assertEqual(extract_bearer_token("Bearer signed-token"), "signed-token")
+        self.assertEqual(extract_bearer_token("bearer signed-token"), "signed-token")
+        self.assertIsNone(extract_bearer_token(None))
+        self.assertIsNone(extract_bearer_token("Basic abc"))
+        self.assertIsNone(extract_bearer_token("Bearer "))
 
 
 class PasswordSecurityTests(unittest.TestCase):
