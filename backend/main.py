@@ -43,6 +43,7 @@ from app.smart_inventory.routes import router as smart_inventory_router
 from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
+from app.accounting.periods import router as fiscal_periods_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -185,6 +186,7 @@ app.include_router(pipeline_router)
 app.include_router(smart_inventory_router)
 app.include_router(crm_files_router)
 app.include_router(accounting_entries_router)
+app.include_router(fiscal_periods_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
