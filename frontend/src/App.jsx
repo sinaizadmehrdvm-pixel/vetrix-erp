@@ -1,38 +1,47 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 import MainLayout from "./layout/MainLayout";
-import Dashboard from "./pages/Dashboard";
-import Customers from "./pages/Customers";
-import CustomerDetails from "./pages/CustomerDetails";
-import Products from "./pages/Products";
-import ProductCategories from "./pages/ProductCategories";
-import Invoices from "./pages/Invoices";
-import InvoicePrint from "./pages/InvoicePrint";
-import Warehouse from "./pages/Warehouse";
-import Transactions from "./pages/Transactions";
-import Payments from "./pages/Payments";
-import Receipts from "./pages/Receipts";
-import Expenses from "./pages/Expenses";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Login from "./pages/Login";
-
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/LanguageContext";
-import InvoiceDesigner from "./designer/InvoiceDesigner";
-import FinanceCenter from "./pages/FinanceCenter";
-import Customer360 from "./pages/crm/Customer360";
-import CrmDashboard from "./pages/CrmDashboard";
-import SmartInventory from "./pages/SmartInventory";
-import AiBusinessIntelligence from "./pages/AiBusinessIntelligence";
-import AccountingCore from "./pages/AccountingCore";
-import AccountingEntries from "./pages/AccountingEntries";
-import BusinessIntelligence from "./pages/BusinessIntelligence";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Customers = lazy(() => import("./pages/Customers"));
+const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
+const Products = lazy(() => import("./pages/Products"));
+const ProductCategories = lazy(() => import("./pages/ProductCategories"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const InvoicePrint = lazy(() => import("./pages/InvoicePrint"));
+const Warehouse = lazy(() => import("./pages/Warehouse"));
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Payments = lazy(() => import("./pages/Payments"));
+const Receipts = lazy(() => import("./pages/Receipts"));
+const Expenses = lazy(() => import("./pages/Expenses"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Login = lazy(() => import("./pages/Login"));
+const InvoiceDesigner = lazy(() => import("./designer/InvoiceDesigner"));
+const FinanceCenter = lazy(() => import("./pages/FinanceCenter"));
+const Customer360 = lazy(() => import("./pages/crm/Customer360"));
+const CrmDashboard = lazy(() => import("./pages/CrmDashboard"));
+const SmartInventory = lazy(() => import("./pages/SmartInventory"));
+const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
+const AccountingCore = lazy(() => import("./pages/AccountingCore"));
+const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
+const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+        Vetrix ERP...
+      </div>
+    );
+  }
+
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
@@ -62,11 +71,32 @@ function AppContent() {
         }}
       />
 
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/invoice-designer" element={<InvoiceDesigner />} />
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+            Vetrix ERP...
+          </div>
+        }
+      >
+        <Routes>
+          <Route path="/login" element={<Login />} />
+        <Route
+          path="/invoice-designer"
+          element={
+            <ProtectedRoute>
+              <InvoiceDesigner />
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="/" element={<MainLayout />}>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />
@@ -91,8 +121,9 @@ function AppContent() {
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+          </Route>
+        </Routes>
+      </Suspense>
     </>
   );
 }

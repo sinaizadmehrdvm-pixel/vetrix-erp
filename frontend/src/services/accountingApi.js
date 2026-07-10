@@ -1,9 +1,10 @@
-import { API_URL } from "./api";
+import { API_URL, getAuthHeaders } from "./api";
 
 async function request(path, options = {}) {
+  const { headers, ...requestOptions } = options;
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
+    ...requestOptions,
+    headers: getAuthHeaders(headers),
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(data?.detail || data?.message || `API error ${response.status}`);
