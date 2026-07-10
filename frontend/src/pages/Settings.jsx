@@ -12,7 +12,7 @@ import {
   Bell,
 } from "lucide-react";
 import { useLanguage } from "../localization/LanguageContext";
-import { API_URL } from "../services/api";
+import { API_URL, getAuthHeaders } from "../services/api";
 
 const emptySettings = {
   company_name: "Vetrix ERP",
@@ -140,7 +140,7 @@ export default function Settings() {
       setLoading(true);
       setMessage("");
 
-      const res = await fetch(`${API_URL}/settings`);
+      const res = await fetch(`${API_URL}/settings`, { headers: getAuthHeaders() });
       const data = await res.json();
 
       if (!res.ok || data?.status === "error") {
@@ -175,7 +175,7 @@ export default function Settings() {
 
       const res = await fetch(`${API_URL}/settings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
 
