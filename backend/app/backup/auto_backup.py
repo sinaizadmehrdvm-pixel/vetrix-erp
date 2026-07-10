@@ -1,30 +1,220 @@
-from datetime import datetime
+import hashlib
 import os
+import re
 import shutil
+import sqlite3
+import threading
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from sqlalchemy import text
+
+from app.database import engine
+
+BACKUP_NAME = re.compile(
+    r"^vetrix_(manual|auto|pre_restore)_\d{8}T\d{6}_\d{6}Z\.db$"
+)
+BACKUP_LOCK = threading.RLock()
 
 
-def create_database_backup():
-    backend_root = os.getcwd()
-    source_db = os.path.join(backend_root, "vetrix.db")
+def _utc_now():
+    return datetime.now(timezone.utc)
 
-    backup_dir = os.path.join(backend_root, "app", "backup", "files")
-    os.makedirs(backup_dir, exist_ok=True)
 
-    if not os.path.exists(source_db):
+def _database_path():
+    if engine.url.get_backend_name() != "sqlite":
+        raise ValueError("File backups currently require a SQLite database")
+    database = engine.url.database
+    if not database or database == ":memory:":
+        raise ValueError("A file-backed SQLite database is required")
+    return Path(database).expanduser().resolve()
+
+
+def backup_directory():
+    configured = os.getenv("VETRIX_BACKUP_DIR", "").strip()
+    if configured:
+        path = Path(configured).expanduser().resolve()
+    else:
+        path = Path(__file__).resolve().parent / "files"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _safe_backup_path(filename):
+    if not BACKUP_NAME.fullmatch(str(filename or "")):
+        raise ValueError("Invalid backup filename")
+    path = (backup_directory() / filename).resolve()
+    if path.parent != backup_directory():
+        raise ValueError("Invalid backup path")
+    return path
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _quick_check(path):
+    try:
+        with sqlite3.connect(str(path)) as connection:
+            result = connection.execute("PRAGMA quick_check").fetchone()
+            tables = connection.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+            ).fetchone()[0]
+        valid = bool(result and result[0] == "ok" and tables > 0)
+        return valid, result[0] if result else "No result", int(tables)
+    except sqlite3.DatabaseError as error:
+        return False, str(error), 0
+
+
+def backup_info(path, verify=False):
+    stat = path.stat()
+    valid = None
+    check_message = None
+    table_count = None
+    if verify:
+        valid, check_message, table_count = _quick_check(path)
+    return {
+        "filename": path.name,
+        "kind": path.name.split("_", 2)[1],
+        "size_bytes": stat.st_size,
+        "created_at": datetime.fromtimestamp(
+            stat.st_mtime, timezone.utc
+        ).isoformat(),
+        "sha256": _sha256(path),
+        "valid": valid,
+        "check_message": check_message,
+        "table_count": table_count,
+    }
+
+
+def list_database_backups(verify=False):
+    items = [
+        backup_info(path, verify=verify)
+        for path in backup_directory().iterdir()
+        if path.is_file() and BACKUP_NAME.fullmatch(path.name)
+    ]
+    return sorted(items, key=lambda item: item["created_at"], reverse=True)
+
+
+def create_database_backup(kind="manual"):
+    if kind not in {"manual", "auto", "pre_restore"}:
+        raise ValueError("Invalid backup kind")
+
+    with BACKUP_LOCK:
+        source_path = _database_path()
+        if not source_path.exists():
+            raise ValueError(f"Database not found: {source_path}")
+
+        timestamp = _utc_now().strftime("%Y%m%dT%H%M%S_%fZ")
+        filename = f"vetrix_{kind}_{timestamp}.db"
+        destination = backup_directory() / filename
+        temporary = destination.with_suffix(".tmp")
+
+        try:
+            with sqlite3.connect(str(source_path)) as source:
+                with sqlite3.connect(str(temporary)) as target:
+                    source.backup(target)
+            valid, message, _ = _quick_check(temporary)
+            if not valid:
+                raise ValueError(f"Backup integrity check failed: {message}")
+            os.replace(temporary, destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+        info = backup_info(destination, verify=True)
+        _apply_retention()
+        return {"status": "success", **info}
+
+
+def verify_database_backup(filename):
+    with BACKUP_LOCK:
+        path = _safe_backup_path(filename)
+        if not path.exists():
+            raise FileNotFoundError("Backup not found")
+        return backup_info(path, verify=True)
+
+
+def delete_database_backup(filename):
+    with BACKUP_LOCK:
+        path = _safe_backup_path(filename)
+        if not path.exists():
+            raise FileNotFoundError("Backup not found")
+        path.unlink()
+        return {"status": "deleted", "filename": filename}
+
+
+def restore_database_backup(filename):
+    with BACKUP_LOCK:
+        backup_path = _safe_backup_path(filename)
+        if not backup_path.exists():
+            raise FileNotFoundError("Backup not found")
+        verification = backup_info(backup_path, verify=True)
+        if not verification["valid"]:
+            raise ValueError(
+                f"Backup integrity check failed: {verification['check_message']}"
+            )
+
+        safety_backup = create_database_backup(kind="pre_restore")
+        database_path = _database_path()
+        temporary = database_path.with_suffix(database_path.suffix + ".restore.tmp")
+        try:
+            shutil.copy2(backup_path, temporary)
+            valid, message, _ = _quick_check(temporary)
+            if not valid:
+                raise ValueError(f"Restore copy validation failed: {message}")
+            engine.dispose()
+            for suffix in ("-wal", "-shm"):
+                Path(f"{database_path}{suffix}").unlink(missing_ok=True)
+            os.replace(temporary, database_path)
+            engine.dispose()
+        finally:
+            temporary.unlink(missing_ok=True)
+
         return {
-            "status": "error",
-            "message": "vetrix.db not found",
+            "status": "restored",
+            "filename": filename,
+            "safety_backup": safety_backup["filename"],
+            "sha256": verification["sha256"],
         }
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = f"vetrix_backup_{timestamp}.db"
-    backup_path = os.path.join(backup_dir, backup_file)
 
-    shutil.copy2(source_db, backup_path)
+def _apply_retention():
+    keep = max(3, int(os.getenv("VETRIX_BACKUP_RETENTION", "30")))
+    backups = list_database_backups(verify=False)
+    for item in backups[keep:]:
+        _safe_backup_path(item["filename"]).unlink(missing_ok=True)
 
-    return {
-        "status": "success",
-        "file": backup_file,
-        "path": backup_path,
-        "message": "Backup created successfully",
-    }
+
+def maybe_create_automatic_backup():
+    try:
+        with engine.connect() as conn:
+            table = conn.execute(text("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='app_settings'
+            """)).fetchone()
+            if not table:
+                return None
+            enabled = conn.execute(
+                text("SELECT auto_backup FROM app_settings LIMIT 1")
+            ).scalar()
+        if not enabled:
+            return None
+
+        interval_hours = max(
+            1, int(os.getenv("VETRIX_AUTO_BACKUP_HOURS", "24"))
+        )
+        automatic = [
+            item for item in list_database_backups()
+            if item["kind"] == "auto"
+        ]
+        if automatic:
+            latest = datetime.fromisoformat(automatic[0]["created_at"])
+            if _utc_now() - latest < timedelta(hours=interval_hours):
+                return None
+        return create_database_backup(kind="auto")
+    except (OSError, ValueError, sqlite3.DatabaseError):
+        return None
