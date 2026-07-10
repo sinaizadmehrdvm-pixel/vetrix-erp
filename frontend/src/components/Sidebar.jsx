@@ -15,6 +15,7 @@ import {
   CalendarClock,
   History,
   UserCog,
+  DatabaseBackup,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -32,6 +33,7 @@ const items = [
   { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
   { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
+  { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
   { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
   { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
   { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
