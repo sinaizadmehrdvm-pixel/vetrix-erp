@@ -218,5 +218,94 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(next(item for item in products if item["id"] == product_id)["stock"], 10)
 
 
+    def test_financial_reports_use_cogs_and_net_returns(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={"name": "Reporting Test Customer"},
+        )
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={
+                "name": "Reporting Test Product",
+                "buy_price": 400,
+                "sell_price": 1000,
+                "stock": 20,
+            },
+        )
+        self.assertEqual(product.json()["buy_price"], 400.0)
+        self.assertEqual(product.json()["sell_price"], 1000.0)
+        product_id = product.json()["id"]
+
+        def invoice(invoice_type, quantity, unit_price):
+            response = self.client.post(
+                "/invoices",
+                headers=headers,
+                json={
+                    "invoice_type": invoice_type,
+                    "customer_id": customer_id,
+                    "payment_status": "unpaid",
+                    "items": [{
+                        "product_id": product_id,
+                        "quantity": quantity,
+                        "unit_price": unit_price,
+                    }],
+                },
+            )
+            self.assertEqual(response.json()["status"], "created", response.text)
+            return response.json()["invoice_id"]
+
+        invoice("sale", 2, 1000)
+        invoice("return_sale", 1, 1000)
+        invoice("proforma", 1, 1000)
+
+        expense = self.client.post(
+            "/expenses",
+            headers=headers,
+            json={"title": "Reporting expense", "amount": 100},
+        )
+        self.assertEqual(expense.json()["status"], "created")
+
+        report = self.client.get("/reports/overview", headers=headers)
+        self.assertEqual(report.status_code, 200, report.text)
+        payload = report.json()
+        profit = payload["profit_loss"]
+
+        self.assertEqual(profit["sales"], 2000.0)
+        self.assertEqual(profit["sales_returns"], 1000.0)
+        self.assertEqual(profit["net_sales"], 1000.0)
+        self.assertEqual(profit["cost_of_goods_sold"], 400.0)
+        self.assertEqual(profit["gross_profit"], 600.0)
+        self.assertEqual(profit["expenses"], 100.0)
+        self.assertEqual(profit["net_profit"], 500.0)
+
+        self.assertEqual(payload["today_month"]["sales_today"], 1000.0)
+        self.assertEqual(payload["invoice_summary"]["open_count"], 2)
+        self.assertEqual(payload["invoice_summary"]["unpaid_count"], 2)
+
+        top_customer = next(
+            item for item in payload["top_customers"]
+            if item["customer_id"] == customer_id
+        )
+        self.assertEqual(top_customer["sales_amount"], 1000.0)
+
+        inventory_product = next(
+            item for item in payload["inventory"]["products"]
+            if item["id"] == product_id
+        )
+        self.assertEqual(inventory_product["stock"], 19.0)
+        self.assertEqual(inventory_product["stock_value_buy"], 7600.0)
+        self.assertEqual(inventory_product["stock_value_sell"], 19000.0)
+
+
 if __name__ == "__main__":
     unittest.main()

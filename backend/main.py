@@ -43,6 +43,7 @@ from app.smart_inventory.routes import router as smart_inventory_router
 from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
+from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.integrity import (
     ALLOWED_INVOICE_TYPES,
     ALLOWED_PAYMENT_STATUSES,
@@ -815,36 +816,40 @@ def delete_customer(customer_id: int):
 @app.get("/products")
 def list_products():
     db: Session = SessionLocal()
-    products = db.query(Product).all()
-    result = []
-    for p in products:
-        result.append({
-            "id": p.id,
-            "name": p.name,
-            "code": p.barcode,
-            "barcode": p.barcode,
-            "unit": "عدد",
-            "buy_price": 0,
-            "sell_price": p.price,
-            "price": p.price,
-            "stock": p.stock,
-        })
-    db.close()
-    return result
+    try:
+        return [product_to_dict(product) for product in db.query(Product).all()]
+    finally:
+        db.close()
 
 
 @app.post("/products")
 def create_product(data: ProductCreate):
     db: Session = SessionLocal()
-    final_barcode = data.barcode or data.code or ""
-    final_price = data.price if data.price is not None else data.sell_price or 0
-    product = Product(name=data.name, barcode=final_barcode, price=final_price, stock=data.stock)
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-    result = {"status": "created", "id": product.id, "name": product.name, "code": product.barcode, "barcode": product.barcode, "sell_price": product.price, "price": product.price, "stock": product.stock}
-    db.close()
-    return result
+    try:
+        sell_price = (
+            data.sell_price
+            if data.sell_price is not None
+            else data.price if data.price is not None else 0
+        )
+        product = Product(
+            name=data.name,
+            code=data.code or "",
+            barcode=data.barcode or data.code or "",
+            unit=data.unit or "عدد",
+            buy_price=float(accounting_money(data.buy_price or 0)),
+            sell_price=float(accounting_money(sell_price)),
+            price=float(accounting_money(sell_price)),
+            stock=float(data.stock or 0),
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        return {"status": "created", **product_to_dict(product)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
+        db.close()
 
 
 @app.put("/products/{product_id}")
@@ -853,21 +858,28 @@ def update_product(product_id: int, data: ProductCreate):
     try:
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
-            db.close()
             return {"status": "error", "message": "Product not found"}
+        sell_price = (
+            data.sell_price
+            if data.sell_price is not None
+            else data.price if data.price is not None else product.sell_price or product.price or 0
+        )
         product.name = data.name
+        product.code = data.code or product.code or ""
         product.barcode = data.barcode or data.code or product.barcode or ""
-        product.price = data.price if data.price is not None else data.sell_price or product.price or 0
-        product.stock = data.stock
+        product.unit = data.unit or product.unit or "عدد"
+        product.buy_price = float(accounting_money(data.buy_price or 0))
+        product.sell_price = float(accounting_money(sell_price))
+        product.price = float(accounting_money(sell_price))
+        product.stock = float(data.stock or 0)
         db.commit()
         db.refresh(product)
-        result = {"status": "updated", "id": product.id, "name": product.name, "code": product.barcode, "barcode": product.barcode, "sell_price": product.price, "price": product.price, "stock": product.stock}
-        db.close()
-        return result
-    except Exception as e:
+        return {"status": "updated", **product_to_dict(product)}
+    except Exception as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @app.delete("/products/{product_id}")
@@ -1944,6 +1956,7 @@ def _build_monthly_charts(invoices, entries, expense_rows):
 
 def build_reports_payload(db: Session):
     invoices = db.query(Invoice).all()
+    invoice_items = db.query(InvoiceItem).all()
     customers = db.query(Customer).all()
     products = db.query(Product).all()
     entries = db.query(AccountingEntry).all()
@@ -1953,16 +1966,25 @@ def build_reports_payload(db: Session):
     week_start = _week_start()
     month_start = _month_start()
 
-    sales = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "sale")
-    purchases = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "buy")
-    sales_returns = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "return_sale")
-    purchase_returns = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "return_buy")
-    expenses = sum(_safe_float(row.get("amount")) for row in expense_rows)
-
-    net_sales = sales - sales_returns
-    net_purchases = purchases - purchase_returns
-    gross_profit = net_sales - net_purchases
-    net_profit = gross_profit - expenses
+    product_costs = {
+        product.id: _safe_float(getattr(product, "buy_price", 0))
+        for product in products
+    }
+    profit_loss = build_profit_loss(
+        invoices,
+        invoice_items,
+        product_costs,
+        [_safe_float(row.get("amount")) for row in expense_rows],
+    )
+    sales = profit_loss["sales"]
+    purchases = profit_loss["purchases"]
+    sales_returns = profit_loss["sales_returns"]
+    purchase_returns = profit_loss["purchase_returns"]
+    expenses = profit_loss["expenses"]
+    net_sales = profit_loss["net_sales"]
+    net_purchases = profit_loss["net_purchases"]
+    gross_profit = profit_loss["gross_profit"]
+    net_profit = profit_loss["net_profit"]
 
     total_debit = sum(_safe_float(e.debit) for e in entries)
     total_credit = sum(_safe_float(e.credit) for e in entries)
@@ -1980,13 +2002,13 @@ def build_reports_payload(db: Session):
     receipt_month = sum(_safe_float(e.credit) for e in receipt_entries if e.created_at and e.created_at >= month_start)
     payment_month = sum(_safe_float(e.debit) for e in payment_entries if e.created_at and e.created_at >= month_start)
 
-    sales_today = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "sale" and i.created_at and i.created_at.date() == today)
-    sales_week = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "sale" and i.created_at and i.created_at >= week_start)
-    sales_month = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "sale" and i.created_at and i.created_at >= month_start)
+    sales_today = net_period_total(invoices, "sale", "return_sale", lambda i: i.created_at and i.created_at.date() == today)
+    sales_week = net_period_total(invoices, "sale", "return_sale", lambda i: i.created_at and i.created_at >= week_start)
+    sales_month = net_period_total(invoices, "sale", "return_sale", lambda i: i.created_at and i.created_at >= month_start)
 
-    purchases_today = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "buy" and i.created_at and i.created_at.date() == today)
-    purchases_week = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "buy" and i.created_at and i.created_at >= week_start)
-    purchases_month = sum(_safe_float(i.total_amount) for i in invoices if i.invoice_type == "buy" and i.created_at and i.created_at >= month_start)
+    purchases_today = net_period_total(invoices, "buy", "return_buy", lambda i: i.created_at and i.created_at.date() == today)
+    purchases_week = net_period_total(invoices, "buy", "return_buy", lambda i: i.created_at and i.created_at >= week_start)
+    purchases_month = net_period_total(invoices, "buy", "return_buy", lambda i: i.created_at and i.created_at >= month_start)
 
     expense_today = sum(_safe_float(row.get("amount")) for row in expense_rows if _parse_expense_date(row) and _parse_expense_date(row).date() == today)
     expense_week = sum(_safe_float(row.get("amount")) for row in expense_rows if _parse_expense_date(row) and _parse_expense_date(row) >= week_start)
@@ -2014,9 +2036,10 @@ def build_reports_payload(db: Session):
         if inv.get("invoice_type") != "proforma" and _safe_float(inv.get("remaining_amount")) > 0
     ]
 
-    unpaid_invoices = [inv for inv in invoice_rows if inv.get("settlement_status") == "unpaid"]
-    partial_invoices = [inv for inv in invoice_rows if inv.get("settlement_status") == "partial"]
-    paid_invoices = [inv for inv in invoice_rows if inv.get("settlement_status") == "paid"]
+    final_invoice_rows = [inv for inv in invoice_rows if inv.get("invoice_type") != "proforma"]
+    unpaid_invoices = [inv for inv in final_invoice_rows if inv.get("settlement_status") == "unpaid"]
+    partial_invoices = [inv for inv in final_invoice_rows if inv.get("settlement_status") == "partial"]
+    paid_invoices = [inv for inv in final_invoice_rows if inv.get("settlement_status") == "paid"]
 
     inventory_rows = []
     for p in products:
@@ -2034,24 +2057,18 @@ def build_reports_payload(db: Session):
 
     product_profit_rows = _build_product_profit_rows(db, products)
 
-    customer_sales_map = {}
-    for inv in invoice_rows:
-        if inv.get("invoice_type") != "sale":
-            continue
-        cid = inv.get("customer_id")
-        if cid not in customer_sales_map:
-            customer_sales_map[cid] = {
-                "customer_id": cid,
-                "name": inv.get("customer_name") or str(cid),
-                "sales_amount": 0,
-                "invoice_count": 0,
-            }
-        customer_sales_map[cid]["sales_amount"] += _safe_float(inv.get("total_amount"))
-        customer_sales_map[cid]["invoice_count"] += 1
-
+    customer_names = {customer.id: customer.name for customer in customers}
+    customer_sales_map = customer_net_sales(invoices)
     top_customers = sorted(
-        customer_sales_map.values(),
-        key=lambda x: _safe_float(x.get("sales_amount")),
+        [
+            {
+                "customer_id": customer_id,
+                "name": customer_names.get(customer_id, str(customer_id)),
+                **values,
+            }
+            for customer_id, values in customer_sales_map.items()
+        ],
+        key=lambda row: _safe_float(row.get("sales_amount")),
         reverse=True,
     )[:10]
 
@@ -2097,18 +2114,7 @@ def build_reports_payload(db: Session):
     recent_invoices = sorted(invoice_rows, key=lambda x: x.get("created_at") or datetime.min, reverse=True)[:10]
 
     return {
-        "profit_loss": {
-            "sales": sales,
-            "sales_returns": sales_returns,
-            "net_sales": net_sales,
-            "purchases": purchases,
-            "purchase_returns": purchase_returns,
-            "net_purchases": net_purchases,
-            "expenses": expenses,
-            "gross_profit": gross_profit,
-            "net_profit": net_profit,
-            "margin_percent": (net_profit / net_sales * 100) if net_sales > 0 else 0,
-        },
+        "profit_loss": profit_loss,
         "trial_balance": {
             "total_debit": total_debit,
             "total_credit": total_credit,
