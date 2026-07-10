@@ -10,3 +10,4 @@ arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 qrcode[pil]>=7.4.0
 pillow>=10.3.0
+PyJWT>=2.13.0,<3.0.0
