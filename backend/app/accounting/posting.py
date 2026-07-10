@@ -225,3 +225,11 @@ def cash_account_for_method(method):
     if normalized in {"bank", "card", "pos", "transfer", "wire", "cheque", "check"}:
         return "1102"
     return "1101"
+
+
+def settlement_counterpart_account(invoice_type, transaction_type):
+    if transaction_type == "receipt":
+        return "2101" if invoice_type == "return_buy" else "1103"
+    if transaction_type == "payment":
+        return "1103" if invoice_type == "return_sale" else "2101"
+    raise ValueError("transaction_type must be receipt or payment")
