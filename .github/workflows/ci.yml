@@ -28,7 +28,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Audit frontend dependencies
-        continue-on-error: true
         run: npm audit --audit-level=high
       - name: Audit direct fetch calls
         run: npm run audit:fetch
