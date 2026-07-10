@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/LanguageContext";
-import { API_URL, getCustomers } from "../services/api";
+import { API_URL, getAuthHeaders, getCustomers } from "../services/api";
 
 function toNumber(value) {
   return Number(
@@ -162,7 +162,7 @@ export default function CrmDashboard() {
       await Promise.all(
         normalized.slice(0, 30).map(async (c) => {
           try {
-            const res = await fetch(`${API_URL}/api/crm/customer-insight/${c.id}`);
+            const res = await fetch(`${API_URL}/api/crm/customer-insight/${c.id}`, { headers: getAuthHeaders() });
             const data = await res.json();
             insightMap[c.id] = data;
           } catch {
