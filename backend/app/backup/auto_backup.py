@@ -77,9 +77,14 @@ def backup_info(path, verify=False):
     table_count = None
     if verify:
         valid, check_message, table_count = _quick_check(path)
+    kind = (
+        "pre_restore"
+        if path.name.startswith("vetrix_pre_restore_")
+        else path.name.split("_", 2)[1]
+    )
     return {
         "filename": path.name,
-        "kind": path.name.split("_", 2)[1],
+        "kind": kind,
         "size_bytes": stat.st_size,
         "created_at": datetime.fromtimestamp(
             stat.st_mtime, timezone.utc
