@@ -19,9 +19,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useLanguage } from "../localization/LanguageContext";
-import { getReportsOverview } from "../services/api";
+import { API_URL, getAuthHeaders, getReportsOverview } from "../services/api";
 
-const API = "http://127.0.0.1:8001";
 
 function toNumber(value) {
   return Number(
@@ -122,8 +121,8 @@ export default function BusinessIntelligence() {
       setMessage("");
       const [reportsData, dashboardRes, crmRes] = await Promise.all([
         getReportsOverview().catch(() => null),
-        fetch(`${API}/dashboard-stats`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch(`${API}/api/crm/dashboard`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`${API_URL}/dashboard-stats`, { headers: getAuthHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`${API_URL}/api/crm/dashboard`, { headers: getAuthHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       setReports(reportsData || {});
       setDashboard(dashboardRes || {});
