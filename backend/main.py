@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime, timedelta
 import hashlib
+import os
 
 from app.database import SessionLocal, engine, Base
 from app.models.user import User
@@ -160,9 +161,22 @@ app.include_router(smart_inventory_router)
 app.include_router(crm_files_router)
 app.include_router(accounting_entries_router)
 
+default_origins = ",".join([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+])
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("VETRIX_ALLOWED_ORIGINS", default_origins).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
