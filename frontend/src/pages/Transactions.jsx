@@ -19,8 +19,8 @@ import {
 
 import { useLanguage } from "../localization/LanguageContext";
 import {
-  API_URL,
   getCustomers,
+  openAuthenticatedDocument,
   getTransactions,
   createTransaction,
   deleteTransaction,
@@ -400,8 +400,12 @@ export default function Transactions() {
     }
   }
 
-  function printTransactionReceipt(item) {
-    window.open(`${API_URL}/print/transaction/${item.id}`, "_blank");
+  async function printTransactionReceipt(item) {
+    try {
+      await openAuthenticatedDocument(`/print/transaction/${item.id}`);
+    } catch (error) {
+      alert(error.message || (fa ? "خطا در دریافت رسید" : "Receipt loading error"));
+    }
   }
 
   function displayDate(value) {
