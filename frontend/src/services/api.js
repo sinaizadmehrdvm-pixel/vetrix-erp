@@ -1,9 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001";
 
-export function getAuthHeaders(headers = {}) {
+export function getAuthHeaders(headers = {}, includeJsonContentType = true) {
   const token = localStorage.getItem("vetrix_access_token");
   return {
-    "Content-Type": "application/json",
+    ...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...headers,
   };
