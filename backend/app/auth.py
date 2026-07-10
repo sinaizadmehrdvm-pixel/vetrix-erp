@@ -112,3 +112,28 @@ def decode_access_token(token: str) -> dict:
         audience=TOKEN_AUDIENCE,
         options={"require": ["exp", "iat", "sub", "iss", "aud"]},
     )
+
+
+PUBLIC_PATHS = {
+    "/",
+    "/health",
+    "/login",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/favicon.ico",
+}
+
+
+def is_public_request(path: str, method: str) -> bool:
+    return method.upper() == "OPTIONS" or path in PUBLIC_PATHS
+
+
+def extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+
+    scheme, separator, token = authorization.partition(" ")
+    if not separator or scheme.lower() != "bearer" or not token.strip():
+        return None
+    return token.strip()
