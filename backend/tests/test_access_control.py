@@ -679,8 +679,22 @@ class ApiAccessControlTests(unittest.TestCase):
             self.client.get("/settings", headers=viewer_headers).status_code,
             403,
         )
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=viewer_headers,
+            ).status_code,
+            200,
+        )
 
         sales_headers = headers_for("sales")
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=sales_headers,
+            ).status_code,
+            403,
+        )
         sales_customer = self.client.post(
             "/customers",
             headers=sales_headers,
@@ -705,6 +719,13 @@ class ApiAccessControlTests(unittest.TestCase):
         )
 
         warehouse_headers = headers_for("warehouse")
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=warehouse_headers,
+            ).status_code,
+            403,
+        )
         warehouse_product = self.client.post(
             "/products",
             headers=warehouse_headers,
