@@ -45,7 +45,7 @@ import {
 import { useLanguage } from "../localization/LanguageContext";
 
 import {
-  API_URL,
+  downloadAuthenticatedFile,
   getCustomers,
   getDashboardStats,
   getExpenses,
@@ -488,6 +488,19 @@ export default function Reports() {
     ]);
   }
 
+  async function downloadInvoiceExport(format) {
+    try {
+      setError("");
+      const isPdf = format === "pdf";
+      await downloadAuthenticatedFile(
+        isPdf ? "/export/invoices-pdf" : "/export/invoices-excel",
+        isPdf ? "vetrix_invoices.pdf" : "vetrix_invoices.xlsx"
+      );
+    } catch (downloadError) {
+      setError(downloadError.message || (fa ? "خطا در دریافت خروجی" : "Export download error"));
+    }
+  }
+
   return (
     <div dir={dir} style={{ direction: dir }} className="space-y-6 reports-page">
       <div className="flex items-start justify-between gap-4 flex-wrap no-print">
@@ -778,15 +791,15 @@ export default function Reports() {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          <a href={`${API_URL}/export/invoices-pdf`} target="_blank" rel="noreferrer" className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => downloadInvoiceExport("pdf")} className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
             <FileText size={18} />
             {fa ? "دانلود PDF" : "Download PDF"}
-          </a>
+          </button>
 
-          <a href={`${API_URL}/export/invoices-excel`} target="_blank" rel="noreferrer" className="px-5 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => downloadInvoiceExport("excel")} className="px-5 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
             <FileSpreadsheet size={18} />
             {fa ? "دانلود Excel" : "Download Excel"}
-          </a>
+          </button>
         </div>
       </div>
 
