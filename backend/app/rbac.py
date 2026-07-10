@@ -36,10 +36,14 @@ ROLE_CAPABILITIES = {
     "user": {"read"},
 }
 
-ADMIN_READ_PREFIXES = (
-    "/users",
-    "/settings",
-    "/api/audit",
+READ_RULES = (
+    ("/users", {"admin"}),
+    ("/settings", {"admin"}),
+    ("/api/audit", {"admin"}),
+    ("/api/accounting", {"admin", "accountant", "viewer", "user"}),
+    ("/expenses", {"admin", "accountant", "viewer", "user"}),
+    ("/api/finance", {"admin", "accountant", "viewer", "user"}),
+    ("/api/ai-bi", {"admin", "accountant", "viewer", "user"}),
 )
 
 MUTATION_RULES = (
@@ -78,7 +82,10 @@ def is_authorized(role, method, path):
         return True
 
     if method in {"GET", "HEAD", "OPTIONS"}:
-        return not any(path == prefix or path.startswith(f"{prefix}/") for prefix in ADMIN_READ_PREFIXES)
+        for prefix, allowed_roles in READ_RULES:
+            if path == prefix or path.startswith(f"{prefix}/"):
+                return role in allowed_roles
+        return True
 
     for prefix, allowed_roles in MUTATION_RULES:
         if path == prefix or path.startswith(f"{prefix}/"):
