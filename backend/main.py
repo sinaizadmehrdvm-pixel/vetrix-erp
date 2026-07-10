@@ -34,7 +34,11 @@ from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
 from app.export.pdf_export import build_invoice_pdf
 from app.export.excel_export import build_invoice_excel
 from app.timeline.activity import get_recent_activity
-from app.backup.auto_backup import create_database_backup
+from app.backup.auto_backup import (
+    create_database_backup,
+    maybe_create_automatic_backup,
+)
+from app.backup.router import router as backup_router
 from app.designer.routes import router as designer_router
 from app.finance.routes import router as finance_router
 from app.ai_bi.router import router as ai_bi_router
@@ -197,6 +201,7 @@ app.include_router(accounting_entries_router)
 app.include_router(fiscal_periods_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
+app.include_router(backup_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -221,6 +226,8 @@ async def require_authenticated_api(request: Request, call_next):
         finally:
             try:
                 await run_in_threadpool(record_audit_event, request, status_code)
+                if status_code < 400:
+                    await run_in_threadpool(maybe_create_automatic_backup)
             except Exception:
                 # Audit storage must never turn a completed business operation
                 # into a client-visible failure.
@@ -2692,8 +2699,10 @@ def get_roles():
 
 
 @app.get("/backup/create")
-def backup_create():
-    return create_database_backup()
+def backup_create(request: Request):
+    """Administrator-only compatibility route; prefer POST /api/backups."""
+    require_admin(request)
+    return create_database_backup(kind="manual")
 
 
 def _esc(value):
