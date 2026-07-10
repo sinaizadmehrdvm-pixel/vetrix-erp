@@ -503,6 +503,12 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(created_voucher["fiscal_period_id"], period_id)
         self.assertEqual(created_voucher["period_voucher_no"], max(numbers) + 1)
 
+        cleanup = self.client.delete(
+            f"/expenses/{created.json()['id']}",
+            headers=admin_headers,
+        )
+        self.assertEqual(cleanup.json()["status"], "deleted", cleanup.text)
+
 
 if __name__ == "__main__":
     unittest.main()
