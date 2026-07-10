@@ -11,6 +11,7 @@ import {
   deleteCrmTask,
   getCrmCustomer360,
   getCrmCustomerTimeline,
+  getAuthHeaders,
   getCrmNotes,
   getCrmTasks,
   redeemCrmCustomerPoints,
@@ -131,7 +132,7 @@ export default function Customer360() {
   
 async function fetchCustomerFiles(customerId) {
     try {
-      const res = await fetch(`${API_BASE}/api/crm/customers/${customerId}/files`);
+      const res = await fetch(`${API_BASE}/api/crm/customers/${customerId}/files`, { headers: getAuthHeaders() });
       if (!res.ok) return [];
       const json = await res.json();
       return Array.isArray(json) ? json : [];
@@ -239,6 +240,7 @@ async function fetchCustomerFiles(customerId) {
 
     const res = await fetch(`${API_BASE}/api/crm/customers/${id}/files`, {
       method: "POST",
+      headers: getAuthHeaders({}, false),
       body: form,
     });
 
@@ -256,6 +258,7 @@ async function fetchCustomerFiles(customerId) {
 
     const res = await fetch(`${API_BASE}/api/crm/files/${fileId}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
 
     if (!res.ok) throw new Error("Delete failed");
