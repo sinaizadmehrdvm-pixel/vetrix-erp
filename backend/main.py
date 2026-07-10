@@ -604,8 +604,9 @@ def require_admin(request: Request):
 @app.post("/users")
 def create_user(data: UserCreate, request: Request):
     require_admin(request)
-    requested_role = normalize_role(data.role)
-    if requested_role == "user" or requested_role != str(data.role).strip().lower():
+    raw_role = str(data.role).strip().lower()
+    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
+    if raw_role not in ROLE_LABELS:
         raise HTTPException(
             status_code=400,
             detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
@@ -659,8 +660,9 @@ def list_users(request: Request):
 @app.put("/users/{user_id}/role")
 def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
     require_admin(request)
-    requested_role = normalize_role(data.role)
-    if requested_role == "user" or requested_role != str(data.role).strip().lower():
+    raw_role = str(data.role).strip().lower()
+    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
+    if raw_role not in ROLE_LABELS:
         raise HTTPException(
             status_code=400,
             detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
