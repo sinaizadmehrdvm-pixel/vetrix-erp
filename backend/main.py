@@ -1402,45 +1402,54 @@ def list_expenses():
 def create_expense(data: ExpenseCreate):
     if data.amount <= 0:
         return {"status": "error", "message": "Amount must be greater than zero"}
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("""
-                INSERT INTO expenses (title, category, amount, expense_date, note, created_at)
-                VALUES (:title, :category, :amount, :expense_date, :note, :created_at)
-            """),
-            {
-                "title": data.title,
-                "category": data.category,
-                "amount": data.amount,
-                "expense_date": data.expense_date or datetime.utcnow().date().isoformat(),
-                "note": data.note,
-                "created_at": datetime.utcnow(),
-            },
-        )
-        expense_id = result.lastrowid
-        amount = float(accounting_money(data.amount))
-        post_balanced_voucher(
-            "expense",
-            expense_id,
-            f"ثبت خودکار هزینه: {data.title}",
-            [
-                {"account_code": "5102", "debit": amount, "description": data.title},
-                {"account_code": "1101", "credit": amount, "description": data.title},
-            ],
-            voucher_date=data.expense_date or datetime.utcnow().date().isoformat(),
-            connection=conn,
-        )
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    INSERT INTO expenses (title, category, amount, expense_date, note, created_at)
+                    VALUES (:title, :category, :amount, :expense_date, :note, :created_at)
+                """),
+                {
+                    "title": data.title,
+                    "category": data.category,
+                    "amount": data.amount,
+                    "expense_date": data.expense_date or datetime.utcnow().date().isoformat(),
+                    "note": data.note,
+                    "created_at": datetime.utcnow(),
+                },
+            )
+            expense_id = result.lastrowid
+            amount = float(accounting_money(data.amount))
+            post_balanced_voucher(
+                "expense",
+                expense_id,
+                f"ثبت خودکار هزینه: {data.title}",
+                [
+                    {"account_code": "5102", "debit": amount, "description": data.title},
+                    {"account_code": "1101", "credit": amount, "description": data.title},
+                ],
+                voucher_date=data.expense_date or datetime.utcnow().date().isoformat(),
+                connection=conn,
+            )
         return {"status": "created", "id": expense_id, "amount": amount}
+    except ValueError as error:
+        return {"status": "error", "message": str(error)}
 
 
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int):
-    with engine.connect() as conn:
-        conn.execute(text("DELETE FROM expenses WHERE id=:id"), {"id": expense_id})
-        delete_source_voucher("expense", expense_id, connection=conn)
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            delete_source_voucher("expense", expense_id, connection=conn)
+            result = conn.execute(
+                text("DELETE FROM expenses WHERE id=:id"),
+                {"id": expense_id},
+            )
+            if result.rowcount == 0:
+                return {"status": "error", "message": "Expense not found"}
         return {"status": "deleted", "id": expense_id}
+    except ValueError as error:
+        return {"status": "error", "message": str(error)}
 
 
 @app.get("/stock-movements")
