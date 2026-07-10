@@ -31,6 +31,7 @@ const AccountingCore = lazy(() => import("./pages/AccountingCore"));
 const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
 const FiscalPeriods = lazy(() => import("./pages/FiscalPeriods"));
 const AuditTrail = lazy(() => import("./pages/AuditTrail"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
@@ -121,6 +122,7 @@ function AppContent() {
           <Route path="accounting-entries" element={<AccountingEntries />} />
           <Route path="fiscal-periods" element={<FiscalPeriods />} />
           <Route path="audit-trail" element={<AuditTrail />} />
+          <Route path="user-management" element={<UserManagement />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />

@@ -46,6 +46,12 @@ from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
 from app.accounting.periods import router as fiscal_periods_router
 from app.audit import record_audit_event, router as audit_router
+from app.rbac import (
+    ROLE_LABELS,
+    is_authorized,
+    normalize_role,
+    router as rbac_router,
+)
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -190,6 +196,7 @@ app.include_router(crm_files_router)
 app.include_router(accounting_entries_router)
 app.include_router(fiscal_periods_router)
 app.include_router(audit_router)
+app.include_router(rbac_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -246,6 +253,20 @@ async def require_authenticated_api(request: Request, call_next):
             content={"detail": "Invalid or expired token"},
         )
 
+    if not is_authorized(
+        request.state.auth.get("role"),
+        request.method,
+        request.url.path,
+    ):
+        try:
+            await run_in_threadpool(record_audit_event, request, 403)
+        except Exception:
+            pass
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Your role does not permit this operation"},
+        )
+
     return await call_and_audit()
 
 
@@ -264,6 +285,10 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "admin"
+
+
+class UserRoleUpdate(BaseModel):
+    role: str
 
 
 class LoginRequest(BaseModel):
@@ -579,6 +604,13 @@ def require_admin(request: Request):
 @app.post("/users")
 def create_user(data: UserCreate, request: Request):
     require_admin(request)
+    raw_role = str(data.role).strip().lower()
+    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
+    if raw_role not in ROLE_LABELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
+        )
     db: Session = SessionLocal()
     try:
         existing = db.query(User).filter(User.username == data.username).first()
@@ -589,7 +621,7 @@ def create_user(data: UserCreate, request: Request):
             full_name=data.full_name,
             username=data.username,
             password=hash_password(data.password),
-            role=data.role,
+            role=requested_role,
         )
         db.add(user)
         db.commit()
@@ -619,6 +651,43 @@ def list_users(request: Request):
     db: Session = SessionLocal()
     try:
         return [user_to_auth_dict(user) for user in db.query(User).all()]
+    finally:
+        db.close()
+
+
+
+
+@app.put("/users/{user_id}/role")
+def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
+    require_admin(request)
+    raw_role = str(data.role).strip().lower()
+    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
+    if raw_role not in ROLE_LABELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
+        )
+
+    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    if str(user_id) == str(auth_user_id):
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.role == "admin" and requested_role != "admin":
+            admin_count = db.query(User).filter(User.role == "admin").count()
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The system must keep at least one administrator",
+                )
+        user.role = requested_role
+        db.commit()
+        db.refresh(user)
+        return {"status": "updated", "user": user_to_auth_dict(user)}
     finally:
         db.close()
 

@@ -614,5 +614,191 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(restored["valid"])
 
 
+    def test_role_based_permissions_follow_least_privilege(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_user = admin_login.json()["user"]
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+
+        role_users = {}
+        for role in ["accountant", "sales", "warehouse", "viewer"]:
+            response = self.client.post(
+                "/users",
+                headers=admin_headers,
+                json={
+                    "full_name": f"{role.title()} Test",
+                    "username": f"ci-{role}",
+                    "password": f"Strong{role.title()}Password!42",
+                    "role": role,
+                },
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            role_users[role] = response.json()
+
+        invalid_role = self.client.post(
+            "/users",
+            headers=admin_headers,
+            json={
+                "full_name": "Invalid Role",
+                "username": "ci-invalid-role",
+                "password": "StrongInvalidPassword!42",
+                "role": "superuser",
+            },
+        )
+        self.assertEqual(invalid_role.status_code, 400, invalid_role.text)
+
+        def headers_for(role):
+            login = self.client.post(
+                "/login",
+                json={
+                    "username": f"ci-{role}",
+                    "password": f"Strong{role.title()}Password!42",
+                },
+            )
+            self.assertEqual(login.status_code, 200, login.text)
+            return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        viewer_headers = headers_for("viewer")
+        self.assertEqual(
+            self.client.get("/customers", headers=viewer_headers).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/customers",
+                headers=viewer_headers,
+                json={"name": "Viewer must not create"},
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get("/settings", headers=viewer_headers).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=viewer_headers,
+            ).status_code,
+            200,
+        )
+
+        sales_headers = headers_for("sales")
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=sales_headers,
+            ).status_code,
+            403,
+        )
+        sales_customer = self.client.post(
+            "/customers",
+            headers=sales_headers,
+            json={"name": "Sales-created customer"},
+        )
+        self.assertEqual(sales_customer.status_code, 200, sales_customer.text)
+        self.assertEqual(
+            self.client.post(
+                "/expenses",
+                headers=sales_headers,
+                json={"title": "Sales must not expense", "amount": 10},
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/products",
+                headers=sales_headers,
+                json={"name": "Sales must not create product"},
+            ).status_code,
+            403,
+        )
+
+        warehouse_headers = headers_for("warehouse")
+        self.assertEqual(
+            self.client.get(
+                "/api/accounting/entries",
+                headers=warehouse_headers,
+            ).status_code,
+            403,
+        )
+        warehouse_product = self.client.post(
+            "/products",
+            headers=warehouse_headers,
+            json={"name": "Warehouse-created product", "stock": 3},
+        )
+        self.assertEqual(warehouse_product.status_code, 200, warehouse_product.text)
+        self.assertEqual(
+            self.client.post(
+                "/customers",
+                headers=warehouse_headers,
+                json={"name": "Warehouse must not create customer"},
+            ).status_code,
+            403,
+        )
+
+        accountant_headers = headers_for("accountant")
+        accountant_expense = self.client.post(
+            "/expenses",
+            headers=accountant_headers,
+            json={"title": "Temporary accountant expense", "amount": 15},
+        )
+        self.assertEqual(
+            accountant_expense.json()["status"],
+            "created",
+            accountant_expense.text,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/products",
+                headers=accountant_headers,
+                json={"name": "Accountant must not create product"},
+            ).status_code,
+            403,
+        )
+        cleanup = self.client.delete(
+            f"/expenses/{accountant_expense.json()['id']}",
+            headers=accountant_headers,
+        )
+        self.assertEqual(cleanup.json()["status"], "deleted", cleanup.text)
+
+        role_update = self.client.put(
+            f"/users/{role_users['viewer']['id']}/role",
+            headers=admin_headers,
+            json={"role": "sales"},
+        )
+        self.assertEqual(role_update.status_code, 200, role_update.text)
+        self.assertEqual(role_update.json()["user"]["role"], "sales")
+
+        self_change = self.client.put(
+            f"/users/{admin_user['id']}/role",
+            headers=admin_headers,
+            json={"role": "viewer"},
+        )
+        self.assertEqual(self_change.status_code, 400, self_change.text)
+
+        refreshed_login = self.client.post(
+            "/login",
+            json={
+                "username": "ci-viewer",
+                "password": "StrongViewerPassword!42",
+            },
+        )
+        self.assertEqual(refreshed_login.json()["user"]["role"], "sales")
+        refreshed_headers = {
+            "Authorization": f"Bearer {refreshed_login.json()['access_token']}"
+        }
+        promoted_write = self.client.post(
+            "/customers",
+            headers=refreshed_headers,
+            json={"name": "Promoted sales customer"},
+        )
+        self.assertEqual(promoted_write.status_code, 200, promoted_write.text)
+
+
 if __name__ == "__main__":
     unittest.main()
