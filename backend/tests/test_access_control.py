@@ -8,7 +8,9 @@ os.environ["VETRIX_DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ["VETRIX_JWT_SECRET"] = "integration-test-secret-not-for-production"
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
+from app.database import engine
 from main import app
 
 
@@ -508,6 +510,108 @@ class ApiAccessControlTests(unittest.TestCase):
             headers=admin_headers,
         )
         self.assertEqual(cleanup.json()["status"], "deleted", cleanup.text)
+
+
+    def test_z_audit_trail_is_admin_only_and_tamper_evident(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        user_login = self.client.post(
+            "/login",
+            json={"username": "ci-user", "password": "StrongUserPassword!42"},
+        )
+        user_headers = {
+            "Authorization": f"Bearer {user_login.json()['access_token']}"
+        }
+
+        created = self.client.post(
+            "/customers",
+            headers=admin_headers,
+            json={"name": "Audited Customer"},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+
+        periods = self.client.get(
+            "/api/accounting/periods",
+            headers=admin_headers,
+        ).json()
+        period = periods[0]
+        forbidden_mutation = self.client.post(
+            f"/api/accounting/periods/{period['id']}/close",
+            headers=user_headers,
+        )
+        self.assertEqual(forbidden_mutation.status_code, 403)
+
+        forbidden_read = self.client.get(
+            "/api/audit/events",
+            headers=user_headers,
+        )
+        self.assertEqual(forbidden_read.status_code, 403)
+
+        events_response = self.client.get(
+            "/api/audit/events",
+            headers=admin_headers,
+            params={"limit": 500},
+        )
+        self.assertEqual(events_response.status_code, 200, events_response.text)
+        payload = events_response.json()
+        self.assertGreater(payload["total"], 0)
+        events = payload["items"]
+
+        customer_event = next(
+            event
+            for event in events
+            if event["path"] == "/customers"
+            and event["method"] == "POST"
+            and event["actor_username"] == "ci-admin"
+        )
+        self.assertEqual(customer_event["action"], "create")
+        self.assertLess(customer_event["status_code"], 400)
+
+        denied_event = next(
+            event
+            for event in events
+            if event["path"].endswith("/close")
+            and event["actor_username"] == "ci-user"
+        )
+        self.assertEqual(denied_event["action"], "close")
+        self.assertEqual(denied_event["status_code"], 403)
+
+        integrity = self.client.get(
+            "/api/audit/integrity",
+            headers=admin_headers,
+        )
+        self.assertEqual(integrity.status_code, 200, integrity.text)
+        self.assertTrue(integrity.json()["valid"])
+        self.assertGreater(integrity.json()["events_checked"], 0)
+
+        latest = events[0]
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE audit_events SET actor_username='tampered' WHERE id=:id"),
+                {"id": latest["id"]},
+            )
+        broken = self.client.get(
+            "/api/audit/integrity",
+            headers=admin_headers,
+        ).json()
+        self.assertFalse(broken["valid"])
+        self.assertEqual(broken["broken_event_id"], latest["id"])
+
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE audit_events SET actor_username=:actor WHERE id=:id"),
+                {"actor": latest["actor_username"], "id": latest["id"]},
+            )
+        restored = self.client.get(
+            "/api/audit/integrity",
+            headers=admin_headers,
+        ).json()
+        self.assertTrue(restored["valid"])
 
 
 if __name__ == "__main__":
