@@ -4,6 +4,13 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import text
 from app.database import engine
+from app.accounting.periods import (
+    assert_voucher_period_open,
+    assign_unassigned_vouchers,
+    ensure_fiscal_schema,
+    next_voucher_numbers,
+    resolve_open_period,
+)
 
 router = APIRouter(prefix="/api/accounting/entries", tags=["Accounting Entries"])
 
@@ -101,6 +108,8 @@ def _ensure_tables():
                 posted_at VARCHAR
             )
         """))
+        ensure_fiscal_schema(conn)
+        assign_unassigned_vouchers(conn)
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS accounting_voucher_lines (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,10 +161,6 @@ def _validate_account_payload(payload):
         raise HTTPException(status_code=400, detail="Invalid level")
     if payload.normal_balance and payload.normal_balance not in VALID_BALANCES:
         raise HTTPException(status_code=400, detail="Invalid normal_balance")
-
-
-def _next_voucher_no(conn):
-    return int(conn.execute(text("SELECT COALESCE(MAX(voucher_no), 0) + 1 FROM accounting_vouchers")).scalar() or 1)
 
 
 def _get_account(conn, account_id: int):
@@ -504,24 +509,45 @@ def create_voucher(payload: VoucherCreate):
         raise HTTPException(status_code=400, detail="status must be draft or posted")
     now = datetime.utcnow().isoformat()
     voucher_date = payload.voucher_date or datetime.utcnow().date().isoformat()
-    with engine.connect() as conn:
-        total_debit, total_credit = _validate_lines(conn, payload.lines)
-        voucher_no = _next_voucher_no(conn)
-        posted_at = now if payload.status == "posted" else ""
-        result = conn.execute(text("""
-            INSERT INTO accounting_vouchers
-            (voucher_no, voucher_date, description, status, source_type, source_id, total_debit, total_credit, created_at, updated_at, posted_at)
-            VALUES (:voucher_no, :voucher_date, :description, :status, :source_type, :source_id, :total_debit, :total_credit, :now, :now, :posted_at)
-        """), {"voucher_no": voucher_no, "voucher_date": voucher_date, "description": payload.description, "status": payload.status, "source_type": payload.source_type, "source_id": payload.source_id, "total_debit": total_debit, "total_credit": total_credit, "now": now, "posted_at": posted_at})
-        voucher_id = result.lastrowid
-        for line in payload.lines:
-            account = _get_account(conn, line.account_id)
-            conn.execute(text("""
-                INSERT INTO accounting_voucher_lines
-                (voucher_id, account_id, account_code, account_name, description, debit, credit, created_at)
-                VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :now)
-            """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "now": now})
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            total_debit, total_credit = _validate_lines(conn, payload.lines)
+            period = resolve_open_period(conn, voucher_date)
+            voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"])
+            posted_at = now if payload.status == "posted" else ""
+            result = conn.execute(text("""
+                INSERT INTO accounting_vouchers
+                (voucher_no, fiscal_period_id, period_voucher_no, voucher_date,
+                 description, status, source_type, source_id, total_debit,
+                 total_credit, created_at, updated_at, posted_at)
+                VALUES
+                (:voucher_no, :fiscal_period_id, :period_voucher_no, :voucher_date,
+                 :description, :status, :source_type, :source_id, :total_debit,
+                 :total_credit, :now, :now, :posted_at)
+            """), {
+                "voucher_no": voucher_no,
+                "fiscal_period_id": period["id"],
+                "period_voucher_no": period_voucher_no,
+                "voucher_date": voucher_date,
+                "description": payload.description,
+                "status": payload.status,
+                "source_type": payload.source_type,
+                "source_id": payload.source_id,
+                "total_debit": total_debit,
+                "total_credit": total_credit,
+                "now": now,
+                "posted_at": posted_at,
+            })
+            voucher_id = result.lastrowid
+            for line in payload.lines:
+                account = _get_account(conn, line.account_id)
+                conn.execute(text("""
+                    INSERT INTO accounting_voucher_lines
+                    (voucher_id, account_id, account_code, account_name, description, debit, credit, created_at)
+                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :now)
+                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "now": now})
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     return get_voucher(voucher_id)
 
 
@@ -533,9 +559,12 @@ def post_voucher(voucher_id: int):
         raise HTTPException(status_code=400, detail="Cancelled voucher cannot be posted")
     if round(float(current.get("total_debit") or 0), 2) != round(float(current.get("total_credit") or 0), 2):
         raise HTTPException(status_code=400, detail="Unbalanced voucher cannot be posted")
-    with engine.connect() as conn:
-        conn.execute(text("UPDATE accounting_vouchers SET status='posted', posted_at=:now, updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            assert_voucher_period_open(conn, voucher_id)
+            conn.execute(text("UPDATE accounting_vouchers SET status='posted', posted_at=:now, updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     return get_voucher(voucher_id)
 
 
@@ -543,9 +572,12 @@ def post_voucher(voucher_id: int):
 def cancel_voucher(voucher_id: int):
     now = datetime.utcnow().isoformat()
     get_voucher(voucher_id)
-    with engine.connect() as conn:
-        conn.execute(text("UPDATE accounting_vouchers SET status='cancelled', updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            assert_voucher_period_open(conn, voucher_id)
+            conn.execute(text("UPDATE accounting_vouchers SET status='cancelled', updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     return get_voucher(voucher_id)
 
 
@@ -554,8 +586,11 @@ def delete_voucher(voucher_id: int):
     current = get_voucher(voucher_id)
     if current.get("status") == "posted":
         raise HTTPException(status_code=400, detail="Posted voucher cannot be deleted")
-    with engine.connect() as conn:
-        conn.execute(text("DELETE FROM accounting_voucher_lines WHERE voucher_id=:id"), {"id": voucher_id})
-        conn.execute(text("DELETE FROM accounting_vouchers WHERE id=:id"), {"id": voucher_id})
-        conn.commit()
+    try:
+        with engine.begin() as conn:
+            assert_voucher_period_open(conn, voucher_id)
+            conn.execute(text("DELETE FROM accounting_voucher_lines WHERE voucher_id=:id"), {"id": voucher_id})
+            conn.execute(text("DELETE FROM accounting_vouchers WHERE id=:id"), {"id": voucher_id})
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     return {"ok": True, "deleted_id": voucher_id}

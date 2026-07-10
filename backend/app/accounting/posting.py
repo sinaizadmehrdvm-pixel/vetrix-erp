@@ -4,6 +4,12 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import text
 
 from app.database import engine
+from app.accounting.periods import (
+    assert_source_period_open,
+    ensure_fiscal_schema,
+    next_voucher_numbers,
+    resolve_open_period,
+)
 
 MONEY_STEP = Decimal("0.01")
 
@@ -67,6 +73,7 @@ def _ensure_schema(conn):
             posted_at VARCHAR
         )
     """))
+    ensure_fiscal_schema(conn)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS accounting_voucher_lines (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,21 +162,25 @@ def post_balanced_voucher(
     def write(conn):
         now = datetime.utcnow().isoformat()
         _ensure_schema(conn)
+        effective_date = voucher_date or datetime.utcnow().date().isoformat()
+        assert_source_period_open(conn, source_type, source_id)
+        period = resolve_open_period(conn, effective_date)
         _delete_source(conn, source_type, source_id)
-        voucher_no = (
-            conn.execute(text("SELECT COALESCE(MAX(voucher_no), 0) + 1 FROM accounting_vouchers")).scalar()
-            or 1
-        )
+        voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"])
         result = conn.execute(text("""
             INSERT INTO accounting_vouchers
-            (voucher_no, voucher_date, description, status, source_type, source_id,
+            (voucher_no, fiscal_period_id, period_voucher_no, voucher_date,
+             description, status, source_type, source_id,
              total_debit, total_credit, created_at, updated_at, posted_at)
             VALUES
-            (:voucher_no, :voucher_date, :description, 'posted', :source_type, :source_id,
+            (:voucher_no, :fiscal_period_id, :period_voucher_no, :voucher_date,
+             :description, 'posted', :source_type, :source_id,
              :total_debit, :total_credit, :now, :now, :now)
         """), {
             "voucher_no": voucher_no,
-            "voucher_date": voucher_date or datetime.utcnow().date().isoformat(),
+            "fiscal_period_id": period["id"],
+            "period_voucher_no": period_voucher_no,
+            "voucher_date": effective_date,
             "description": description,
             "source_type": source_type,
             "source_id": source_id,
@@ -211,6 +222,7 @@ def post_balanced_voucher(
 def delete_source_voucher(source_type, source_id, connection=None):
     def delete(conn):
         _ensure_schema(conn)
+        assert_source_period_open(conn, source_type, source_id)
         _delete_source(conn, source_type, source_id)
 
     if connection is not None:
