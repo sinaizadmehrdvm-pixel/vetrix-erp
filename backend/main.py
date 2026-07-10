@@ -44,6 +44,12 @@ from app.crm.files import router as crm_files_router
 from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
+from app.accounting.posting import (
+    cash_account_for_method,
+    delete_source_voucher,
+    post_balanced_voucher,
+    settlement_counterpart_account,
+)
 from app.accounting.integrity import (
     ALLOWED_INVOICE_TYPES,
     ALLOWED_PAYMENT_STATUSES,
@@ -987,6 +993,84 @@ def add_invoice_customer_entry(db: Session, invoice: Invoice):
         add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
 
 
+def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products):
+    description = f"ثبت خودکار فاکتور شماره {invoice.id}"
+    total = float(accounting_money(invoice.total_amount))
+    cost = float(accounting_money(sum(
+        float(item.quantity) * float(getattr(products[item.product_id], "buy_price", 0) or 0)
+        for item in items
+    )))
+    lines = []
+
+    if invoice.invoice_type == "sale":
+        lines = [
+            {"account_code": "1103", "debit": total, "description": description},
+            {"account_code": "4101", "credit": total, "description": description},
+            {"account_code": "5101", "debit": cost, "description": description},
+            {"account_code": "1201", "credit": cost, "description": description},
+        ]
+    elif invoice.invoice_type == "buy":
+        lines = [
+            {"account_code": "1201", "debit": total, "description": description},
+            {"account_code": "2101", "credit": total, "description": description},
+        ]
+    elif invoice.invoice_type == "return_sale":
+        lines = [
+            {"account_code": "4102", "debit": total, "description": description},
+            {"account_code": "1103", "credit": total, "description": description},
+            {"account_code": "1201", "debit": cost, "description": description},
+            {"account_code": "5101", "credit": cost, "description": description},
+        ]
+    elif invoice.invoice_type == "return_buy":
+        lines = [
+            {"account_code": "2101", "debit": total, "description": description},
+            {"account_code": "1201", "credit": total, "description": description},
+        ]
+    else:
+        delete_source_voucher("invoice", invoice.id, connection=db.connection())
+        return
+
+    post_balanced_voucher(
+        "invoice",
+        invoice.id,
+        description,
+        lines,
+        connection=db.connection(),
+    )
+
+
+def post_transaction_to_general_ledger(
+    db: Session,
+    entry: AccountingEntry,
+    method: str,
+    invoice: Optional[Invoice] = None,
+):
+    amount = float(accounting_money(entry.credit or entry.debit))
+    cash_account = cash_account_for_method(method)
+    counterpart = settlement_counterpart_account(
+        invoice.invoice_type if invoice else None,
+        entry.source_type,
+    )
+    description = entry.description
+    if entry.source_type == "receipt":
+        lines = [
+            {"account_code": cash_account, "debit": amount, "description": description},
+            {"account_code": counterpart, "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": counterpart, "debit": amount, "description": description},
+            {"account_code": cash_account, "credit": amount, "description": description},
+        ]
+    post_balanced_voucher(
+        entry.source_type,
+        entry.id,
+        description,
+        lines,
+        connection=db.connection(),
+    )
+
+
 @app.post("/invoices")
 def create_invoice(data: InvoiceCreate):
     db: Session = SessionLocal()
@@ -1024,6 +1108,7 @@ def create_invoice(data: InvoiceCreate):
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
+        post_invoice_to_general_ledger(db, invoice, data.items, products)
         db.commit()
         db.refresh(invoice)
         return {
@@ -1091,6 +1176,7 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
+        post_invoice_to_general_ledger(db, invoice, data.items, products)
         db.flush()
         rebuild_customer_balances(db, old_customer_id)
         if data.customer_id != old_customer_id:
@@ -1257,6 +1343,7 @@ def create_payment_or_receipt(data: PaymentCreate):
             float(accounting_money(invoice.total_amount - settled))
             if invoice else None
         )
+        post_transaction_to_general_ledger(db, entry, data.method, invoice)
         db.commit()
         return {
             "status": "created",
@@ -1328,14 +1415,28 @@ def create_expense(data: ExpenseCreate):
                 "created_at": datetime.utcnow(),
             },
         )
+        expense_id = result.lastrowid
+        amount = float(accounting_money(data.amount))
+        post_balanced_voucher(
+            "expense",
+            expense_id,
+            f"ثبت خودکار هزینه: {data.title}",
+            [
+                {"account_code": "5102", "debit": amount, "description": data.title},
+                {"account_code": "1101", "credit": amount, "description": data.title},
+            ],
+            voucher_date=data.expense_date or datetime.utcnow().date().isoformat(),
+            connection=conn,
+        )
         conn.commit()
-        return {"status": "created", "id": result.lastrowid, "amount": data.amount}
+        return {"status": "created", "id": expense_id, "amount": amount}
 
 
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int):
     with engine.connect() as conn:
         conn.execute(text("DELETE FROM expenses WHERE id=:id"), {"id": expense_id})
+        delete_source_voucher("expense", expense_id, connection=conn)
         conn.commit()
         return {"status": "deleted", "id": expense_id}
 
@@ -1447,6 +1548,7 @@ def delete_invoice(invoice_id: int):
         for item in items:
             db.delete(item)
 
+        delete_source_voucher("invoice", invoice_id, connection=db.connection())
         db.delete(invoice)
         db.flush()
 
@@ -1491,6 +1593,7 @@ def delete_transaction(transaction_id: int):
         if source_type in {"receipt", "payment"} and source_id:
             linked_invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
 
+        delete_source_voucher(source_type, entry.id, connection=db.connection())
         db.delete(entry)
         db.flush()
 
