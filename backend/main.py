@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
 from sqlalchemy.orm import Session
@@ -17,7 +17,9 @@ from app.models.accounting_entry import AccountingEntry
 from app.auth import (
     create_access_token,
     decode_access_token,
+    extract_bearer_token,
     hash_password,
+    is_public_request,
     password_needs_upgrade,
     verify_password,
 )
@@ -179,6 +181,38 @@ allowed_origins = [
     for origin in os.getenv("VETRIX_ALLOWED_ORIGINS", default_origins).split(",")
     if origin.strip()
 ]
+
+@app.middleware("http")
+async def require_authenticated_api(request: Request, call_next):
+    if is_public_request(request.url.path, request.method):
+        return await call_next(request)
+
+    if request.url.path == "/users" and request.method.upper() == "POST":
+        db: Session = SessionLocal()
+        try:
+            if db.query(User).count() == 0:
+                request.state.auth = {"role": "bootstrap"}
+                return await call_next(request)
+        finally:
+            db.close()
+
+    token = extract_bearer_token(request.headers.get("Authorization"))
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required"},
+        )
+
+    try:
+        request.state.auth = decode_access_token(token)
+    except PyJWTError:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid or expired token"},
+        )
+
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -501,8 +535,15 @@ def update_settings(data: AppSettingsUpdate):
     return save_settings(data)
 
 
+def require_admin(request: Request):
+    auth = getattr(request.state, "auth", {})
+    if auth.get("role") not in {"admin", "bootstrap"}:
+        raise HTTPException(status_code=403, detail="Administrator access required")
+
+
 @app.post("/users")
-def create_user(data: UserCreate):
+def create_user(data: UserCreate, request: Request):
+    require_admin(request)
     db: Session = SessionLocal()
     try:
         existing = db.query(User).filter(User.username == data.username).first()
@@ -538,7 +579,8 @@ def user_to_auth_dict(user: User):
 
 
 @app.get("/users")
-def list_users():
+def list_users(request: Request):
+    require_admin(request)
     db: Session = SessionLocal()
     try:
         return [user_to_auth_dict(user) for user in db.query(User).all()]
@@ -571,16 +613,11 @@ def login(data: LoginRequest):
 
 
 @app.get("/me")
-def me(authorization: Optional[str] = Header(default=None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-
-    token = authorization.removeprefix("Bearer ").strip()
+def me(request: Request):
     try:
-        claims = decode_access_token(token)
-        user_id = int(claims["sub"])
-    except (PyJWTError, KeyError, TypeError, ValueError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        user_id = int(request.state.auth["sub"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid authentication context")
 
     db: Session = SessionLocal()
     try:
