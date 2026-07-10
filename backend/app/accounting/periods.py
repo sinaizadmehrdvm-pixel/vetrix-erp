@@ -80,6 +80,63 @@ def _period_dict(row):
     return dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
 
 
+def assign_unassigned_vouchers(conn):
+    """Attach legacy vouchers to periods without changing their global numbers."""
+    ensure_fiscal_schema(conn)
+    vouchers = conn.execute(text("""
+        SELECT id, voucher_date
+        FROM accounting_vouchers
+        WHERE fiscal_period_id IS NULL
+        ORDER BY voucher_date ASC, id ASC
+    """)).mappings().all()
+    for voucher in vouchers:
+        target = _parse_date(voucher["voucher_date"] or date.today())
+        period = conn.execute(text("""
+            SELECT id FROM fiscal_periods
+            WHERE start_date <= :target AND end_date >= :target
+            ORDER BY start_date DESC
+            LIMIT 1
+        """), {"target": target.isoformat()}).mappings().first()
+        if not period:
+            year_start = date(target.year, 1, 1).isoformat()
+            year_end = date(target.year, 12, 31).isoformat()
+            overlap = conn.execute(text("""
+                SELECT id FROM fiscal_periods
+                WHERE NOT (end_date < :start_date OR start_date > :end_date)
+                LIMIT 1
+            """), {"start_date": year_start, "end_date": year_end}).mappings().first()
+            start_date = target.isoformat() if overlap else year_start
+            end_date = target.isoformat() if overlap else year_end
+            result = conn.execute(text("""
+                INSERT INTO fiscal_periods
+                (name, start_date, end_date, status, created_at)
+                VALUES (:name, :start_date, :end_date, 'open', :created_at)
+            """), {
+                "name": f"Fiscal {target.year}" if not overlap else f"Imported {target.isoformat()}",
+                "start_date": start_date,
+                "end_date": end_date,
+                "created_at": datetime.utcnow().isoformat(),
+            })
+            period_id = result.lastrowid
+        else:
+            period_id = period["id"]
+
+        period_no = conn.execute(text("""
+            SELECT COALESCE(MAX(period_voucher_no), 0) + 1
+            FROM accounting_vouchers
+            WHERE fiscal_period_id=:period_id
+        """), {"period_id": period_id}).scalar() or 1
+        conn.execute(text("""
+            UPDATE accounting_vouchers
+            SET fiscal_period_id=:period_id, period_voucher_no=:period_no
+            WHERE id=:voucher_id
+        """), {
+            "period_id": period_id,
+            "period_no": int(period_no),
+            "voucher_id": voucher["id"],
+        })
+
+
 def create_fiscal_period(conn, name, start_date, end_date):
     start = _parse_date(start_date)
     end = _parse_date(end_date)
@@ -159,6 +216,18 @@ def next_voucher_numbers(conn, fiscal_period_id):
     return int(global_no), int(period_no)
 
 
+def assert_voucher_period_open(conn, voucher_id):
+    ensure_fiscal_schema(conn)
+    row = conn.execute(text("""
+        SELECT p.name, p.status
+        FROM accounting_vouchers v
+        JOIN fiscal_periods p ON p.id = v.fiscal_period_id
+        WHERE v.id=:voucher_id
+    """), {"voucher_id": voucher_id}).mappings().first()
+    if row and row["status"] != "open":
+        raise ValueError(f"Fiscal period '{row['name']}' is closed")
+
+
 def assert_source_period_open(conn, source_type, source_id):
     ensure_fiscal_schema(conn)
     row = conn.execute(text("""
@@ -235,6 +304,7 @@ def reopen_fiscal_period(conn, period_id):
 def list_fiscal_periods():
     with engine.begin() as conn:
         ensure_fiscal_schema(conn)
+        assign_unassigned_vouchers(conn)
         rows = conn.execute(text("""
             SELECT p.*,
                    COUNT(v.id) AS vouchers_count,
