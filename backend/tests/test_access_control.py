@@ -1939,5 +1939,125 @@ class ApiAccessControlTests(unittest.TestCase):
         )
 
 
+    def test_zzz_multi_currency_rate_and_balance_reporting(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        periods = self.client.get(
+            "/api/accounting/periods", headers=headers
+        ).json()
+        period = next(item for item in periods if item["status"] == "open")
+
+        currency = self.client.post(
+            "/api/accounting/currencies",
+            headers=headers,
+            json={"code": "USD", "name": "US Dollar", "symbol": "$"},
+        )
+        self.assertEqual(currency.status_code, 200, currency.text)
+
+        initial_rate = self.client.post(
+            "/api/accounting/currencies/rates",
+            headers=headers,
+            json={
+                "currency_code": "USD",
+                "rate_date": period["start_date"],
+                "rate_to_base": 50000,
+            },
+        )
+        self.assertEqual(initial_rate.status_code, 200, initial_rate.text)
+
+        accounts = self.client.get(
+            "/api/accounting/entries/chart", headers=headers
+        ).json()
+        bank = next(item for item in accounts if item["code"] == "1102")
+        revenue = next(item for item in accounts if item["code"] == "4101")
+        voucher = self.client.post(
+            "/api/accounting/entries",
+            headers=headers,
+            json={
+                "voucher_date": period["start_date"],
+                "description": "CI foreign currency receipt",
+                "status": "posted",
+                "lines": [
+                    {
+                        "account_id": bank["id"],
+                        "debit": 100000,
+                        "credit": 0,
+                        "currency_code": "USD",
+                        "foreign_amount": 2,
+                        "exchange_rate": 50000,
+                    },
+                    {
+                        "account_id": revenue["id"],
+                        "debit": 0,
+                        "credit": 100000,
+                    },
+                ],
+            },
+        )
+        self.assertEqual(voucher.status_code, 200, voucher.text)
+        foreign_line = next(
+            line for line in voucher.json()["lines"]
+            if line["account_code"] == "1102"
+        )
+        self.assertEqual(foreign_line["currency_code"], "USD")
+        self.assertEqual(foreign_line["foreign_amount"], 2)
+        self.assertEqual(foreign_line["exchange_rate"], 50000)
+
+        invalid = self.client.post(
+            "/api/accounting/entries",
+            headers=headers,
+            json={
+                "voucher_date": period["start_date"],
+                "description": "Invalid conversion",
+                "status": "posted",
+                "lines": [
+                    {
+                        "account_id": bank["id"],
+                        "debit": 90000,
+                        "currency_code": "USD",
+                        "foreign_amount": 2,
+                        "exchange_rate": 50000,
+                    },
+                    {"account_id": revenue["id"], "credit": 90000},
+                ],
+            },
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+        current_rate = self.client.post(
+            "/api/accounting/currencies/rates",
+            headers=headers,
+            json={
+                "currency_code": "USD",
+                "rate_date": period["end_date"],
+                "rate_to_base": 60000,
+            },
+        )
+        self.assertEqual(current_rate.status_code, 200, current_rate.text)
+
+        balances = self.client.get(
+            "/api/accounting/currencies/reports/balances",
+            headers=headers,
+            params={
+                "fiscal_period_id": period["id"],
+                "as_of": period["end_date"],
+            },
+        )
+        self.assertEqual(balances.status_code, 200, balances.text)
+        item = next(
+            row for row in balances.json()["items"]
+            if row["currency_code"] == "USD"
+            and row["account_code"] == "1102"
+        )
+        self.assertEqual(item["foreign_balance"], 2.0)
+        self.assertEqual(item["base_balance"], 100000.0)
+        self.assertEqual(item["current_rate"], 60000.0)
+        self.assertEqual(item["current_base_value"], 120000.0)
+        self.assertEqual(item["unrealized_difference"], 20000.0)
+
+
 if __name__ == "__main__":
     unittest.main()
