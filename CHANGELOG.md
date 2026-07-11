@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 — 2026-07-12
+
+### Added
+
+- Grouped compact navigation and seven persistent visual themes
+- Online commerce controls for publishing, price, stock sync, and discounts
+- Social campaign drafts with manager approval
+- Voice-driven managed change requests with maker-checker approval
+- Secure secret references and allow-listed transactional execution
+
+### Improved
+
+- Responsive dashboard layout, visual polish, and reduced navigation scrolling
+- Bilingual labels and release validation for all new workflows
+
 ## 1.0.1 — 2026-07-11
 
 ### Fixed
