@@ -97,6 +97,9 @@ def _ensure_schema(conn):
             credit FLOAT DEFAULT 0,
             cost_center_id INTEGER,
             project_id INTEGER,
+            currency_code VARCHAR,
+            foreign_amount FLOAT,
+            exchange_rate FLOAT,
             created_at VARCHAR
         )
     """))
@@ -105,6 +108,8 @@ def _ensure_schema(conn):
         conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN cost_center_id INTEGER"))
     if "project_id" not in line_columns:
         conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN project_id INTEGER"))
+    from app.accounting.currencies import ensure_currency_schema
+    ensure_currency_schema(conn)
 
     now = datetime.utcnow().isoformat()
     for code, name, account_type, level, parent_code, normal_balance in POSTING_ACCOUNTS:
@@ -216,9 +221,9 @@ def post_balanced_voucher(
                 raise ValueError(f"Posting account not found: {line['account_code']}")
             conn.execute(text("""
                 INSERT INTO accounting_voucher_lines
-                (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, created_at)
+                (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at)
                 VALUES
-                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :now)
+                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now)
             """), {
                 "voucher_id": voucher_id,
                 "account_id": account["id"],
@@ -229,6 +234,9 @@ def post_balanced_voucher(
                 "credit": float(line["credit"]),
                 "cost_center_id": line.get("cost_center_id"),
                 "project_id": line.get("project_id"),
+                "currency_code": line.get("currency_code"),
+                "foreign_amount": line.get("foreign_amount"),
+                "exchange_rate": line.get("exchange_rate"),
                 "now": now,
             })
         return voucher_id
