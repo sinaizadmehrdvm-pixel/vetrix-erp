@@ -2059,5 +2059,113 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(item["unrealized_difference"], 20000.0)
 
 
+    def test_zzzz_maker_checker_voucher_approval(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        accountant_create = self.client.post(
+            "/users",
+            headers=admin_headers,
+            json={
+                "full_name": "CI Approval Accountant",
+                "username": "ci-approval-accountant",
+                "password": "StrongApprovalPassword!42",
+                "role": "accountant",
+            },
+        )
+        self.assertEqual(
+            accountant_create.status_code, 200, accountant_create.text
+        )
+        accountant_login = self.client.post(
+            "/login",
+            json={
+                "username": "ci-approval-accountant",
+                "password": "StrongApprovalPassword!42",
+            },
+        )
+        accountant_headers = {
+            "Authorization": (
+                f"Bearer {accountant_login.json()['access_token']}"
+            )
+        }
+
+        accounts = self.client.get(
+            "/api/accounting/entries/chart", headers=admin_headers
+        ).json()
+        cash = next(item for item in accounts if item["code"] == "1101")
+        expense = next(item for item in accounts if item["code"] == "5102")
+        draft = self.client.post(
+            "/api/accounting/entries",
+            headers=admin_headers,
+            json={
+                "description": "CI approval workflow voucher",
+                "status": "draft",
+                "lines": [
+                    {"account_id": expense["id"], "debit": 75},
+                    {"account_id": cash["id"], "credit": 75},
+                ],
+            },
+        )
+        self.assertEqual(draft.status_code, 200, draft.text)
+        voucher_id = draft.json()["id"]
+
+        submitted = self.client.post(
+            f"/api/accounting/approvals/vouchers/{voucher_id}/submit",
+            headers=admin_headers,
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        approval_id = submitted.json()["approval_id"]
+
+        self_approval = self.client.post(
+            f"/api/accounting/approvals/{approval_id}/approve",
+            headers=admin_headers,
+            json={"note": "must be blocked"},
+        )
+        self.assertEqual(self_approval.status_code, 409)
+
+        approved = self.client.post(
+            f"/api/accounting/approvals/{approval_id}/approve",
+            headers=accountant_headers,
+            json={"note": "independently reviewed"},
+        )
+        self.assertEqual(approved.status_code, 200, approved.text)
+        self.assertEqual(approved.json()["status"], "approved")
+
+        voucher = self.client.get(
+            f"/api/accounting/entries/{voucher_id}",
+            headers=admin_headers,
+        ).json()
+        self.assertEqual(voucher["status"], "posted")
+
+        detail = self.client.get(
+            f"/api/accounting/approvals/{approval_id}",
+            headers=admin_headers,
+        )
+        self.assertEqual(detail.status_code, 200, detail.text)
+        approval = detail.json()
+        self.assertEqual(approval["status"], "approved")
+        self.assertEqual(
+            [event["event_type"] for event in approval["events"]],
+            ["submitted", "approved"],
+        )
+        self.assertNotEqual(
+            approval["requested_by"], approval["decided_by"]
+        )
+
+        pending = self.client.get(
+            "/api/accounting/approvals",
+            headers=admin_headers,
+            params={"status": "pending"},
+        )
+        self.assertEqual(pending.status_code, 200, pending.text)
+        self.assertFalse(
+            any(item["id"] == approval_id for item in pending.json())
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
