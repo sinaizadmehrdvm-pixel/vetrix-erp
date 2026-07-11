@@ -175,7 +175,13 @@ def build_system_health():
                 negative_stock = conn.execute(text("""
                     SELECT COUNT(*) FROM products WHERE COALESCE(stock, 0) < 0
                 """)).scalar() or 0
+                unvalued_stock = conn.execute(text("""
+                    SELECT COUNT(*) FROM products
+                    WHERE COALESCE(stock, 0) > 0
+                      AND COALESCE(buy_price, 0) <= 0
+                """)).scalar() or 0
                 metrics["negative_stock_products"] = int(negative_stock)
+                metrics["unvalued_stock_products"] = int(unvalued_stock)
                 _check(
                     checks,
                     "negative_inventory",
@@ -186,6 +192,17 @@ def build_system_health():
                     if not negative_stock
                     else f"{negative_stock} product(s) have negative stock",
                     int(negative_stock),
+                )
+                _check(
+                    checks,
+                    "inventory_valuation",
+                    "inventory",
+                    "pass" if not unvalued_stock else "warn",
+                    "Inventory valuation",
+                    "All stocked products have a purchase cost"
+                    if not unvalued_stock
+                    else f"{unvalued_stock} stocked product(s) have zero cost",
+                    int(unvalued_stock),
                 )
 
             audit = verify_audit_chain(conn)

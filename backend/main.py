@@ -458,6 +458,104 @@ def add_customer_entry(
     return entry
 
 
+def _entity_date(value):
+    if value:
+        return str(value)[:10]
+    return datetime.utcnow().date().isoformat()
+
+
+def sync_customer_opening_general_ledger(db, customer, opening_balance):
+    amount = float(accounting_money(abs(opening_balance or 0)))
+    connection = db.connection()
+    if amount == 0:
+        delete_source_voucher(
+            "customer_opening",
+            customer.id,
+            connection=connection,
+        )
+        return
+
+    description = f"مانده افتتاحیه طرف‌حساب: {customer.name}"
+    if opening_balance > 0:
+        lines = [
+            {"account_code": "1103", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": "3101", "debit": amount, "description": description},
+            {"account_code": "2101", "credit": amount, "description": description},
+        ]
+    post_balanced_voucher(
+        "customer_opening",
+        customer.id,
+        description,
+        lines,
+        voucher_date=_entity_date(customer.created_at),
+        connection=connection,
+    )
+
+
+def sync_product_opening_general_ledger(db, product):
+    stock = float(product.stock or 0)
+    unit_cost = float(accounting_money(product.buy_price or 0))
+    amount = float(accounting_money(stock * unit_cost))
+    connection = db.connection()
+    if amount == 0:
+        delete_source_voucher(
+            "product_opening",
+            product.id,
+            connection=connection,
+        )
+        return
+
+    description = f"موجودی افتتاحیه کالا: {product.name}"
+    post_balanced_voucher(
+        "product_opening",
+        product.id,
+        description,
+        [
+            {"account_code": "1201", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ],
+        voucher_date=datetime.utcnow().date().isoformat(),
+        connection=connection,
+    )
+
+
+def post_inventory_adjustment_general_ledger(
+    db,
+    movement_id,
+    product,
+    stock_delta,
+    movement_date,
+):
+    amount = float(accounting_money(
+        abs(stock_delta) * float(product.buy_price or 0)
+    ))
+    if amount == 0:
+        return None
+    description = f"تعدیل موجودی کالا: {product.name}"
+    if stock_delta > 0:
+        lines = [
+            {"account_code": "1201", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": "3101", "debit": amount, "description": description},
+            {"account_code": "1201", "credit": amount, "description": description},
+        ]
+    return post_balanced_voucher(
+        "inventory_adjustment",
+        movement_id,
+        description,
+        lines,
+        voucher_date=movement_date,
+        connection=db.connection(),
+    )
+
+
 def customer_to_dict(db: Session, c: Customer):
     balance = customer_balance(db, c.id)
     return {
@@ -770,15 +868,33 @@ def create_customer(data: CustomerCreate):
             notes=data.notes,
         )
         db.add(customer)
-        db.commit()
-        db.refresh(customer)
+        db.flush()
 
         if data.opening_balance > 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بدهکار", debit=data.opening_balance)
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بدهکار",
+                debit=data.opening_balance,
+            )
         elif data.opening_balance < 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بستانکار", credit=abs(data.opening_balance))
-
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بستانکار",
+                credit=abs(data.opening_balance),
+            )
+        sync_customer_opening_general_ledger(
+            db,
+            customer,
+            data.opening_balance,
+        )
         db.commit()
+        db.refresh(customer)
         result = {"status": "created", "id": customer.id, "name": customer.name, "balance": customer_balance(db, customer.id)}
         db.close()
         return result
@@ -875,9 +991,28 @@ def update_customer(customer_id: int, data: CustomerCreate):
         db.flush()
 
         if data.opening_balance > 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بدهکار", debit=data.opening_balance)
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بدهکار",
+                debit=data.opening_balance,
+            )
         elif data.opening_balance < 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بستانکار", credit=abs(data.opening_balance))
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بستانکار",
+                credit=abs(data.opening_balance),
+            )
+        sync_customer_opening_general_ledger(
+            db,
+            customer,
+            data.opening_balance,
+        )
 
         db.commit()
         db.refresh(customer)
@@ -929,6 +1064,9 @@ def list_products():
 def create_product(data: ProductCreate):
     db: Session = SessionLocal()
     try:
+        opening_stock = float(data.stock or 0)
+        if opening_stock < 0:
+            raise ValueError("Opening stock cannot be negative")
         sell_price = (
             data.sell_price
             if data.sell_price is not None
@@ -942,9 +1080,11 @@ def create_product(data: ProductCreate):
             buy_price=float(accounting_money(data.buy_price or 0)),
             sell_price=float(accounting_money(sell_price)),
             price=float(accounting_money(sell_price)),
-            stock=float(data.stock or 0),
+            stock=opening_stock,
         )
         db.add(product)
+        db.flush()
+        sync_product_opening_general_ledger(db, product)
         db.commit()
         db.refresh(product)
         return {"status": "created", **product_to_dict(product)}
@@ -962,10 +1102,33 @@ def update_product(product_id: int, data: ProductCreate):
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
             return {"status": "error", "message": "Product not found"}
+
+        requested_stock = float(data.stock or 0)
+        if requested_stock < 0:
+            raise ValueError("Stock cannot be negative")
+        invoice_history = db.query(InvoiceItem).filter(
+            InvoiceItem.product_id == product_id
+        ).first()
+        movement_history = db.execute(text("""
+            SELECT id FROM stock_movements
+            WHERE product_id=:product_id
+            LIMIT 1
+        """), {"product_id": product_id}).first()
+        has_inventory_history = bool(invoice_history or movement_history)
+        if (
+            has_inventory_history
+            and abs(requested_stock - float(product.stock or 0)) >= 0.000001
+        ):
+            raise ValueError(
+                "Stock with inventory history must be changed through a stock movement"
+            )
+
         sell_price = (
             data.sell_price
             if data.sell_price is not None
-            else data.price if data.price is not None else product.sell_price or product.price or 0
+            else data.price
+            if data.price is not None
+            else product.sell_price or product.price or 0
         )
         product.name = data.name
         product.code = data.code or product.code or ""
@@ -974,7 +1137,10 @@ def update_product(product_id: int, data: ProductCreate):
         product.buy_price = float(accounting_money(data.buy_price or 0))
         product.sell_price = float(accounting_money(sell_price))
         product.price = float(accounting_money(sell_price))
-        product.stock = float(data.stock or 0)
+        product.stock = requested_stock
+
+        if not has_inventory_history:
+            sync_product_opening_general_ledger(db, product)
         db.commit()
         db.refresh(product)
         return {"status": "updated", **product_to_dict(product)}
@@ -995,15 +1161,27 @@ def delete_product(product_id: int):
             db.close()
             return {"status": "error", "message": "Product not found"}
 
-        used = db.query(InvoiceItem).filter(InvoiceItem.product_id == product_id).first()
+        used = db.query(InvoiceItem).filter(
+            InvoiceItem.product_id == product_id
+        ).first()
+        movement = db.execute(text("""
+            SELECT id FROM stock_movements
+            WHERE product_id=:product_id
+            LIMIT 1
+        """), {"product_id": product_id}).first()
 
-        if used:
+        if used or movement:
             db.close()
             return {
                 "status": "error",
-                "message": "این کالا داخل فاکتور استفاده شده و قابل حذف نیست. اول فاکتورهای مرتبط را حذف کنید.",
+                "message": "این کالا دارای سابقه انبار یا فاکتور است و قابل حذف نیست.",
             }
 
+        delete_source_voucher(
+            "product_opening",
+            product_id,
+            connection=db.connection(),
+        )
         db.delete(product)
         db.commit()
         db.close()
@@ -1560,54 +1738,82 @@ def create_stock_movement(data: StockMovementCreate):
     try:
         product = db.query(Product).filter(Product.id == data.product_id).first()
         if not product:
-            db.close()
-            return {"status": "error", "message": "Product not found"}
-        if data.quantity <= 0:
-            db.close()
-            return {"status": "error", "message": "Quantity must be greater than zero"}
+            raise ValueError("Product not found")
+
+        previous_stock = float(product.stock or 0)
+        quantity = float(data.quantity)
+        if data.movement_type in {"in", "out"} and quantity <= 0:
+            raise ValueError("Quantity must be greater than zero")
+        if data.movement_type == "adjustment" and quantity < 0:
+            raise ValueError("Adjusted stock cannot be negative")
 
         if data.movement_type == "in":
-            product.stock += data.quantity
+            stock_delta = quantity
+            product.stock = previous_stock + quantity
         elif data.movement_type == "out":
-            if product.stock < data.quantity:
-                db.close()
-                return {"status": "error", "message": "Not enough stock", "current_stock": product.stock}
-            product.stock -= data.quantity
+            if previous_stock < quantity:
+                raise ValueError(
+                    f"Not enough stock; current stock is {previous_stock}"
+                )
+            stock_delta = -quantity
+            product.stock = previous_stock - quantity
         elif data.movement_type == "adjustment":
-            product.stock = data.quantity
+            stock_delta = quantity - previous_stock
+            product.stock = quantity
         else:
-            db.close()
-            return {"status": "error", "message": "movement_type must be in, out or adjustment"}
-
-        db.commit()
-        movement_date = data.movement_date or datetime.utcnow().date().isoformat()
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    INSERT INTO stock_movements
-                    (warehouse, product_id, product_name, quantity, movement_type, movement_date, note, created_at)
-                    VALUES (:warehouse, :product_id, :product_name, :quantity, :movement_type, :movement_date, :note, :created_at)
-                """),
-                {
-                    "warehouse": data.warehouse,
-                    "product_id": data.product_id,
-                    "product_name": product.name,
-                    "quantity": data.quantity,
-                    "movement_type": data.movement_type,
-                    "movement_date": movement_date,
-                    "note": data.note,
-                    "created_at": datetime.utcnow(),
-                },
+            raise ValueError(
+                "movement_type must be in, out or adjustment"
             )
-            conn.commit()
-        updated_stock = product.stock
-        db.close()
-        return {"status": "created", "id": result.lastrowid, "product_id": data.product_id, "stock": updated_stock}
-    except Exception as e:
+
+        movement_date = (
+            data.movement_date or datetime.utcnow().date().isoformat()
+        )
+        result = db.execute(
+            text("""
+                INSERT INTO stock_movements
+                (warehouse, product_id, product_name, quantity,
+                 movement_type, movement_date, note, created_at)
+                VALUES
+                (:warehouse, :product_id, :product_name, :quantity,
+                 :movement_type, :movement_date, :note, :created_at)
+            """),
+            {
+                "warehouse": data.warehouse,
+                "product_id": data.product_id,
+                "product_name": product.name,
+                "quantity": quantity,
+                "movement_type": data.movement_type,
+                "movement_date": movement_date,
+                "note": data.note,
+                "created_at": datetime.utcnow(),
+            },
+        )
+        movement_id = result.lastrowid
+        db.flush()
+        post_inventory_adjustment_general_ledger(
+            db,
+            movement_id,
+            product,
+            stock_delta,
+            movement_date,
+        )
+        updated_stock = float(product.stock or 0)
+        db.commit()
+        return {
+            "status": "created",
+            "id": movement_id,
+            "product_id": data.product_id,
+            "previous_stock": previous_stock,
+            "stock_delta": stock_delta,
+            "stock": updated_stock,
+        }
+    except Exception as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
     
+
 @app.delete("/invoices/{invoice_id}")
 def delete_invoice(invoice_id: int):
     db: Session = SessionLocal()
