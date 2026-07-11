@@ -912,5 +912,107 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 404)
 
 
+    def test_zzz_system_health_detects_financial_corruption(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        warehouse_login = self.client.post(
+            "/login",
+            json={
+                "username": "ci-warehouse",
+                "password": "StrongWarehousePassword!42",
+            },
+        )
+        warehouse_headers = {
+            "Authorization": f"Bearer {warehouse_login.json()['access_token']}"
+        }
+
+        forbidden = self.client.get(
+            "/api/system/health",
+            headers=warehouse_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403, forbidden.text)
+
+        health = self.client.get(
+            "/api/system/health",
+            headers=admin_headers,
+        )
+        self.assertEqual(health.status_code, 200, health.text)
+        payload = health.json()
+        self.assertEqual(payload["summary"]["failures"], 0, payload)
+        checks = {item["id"]: item for item in payload["checks"]}
+        for check_id in [
+            "database_integrity",
+            "required_tables",
+            "general_ledger_balance",
+            "voucher_structure",
+            "fiscal_assignment",
+            "closed_period_consistency",
+            "negative_inventory",
+            "audit_chain",
+            "backup_availability",
+        ]:
+            self.assertIn(check_id, checks)
+            self.assertNotEqual(checks[check_id]["status"], "fail", checks[check_id])
+
+        readiness = self.client.get(
+            "/api/system/readiness",
+            headers=admin_headers,
+        )
+        self.assertEqual(readiness.status_code, 200, readiness.text)
+
+        with engine.begin() as conn:
+            voucher = conn.execute(text("""
+                SELECT id, total_credit
+                FROM accounting_vouchers
+                WHERE status='posted'
+                ORDER BY id ASC
+                LIMIT 1
+            """)).mappings().first()
+            self.assertIsNotNone(voucher)
+            conn.execute(text("""
+                UPDATE accounting_vouchers
+                SET total_credit=:total_credit
+                WHERE id=:id
+            """), {
+                "id": voucher["id"],
+                "total_credit": float(voucher["total_credit"] or 0) + 1,
+            })
+
+        broken = self.client.get(
+            "/api/system/readiness",
+            headers=admin_headers,
+        )
+        self.assertEqual(broken.status_code, 503, broken.text)
+        broken_checks = {
+            item["id"]: item for item in broken.json()["checks"]
+        }
+        self.assertEqual(
+            broken_checks["general_ledger_balance"]["status"],
+            "fail",
+        )
+
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE accounting_vouchers
+                SET total_credit=:total_credit
+                WHERE id=:id
+            """), {
+                "id": voucher["id"],
+                "total_credit": voucher["total_credit"],
+            })
+
+        restored = self.client.get(
+            "/api/system/health",
+            headers=admin_headers,
+        )
+        self.assertEqual(restored.status_code, 200, restored.text)
+        self.assertEqual(restored.json()["summary"]["failures"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
