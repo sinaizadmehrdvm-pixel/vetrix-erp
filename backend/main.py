@@ -1275,8 +1275,19 @@ def add_invoice_customer_entry(db: Session, invoice: Invoice):
 def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products):
     description = f"ثبت خودکار فاکتور شماره {invoice.id}"
     total = float(accounting_money(invoice.total_amount))
+    subtotal = float(accounting_money(getattr(invoice, "subtotal", 0) or 0))
+    discount = float(accounting_money(
+        getattr(invoice, "discount_amount", 0) or 0
+    ))
+    taxable_base = float(accounting_money(subtotal - discount))
+    tax = float(accounting_money(getattr(invoice, "tax_amount", 0) or 0))
+    shipping = float(accounting_money(
+        getattr(invoice, "shipping_cost", 0) or 0
+    ))
+    acquisition_value = float(accounting_money(taxable_base + shipping))
     cost = float(accounting_money(sum(
-        float(item.quantity) * float(getattr(products[item.product_id], "buy_price", 0) or 0)
+        float(item.quantity)
+        * float(getattr(products[item.product_id], "buy_price", 0) or 0)
         for item in items
     )))
     lines = []
@@ -1284,18 +1295,22 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
     if invoice.invoice_type == "sale":
         lines = [
             {"account_code": "1103", "debit": total, "description": description},
-            {"account_code": "4101", "credit": total, "description": description},
+            {"account_code": "4101", "credit": taxable_base, "description": description},
+            {"account_code": "2201", "credit": tax, "description": description},
+            {"account_code": "4103", "credit": shipping, "description": description},
             {"account_code": "5101", "debit": cost, "description": description},
             {"account_code": "1201", "credit": cost, "description": description},
         ]
     elif invoice.invoice_type == "buy":
         lines = [
-            {"account_code": "1201", "debit": total, "description": description},
+            {"account_code": "1201", "debit": acquisition_value, "description": description},
+            {"account_code": "1301", "debit": tax, "description": description},
             {"account_code": "2101", "credit": total, "description": description},
         ]
     elif invoice.invoice_type == "return_sale":
         lines = [
-            {"account_code": "4102", "debit": total, "description": description},
+            {"account_code": "4102", "debit": acquisition_value, "description": description},
+            {"account_code": "2201", "debit": tax, "description": description},
             {"account_code": "1103", "credit": total, "description": description},
             {"account_code": "1201", "debit": cost, "description": description},
             {"account_code": "5101", "credit": cost, "description": description},
@@ -1303,10 +1318,15 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
     elif invoice.invoice_type == "return_buy":
         lines = [
             {"account_code": "2101", "debit": total, "description": description},
-            {"account_code": "1201", "credit": total, "description": description},
+            {"account_code": "1201", "credit": acquisition_value, "description": description},
+            {"account_code": "1301", "credit": tax, "description": description},
         ]
     else:
-        delete_source_voucher("invoice", invoice.id, connection=db.connection())
+        delete_source_voucher(
+            "invoice",
+            invoice.id,
+            connection=db.connection(),
+        )
         return
 
     post_balanced_voucher(
@@ -1314,6 +1334,7 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
         invoice.id,
         description,
         lines,
+        voucher_date=_entity_date(invoice.created_at),
         connection=db.connection(),
     )
 
