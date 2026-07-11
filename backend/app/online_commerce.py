@@ -186,7 +186,7 @@ def update_product(product_id: int, payload: ProductPublicationPayload, request:
               sale_start=excluded.sale_start, sale_end=excluded.sale_end,
               website_slug=excluded.website_slug, updated_by=excluded.updated_by,
               updated_at=excluded.updated_at
-        """), {**payload.model_dump(), "product_id": product_id, "actor": actor, "now": _now()})
+        """), {**payload.dict(), "product_id": product_id, "actor": actor, "now": _now()})
         return {"status": "saved", "product_id": product_id}
 
 
@@ -223,7 +223,7 @@ def create_campaign(payload: CampaignPayload, request: Request):
             VALUES
               (:title, :body, :channel, :product_id, :media_url, :destination_url,
                :scheduled_at, 'draft', :actor, :now)
-        """), {**payload.model_dump(), "actor": actor, "now": _now()})
+        """), {**payload.dict(), "actor": actor, "now": _now()})
         return {"status": "draft", "campaign_id": result.lastrowid}
 
 
@@ -317,5 +317,5 @@ def save_connection(channel: str, payload: ConnectionPayload, request: Request):
               account_label=excluded.account_label,
               secret_reference=excluded.secret_reference,
               updated_by=excluded.updated_by, updated_at=excluded.updated_at
-        """), {**payload.model_dump(), "actor": actor, "now": _now()})
+        """), {**payload.dict(), "actor": actor, "now": _now()})
         return {"status": "saved", "channel": channel}
