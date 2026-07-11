@@ -122,7 +122,9 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(rows["4101"]["credit_balance"], 2000.0)
         self.assertEqual(rows["4102"]["debit_balance"], 1000.0)
         self.assertEqual(rows["5101"]["debit_balance"], 400.0)
-        self.assertEqual(rows["1201"]["credit_balance"], 400.0)
+        self.assertEqual(rows["1201"]["debit_balance"], 7600.0)
+        self.assertEqual(rows["1201"]["credit_balance"], 0.0)
+        self.assertEqual(rows["3101"]["credit_balance"], 8000.0)
         self.assertEqual(rows["5102"]["debit_balance"], 100.0)
         self.assertEqual(rows["1101"]["credit_balance"], 100.0)
 
