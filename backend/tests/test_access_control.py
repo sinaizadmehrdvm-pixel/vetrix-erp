@@ -1753,5 +1753,89 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(deleted_account.json()["status"], "deleted")
 
 
+    def test_z_fixed_asset_straight_line_depreciation(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        created = self.client.post(
+            "/api/accounting/fixed-assets",
+            headers=headers,
+            json={
+                "name": "CI Medical Equipment",
+                "asset_code": "CI-ASSET-001",
+                "category": "equipment",
+                "purchase_date": "2098-01-01",
+                "acquisition_cost": 1200,
+                "salvage_value": 0,
+                "useful_life_months": 12,
+                "payment_method": "bank",
+                "serial_number": "CI-SERIAL-001",
+                "location": "Test Lab",
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        asset_id = created.json()["id"]
+
+        acquisition = self.client.get(
+            f"/api/accounting/entries/{created.json()['voucher_id']}",
+            headers=headers,
+        ).json()
+        acquisition_lines = {
+            line["account_code"]: line for line in acquisition["lines"]
+        }
+        self.assertEqual(acquisition_lines["1202"]["debit"], 1200.0)
+        self.assertEqual(acquisition_lines["1102"]["credit"], 1200.0)
+
+        run = self.client.post(
+            "/api/accounting/fixed-assets/depreciation/run",
+            headers=headers,
+            json={"through_date": "2098-04-01", "asset_id": asset_id},
+        )
+        self.assertEqual(run.status_code, 200, run.text)
+        result = run.json()
+        self.assertEqual(result["posted_count"], 1)
+        self.assertEqual(result["total_depreciation"], 300.0)
+        self.assertEqual(result["posted"][0]["months_recognized"], 3)
+        self.assertEqual(result["posted"][0]["book_value_after"], 900.0)
+
+        depreciation = self.client.get(
+            f"/api/accounting/entries/{result['posted'][0]['voucher_id']}",
+            headers=headers,
+        ).json()
+        depreciation_lines = {
+            line["account_code"]: line for line in depreciation["lines"]
+        }
+        self.assertEqual(depreciation_lines["5103"]["debit"], 300.0)
+        self.assertEqual(depreciation_lines["1203"]["credit"], 300.0)
+
+        repeated = self.client.post(
+            "/api/accounting/fixed-assets/depreciation/run",
+            headers=headers,
+            json={"through_date": "2098-04-01", "asset_id": asset_id},
+        )
+        self.assertEqual(repeated.status_code, 200, repeated.text)
+        self.assertEqual(repeated.json()["posted_count"], 0)
+
+        detail = self.client.get(
+            f"/api/accounting/fixed-assets/{asset_id}",
+            headers=headers,
+        )
+        self.assertEqual(detail.status_code, 200, detail.text)
+        asset = detail.json()
+        self.assertEqual(asset["acquisition_cost"], 1200.0)
+        self.assertEqual(asset["accumulated_depreciation"], 300.0)
+        self.assertEqual(asset["book_value"], 900.0)
+        self.assertEqual(len(asset["depreciation_history"]), 1)
+
+        blocked_delete = self.client.delete(
+            f"/api/accounting/fixed-assets/{asset_id}",
+            headers=headers,
+        )
+        self.assertEqual(blocked_delete.status_code, 409)
+
+
 if __name__ == "__main__":
     unittest.main()
