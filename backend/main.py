@@ -102,6 +102,18 @@ class AppSettings(Base):
     national_id = Column(String, default="")
     economic_code = Column(String, default="")
     currency = Column(String, default="تومان")
+    country_code = Column(String, default="IR")
+    locale_code = Column(String, default="fa-IR")
+    currency_code = Column(String, default="IRR")
+    calendar_system = Column(String, default="persian")
+    time_zone = Column(String, default="Asia/Tehran")
+    first_day_of_week = Column(Integer, default=6)
+    fiscal_year_start = Column(String, default="01-01-persian")
+    tax_profile_version = Column(String, default="")
+    tax_profile_verified_at = Column(String, default="")
+    rounding_mode = Column(String, default="half_up")
+    decimal_places = Column(Integer, default=0)
+    measurement_system = Column(String, default="metric")
     tax_percent = Column(Float, default=10)
     discount_percent = Column(Float, default=0)
     fiscal_year = Column(String, default="")
@@ -162,6 +174,23 @@ def ensure_database_schema():
 
     for name, sql in invoice_columns.items():
         ensure_sqlite_column("invoices", name, sql)
+
+    settings_columns = {
+        "country_code": "country_code VARCHAR DEFAULT 'IR'",
+        "locale_code": "locale_code VARCHAR DEFAULT 'fa-IR'",
+        "currency_code": "currency_code VARCHAR DEFAULT 'IRR'",
+        "calendar_system": "calendar_system VARCHAR DEFAULT 'persian'",
+        "time_zone": "time_zone VARCHAR DEFAULT 'Asia/Tehran'",
+        "first_day_of_week": "first_day_of_week INTEGER DEFAULT 6",
+        "fiscal_year_start": "fiscal_year_start VARCHAR DEFAULT '01-01-persian'",
+        "tax_profile_version": "tax_profile_version VARCHAR DEFAULT ''",
+        "tax_profile_verified_at": "tax_profile_verified_at VARCHAR DEFAULT ''",
+        "rounding_mode": "rounding_mode VARCHAR DEFAULT 'half_up'",
+        "decimal_places": "decimal_places INTEGER DEFAULT 0",
+        "measurement_system": "measurement_system VARCHAR DEFAULT 'metric'",
+    }
+    for name, sql in settings_columns.items():
+        ensure_sqlite_column("app_settings", name, sql)
 
 
 def ensure_extra_tables():
@@ -412,6 +441,18 @@ class AppSettingsUpdate(BaseModel):
     national_id: str = ""
     economic_code: str = ""
     currency: str = "تومان"
+    country_code: str = "IR"
+    locale_code: str = "fa-IR"
+    currency_code: str = "IRR"
+    calendar_system: str = "persian"
+    time_zone: str = "Asia/Tehran"
+    first_day_of_week: int = 6
+    fiscal_year_start: str = "01-01-persian"
+    tax_profile_version: str = ""
+    tax_profile_verified_at: str = ""
+    rounding_mode: str = "half_up"
+    decimal_places: int = 0
+    measurement_system: str = "metric"
     tax_percent: float = 10
     discount_percent: float = 0
     fiscal_year: str = ""
@@ -671,6 +712,18 @@ def settings_to_dict(settings: AppSettings):
         "national_id": settings.national_id or "",
         "economic_code": settings.economic_code or "",
         "currency": settings.currency or "تومان",
+        "country_code": settings.country_code or "IR",
+        "locale_code": settings.locale_code or "fa-IR",
+        "currency_code": settings.currency_code or "IRR",
+        "calendar_system": settings.calendar_system or "persian",
+        "time_zone": settings.time_zone or "Asia/Tehran",
+        "first_day_of_week": int(settings.first_day_of_week if settings.first_day_of_week is not None else 6),
+        "fiscal_year_start": settings.fiscal_year_start or "01-01-persian",
+        "tax_profile_version": settings.tax_profile_version or "",
+        "tax_profile_verified_at": settings.tax_profile_verified_at or "",
+        "rounding_mode": settings.rounding_mode or "half_up",
+        "decimal_places": int(settings.decimal_places if settings.decimal_places is not None else 0),
+        "measurement_system": settings.measurement_system or "metric",
         "tax_percent": float(settings.tax_percent or 0),
         "discount_percent": float(settings.discount_percent or 0),
         "fiscal_year": settings.fiscal_year or "",
