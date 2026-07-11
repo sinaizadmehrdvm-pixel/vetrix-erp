@@ -1064,6 +1064,9 @@ def list_products():
 def create_product(data: ProductCreate):
     db: Session = SessionLocal()
     try:
+        opening_stock = float(data.stock or 0)
+        if opening_stock < 0:
+            raise ValueError("Opening stock cannot be negative")
         sell_price = (
             data.sell_price
             if data.sell_price is not None
@@ -1077,9 +1080,11 @@ def create_product(data: ProductCreate):
             buy_price=float(accounting_money(data.buy_price or 0)),
             sell_price=float(accounting_money(sell_price)),
             price=float(accounting_money(sell_price)),
-            stock=float(data.stock or 0),
+            stock=opening_stock,
         )
         db.add(product)
+        db.flush()
+        sync_product_opening_general_ledger(db, product)
         db.commit()
         db.refresh(product)
         return {"status": "created", **product_to_dict(product)}
@@ -1097,10 +1102,33 @@ def update_product(product_id: int, data: ProductCreate):
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
             return {"status": "error", "message": "Product not found"}
+
+        requested_stock = float(data.stock or 0)
+        if requested_stock < 0:
+            raise ValueError("Stock cannot be negative")
+        invoice_history = db.query(InvoiceItem).filter(
+            InvoiceItem.product_id == product_id
+        ).first()
+        movement_history = db.execute(text("""
+            SELECT id FROM stock_movements
+            WHERE product_id=:product_id
+            LIMIT 1
+        """), {"product_id": product_id}).first()
+        has_inventory_history = bool(invoice_history or movement_history)
+        if (
+            has_inventory_history
+            and abs(requested_stock - float(product.stock or 0)) >= 0.000001
+        ):
+            raise ValueError(
+                "Stock with inventory history must be changed through a stock movement"
+            )
+
         sell_price = (
             data.sell_price
             if data.sell_price is not None
-            else data.price if data.price is not None else product.sell_price or product.price or 0
+            else data.price
+            if data.price is not None
+            else product.sell_price or product.price or 0
         )
         product.name = data.name
         product.code = data.code or product.code or ""
@@ -1109,7 +1137,10 @@ def update_product(product_id: int, data: ProductCreate):
         product.buy_price = float(accounting_money(data.buy_price or 0))
         product.sell_price = float(accounting_money(sell_price))
         product.price = float(accounting_money(sell_price))
-        product.stock = float(data.stock or 0)
+        product.stock = requested_stock
+
+        if not has_inventory_history:
+            sync_product_opening_general_ledger(db, product)
         db.commit()
         db.refresh(product)
         return {"status": "updated", **product_to_dict(product)}
@@ -1130,15 +1161,27 @@ def delete_product(product_id: int):
             db.close()
             return {"status": "error", "message": "Product not found"}
 
-        used = db.query(InvoiceItem).filter(InvoiceItem.product_id == product_id).first()
+        used = db.query(InvoiceItem).filter(
+            InvoiceItem.product_id == product_id
+        ).first()
+        movement = db.execute(text("""
+            SELECT id FROM stock_movements
+            WHERE product_id=:product_id
+            LIMIT 1
+        """), {"product_id": product_id}).first()
 
-        if used:
+        if used or movement:
             db.close()
             return {
                 "status": "error",
-                "message": "این کالا داخل فاکتور استفاده شده و قابل حذف نیست. اول فاکتورهای مرتبط را حذف کنید.",
+                "message": "این کالا دارای سابقه انبار یا فاکتور است و قابل حذف نیست.",
             }
 
+        delete_source_voucher(
+            "product_opening",
+            product_id,
+            connection=db.connection(),
+        )
         db.delete(product)
         db.commit()
         db.close()
