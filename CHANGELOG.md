@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1 — 2026-07-11
+
+### Fixed
+
+- Added first-run installation discovery and bilingual administrator setup wizard
+- Added automatic sign-in after secure initial administrator creation
+- Added minimum password length enforcement during user creation
+- Synchronized API, desktop executable, Windows metadata, and release version
+
+
 ## 1.0.0 — 2026-07-11
 
 First stable Vetrix ERP release.
