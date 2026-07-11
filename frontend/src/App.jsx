@@ -34,6 +34,7 @@ const AuditTrail = lazy(() => import("./pages/AuditTrail"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const BackupRecovery = lazy(() => import("./pages/BackupRecovery"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
+const FinancialStatements = lazy(() => import("./pages/FinancialStatements"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
@@ -127,6 +128,7 @@ function AppContent() {
           <Route path="user-management" element={<UserManagement />} />
           <Route path="backup-recovery" element={<BackupRecovery />} />
           <Route path="system-health" element={<SystemHealth />} />
+          <Route path="financial-statements" element={<FinancialStatements />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />

@@ -1216,5 +1216,83 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(trial.json()["totals"]["balanced"], trial.json())
 
 
+    def test_standard_financial_statements_reconcile_from_general_ledger(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {
+            "Authorization": f"Bearer {login.json()['access_token']}"
+        }
+        periods = self.client.get(
+            "/api/accounting/periods",
+            headers=headers,
+        )
+        self.assertEqual(periods.status_code, 200, periods.text)
+        current_period = periods.json()[0]
+
+        response = self.client.get(
+            "/api/accounting/statements",
+            headers=headers,
+            params={"fiscal_period_id": current_period["id"]},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["scope"], "fiscal_period")
+        self.assertEqual(payload["period"]["id"], current_period["id"])
+        self.assertTrue(payload["valid"], payload)
+        self.assertGreater(payload["posted_vouchers"], 0)
+
+        income = payload["income_statement"]
+        self.assertEqual(income["total_revenue"], 1000.0)
+        self.assertEqual(income["total_expenses"], 500.0)
+        self.assertEqual(income["net_income"], 500.0)
+        revenue = {
+            item["account_code"]: item["amount"]
+            for item in income["revenue_items"]
+        }
+        expenses = {
+            item["account_code"]: item["amount"]
+            for item in income["expense_items"]
+        }
+        self.assertEqual(revenue["4101"], 2000.0)
+        self.assertEqual(revenue["4102"], -1000.0)
+        self.assertEqual(expenses["5101"], 400.0)
+        self.assertEqual(expenses["5102"], 100.0)
+
+        balance = payload["balance_sheet"]
+        self.assertTrue(balance["balanced"], balance)
+        self.assertEqual(balance["difference"], 0.0)
+        self.assertEqual(
+            balance["total_assets"],
+            balance["liabilities_and_equity"],
+        )
+        self.assertEqual(balance["accumulated_earnings"], 500.0)
+        self.assertEqual(balance["period_net_income"], 500.0)
+
+        cash = payload["cash_flow"]
+        self.assertTrue(cash["reconciled"], cash)
+        self.assertEqual(cash["opening_balance"], 0.0)
+        self.assertEqual(cash["inflows"], 0.0)
+        self.assertEqual(cash["outflows"], 100.0)
+        self.assertEqual(cash["net_change"], -100.0)
+        self.assertEqual(cash["ending_balance"], -100.0)
+
+        all_time = self.client.get(
+            "/api/accounting/statements",
+            headers=headers,
+        )
+        self.assertEqual(all_time.status_code, 200, all_time.text)
+        self.assertEqual(all_time.json()["scope"], "all_time")
+        self.assertTrue(all_time.json()["valid"])
+
+        missing = self.client.get(
+            "/api/accounting/statements",
+            headers=headers,
+            params={"fiscal_period_id": 999999},
+        )
+        self.assertEqual(missing.status_code, 404, missing.text)
+
+
 if __name__ == "__main__":
     unittest.main()
