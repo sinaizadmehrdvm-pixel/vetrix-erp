@@ -26,3 +26,6 @@ export const closeFiscalPeriod = (id) =>
 
 export const reopenFiscalPeriod = (id) =>
   request(`/api/accounting/periods/${id}/reopen`, { method: "POST" });
+
+export const getFiscalClosingPreview = (id) =>
+  request(`/api/accounting/periods/${id}/close-preview`);
