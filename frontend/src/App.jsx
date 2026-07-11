@@ -37,6 +37,7 @@ const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const FinancialStatements = lazy(() => import("./pages/FinancialStatements"));
 const TaxAccounting = lazy(() => import("./pages/TaxAccounting"));
 const AgingReport = lazy(() => import("./pages/AgingReport"));
+const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
@@ -133,6 +134,7 @@ function AppContent() {
           <Route path="financial-statements" element={<FinancialStatements />} />
           <Route path="tax-accounting" element={<TaxAccounting />} />
           <Route path="aging-report" element={<AgingReport />} />
+          <Route path="bank-reconciliation" element={<BankReconciliation />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />
