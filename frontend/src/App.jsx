@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { lazy, Suspense, useEffect } from "react";
 
 import MainLayout from "./layout/MainLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/LanguageContext";
 
@@ -158,8 +159,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
