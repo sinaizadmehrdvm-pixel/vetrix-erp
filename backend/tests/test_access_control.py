@@ -2307,7 +2307,7 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(preflight.status_code, 200, preflight.text)
         payload = preflight.json()
-        self.assertEqual(payload["version"], "1.0.0")
+        self.assertEqual(payload["version"], "1.0.1")
         self.assertTrue(payload["release_ready"], payload)
         self.assertEqual(payload["api_contract"]["missing_routes"], [])
         self.assertGreaterEqual(payload["database"]["administrators"], 1)
@@ -2319,7 +2319,7 @@ class ApiAccessControlTests(unittest.TestCase):
             headers=admin_headers,
         )
         self.assertEqual(version.status_code, 200, version.text)
-        self.assertEqual(version.json()["version"], "1.0.0")
+        self.assertEqual(version.json()["version"], "1.0.1")
 
         viewer_login = self.client.post(
             "/login",
