@@ -1358,5 +1358,179 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 404, missing.text)
 
 
+    def test_tax_accounting_separates_vat_shipping_and_net_revenue(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {
+            "Authorization": f"Bearer {login.json()['access_token']}"
+        }
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={"name": "VAT Test Party"},
+        )
+        customer_id = customer.json()["id"]
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={
+                "name": "VAT Test Product",
+                "buy_price": 50,
+                "sell_price": 300,
+                "stock": 10,
+            },
+        )
+        product_id = product.json()["id"]
+
+        purchase = self.client.post(
+            "/invoices",
+            headers=headers,
+            json={
+                "invoice_type": "buy",
+                "customer_id": customer_id,
+                "tax_percent": 10,
+                "shipping_cost": 20,
+                "payment_status": "unpaid",
+                "items": [{
+                    "product_id": product_id,
+                    "quantity": 2,
+                    "unit_price": 100,
+                }],
+            },
+        )
+        self.assertEqual(purchase.json()["status"], "created", purchase.text)
+        purchase_id = purchase.json()["invoice_id"]
+        self.assertEqual(purchase.json()["total_amount"], 240.0)
+
+        sale = self.client.post(
+            "/invoices",
+            headers=headers,
+            json={
+                "invoice_type": "sale",
+                "customer_id": customer_id,
+                "tax_percent": 10,
+                "shipping_cost": 10,
+                "payment_status": "unpaid",
+                "items": [{
+                    "product_id": product_id,
+                    "quantity": 1,
+                    "unit_price": 300,
+                }],
+            },
+        )
+        self.assertEqual(sale.json()["status"], "created", sale.text)
+        sale_id = sale.json()["invoice_id"]
+        self.assertEqual(sale.json()["total_amount"], 340.0)
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        purchase_voucher = next(
+            item for item in vouchers
+            if item["source_type"] == "invoice"
+            and item["source_id"] == purchase_id
+        )
+        sale_voucher = next(
+            item for item in vouchers
+            if item["source_type"] == "invoice"
+            and item["source_id"] == sale_id
+        )
+
+        purchase_detail = self.client.get(
+            f"/api/accounting/entries/{purchase_voucher['id']}",
+            headers=headers,
+        ).json()
+        purchase_lines = {
+            line["account_code"]: line
+            for line in purchase_detail["lines"]
+        }
+        self.assertEqual(purchase_lines["1201"]["debit"], 220.0)
+        self.assertEqual(purchase_lines["1301"]["debit"], 20.0)
+        self.assertEqual(purchase_lines["2101"]["credit"], 240.0)
+
+        sale_detail = self.client.get(
+            f"/api/accounting/entries/{sale_voucher['id']}",
+            headers=headers,
+        ).json()
+        sale_lines = {
+            line["account_code"]: line
+            for line in sale_detail["lines"]
+        }
+        self.assertEqual(sale_lines["1103"]["debit"], 340.0)
+        self.assertEqual(sale_lines["4101"]["credit"], 300.0)
+        self.assertEqual(sale_lines["2201"]["credit"], 30.0)
+        self.assertEqual(sale_lines["4103"]["credit"], 10.0)
+        self.assertEqual(sale_lines["5101"]["debit"], 50.0)
+        self.assertEqual(sale_lines["1201"]["credit"], 50.0)
+
+        periods = self.client.get(
+            "/api/accounting/periods",
+            headers=headers,
+        ).json()
+        period_id = periods[0]["id"]
+        report = self.client.get(
+            "/api/accounting/tax",
+            headers=headers,
+            params={"fiscal_period_id": period_id},
+        )
+        self.assertEqual(report.status_code, 200, report.text)
+        tax = report.json()
+        self.assertEqual(tax["output_vat"], 30.0)
+        self.assertEqual(tax["input_vat"], 20.0)
+        self.assertEqual(tax["net_vat"], 10.0)
+        self.assertEqual(tax["position"], "payable")
+        self.assertEqual(tax["invoice_count"], 2)
+
+        deleted_sale = self.client.delete(
+            f"/invoices/{sale_id}",
+            headers=headers,
+        )
+        self.assertEqual(
+            deleted_sale.json()["status"],
+            "deleted",
+            deleted_sale.text,
+        )
+        deleted_purchase = self.client.delete(
+            f"/invoices/{purchase_id}",
+            headers=headers,
+        )
+        self.assertEqual(
+            deleted_purchase.json()["status"],
+            "deleted",
+            deleted_purchase.text,
+        )
+        cleared = self.client.get(
+            "/api/accounting/tax",
+            headers=headers,
+            params={"fiscal_period_id": period_id},
+        ).json()
+        self.assertEqual(cleared["output_vat"], 0.0)
+        self.assertEqual(cleared["input_vat"], 0.0)
+        self.assertEqual(cleared["net_vat"], 0.0)
+
+        deleted_product = self.client.delete(
+            f"/products/{product_id}",
+            headers=headers,
+        )
+        self.assertEqual(
+            deleted_product.json()["status"],
+            "deleted",
+            deleted_product.text,
+        )
+        deleted_customer = self.client.delete(
+            f"/customers/{customer_id}",
+            headers=headers,
+        )
+        self.assertEqual(
+            deleted_customer.json()["status"],
+            "deleted",
+            deleted_customer.text,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
