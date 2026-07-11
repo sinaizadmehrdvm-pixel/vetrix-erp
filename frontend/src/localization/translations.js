@@ -46,6 +46,7 @@ export const translations = {
     treasuryCheques: "Treasury & Cheques",
     aiBusiness: "AI BI",
     onlineCommerce: "Online Sales & Advertising",
+    changeRequests: "Voice Change Requests",
     settings: "Settings",
     logout: "Logout",
 
@@ -248,6 +249,7 @@ export const translations = {
     treasuryCheques: "خزانه‌داری و چک‌ها",
     aiBusiness: "هوش تجاری",
     onlineCommerce: "فروش آنلاین و تبلیغات",
+    changeRequests: "درخواست تغییر با ویس",
     settings: "تنظیمات",
     logout: "خروج",
 

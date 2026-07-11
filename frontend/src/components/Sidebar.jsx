@@ -46,6 +46,7 @@ const groups = [
     items: [
       { key: "reports", icon: BarChart3, path: "/reports" },
       { key: "onlineCommerce", fa: "فروش آنلاین و تبلیغات", en: "Online sales & ads", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
+      { key: "changeRequests", fa: "درخواست تغییر با ویس", en: "Voice change requests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },

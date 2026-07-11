@@ -155,6 +155,51 @@ class ApiAccessControlTests(unittest.TestCase):
         user_token = user_login.json()["access_token"]
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
+        voice_request = self.client.post(
+            "/api/change-requests",
+            headers=user_headers,
+            json={
+                "source": "telegram",
+                "source_reference": "message-42",
+                "audio_reference": "voice-42.ogg",
+                "transcript": "Please review this non-executable operational note.",
+                "action_type": "note_only",
+                "target_id": None,
+                "proposed_changes": {},
+            },
+        )
+        self.assertEqual(voice_request.status_code, 200, voice_request.text)
+        change_request_id = voice_request.json()["request_id"]
+
+        submit_voice_request = self.client.post(
+            f"/api/change-requests/{change_request_id}/submit",
+            headers=user_headers,
+        )
+        self.assertEqual(submit_voice_request.status_code, 200, submit_voice_request.text)
+        self.assertEqual(submit_voice_request.json()["status"], "pending_approval")
+
+        non_admin_approval = self.client.post(
+            f"/api/change-requests/{change_request_id}/approve",
+            headers=user_headers,
+            json={"note": "self approval must fail"},
+        )
+        self.assertEqual(non_admin_approval.status_code, 403, non_admin_approval.text)
+
+        approve_voice_request = self.client.post(
+            f"/api/change-requests/{change_request_id}/approve",
+            headers=admin_headers,
+            json={"note": "Reviewed in CI"},
+        )
+        self.assertEqual(approve_voice_request.status_code, 200, approve_voice_request.text)
+        self.assertEqual(approve_voice_request.json()["status"], "applied")
+
+        voice_request_detail = self.client.get(
+            f"/api/change-requests/{change_request_id}",
+            headers=admin_headers,
+        )
+        self.assertEqual(voice_request_detail.status_code, 200, voice_request_detail.text)
+        self.assertGreaterEqual(len(voice_request_detail.json()["events"]), 3)
+
         forbidden_users = self.client.get("/users", headers=user_headers)
         self.assertEqual(forbidden_users.status_code, 403)
 
