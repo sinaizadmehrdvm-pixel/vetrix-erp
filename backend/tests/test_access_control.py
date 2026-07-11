@@ -1014,5 +1014,205 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(restored.json()["summary"]["failures"], 0)
 
 
+    def test_opening_balances_and_inventory_adjustments_are_double_entry(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {
+            "Authorization": f"Bearer {login.json()['access_token']}"
+        }
+
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={
+                "name": "Opening Balance Customer",
+                "opening_balance": 500,
+            },
+        )
+        self.assertEqual(customer.json()["status"], "created", customer.text)
+        customer_id = customer.json()["id"]
+        self.assertEqual(customer.json()["balance"], 500)
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        opening = [
+            item for item in vouchers
+            if item["source_type"] == "customer_opening"
+            and item["source_id"] == customer_id
+        ]
+        self.assertEqual(len(opening), 1)
+        detail = self.client.get(
+            f"/api/accounting/entries/{opening[0]['id']}",
+            headers=headers,
+        ).json()
+        lines = {line["account_code"]: line for line in detail["lines"]}
+        self.assertEqual(lines["1103"]["debit"], 500)
+        self.assertEqual(lines["3101"]["credit"], 500)
+
+        changed = self.client.put(
+            f"/customers/{customer_id}",
+            headers=headers,
+            json={
+                "name": "Opening Balance Customer",
+                "opening_balance": -300,
+            },
+        )
+        self.assertEqual(changed.json()["status"], "updated", changed.text)
+        self.assertEqual(changed.json()["customer"]["balance"], -300)
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        opening = [
+            item for item in vouchers
+            if item["source_type"] == "customer_opening"
+            and item["source_id"] == customer_id
+        ]
+        self.assertEqual(len(opening), 1)
+        detail = self.client.get(
+            f"/api/accounting/entries/{opening[0]['id']}",
+            headers=headers,
+        ).json()
+        lines = {line["account_code"]: line for line in detail["lines"]}
+        self.assertEqual(lines["3101"]["debit"], 300)
+        self.assertEqual(lines["2101"]["credit"], 300)
+
+        zeroed = self.client.put(
+            f"/customers/{customer_id}",
+            headers=headers,
+            json={
+                "name": "Opening Balance Customer",
+                "opening_balance": 0,
+            },
+        )
+        self.assertEqual(zeroed.json()["customer"]["balance"], 0)
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        self.assertFalse(any(
+            item["source_type"] == "customer_opening"
+            and item["source_id"] == customer_id
+            for item in vouchers
+        ))
+        deleted_customer = self.client.delete(
+            f"/customers/{customer_id}",
+            headers=headers,
+        )
+        self.assertEqual(
+            deleted_customer.json()["status"],
+            "deleted",
+            deleted_customer.text,
+        )
+
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={
+                "name": "Opening Inventory Product",
+                "buy_price": 20,
+                "sell_price": 35,
+                "stock": 5,
+            },
+        )
+        self.assertEqual(product.json()["status"], "created", product.text)
+        product_id = product.json()["id"]
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        product_opening = next(
+            item for item in vouchers
+            if item["source_type"] == "product_opening"
+            and item["source_id"] == product_id
+        )
+        self.assertEqual(product_opening["total_debit"], 100)
+
+        updated = self.client.put(
+            f"/products/{product_id}",
+            headers=headers,
+            json={
+                "name": "Opening Inventory Product",
+                "buy_price": 25,
+                "sell_price": 40,
+                "stock": 6,
+            },
+        )
+        self.assertEqual(updated.json()["status"], "updated", updated.text)
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        openings = [
+            item for item in vouchers
+            if item["source_type"] == "product_opening"
+            and item["source_id"] == product_id
+        ]
+        self.assertEqual(len(openings), 1)
+        self.assertEqual(openings[0]["total_debit"], 150)
+
+        movement = self.client.post(
+            "/stock-movements",
+            headers=headers,
+            json={
+                "warehouse": "Main",
+                "product_id": product_id,
+                "quantity": 2,
+                "movement_type": "out",
+                "note": "Opening integrity test",
+            },
+        )
+        self.assertEqual(movement.json()["status"], "created", movement.text)
+        self.assertEqual(movement.json()["previous_stock"], 6)
+        self.assertEqual(movement.json()["stock_delta"], -2)
+        self.assertEqual(movement.json()["stock"], 4)
+
+        vouchers = self.client.get(
+            "/api/accounting/entries",
+            headers=headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        adjustment = next(
+            item for item in vouchers
+            if item["source_type"] == "inventory_adjustment"
+            and item["source_id"] == movement.json()["id"]
+        )
+        self.assertEqual(adjustment["total_debit"], 50)
+
+        blocked_direct_edit = self.client.put(
+            f"/products/{product_id}",
+            headers=headers,
+            json={
+                "name": "Opening Inventory Product",
+                "buy_price": 25,
+                "sell_price": 40,
+                "stock": 99,
+            },
+        )
+        self.assertEqual(blocked_direct_edit.json()["status"], "error")
+        products = self.client.get("/products", headers=headers).json()
+        current = next(item for item in products if item["id"] == product_id)
+        self.assertEqual(current["stock"], 4)
+
+        trial = self.client.get(
+            "/api/accounting/entries/reports/trial-balance",
+            headers=headers,
+            params={"status": "posted", "include_zero": "false"},
+        )
+        self.assertEqual(trial.status_code, 200, trial.text)
+        self.assertTrue(trial.json()["totals"]["balanced"], trial.json())
+
+
 if __name__ == "__main__":
     unittest.main()
