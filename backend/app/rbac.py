@@ -50,6 +50,8 @@ READ_RULES = (
 )
 
 MUTATION_RULES = (
+    # Operational users may create/submit requests; endpoint-level checks keep approve/reject admin-only.
+    ("/api/change-requests", {"admin", "accountant", "sales", "warehouse", "viewer", "user"}),
     ("/users", {"admin"}),
     ("/settings", {"admin"}),
     ("/admin", {"admin"}),
