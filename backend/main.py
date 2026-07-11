@@ -199,7 +199,7 @@ ensure_extra_tables()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="1.0.1"
+    version="1.1.0"
 )
 
 
@@ -640,7 +640,7 @@ def product_to_dict(product):
 
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "1.0.1", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": "1.1.0", "status": "online"}
 
 
 @app.get("/setup/status")
@@ -652,7 +652,7 @@ def setup_status():
             "initialized": user_count > 0,
             "requires_admin": user_count == 0,
             "user_count": user_count,
-            "version": "1.0.1",
+            "version": "1.1.0",
         }
     finally:
         db.close()

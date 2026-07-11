@@ -1,41 +1,42 @@
-# Vetrix ERP 1.0.1
+# Vetrix ERP 1.1.0
 
-Vetrix ERP 1.0.1 is the recommended Windows release of the bilingual accounting platform.
+Vetrix ERP 1.1.0 is the recommended Windows release of the bilingual accounting platform.
 
-## Patch highlight
+## Highlights
 
-- Detects a completely fresh installation through a public, read-only setup status contract
-- Shows a bilingual first-run wizard instead of an unusable login screen
-- Creates the initial administrator securely and signs in automatically
-- Requires administrator passwords of at least 10 characters
-- Hides the setup wizard permanently after the first user is created
-- Keeps the existing login flow unchanged for initialized databases
+- Compact grouped navigation with an optional icon-only mode
+- Seven persistent themes: Midnight, Ocean, Emerald, Violet, Rose, Gold, and Light
+- Responsive, polished dashboard and workspace
+- Online Sales & Advertising center
+- Website publication, online price, stock synchronization, and discount controls
+- Campaign drafts for website, Instagram, Telegram, WhatsApp, and LinkedIn
+- Manager approval workflow for campaigns
+- Voice Change Request Center with microphone recording and audio file preview
+- Reviewed transcripts, allow-listed proposals, admin approval, transactional application, and event history
+- Maker-checker protection: requesters cannot approve their own changes
+- Raw provider tokens and arbitrary commands are rejected
 
-## Core capabilities
-
-- Persian and English interface with RTL/LTR support
-- Secure login, granular RBAC, maker-checker approvals, and tamper-evident audit history
-- Double-entry ledger, fiscal periods, closing, financial statements, VAT, aging, banking, treasury, fixed assets, budgets, and multi-currency
-- Verified backup/restore, system health, and production release preflight
-- Self-contained Windows x64 executable with embedded frontend
-
-## Windows installation
+## Installation
 
 1. Download `VetrixERP-Windows-x64.zip`.
-2. Verify it with the accompanying `.sha256` file.
+2. Verify it with `VetrixERP-Windows-x64.sha256`.
 3. Extract the ZIP into a permanent folder.
 4. Run `VetrixERP.exe`.
-5. On first run, complete the administrator wizard.
+5. On a fresh installation, create the initial administrator.
 6. Keep the console window open while using Vetrix.
 
 Python and Node.js are not required. Application data is stored in `%LOCALAPPDATA%\VetrixERP`.
 
+## External connections
+
+The application is ready for official website, Telegram, WhatsApp, and social APIs. Raw credentials are not stored in Vetrix; configure secure secret references when official provider credentials are available. No external content is published until a connection is explicitly configured and approved.
+
 ## Validation
 
-- 35 backend regression tests plus first-run bootstrap assertions
-- dependency, compile, route, sidebar, and translation audits
+- 35 backend regression tests including commerce and managed-change approval flows
+- dependency, compilation, route, sidebar, and translation audits
 - production frontend build
-- real packaged executable startup test on Windows
+- real packaged Windows executable startup
 - packaged API and embedded frontend smoke tests
 
 ## Security note
