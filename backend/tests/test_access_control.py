@@ -81,6 +81,47 @@ class ApiAccessControlTests(unittest.TestCase):
         admin_token = login.json()["access_token"]
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
+        commerce_unauthorized = self.client.get("/api/online-commerce/summary")
+        self.assertEqual(commerce_unauthorized.status_code, 401)
+
+        commerce_summary = self.client.get(
+            "/api/online-commerce/summary", headers=admin_headers
+        )
+        self.assertEqual(commerce_summary.status_code, 200, commerce_summary.text)
+        self.assertIn("products", commerce_summary.json())
+        self.assertIn("campaigns", commerce_summary.json())
+
+        commerce_products = self.client.get(
+            "/api/online-commerce/products", headers=admin_headers
+        )
+        self.assertEqual(commerce_products.status_code, 200, commerce_products.text)
+
+        unsafe_connection = self.client.put(
+            "/api/online-commerce/connections/telegram",
+            headers=admin_headers,
+            json={
+                "channel": "telegram",
+                "enabled": True,
+                "base_url": "https://api.telegram.org",
+                "account_label": "Vetrix",
+                "secret_reference": "token=must-not-be-stored",
+            },
+        )
+        self.assertEqual(unsafe_connection.status_code, 400, unsafe_connection.text)
+
+        safe_connection = self.client.put(
+            "/api/online-commerce/connections/website",
+            headers=admin_headers,
+            json={
+                "channel": "website",
+                "enabled": False,
+                "base_url": "https://example.test/api",
+                "account_label": "Test store",
+                "secret_reference": "env:VETRIX_WEBSITE_API_TOKEN",
+            },
+        )
+        self.assertEqual(safe_connection.status_code, 200, safe_connection.text)
+
         customers = self.client.get("/customers", headers=admin_headers)
         self.assertEqual(customers.status_code, 200, customers.text)
 

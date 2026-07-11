@@ -4,7 +4,7 @@ import {
   LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
-  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness,
+  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -45,6 +45,7 @@ const groups = [
     id: "analysis", fa: "گزارش و تحلیل", en: "Reports & analysis",
     items: [
       { key: "reports", icon: BarChart3, path: "/reports" },
+      { key: "onlineCommerce", fa: "فروش آنلاین و تبلیغات", en: "Online sales & ads", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },
@@ -87,6 +88,7 @@ export default function Sidebar() {
   );
 
   function label(item) {
+    if (item.fa || item.en) return fa ? item.fa : item.en;
     return t(item.key) || t(item.fallbackKey) || item.key;
   }
 

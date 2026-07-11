@@ -62,6 +62,7 @@ from app.accounting.treasury import router as treasury_router
 from app.release_preflight import router as release_preflight_router
 from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
+from app.online_commerce import router as online_commerce_router
 from app.rbac import (
     ROLE_LABELS,
     is_authorized,
@@ -226,6 +227,7 @@ app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
 app.include_router(system_health_router)
+app.include_router(online_commerce_router)
 
 default_origins = ",".join([
     "http://localhost:5173",

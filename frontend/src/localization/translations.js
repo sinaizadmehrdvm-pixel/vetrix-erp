@@ -45,6 +45,7 @@ export const translations = {
     approvalCenter: "Voucher Approvals",
     treasuryCheques: "Treasury & Cheques",
     aiBusiness: "AI BI",
+    onlineCommerce: "Online Sales & Advertising",
     settings: "Settings",
     logout: "Logout",
 
@@ -246,6 +247,7 @@ export const translations = {
     approvalCenter: "تأیید اسناد",
     treasuryCheques: "خزانه‌داری و چک‌ها",
     aiBusiness: "هوش تجاری",
+    onlineCommerce: "فروش آنلاین و تبلیغات",
     settings: "تنظیمات",
     logout: "خروج",
 
