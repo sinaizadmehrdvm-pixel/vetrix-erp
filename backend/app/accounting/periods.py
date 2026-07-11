@@ -360,9 +360,10 @@ def create_period(payload: FiscalPeriodCreate, request: Request):
 @router.post("/{period_id}/close")
 def close_period(period_id: int, request: Request):
     _require_admin(request)
+    from app.accounting.closing import close_books
     try:
         with engine.begin() as conn:
-            return close_fiscal_period(conn, period_id)
+            return close_books(conn, period_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
@@ -370,8 +371,9 @@ def close_period(period_id: int, request: Request):
 @router.post("/{period_id}/reopen")
 def reopen_period(period_id: int, request: Request):
     _require_admin(request)
+    from app.accounting.closing import reopen_books
     try:
         with engine.begin() as conn:
-            return reopen_fiscal_period(conn, period_id)
+            return reopen_books(conn, period_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
