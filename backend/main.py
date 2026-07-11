@@ -1738,54 +1738,82 @@ def create_stock_movement(data: StockMovementCreate):
     try:
         product = db.query(Product).filter(Product.id == data.product_id).first()
         if not product:
-            db.close()
-            return {"status": "error", "message": "Product not found"}
-        if data.quantity <= 0:
-            db.close()
-            return {"status": "error", "message": "Quantity must be greater than zero"}
+            raise ValueError("Product not found")
+
+        previous_stock = float(product.stock or 0)
+        quantity = float(data.quantity)
+        if data.movement_type in {"in", "out"} and quantity <= 0:
+            raise ValueError("Quantity must be greater than zero")
+        if data.movement_type == "adjustment" and quantity < 0:
+            raise ValueError("Adjusted stock cannot be negative")
 
         if data.movement_type == "in":
-            product.stock += data.quantity
+            stock_delta = quantity
+            product.stock = previous_stock + quantity
         elif data.movement_type == "out":
-            if product.stock < data.quantity:
-                db.close()
-                return {"status": "error", "message": "Not enough stock", "current_stock": product.stock}
-            product.stock -= data.quantity
+            if previous_stock < quantity:
+                raise ValueError(
+                    f"Not enough stock; current stock is {previous_stock}"
+                )
+            stock_delta = -quantity
+            product.stock = previous_stock - quantity
         elif data.movement_type == "adjustment":
-            product.stock = data.quantity
+            stock_delta = quantity - previous_stock
+            product.stock = quantity
         else:
-            db.close()
-            return {"status": "error", "message": "movement_type must be in, out or adjustment"}
-
-        db.commit()
-        movement_date = data.movement_date or datetime.utcnow().date().isoformat()
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    INSERT INTO stock_movements
-                    (warehouse, product_id, product_name, quantity, movement_type, movement_date, note, created_at)
-                    VALUES (:warehouse, :product_id, :product_name, :quantity, :movement_type, :movement_date, :note, :created_at)
-                """),
-                {
-                    "warehouse": data.warehouse,
-                    "product_id": data.product_id,
-                    "product_name": product.name,
-                    "quantity": data.quantity,
-                    "movement_type": data.movement_type,
-                    "movement_date": movement_date,
-                    "note": data.note,
-                    "created_at": datetime.utcnow(),
-                },
+            raise ValueError(
+                "movement_type must be in, out or adjustment"
             )
-            conn.commit()
-        updated_stock = product.stock
-        db.close()
-        return {"status": "created", "id": result.lastrowid, "product_id": data.product_id, "stock": updated_stock}
-    except Exception as e:
+
+        movement_date = (
+            data.movement_date or datetime.utcnow().date().isoformat()
+        )
+        result = db.execute(
+            text("""
+                INSERT INTO stock_movements
+                (warehouse, product_id, product_name, quantity,
+                 movement_type, movement_date, note, created_at)
+                VALUES
+                (:warehouse, :product_id, :product_name, :quantity,
+                 :movement_type, :movement_date, :note, :created_at)
+            """),
+            {
+                "warehouse": data.warehouse,
+                "product_id": data.product_id,
+                "product_name": product.name,
+                "quantity": quantity,
+                "movement_type": data.movement_type,
+                "movement_date": movement_date,
+                "note": data.note,
+                "created_at": datetime.utcnow(),
+            },
+        )
+        movement_id = result.lastrowid
+        db.flush()
+        post_inventory_adjustment_general_ledger(
+            db,
+            movement_id,
+            product,
+            stock_delta,
+            movement_date,
+        )
+        updated_stock = float(product.stock or 0)
+        db.commit()
+        return {
+            "status": "created",
+            "id": movement_id,
+            "product_id": data.product_id,
+            "previous_stock": previous_stock,
+            "stock_delta": stock_delta,
+            "stock": updated_stock,
+        }
+    except Exception as error:
         db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
     
+
 @app.delete("/invoices/{invoice_id}")
 def delete_invoice(invoice_id: int):
     db: Session = SessionLocal()
