@@ -1837,5 +1837,107 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(blocked_delete.status_code, 409)
 
 
+    def test_zz_budget_cost_center_variance_control(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        center = self.client.post(
+            "/api/accounting/budgets/cost-centers",
+            headers=headers,
+            json={"code": "CI-OPS", "name": "CI Operations"},
+        )
+        self.assertEqual(center.status_code, 200, center.text)
+        center_id = center.json()["id"]
+        project = self.client.post(
+            "/api/accounting/budgets/projects",
+            headers=headers,
+            json={"code": "CI-PROJ", "name": "CI Project"},
+        )
+        self.assertEqual(project.status_code, 200, project.text)
+        project_id = project.json()["id"]
+
+        periods = self.client.get(
+            "/api/accounting/periods", headers=headers
+        ).json()
+        period = next(item for item in periods if item["status"] == "open")
+        accounts = self.client.get(
+            "/api/accounting/entries/chart", headers=headers
+        ).json()
+        expense = next(item for item in accounts if item["code"] == "5102")
+        cash = next(item for item in accounts if item["code"] == "1101")
+
+        budget = self.client.post(
+            "/api/accounting/budgets/lines",
+            headers=headers,
+            json={
+                "fiscal_period_id": period["id"],
+                "account_id": expense["id"],
+                "cost_center_id": center_id,
+                "project_id": project_id,
+                "amount": 100,
+                "note": "CI operating budget",
+            },
+        )
+        self.assertEqual(budget.status_code, 200, budget.text)
+
+        voucher = self.client.post(
+            "/api/accounting/entries",
+            headers=headers,
+            json={
+                "voucher_date": period["start_date"],
+                "description": "CI budget variance voucher",
+                "status": "posted",
+                "lines": [
+                    {
+                        "account_id": expense["id"],
+                        "debit": 120,
+                        "credit": 0,
+                        "cost_center_id": center_id,
+                        "project_id": project_id,
+                    },
+                    {
+                        "account_id": cash["id"],
+                        "debit": 0,
+                        "credit": 120,
+                        "cost_center_id": center_id,
+                        "project_id": project_id,
+                    },
+                ],
+            },
+        )
+        self.assertEqual(voucher.status_code, 200, voucher.text)
+
+        variance = self.client.get(
+            "/api/accounting/budgets/variance",
+            headers=headers,
+            params={
+                "fiscal_period_id": period["id"],
+                "cost_center_id": center_id,
+                "project_id": project_id,
+            },
+        )
+        self.assertEqual(variance.status_code, 200, variance.text)
+        payload = variance.json()
+        self.assertEqual(payload["summary"]["budget"], 100.0)
+        self.assertEqual(payload["summary"]["actual"], 120.0)
+        self.assertEqual(payload["summary"]["variance"], -20.0)
+        self.assertEqual(payload["summary"]["over_budget_count"], 1)
+        self.assertTrue(payload["items"][0]["over_budget"])
+        self.assertEqual(payload["items"][0]["usage_percent"], 120.0)
+
+        meta = self.client.get(
+            "/api/accounting/entries/meta", headers=headers
+        ).json()
+        self.assertTrue(
+            any(item["id"] == center_id for item in meta["cost_centers"])
+        )
+        self.assertTrue(
+            any(item["id"] == project_id for item in meta["projects"])
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
