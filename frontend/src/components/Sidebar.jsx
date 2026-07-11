@@ -21,6 +21,7 @@ import {
   CalendarRange,
   Landmark,
   Factory,
+  Target,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -49,6 +50,7 @@ const items = [
   { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "bankReconciliation", icon: Landmark, path: "/bank-reconciliation", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "fixedAssets", icon: Factory, path: "/fixed-assets", roles: ["admin", "accountant", "viewer", "user"] },
+  { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
 ];
