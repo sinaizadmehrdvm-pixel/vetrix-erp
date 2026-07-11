@@ -1532,5 +1532,116 @@ class ApiAccessControlTests(unittest.TestCase):
         )
 
 
+    def test_receivables_and_payables_aging_report(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={
+                "name": "Aging Test Party",
+                "customer_type": "partner",
+                "credit_limit": 50,
+            },
+        )
+        self.assertEqual(customer.json()["status"], "created", customer.text)
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={
+                "name": "Aging Test Product",
+                "sell_price": 100,
+                "buy_price": 40,
+                "stock": 5,
+            },
+        )
+        self.assertEqual(product.json()["status"], "created", product.text)
+        product_id = product.json()["id"]
+
+        sale = self.client.post(
+            "/invoices",
+            headers=headers,
+            json={
+                "invoice_type": "sale",
+                "customer_id": customer_id,
+                "items": [
+                    {"product_id": product_id, "quantity": 1, "unit_price": 100}
+                ],
+            },
+        )
+        self.assertEqual(sale.json()["status"], "created", sale.text)
+        sale_id = sale.json()["invoice_id"]
+
+        purchase = self.client.post(
+            "/invoices",
+            headers=headers,
+            json={
+                "invoice_type": "buy",
+                "customer_id": customer_id,
+                "items": [
+                    {"product_id": product_id, "quantity": 2, "unit_price": 40}
+                ],
+            },
+        )
+        self.assertEqual(purchase.json()["status"], "created", purchase.text)
+        purchase_id = purchase.json()["invoice_id"]
+
+        report = self.client.get(
+            "/api/accounting/aging",
+            headers=headers,
+            params={"as_of": "2099-12-31", "terms_days": 30},
+        )
+        self.assertEqual(report.status_code, 200, report.text)
+        payload = report.json()
+        self.assertGreaterEqual(payload["summary"]["receivable"], 100.0)
+        self.assertGreaterEqual(payload["summary"]["payable"], 80.0)
+        self.assertGreaterEqual(payload["summary"]["overdue_receivable"], 100.0)
+        self.assertEqual(
+            next(
+                item for item in payload["items"]
+                if item["invoice_id"] == sale_id
+            )["bucket"],
+            "over_90",
+        )
+        party = next(
+            item for item in payload["parties"]
+            if item["customer_id"] == customer_id
+        )
+        self.assertEqual(party["receivable"], 100.0)
+        self.assertEqual(party["payable"], 80.0)
+        self.assertEqual(party["net_position"], 20.0)
+        self.assertTrue(party["over_credit_limit"])
+
+        invalid_date = self.client.get(
+            "/api/accounting/aging",
+            headers=headers,
+            params={"as_of": "31-12-2099"},
+        )
+        self.assertEqual(invalid_date.status_code, 400)
+
+        for invoice_id in (sale_id, purchase_id):
+            deleted = self.client.delete(
+                f"/invoices/{invoice_id}",
+                headers=headers,
+            )
+            self.assertEqual(deleted.json()["status"], "deleted", deleted.text)
+        deleted_product = self.client.delete(
+            f"/products/{product_id}",
+            headers=headers,
+        )
+        self.assertEqual(deleted_product.json()["status"], "deleted")
+        deleted_customer = self.client.delete(
+            f"/customers/{customer_id}",
+            headers=headers,
+        )
+        self.assertEqual(deleted_customer.json()["status"], "deleted")
+
+
 if __name__ == "__main__":
     unittest.main()

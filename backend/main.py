@@ -52,6 +52,7 @@ from app.accounting.periods import router as fiscal_periods_router
 from app.accounting.statements import router as financial_statements_router
 from app.accounting.closing import router as fiscal_closing_router
 from app.accounting.tax import router as vat_accounting_router
+from app.accounting.aging import router as aging_report_router
 from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
 from app.rbac import (
@@ -206,6 +207,7 @@ app.include_router(fiscal_periods_router)
 app.include_router(financial_statements_router)
 app.include_router(fiscal_closing_router)
 app.include_router(vat_accounting_router)
+app.include_router(aging_report_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
