@@ -35,6 +35,23 @@ class ApiAccessControlTests(unittest.TestCase):
         export = self.client.get("/export/invoices-pdf")
         self.assertEqual(export.status_code, 401)
 
+        first_run = self.client.get("/setup/status")
+        self.assertEqual(first_run.status_code, 200, first_run.text)
+        self.assertTrue(first_run.json()["requires_admin"])
+        self.assertFalse(first_run.json()["initialized"])
+        self.assertEqual(first_run.json()["version"], "1.0.1")
+
+        weak_bootstrap = self.client.post(
+            "/users",
+            json={
+                "full_name": "Weak Administrator",
+                "username": "weak-admin",
+                "password": "short",
+                "role": "admin",
+            },
+        )
+        self.assertEqual(weak_bootstrap.status_code, 400)
+
         admin_payload = {
             "full_name": "Test Administrator",
             "username": "ci-admin",
@@ -43,6 +60,12 @@ class ApiAccessControlTests(unittest.TestCase):
         }
         bootstrap = self.client.post("/users", json=admin_payload)
         self.assertEqual(bootstrap.status_code, 200, bootstrap.text)
+
+        initialized = self.client.get("/setup/status")
+        self.assertEqual(initialized.status_code, 200, initialized.text)
+        self.assertTrue(initialized.json()["initialized"])
+        self.assertFalse(initialized.json()["requires_admin"])
+        self.assertEqual(initialized.json()["user_count"], 1)
 
         wrong_login = self.client.post(
             "/login",
