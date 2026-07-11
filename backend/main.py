@@ -197,7 +197,7 @@ ensure_extra_tables()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="1.0.0"
+    version="1.0.1"
 )
 
 
@@ -636,7 +636,22 @@ def product_to_dict(product):
 
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "1.0.0", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": "1.0.1", "status": "online"}
+
+
+@app.get("/setup/status")
+def setup_status():
+    db: Session = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        return {
+            "initialized": user_count > 0,
+            "requires_admin": user_count == 0,
+            "user_count": user_count,
+            "version": "1.0.1",
+        }
+    finally:
+        db.close()
 
 
 def settings_to_dict(settings: AppSettings):
@@ -733,6 +748,8 @@ def require_admin(request: Request):
 @app.post("/users")
 def create_user(data: UserCreate, request: Request):
     require_admin(request)
+    if len(data.password) < 10:
+        raise HTTPException(status_code=400, detail="Password must contain at least 10 characters")
     raw_role = str(data.role).strip().lower()
     requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
     if raw_role not in ROLE_LABELS:
