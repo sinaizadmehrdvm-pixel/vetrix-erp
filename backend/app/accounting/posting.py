@@ -95,9 +95,16 @@ def _ensure_schema(conn):
             description TEXT DEFAULT '',
             debit FLOAT DEFAULT 0,
             credit FLOAT DEFAULT 0,
+            cost_center_id INTEGER,
+            project_id INTEGER,
             created_at VARCHAR
         )
     """))
+    line_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(accounting_voucher_lines)")).fetchall()}
+    if "cost_center_id" not in line_columns:
+        conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN cost_center_id INTEGER"))
+    if "project_id" not in line_columns:
+        conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN project_id INTEGER"))
 
     now = datetime.utcnow().isoformat()
     for code, name, account_type, level, parent_code, normal_balance in POSTING_ACCOUNTS:
@@ -209,9 +216,9 @@ def post_balanced_voucher(
                 raise ValueError(f"Posting account not found: {line['account_code']}")
             conn.execute(text("""
                 INSERT INTO accounting_voucher_lines
-                (voucher_id, account_id, account_code, account_name, description, debit, credit, created_at)
+                (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, created_at)
                 VALUES
-                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :now)
+                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :now)
             """), {
                 "voucher_id": voucher_id,
                 "account_id": account["id"],
@@ -220,6 +227,8 @@ def post_balanced_voucher(
                 "description": line.get("description") or description,
                 "debit": float(line["debit"]),
                 "credit": float(line["credit"]),
+                "cost_center_id": line.get("cost_center_id"),
+                "project_id": line.get("project_id"),
                 "now": now,
             })
         return voucher_id
