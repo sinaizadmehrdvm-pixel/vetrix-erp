@@ -13,7 +13,7 @@ export default function MainLayout() {
         display: "flex",
         minHeight: "100vh",
         height: "100vh",
-        background: "#071028",
+        background: "var(--erp-bg)",
         color: "white",
         overflow: "hidden",
       }}
@@ -26,7 +26,7 @@ export default function MainLayout() {
           flex: 1,
           minWidth: 0,
           height: "100vh",
-          padding: 30,
+          padding: "clamp(14px, 2vw, 30px)",
           overflowY: "auto",
           overflowX: "hidden",
         }}
