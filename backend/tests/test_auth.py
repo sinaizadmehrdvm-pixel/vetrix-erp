@@ -67,7 +67,11 @@ class TokenSecurityTests(unittest.TestCase):
 
     def test_tampered_token_is_rejected(self):
         token = create_access_token(7, "admin", "admin")
-        tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+        header, payload, signature = token.split(".")
+        changed_signature = (
+            ("a" if signature[0] != "a" else "b") + signature[1:]
+        )
+        tampered = ".".join([header, payload, changed_signature])
 
         with self.assertRaises(jwt.PyJWTError):
             decode_access_token(tampered)
