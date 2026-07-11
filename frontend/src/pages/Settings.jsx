@@ -409,10 +409,12 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={fa ? "واحد پول" : "Currency"}>
             <select className={inputClass} value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
-              <option value="تومان">تومان</option>
-              <option value="ریال">ریال</option>
-              <option value="USD">{fa ? "دلار" : "USD"}</option>
-              <option value="EUR">{fa ? "یورو" : "EUR"}</option>
+              <option value="IRR">{fa ? "ریال ایران (IRR)" : "Iranian rial (IRR)"}</option>
+              <option value="تومان">{fa ? "تومان (واحد نمایشی)" : "Toman (display unit)"}</option>
+              <option value="EUR">{fa ? "یورو (EUR)" : "Euro (EUR)"}</option>
+              <option value="AED">{fa ? "درهم امارات (AED)" : "UAE dirham (AED)"}</option>
+              <option value="GBP">{fa ? "پوند بریتانیا (GBP)" : "Pound sterling (GBP)"}</option>
+              <option value="USD">{fa ? "دلار آمریکا (USD)" : "US dollar (USD)"}</option>
             </select>
           </Field>
 
