@@ -1,4 +1,4 @@
-Vetrix ERP 1.0 — Windows Portable
+Vetrix ERP 1.0.1 — Windows Portable
 
 1. Extract the ZIP into a permanent folder.
 2. Double-click VetrixERP.exe.

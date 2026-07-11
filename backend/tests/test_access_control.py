@@ -35,6 +35,23 @@ class ApiAccessControlTests(unittest.TestCase):
         export = self.client.get("/export/invoices-pdf")
         self.assertEqual(export.status_code, 401)
 
+        first_run = self.client.get("/setup/status")
+        self.assertEqual(first_run.status_code, 200, first_run.text)
+        self.assertTrue(first_run.json()["requires_admin"])
+        self.assertFalse(first_run.json()["initialized"])
+        self.assertEqual(first_run.json()["version"], "1.0.1")
+
+        weak_bootstrap = self.client.post(
+            "/users",
+            json={
+                "full_name": "Weak Administrator",
+                "username": "weak-admin",
+                "password": "short",
+                "role": "admin",
+            },
+        )
+        self.assertEqual(weak_bootstrap.status_code, 400)
+
         admin_payload = {
             "full_name": "Test Administrator",
             "username": "ci-admin",
@@ -43,6 +60,12 @@ class ApiAccessControlTests(unittest.TestCase):
         }
         bootstrap = self.client.post("/users", json=admin_payload)
         self.assertEqual(bootstrap.status_code, 200, bootstrap.text)
+
+        initialized = self.client.get("/setup/status")
+        self.assertEqual(initialized.status_code, 200, initialized.text)
+        self.assertTrue(initialized.json()["initialized"])
+        self.assertFalse(initialized.json()["requires_admin"])
+        self.assertEqual(initialized.json()["user_count"], 1)
 
         wrong_login = self.client.post(
             "/login",
@@ -2284,7 +2307,7 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(preflight.status_code, 200, preflight.text)
         payload = preflight.json()
-        self.assertEqual(payload["version"], "1.0.0")
+        self.assertEqual(payload["version"], "1.0.1")
         self.assertTrue(payload["release_ready"], payload)
         self.assertEqual(payload["api_contract"]["missing_routes"], [])
         self.assertGreaterEqual(payload["database"]["administrators"], 1)
@@ -2296,7 +2319,7 @@ class ApiAccessControlTests(unittest.TestCase):
             headers=admin_headers,
         )
         self.assertEqual(version.status_code, 200, version.text)
-        self.assertEqual(version.json()["version"], "1.0.0")
+        self.assertEqual(version.json()["version"], "1.0.1")
 
         viewer_login = self.client.post(
             "/login",

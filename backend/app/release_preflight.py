@@ -10,7 +10,7 @@ from app.database import engine
 from app.system_health import build_system_health
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 RELEASE_TABLES = {
     "accounting_approval_requests",

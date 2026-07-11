@@ -118,6 +118,7 @@ PUBLIC_PATHS = {
     "/",
     "/health",
     "/login",
+    "/setup/status",
     "/docs",
     "/openapi.json",
     "/redoc",

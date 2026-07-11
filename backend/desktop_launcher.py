@@ -130,7 +130,7 @@ def main():
     ).start()
 
     print("=" * 58)
-    print("Vetrix ERP 1.0")
+    print("Vetrix ERP 1.0.1")
     print(f"Application: http://{APP_HOST}:{WEB_PORT}")
     print(f"Data folder: {target}")
     print("Keep this window open while using Vetrix.")
