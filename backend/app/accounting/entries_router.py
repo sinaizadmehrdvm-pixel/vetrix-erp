@@ -46,6 +46,9 @@ class VoucherLineIn(BaseModel):
     credit: float = 0
     cost_center_id: Optional[int] = None
     project_id: Optional[int] = None
+    currency_code: Optional[str] = None
+    foreign_amount: Optional[float] = None
+    exchange_rate: Optional[float] = None
 
 
 class VoucherCreate(BaseModel):
@@ -132,6 +135,8 @@ def _ensure_tables():
             conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN cost_center_id INTEGER"))
         if "project_id" not in columns:
             conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN project_id INTEGER"))
+        from app.accounting.currencies import ensure_currency_schema
+        ensure_currency_schema(conn)
         count = conn.execute(text("SELECT COUNT(*) FROM chart_accounts")).scalar() or 0
         if count == 0:
             now = datetime.utcnow().isoformat()
@@ -201,6 +206,18 @@ def _validate_lines(conn, lines):
         if d == 0 and c == 0:
             raise HTTPException(status_code=400, detail="A line must have debit or credit")
         _get_account(conn, line.account_id)
+        if line.currency_code:
+            code = str(line.currency_code).strip().upper()
+            foreign = float(line.foreign_amount or 0)
+            rate = float(line.exchange_rate or 0)
+            base_amount = d or c
+            if foreign <= 0 or rate <= 0:
+                raise HTTPException(status_code=400, detail="Foreign amount and exchange rate must be greater than zero")
+            if round(foreign * rate, 2) != round(base_amount, 2):
+                raise HTTPException(status_code=400, detail="Base amount must equal foreign amount multiplied by exchange rate")
+            currency = conn.execute(text("SELECT code FROM accounting_currencies WHERE code=:code AND active=1"), {"code": code}).first()
+            if not currency:
+                raise HTTPException(status_code=400, detail=f"Active currency not found: {code}")
     return debit, credit
 
 
@@ -348,10 +365,13 @@ def accounting_entries_meta():
         ensure_budget_schema(conn)
         cost_centers = [_dict(row) for row in conn.execute(text("SELECT * FROM cost_centers WHERE active=1 ORDER BY code")).fetchall()]
         projects = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_projects WHERE active=1 ORDER BY code")).fetchall()]
+        from app.accounting.currencies import ensure_currency_schema
+        ensure_currency_schema(conn)
+        currencies = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_currencies WHERE active=1 ORDER BY is_base DESC, code")).fetchall()]
     return {
         "cost_centers": cost_centers,
         "projects": projects,
-        "currencies": [{"code": "IRR", "name": "ریال / تومان", "symbol": "تومان", "rate": 1, "is_base": True, "is_active": True}],
+        "currencies": currencies,
         "account_types": sorted(VALID_TYPES),
         "levels": sorted(VALID_LEVELS),
         "normal_balances": sorted(VALID_BALANCES),
@@ -557,9 +577,9 @@ def create_voucher(payload: VoucherCreate):
                 account = _get_account(conn, line.account_id)
                 conn.execute(text("""
                     INSERT INTO accounting_voucher_lines
-                    (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, created_at)
-                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :now)
-                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "cost_center_id": line.cost_center_id, "project_id": line.project_id, "now": now})
+                    (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at)
+                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now)
+                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "cost_center_id": line.cost_center_id, "project_id": line.project_id, "currency_code": str(line.currency_code).upper() if line.currency_code else None, "foreign_amount": line.foreign_amount, "exchange_rate": line.exchange_rate, "now": now})
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     return get_voucher(voucher_id)
