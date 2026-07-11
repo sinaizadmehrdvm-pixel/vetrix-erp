@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../localization/LanguageContext";
 import { API_URL, getAuthHeaders } from "../services/api";
+import { useTheme } from "../theme/ThemeContext";
 
 const emptySettings = {
   company_name: "Vetrix ERP",
@@ -108,6 +109,7 @@ async function compressImage(file) {
 export default function Settings() {
   const { language, setLanguage, languages, dir, t } = useLanguage();
   const fa = language === "fa";
+  const { theme, themes, setTheme } = useTheme();
 
   const [settings, setSettings] = useState(emptySettings);
   const [loading, setLoading] = useState(false);
@@ -148,6 +150,7 @@ export default function Settings() {
       }
 
       setSettings({ ...emptySettings, ...data });
+      if (data?.theme) setTheme(data.theme);
     } catch (error) {
       console.error("Settings loading error:", error);
       setMessage(label.error);
@@ -363,13 +366,33 @@ export default function Settings() {
 
       <Section icon={<Palette />} title={label.appearance}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label={fa ? "تم برنامه" : "Theme"}>
-            <select className={inputClass} value={settings.theme || "dark"} onChange={(e) => setField("theme", e.target.value)}>
-              <option value="dark">{fa ? "تیره" : "Dark"}</option>
-              <option value="light">{fa ? "روشن" : "Light"}</option>
-              <option value="neon">{fa ? "نئونی" : "Neon"}</option>
-            </select>
+          <div className="md:col-span-3">
+          <Field label={fa ? "رنگ و تم برنامه" : "Color theme"}>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              {themes.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setTheme(item.id);
+                    setField("theme", item.id);
+                  }}
+                  className="rounded-2xl p-3 text-start font-black border"
+                  style={{
+                    background: theme === item.id ? "var(--erp-glow)" : "var(--erp-panel-solid)",
+                    borderColor: theme === item.id ? item.accent : "var(--erp-border)",
+                    color: "var(--erp-text)",
+                    boxShadow: theme === item.id ? `0 0 0 2px ${item.accent}55` : "none",
+                  }}
+                  aria-pressed={theme === item.id}
+                >
+                  <span className="block w-8 h-8 rounded-full mb-2" style={{ background: item.accent }} />
+                  {fa ? item.fa : item.en}
+                </button>
+              ))}
+            </div>
           </Field>
+          </div>
 
           <Field label={fa ? "حداقل موجودی پیش‌فرض" : "Default Low Stock"}>
             <input className={inputClass} value={showDigits(settings.low_stock_default, fa)} onChange={(e) => setNumberField("low_stock_default", e.target.value)} />
@@ -405,12 +428,12 @@ export default function Settings() {
 
 function Section({ icon, title, children }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-6">
+    <div className="erp-surface rounded-3xl p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-300">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center erp-accent" style={{ background: "var(--erp-glow)" }}>
           {icon}
         </div>
-        <h2 className="text-2xl font-black text-cyan-300">{title}</h2>
+        <h2 className="text-2xl font-black erp-accent">{title}</h2>
       </div>
       {children}
     </div>

@@ -1,9 +1,31 @@
 @import "tailwindcss";
 
-body{
-    margin:0;
-    padding:0;
-    background:#050816;
-    color:white;
-    font-family:Arial, Helvetica, sans-serif;
+:root {
+  --erp-bg: #071028;
+  --erp-bg-soft: #0b1736;
+  --erp-panel: rgba(15, 30, 65, 0.86);
+  --erp-panel-solid: #132347;
+  --erp-text: #f8fafc;
+  --erp-muted: #94a3b8;
+  --erp-accent: #22d3ee;
+  --erp-accent-2: #34d399;
+  --erp-border: rgba(34, 211, 238, 0.18);
+  --erp-glow: rgba(34, 211, 238, 0.2);
 }
+
+:root[data-theme="ocean"] { --erp-bg:#061827; --erp-bg-soft:#082f49; --erp-panel:#0c3048e6; --erp-panel-solid:#0e3a55; --erp-accent:#38bdf8; --erp-accent-2:#2dd4bf; --erp-border:#38bdf833; --erp-glow:#38bdf838; }
+:root[data-theme="emerald"] { --erp-bg:#061c18; --erp-bg-soft:#0b2c26; --erp-panel:#103a32e6; --erp-panel-solid:#12483d; --erp-accent:#34d399; --erp-accent-2:#22d3ee; --erp-border:#34d39933; --erp-glow:#34d39938; }
+:root[data-theme="violet"] { --erp-bg:#130d27; --erp-bg-soft:#211440; --erp-panel:#2b1d50e6; --erp-panel-solid:#352460; --erp-accent:#a78bfa; --erp-accent-2:#f0abfc; --erp-border:#a78bfa33; --erp-glow:#a78bfa38; }
+:root[data-theme="rose"] { --erp-bg:#24101b; --erp-bg-soft:#3a1627; --erp-panel:#4a1c31e6; --erp-panel-solid:#572139; --erp-accent:#fb7185; --erp-accent-2:#f9a8d4; --erp-border:#fb718533; --erp-glow:#fb718538; }
+:root[data-theme="gold"] { --erp-bg:#201706; --erp-bg-soft:#34250a; --erp-panel:#46320de6; --erp-panel-solid:#513b12; --erp-accent:#fbbf24; --erp-accent-2:#fde68a; --erp-border:#fbbf2433; --erp-glow:#fbbf2438; }
+:root[data-theme="light"] { --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8; --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669; --erp-border:#0284c733; --erp-glow:#0284c726; }
+
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--erp-accent) transparent; }
+body { margin:0; padding:0; background:var(--erp-bg); color:var(--erp-text); font-family:Arial, Helvetica, sans-serif; transition:background .25s ease,color .25s ease; }
+button, a, input, select, textarea { transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease; }
+button:hover, a:hover { transform:translateY(-1px); }
+.erp-layout, .erp-main { background:var(--erp-bg) !important; color:var(--erp-text) !important; }
+.erp-sidebar { background:var(--erp-bg-soft) !important; border-color:var(--erp-border) !important; }
+.erp-surface { background:var(--erp-panel); border:1px solid var(--erp-border); box-shadow:0 18px 50px rgba(0,0,0,.16); backdrop-filter:blur(16px); }
+.erp-accent { color:var(--erp-accent) !important; }
+.erp-focus:focus { outline:none; box-shadow:0 0 0 3px var(--erp-glow); }
