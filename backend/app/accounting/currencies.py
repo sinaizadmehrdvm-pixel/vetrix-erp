@@ -50,6 +50,10 @@ def ensure_currency_schema(conn):
             created_at VARCHAR NOT NULL
         )
     """))
+    _ensure_column(conn, "accounting_currencies", "symbol", "symbol VARCHAR DEFAULT \'\'")
+    _ensure_column(conn, "accounting_currencies", "is_base", "is_base BOOLEAN NOT NULL DEFAULT 0")
+    _ensure_column(conn, "accounting_currencies", "active", "active BOOLEAN NOT NULL DEFAULT 1")
+    _ensure_column(conn, "accounting_currencies", "created_at", "created_at VARCHAR")
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS accounting_exchange_rates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
