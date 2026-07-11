@@ -17,6 +17,7 @@ import {
   UserCog,
   DatabaseBackup,
   HeartPulse,
+  BadgePercent,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -41,6 +42,7 @@ const items = [
   { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "reports", icon: BarChart3, path: "/reports" },
   { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
+  { key: "taxAccounting", icon: BadgePercent, path: "/tax-accounting", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
 ];
