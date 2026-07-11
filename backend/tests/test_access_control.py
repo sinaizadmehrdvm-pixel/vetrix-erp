@@ -2167,5 +2167,108 @@ class ApiAccessControlTests(unittest.TestCase):
         )
 
 
+    def test_zzzzz_received_cheque_treasury_lifecycle(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={"name": "CI Treasury Party"},
+        )
+        self.assertEqual(customer.json()["status"], "created", customer.text)
+        customer_id = customer.json()["id"]
+
+        created = self.client.post(
+            "/api/accounting/treasury/cheques",
+            headers=headers,
+            json={
+                "direction": "received",
+                "customer_id": customer_id,
+                "amount": 100,
+                "cheque_number": "CI-CHQ-001",
+                "bank_name": "CI Bank",
+                "issue_date": "2099-01-01",
+                "due_date": "2099-02-01",
+                "note": "integration test",
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        cheque_id = created.json()["id"]
+
+        registration = self.client.get(
+            f"/api/accounting/entries/{created.json()['voucher_id']}",
+            headers=headers,
+        ).json()
+        registration_lines = {
+            line["account_code"]: line for line in registration["lines"]
+        }
+        self.assertEqual(registration_lines["1104"]["debit"], 100.0)
+        self.assertEqual(registration_lines["1103"]["credit"], 100.0)
+
+        customer_after_receipt = self.client.get(
+            f"/customers/{customer_id}", headers=headers
+        ).json()["customer"]
+        self.assertEqual(customer_after_receipt["balance"], -100.0)
+
+        duplicate = self.client.post(
+            "/api/accounting/treasury/cheques",
+            headers=headers,
+            json={
+                "direction": "received",
+                "customer_id": customer_id,
+                "amount": 100,
+                "cheque_number": "CI-CHQ-001",
+                "issue_date": "2099-01-01",
+                "due_date": "2099-02-01",
+            },
+        )
+        self.assertEqual(duplicate.status_code, 409)
+
+        bounced = self.client.post(
+            f"/api/accounting/treasury/cheques/{cheque_id}/transition",
+            headers=headers,
+            json={
+                "status": "bounced",
+                "event_date": "2099-02-02",
+                "note": "bank returned cheque",
+            },
+        )
+        self.assertEqual(bounced.status_code, 200, bounced.text)
+        self.assertEqual(bounced.json()["status"], "bounced")
+
+        bounce_voucher = self.client.get(
+            f"/api/accounting/entries/{bounced.json()['voucher_id']}",
+            headers=headers,
+        ).json()
+        bounce_lines = {
+            line["account_code"]: line for line in bounce_voucher["lines"]
+        }
+        self.assertEqual(bounce_lines["1103"]["debit"], 100.0)
+        self.assertEqual(bounce_lines["1104"]["credit"], 100.0)
+
+        customer_after_bounce = self.client.get(
+            f"/customers/{customer_id}", headers=headers
+        ).json()["customer"]
+        self.assertEqual(customer_after_bounce["balance"], 0.0)
+
+        second_transition = self.client.post(
+            f"/api/accounting/treasury/cheques/{cheque_id}/transition",
+            headers=headers,
+            json={"status": "cleared", "event_date": "2099-02-03"},
+        )
+        self.assertEqual(second_transition.status_code, 409)
+
+        detail = self.client.get(
+            f"/api/accounting/treasury/cheques/{cheque_id}",
+            headers=headers,
+        )
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()["status"], "bounced")
+        self.assertEqual(len(detail.json()["events"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
