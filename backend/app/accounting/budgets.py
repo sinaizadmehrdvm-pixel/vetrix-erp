@@ -47,6 +47,9 @@ def _ensure_schema(conn):
             created_at VARCHAR NOT NULL
         )
     """))
+    _ensure_column(conn, "cost_centers", "description", "description TEXT DEFAULT \'\'")
+    _ensure_column(conn, "cost_centers", "active", "active BOOLEAN NOT NULL DEFAULT 1")
+    _ensure_column(conn, "cost_centers", "created_at", "created_at VARCHAR")
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS accounting_projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
