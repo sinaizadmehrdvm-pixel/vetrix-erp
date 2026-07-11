@@ -105,9 +105,7 @@ def build_release_preflight(app=None):
     registered_paths = []
     missing_routes = []
     if app is not None:
-        registered_paths = sorted({
-            route.path for route in app.routes if hasattr(route, "path")
-        })
+        registered_paths = sorted(app.openapi().get("paths", {}).keys())
         missing_routes = [
             route for route in CRITICAL_ROUTES if route not in registered_paths
         ]
