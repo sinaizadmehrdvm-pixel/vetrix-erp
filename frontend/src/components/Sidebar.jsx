@@ -24,6 +24,7 @@ import {
   Target,
   Coins,
   ShieldCheck,
+  WalletCards,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -55,6 +56,7 @@ const items = [
   { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "currencyManagement", icon: Coins, path: "/currency-management", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "approvalCenter", icon: ShieldCheck, path: "/approval-center", roles: ["admin", "accountant"] },
+  { key: "treasuryCheques", icon: WalletCards, path: "/treasury-cheques", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi", roles: ["admin", "accountant", "viewer", "user"] },
   { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
 ];
