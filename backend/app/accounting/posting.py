@@ -27,6 +27,8 @@ POSTING_ACCOUNTS = [
     ("3", "حقوق صاحبان سرمایه", "equity", "group", None, "credit"),
     ("31", "سرمایه و افتتاحیه", "equity", "ledger", "3", "credit"),
     ("3101", "سرمایه و تعدیلات افتتاحیه", "equity", "subsidiary", "31", "credit"),
+    ("32", "سود و زیان انباشته", "equity", "ledger", "3", "credit"),
+    ("3201", "سود و زیان انباشته", "equity", "subsidiary", "32", "credit"),
     ("4", "درآمدها", "revenue", "group", None, "credit"),
     ("4101", "فروش کالا و خدمات", "revenue", "subsidiary", "4", "credit"),
     ("4102", "برگشت از فروش", "contra", "subsidiary", "4", "debit"),

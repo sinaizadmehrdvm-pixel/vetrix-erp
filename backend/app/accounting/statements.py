@@ -228,7 +228,8 @@ def financial_statements(fiscal_period_id: int | None = None):
         if period:
             income_rows = _account_balances(
                 conn,
-                "AND v.fiscal_period_id=:period_id",
+                "AND v.fiscal_period_id=:period_id "
+                "AND v.source_type!='fiscal_close'",
                 {"period_id": period["id"]},
             )
             balance_rows = _account_balances(
@@ -237,8 +238,11 @@ def financial_statements(fiscal_period_id: int | None = None):
                 {"end_date": period["end_date"]},
             )
         else:
-            income_rows = _account_balances(conn)
-            balance_rows = income_rows
+            income_rows = _account_balances(
+                conn,
+                "AND v.source_type!='fiscal_close'",
+            )
+            balance_rows = _account_balances(conn)
 
         income = _income_statement(income_rows)
         accumulated_income = _income_statement(balance_rows)

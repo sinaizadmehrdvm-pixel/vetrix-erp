@@ -20,6 +20,7 @@ import {
   closeFiscalPeriod,
   createFiscalPeriod,
   getFiscalPeriods,
+  getFiscalClosingPreview,
   reopenFiscalPeriod,
 } from "../services/fiscalPeriodsApi";
 
@@ -134,11 +135,19 @@ export default function FiscalPeriods() {
 
   async function changeStatus(period, action) {
     if (!isAdmin || busyId) return;
-    const warning = action === "close" ? copy.closeWarning : copy.reopenWarning;
-    if (!window.confirm(warning)) return;
-
     setBusyId(period.id);
     try {
+      let warning = action === "close" ? copy.closeWarning : copy.reopenWarning;
+      if (action === "close") {
+        const preview = await getFiscalClosingPreview(period.id);
+        warning += fa
+          ? `\n\nسود/زیان خالص: ${money(preview.net_income)}\nحساب‌های قابل بستن: ${n(preview.accounts.length)}`
+          : `\n\nNet income/loss: ${money(preview.net_income)}\nAccounts to close: ${n(preview.accounts.length)}`;
+      }
+      if (!window.confirm(warning)) {
+        setBusyId(null);
+        return;
+      }
       if (action === "close") await closeFiscalPeriod(period.id);
       else await reopenFiscalPeriod(period.id);
       toast.success(
