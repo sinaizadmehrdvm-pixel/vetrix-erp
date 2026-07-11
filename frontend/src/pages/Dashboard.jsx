@@ -215,7 +215,6 @@ function buildQuickActions(fa) {
     { title: fa ? "ثبت دریافت" : "New receipt", path: "/receipts", icon: <Wallet size={18} /> },
     { title: fa ? "ثبت پرداخت" : "New payment", path: "/payments", icon: <CreditCard size={18} /> },
     { title: fa ? "افزودن مشتری" : "Add customer", path: "/customers", icon: <Users size={18} /> },
-    { title: fa ? "افزودن کالا" : "Add product", path: "/products", icon: <Package size={18} /> },
     { title: fa ? "گزارش‌های حرفه‌ای" : "Reports", path: "/reports", icon: <TrendingUp size={18} /> },
   ];
 }
@@ -298,11 +297,11 @@ export default function Dashboard() {
   return (
     <div
       style={{
-        padding: 30,
+        padding: "clamp(8px, 1.4vw, 20px)",
         minHeight: "100vh",
         direction: dir,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.18), transparent 36%), radial-gradient(circle at top right, rgba(99,102,241,0.16), transparent 34%), radial-gradient(circle at bottom, rgba(16,185,129,0.08), transparent 42%), #071028",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 36%), radial-gradient(circle at top right, var(--erp-glow), transparent 34%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap mb-7">
