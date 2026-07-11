@@ -421,12 +421,65 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(overlap.status_code, 400, overlap.text)
 
+        preview = self.client.get(
+            f"/api/accounting/periods/{period_id}/close-preview",
+            headers=admin_headers,
+        )
+        self.assertEqual(preview.status_code, 200, preview.text)
+        self.assertTrue(preview.json()["balanced"], preview.json())
+        self.assertEqual(preview.json()["net_income"], 500.0)
+        preview_codes = {
+            line["account_code"] for line in preview.json()["lines"]
+        }
+        self.assertTrue(
+            {"4101", "4102", "5101", "5102", "3201"} <= preview_codes
+        )
+
         close = self.client.post(
             f"/api/accounting/periods/{period_id}/close",
             headers=admin_headers,
         )
         self.assertEqual(close.status_code, 200, close.text)
         self.assertEqual(close.json()["status"], "closed")
+        self.assertEqual(close.json()["net_income"], 500.0)
+        self.assertIsNotNone(close.json()["closing_voucher_id"])
+
+        closing_voucher = self.client.get(
+            f"/api/accounting/entries/{close.json()['closing_voucher_id']}",
+            headers=admin_headers,
+        )
+        self.assertEqual(
+            closing_voucher.status_code,
+            200,
+            closing_voucher.text,
+        )
+        closing_lines = {
+            line["account_code"]: line
+            for line in closing_voucher.json()["lines"]
+        }
+        self.assertEqual(closing_lines["3201"]["credit"], 500.0)
+
+        closed_statements = self.client.get(
+            "/api/accounting/statements",
+            headers=admin_headers,
+            params={"fiscal_period_id": period_id},
+        )
+        self.assertEqual(
+            closed_statements.status_code,
+            200,
+            closed_statements.text,
+        )
+        self.assertEqual(
+            closed_statements.json()["income_statement"]["net_income"],
+            500.0,
+        )
+        self.assertTrue(
+            closed_statements.json()["balance_sheet"]["balanced"]
+        )
+        self.assertEqual(
+            closed_statements.json()["balance_sheet"]["accumulated_earnings"],
+            0.0,
+        )
 
         expenses_before = self.client.get(
             "/expenses",
@@ -490,6 +543,17 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(reopen.status_code, 200, reopen.text)
         self.assertEqual(reopen.json()["status"], "open")
+        self.assertTrue(reopen.json()["closing_voucher_removed"])
+        vouchers_reopened = self.client.get(
+            "/api/accounting/entries",
+            headers=admin_headers,
+            params={"status": "posted", "limit": 500},
+        ).json()
+        self.assertFalse(any(
+            item["source_type"] == "fiscal_close"
+            and item["source_id"] == period_id
+            for item in vouchers_reopened
+        ))
 
         created = self.client.post(
             "/expenses",
