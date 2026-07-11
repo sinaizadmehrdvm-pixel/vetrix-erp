@@ -241,10 +241,13 @@ def financial_statements(fiscal_period_id: int | None = None):
             balance_rows = income_rows
 
         income = _income_statement(income_rows)
+        accumulated_income = _income_statement(balance_rows)
         balance = _balance_sheet(
             balance_rows,
-            income["net_income"],
+            accumulated_income["net_income"],
         )
+        balance["period_net_income"] = income["net_income"]
+        balance["accumulated_earnings"] = accumulated_income["net_income"]
         cash = _cash_flow(conn, period)
         voucher_count = conn.execute(text("""
             SELECT COUNT(*) FROM accounting_vouchers
