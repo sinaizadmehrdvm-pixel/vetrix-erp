@@ -31,6 +31,8 @@ jobs:
         run: npm audit --audit-level=high
       - name: Audit direct fetch calls
         run: npm run audit:fetch
+      - name: Audit route and translation contracts
+        run: npm run audit:routes
       - name: Build frontend
         run: npm run build
 
