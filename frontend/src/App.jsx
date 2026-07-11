@@ -42,6 +42,7 @@ const FixedAssets = lazy(() => import("./pages/FixedAssets"));
 const BudgetControl = lazy(() => import("./pages/BudgetControl"));
 const CurrencyManagement = lazy(() => import("./pages/CurrencyManagement"));
 const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
+const TreasuryCheques = lazy(() => import("./pages/TreasuryCheques"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 
 function ProtectedRoute({ children }) {
@@ -143,6 +144,7 @@ function AppContent() {
           <Route path="budget-control" element={<BudgetControl />} />
           <Route path="currency-management" element={<CurrencyManagement />} />
           <Route path="approval-center" element={<ApprovalCenter />} />
+          <Route path="treasury-cheques" element={<TreasuryCheques />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />

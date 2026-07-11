@@ -58,6 +58,7 @@ from app.accounting.fixed_assets import router as fixed_assets_router
 from app.accounting.budgets import router as budgets_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
+from app.accounting.treasury import router as treasury_router
 from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
 from app.rbac import (
@@ -218,6 +219,7 @@ app.include_router(fixed_assets_router)
 app.include_router(budgets_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
+app.include_router(treasury_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
