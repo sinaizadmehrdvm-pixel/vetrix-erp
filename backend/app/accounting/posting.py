@@ -21,6 +21,8 @@ POSTING_ACCOUNTS = [
     ("1103", "حساب‌های دریافتنی", "asset", "subsidiary", "11", "debit"),
     ("12", "موجودی و دارایی عملیاتی", "asset", "ledger", "1", "debit"),
     ("1201", "موجودی کالا", "asset", "subsidiary", "12", "debit"),
+    ("1202", "دارایی‌های ثابت", "asset", "subsidiary", "12", "debit"),
+    ("1203", "استهلاک انباشته دارایی‌های ثابت", "asset", "subsidiary", "12", "credit"),
     ("1301", "مالیات بر ارزش افزوده خرید", "asset", "subsidiary", "11", "debit"),
     ("2", "بدهی‌ها", "liability", "group", None, "credit"),
     ("21", "بدهی‌های جاری", "liability", "ledger", "2", "credit"),
@@ -38,6 +40,7 @@ POSTING_ACCOUNTS = [
     ("5", "هزینه‌ها", "expense", "group", None, "debit"),
     ("5101", "بهای تمام‌شده کالای فروش‌رفته", "expense", "subsidiary", "5", "debit"),
     ("5102", "هزینه‌های اداری و عمومی", "expense", "subsidiary", "5", "debit"),
+    ("5103", "هزینه استهلاک", "expense", "subsidiary", "5", "debit"),
 ]
 
 
