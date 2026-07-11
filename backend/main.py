@@ -458,6 +458,104 @@ def add_customer_entry(
     return entry
 
 
+def _entity_date(value):
+    if value:
+        return str(value)[:10]
+    return datetime.utcnow().date().isoformat()
+
+
+def sync_customer_opening_general_ledger(db, customer, opening_balance):
+    amount = float(accounting_money(abs(opening_balance or 0)))
+    connection = db.connection()
+    if amount == 0:
+        delete_source_voucher(
+            "customer_opening",
+            customer.id,
+            connection=connection,
+        )
+        return
+
+    description = f"مانده افتتاحیه طرف‌حساب: {customer.name}"
+    if opening_balance > 0:
+        lines = [
+            {"account_code": "1103", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": "3101", "debit": amount, "description": description},
+            {"account_code": "2101", "credit": amount, "description": description},
+        ]
+    post_balanced_voucher(
+        "customer_opening",
+        customer.id,
+        description,
+        lines,
+        voucher_date=_entity_date(customer.created_at),
+        connection=connection,
+    )
+
+
+def sync_product_opening_general_ledger(db, product):
+    stock = float(product.stock or 0)
+    unit_cost = float(accounting_money(product.buy_price or 0))
+    amount = float(accounting_money(stock * unit_cost))
+    connection = db.connection()
+    if amount == 0:
+        delete_source_voucher(
+            "product_opening",
+            product.id,
+            connection=connection,
+        )
+        return
+
+    description = f"موجودی افتتاحیه کالا: {product.name}"
+    post_balanced_voucher(
+        "product_opening",
+        product.id,
+        description,
+        [
+            {"account_code": "1201", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ],
+        voucher_date=datetime.utcnow().date().isoformat(),
+        connection=connection,
+    )
+
+
+def post_inventory_adjustment_general_ledger(
+    db,
+    movement_id,
+    product,
+    stock_delta,
+    movement_date,
+):
+    amount = float(accounting_money(
+        abs(stock_delta) * float(product.buy_price or 0)
+    ))
+    if amount == 0:
+        return None
+    description = f"تعدیل موجودی کالا: {product.name}"
+    if stock_delta > 0:
+        lines = [
+            {"account_code": "1201", "debit": amount, "description": description},
+            {"account_code": "3101", "credit": amount, "description": description},
+        ]
+    else:
+        lines = [
+            {"account_code": "3101", "debit": amount, "description": description},
+            {"account_code": "1201", "credit": amount, "description": description},
+        ]
+    return post_balanced_voucher(
+        "inventory_adjustment",
+        movement_id,
+        description,
+        lines,
+        voucher_date=movement_date,
+        connection=db.connection(),
+    )
+
+
 def customer_to_dict(db: Session, c: Customer):
     balance = customer_balance(db, c.id)
     return {
