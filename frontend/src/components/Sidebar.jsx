@@ -16,6 +16,7 @@ import {
   History,
   UserCog,
   DatabaseBackup,
+  HeartPulse,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -34,6 +35,7 @@ const items = [
   { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
   { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
   { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
+  { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
   { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
   { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
   { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
