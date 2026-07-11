@@ -868,15 +868,33 @@ def create_customer(data: CustomerCreate):
             notes=data.notes,
         )
         db.add(customer)
-        db.commit()
-        db.refresh(customer)
+        db.flush()
 
         if data.opening_balance > 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بدهکار", debit=data.opening_balance)
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بدهکار",
+                debit=data.opening_balance,
+            )
         elif data.opening_balance < 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بستانکار", credit=abs(data.opening_balance))
-
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بستانکار",
+                credit=abs(data.opening_balance),
+            )
+        sync_customer_opening_general_ledger(
+            db,
+            customer,
+            data.opening_balance,
+        )
         db.commit()
+        db.refresh(customer)
         result = {"status": "created", "id": customer.id, "name": customer.name, "balance": customer_balance(db, customer.id)}
         db.close()
         return result
@@ -973,9 +991,28 @@ def update_customer(customer_id: int, data: CustomerCreate):
         db.flush()
 
         if data.opening_balance > 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بدهکار", debit=data.opening_balance)
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بدهکار",
+                debit=data.opening_balance,
+            )
         elif data.opening_balance < 0:
-            add_customer_entry(db, customer.id, "opening_balance", customer.id, "مانده اول دوره - بستانکار", credit=abs(data.opening_balance))
+            add_customer_entry(
+                db,
+                customer.id,
+                "opening_balance",
+                customer.id,
+                "مانده اول دوره - بستانکار",
+                credit=abs(data.opening_balance),
+            )
+        sync_customer_opening_general_ledger(
+            db,
+            customer,
+            data.opening_balance,
+        )
 
         db.commit()
         db.refresh(customer)
