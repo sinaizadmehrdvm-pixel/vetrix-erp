@@ -75,6 +75,14 @@ def build_release_preflight(app=None):
         blockers.append("Wildcard CORS is not allowed for release")
 
     with engine.begin() as conn:
+        from app.accounting.approvals import _ensure_schema as ensure_approvals
+        from app.accounting.bank_reconciliation import _ensure_schema as ensure_banks
+        from app.accounting.budgets import _ensure_schema as ensure_budgets
+        from app.accounting.currencies import ensure_currency_schema
+        from app.accounting.fixed_assets import _ensure_schema as ensure_assets
+        from app.accounting.treasury import _ensure_schema as ensure_treasury
+        for ensure in (ensure_approvals, ensure_banks, ensure_budgets, ensure_currency_schema, ensure_assets, ensure_treasury):
+            ensure(conn)
         tables = {
             row[0]
             for row in conn.execute(text("""
