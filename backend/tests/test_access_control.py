@@ -1643,5 +1643,115 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(deleted_customer.json()["status"], "deleted")
 
 
+    def test_z_bank_reconciliation_matching_flow(self):
+        login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={"name": "Bank Reconciliation Test Party"},
+        )
+        self.assertEqual(customer.json()["status"], "created", customer.text)
+        customer_id = customer.json()["id"]
+
+        receipt = self.client.post(
+            "/transactions",
+            headers=headers,
+            json={
+                "customer_id": customer_id,
+                "amount": 125,
+                "transaction_type": "receipt",
+                "method": "bank",
+                "note": "bank reconciliation integration test",
+            },
+        )
+        self.assertEqual(receipt.json()["status"], "created", receipt.text)
+
+        account = self.client.post(
+            "/api/accounting/bank-reconciliation/accounts",
+            headers=headers,
+            json={
+                "name": "CI Bank Account",
+                "bank_name": "Vetrix Test Bank",
+                "account_number": "CI-001",
+                "ledger_account_code": "1102",
+            },
+        )
+        self.assertEqual(account.status_code, 200, account.text)
+        account_id = account.json()["id"]
+
+        statement = self.client.post(
+            f"/api/accounting/bank-reconciliation/accounts/{account_id}/statement",
+            headers=headers,
+            json={
+                "transaction_date": "2099-01-15",
+                "description": "Customer receipt",
+                "reference": "CI-BANK-001",
+                "amount": 125,
+            },
+        )
+        self.assertEqual(statement.status_code, 200, statement.text)
+        statement_id = statement.json()["id"]
+
+        candidates = self.client.get(
+            f"/api/accounting/bank-reconciliation/accounts/{account_id}/candidates",
+            headers=headers,
+            params={"statement_line_id": statement_id},
+        )
+        self.assertEqual(candidates.status_code, 200, candidates.text)
+        exact = next(
+            item for item in candidates.json()
+            if item["source_type"] == "receipt"
+            and item["source_id"] == receipt.json()["entry_id"]
+        )
+        self.assertTrue(exact["exact_amount"])
+        self.assertEqual(exact["amount"], 125.0)
+
+        matched = self.client.post(
+            f"/api/accounting/bank-reconciliation/statement/{statement_id}/match",
+            headers=headers,
+            json={"voucher_line_id": exact["voucher_line_id"]},
+        )
+        self.assertEqual(matched.status_code, 200, matched.text)
+        self.assertEqual(matched.json()["status"], "matched")
+
+        summary = self.client.get(
+            f"/api/accounting/bank-reconciliation/accounts/{account_id}/summary",
+            headers=headers,
+        )
+        self.assertEqual(summary.status_code, 200, summary.text)
+        payload = summary.json()
+        self.assertEqual(payload["statement"]["matched_count"], 1)
+        self.assertEqual(payload["statement"]["matched_amount"], 125.0)
+        self.assertGreaterEqual(payload["ledger"]["matched_count"], 1)
+
+        lines = self.client.get(
+            f"/api/accounting/bank-reconciliation/accounts/{account_id}/statement",
+            headers=headers,
+        ).json()
+        self.assertTrue(lines[0]["matched"])
+        self.assertEqual(lines[0]["voucher_line_id"], exact["voucher_line_id"])
+
+        unmatched = self.client.delete(
+            f"/api/accounting/bank-reconciliation/statement/{statement_id}/match",
+            headers=headers,
+        )
+        self.assertEqual(unmatched.json()["status"], "unmatched")
+        deleted_line = self.client.delete(
+            f"/api/accounting/bank-reconciliation/statement/{statement_id}",
+            headers=headers,
+        )
+        self.assertEqual(deleted_line.json()["status"], "deleted")
+        deleted_account = self.client.delete(
+            f"/api/accounting/bank-reconciliation/accounts/{account_id}",
+            headers=headers,
+        )
+        self.assertEqual(deleted_account.json()["status"], "deleted")
+
+
 if __name__ == "__main__":
     unittest.main()
