@@ -20,7 +20,7 @@ export default function Login() {
     password: "",
     confirm_password: "",
   });
-  const [version, setVersion] = useState("1.0.1");
+  const [version, setVersion] = useState("1.1.0");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,7 +31,7 @@ export default function Login() {
         const data = await response.json().catch(() => null);
         if (!response.ok || !data) throw new Error("Setup status unavailable");
         if (active) {
-          setVersion(data.version || "1.0.1");
+          setVersion(data.version || "1.1.0");
           setMode(data.requires_admin ? "setup" : "login");
         }
       })
