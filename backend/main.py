@@ -59,6 +59,7 @@ from app.accounting.budgets import router as budgets_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
 from app.accounting.treasury import router as treasury_router
+from app.release_preflight import router as release_preflight_router
 from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
 from app.rbac import (
@@ -196,7 +197,7 @@ ensure_extra_tables()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="0.4.0"
+    version="1.0.0"
 )
 
 
@@ -220,6 +221,7 @@ app.include_router(budgets_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
 app.include_router(treasury_router)
+app.include_router(release_preflight_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
@@ -634,7 +636,7 @@ def product_to_dict(product):
 
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "0.4.0", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": "1.0.0", "status": "online"}
 
 
 def settings_to_dict(settings: AppSettings):
