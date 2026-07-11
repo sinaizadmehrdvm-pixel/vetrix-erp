@@ -2270,5 +2270,47 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(len(detail.json()["events"]), 1)
 
 
+    def test_zzzzzz_release_preflight_contract(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        admin_headers = {
+            "Authorization": f"Bearer {admin_login.json()['access_token']}"
+        }
+        preflight = self.client.get(
+            "/api/system/release-preflight",
+            headers=admin_headers,
+        )
+        self.assertEqual(preflight.status_code, 200, preflight.text)
+        payload = preflight.json()
+        self.assertEqual(payload["version"], "1.0.0")
+        self.assertTrue(payload["release_ready"], payload)
+        self.assertEqual(payload["api_contract"]["missing_routes"], [])
+        self.assertGreaterEqual(payload["database"]["administrators"], 1)
+        self.assertEqual(payload["database"]["missing_release_tables"], [])
+        self.assertTrue(payload["security"]["jwt_secret_length_ok"])
+
+        version = self.client.get(
+            "/api/system/version",
+            headers=admin_headers,
+        )
+        self.assertEqual(version.status_code, 200, version.text)
+        self.assertEqual(version.json()["version"], "1.0.0")
+
+        viewer_login = self.client.post(
+            "/login",
+            json={"username": "ci-user", "password": "StrongUserPassword!42"},
+        )
+        viewer_headers = {
+            "Authorization": f"Bearer {viewer_login.json()['access_token']}"
+        }
+        forbidden = self.client.get(
+            "/api/system/release-preflight",
+            headers=viewer_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403)
+
+
 if __name__ == "__main__":
     unittest.main()
