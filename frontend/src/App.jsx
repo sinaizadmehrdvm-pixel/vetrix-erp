@@ -45,6 +45,7 @@ const CurrencyManagement = lazy(() => import("./pages/CurrencyManagement"));
 const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
 const TreasuryCheques = lazy(() => import("./pages/TreasuryCheques"));
 const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
+const OnlineCommerce = lazy(() => import("./pages/OnlineCommerce"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -149,6 +150,7 @@ function AppContent() {
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
           <Route path="business-intelligence" element={<BusinessIntelligence />} />
+          <Route path="online-commerce" element={<OnlineCommerce />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
