@@ -44,6 +44,8 @@ class VoucherLineIn(BaseModel):
     description: str = ""
     debit: float = 0
     credit: float = 0
+    cost_center_id: Optional[int] = None
+    project_id: Optional[int] = None
 
 
 class VoucherCreate(BaseModel):
@@ -120,9 +122,16 @@ def _ensure_tables():
                 description TEXT DEFAULT '',
                 debit FLOAT DEFAULT 0,
                 credit FLOAT DEFAULT 0,
+                cost_center_id INTEGER,
+                project_id INTEGER,
                 created_at VARCHAR
             )
         """))
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(accounting_voucher_lines)")).fetchall()}
+        if "cost_center_id" not in columns:
+            conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN cost_center_id INTEGER"))
+        if "project_id" not in columns:
+            conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN project_id INTEGER"))
         count = conn.execute(text("SELECT COUNT(*) FROM chart_accounts")).scalar() or 0
         if count == 0:
             now = datetime.utcnow().isoformat()
@@ -334,9 +343,14 @@ def seed_accounting_entries():
 @router.get("/meta")
 def accounting_entries_meta():
     _ensure_tables()
+    with engine.begin() as conn:
+        from app.accounting.budgets import _ensure_schema as ensure_budget_schema
+        ensure_budget_schema(conn)
+        cost_centers = [_dict(row) for row in conn.execute(text("SELECT * FROM cost_centers WHERE active=1 ORDER BY code")).fetchall()]
+        projects = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_projects WHERE active=1 ORDER BY code")).fetchall()]
     return {
-        "cost_centers": [],
-        "projects": [],
+        "cost_centers": cost_centers,
+        "projects": projects,
         "currencies": [{"code": "IRR", "name": "ریال / تومان", "symbol": "تومان", "rate": 1, "is_base": True, "is_active": True}],
         "account_types": sorted(VALID_TYPES),
         "levels": sorted(VALID_LEVELS),
@@ -543,9 +557,9 @@ def create_voucher(payload: VoucherCreate):
                 account = _get_account(conn, line.account_id)
                 conn.execute(text("""
                     INSERT INTO accounting_voucher_lines
-                    (voucher_id, account_id, account_code, account_name, description, debit, credit, created_at)
-                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :now)
-                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "now": now})
+                    (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, created_at)
+                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :now)
+                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "cost_center_id": line.cost_center_id, "project_id": line.project_id, "now": now})
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     return get_voucher(voucher_id)
