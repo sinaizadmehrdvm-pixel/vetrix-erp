@@ -6,6 +6,7 @@ import MainLayout from "./layout/MainLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/LanguageContext";
+import LocaleSettingsSync from "./localization/LocaleSettingsSync";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Customers = lazy(() => import("./pages/Customers"));
@@ -77,6 +78,7 @@ function AppContent() {
 
   return (
     <>
+      <LocaleSettingsSync />
       <Toaster
         position={dir === "rtl" ? "top-left" : "top-right"}
         toastOptions={{

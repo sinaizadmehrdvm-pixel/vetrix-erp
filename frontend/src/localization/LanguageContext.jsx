@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   useEffect,
+  useCallback,
 } from "react";
 
 import { translations } from "./translations";
@@ -30,16 +31,16 @@ export function LanguageProvider({ children }) {
   const dictionary = translations[language] || translations.en;
   const dir = dictionary.dir || "ltr";
 
-  function setLanguage(nextLanguage) {
+  const setLanguage = useCallback((nextLanguage) => {
     localStorage.setItem("vetrix_language", nextLanguage);
     setLanguageState(nextLanguage);
-  }
+  }, []);
 
-  function setCountry(nextCountry) {
+  const setCountry = useCallback((nextCountry) => {
     const normalized = COUNTRY_PROFILES[nextCountry] ? nextCountry : DEFAULT_COUNTRY;
     localStorage.setItem("vetrix_country", normalized);
     setCountryState(normalized);
-  }
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;

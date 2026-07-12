@@ -108,28 +108,13 @@ function paymentLabel(status, fa) {
   }[key] || key || "-";
 }
 
-function formatJalali(value, fa) {
-  if (!value) return "-";
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return String(value);
-  }
-}
-
 function snap(value) {
   return Math.round(Number(value || 0) / 10) * 10;
 }
 
 export default function InvoicePrint({ invoice: propInvoice = null }) {
   const { id } = useParams();
-  const { language, n, money, dir } = useLanguage();
+  const { language, n, money, date, dir } = useLanguage();
   const fa = language === "fa";
 
   const [cachedInvoice, setCachedInvoice] = useState(null);
@@ -336,7 +321,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     const customerName = invoice?.customerName || invoice?.customer_name || invoice?.customer?.name || "-";
     const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || "ثبت نشده";
     const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || "ثبت نشده";
-    const invoiceDate = formatJalali(invoice?.created_at || new Date(), fa);
+    const invoiceDate = date(invoice?.created_at || new Date(), { month: "long" });
     const invoiceTitle = getInvoiceTitle(invoice, fa);
     const status = paymentLabel(invoice?.payment_status || invoice?.status, fa);
 
