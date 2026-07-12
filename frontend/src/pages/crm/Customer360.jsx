@@ -86,21 +86,6 @@ function actionLabel(action, fa) {
   return fa ? mapFa[action] || action || "-" : mapEn[action] || action || "-";
 }
 
-function formatJalali(value, fa = true) {
-  if (!value) return "-";
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return String(value);
-  }
-}
-
 const tabs = [
   { id: "overview", fa: "نمای کلی", en: "Overview" },
   { id: "financial", fa: "مالی", en: "Financial" },
@@ -112,7 +97,7 @@ const tabs = [
 
 export default function Customer360() {
   const { id } = useParams();
-  const { language, dir, money, n } = useLanguage();
+  const { language, dir, money, n, date } = useLanguage();
   const fa = language === "fa";
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -392,7 +377,7 @@ function handleWhatsApp() {
                 <div>
                   <h2 className="text-3xl font-black text-white">{customer.name}</h2>
                   <p className="text-slate-400">
-                    {levelLabel(loyaltyLevel, fa)} • {riskLabel(risk, fa)} • {formatJalali(customer.created_at, fa)}
+                    {levelLabel(loyaltyLevel, fa)} • {riskLabel(risk, fa)} • {date(customer.created_at, { month: "long" })}
                   </p>
                 </div>
               </div>
