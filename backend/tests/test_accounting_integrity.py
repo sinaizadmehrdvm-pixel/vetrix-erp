@@ -6,6 +6,7 @@ from app.accounting.integrity import (
     calculate_invoice_totals,
     calculate_payment_status,
     expected_settlement_type,
+    money,
 )
 
 
@@ -24,6 +25,34 @@ class InvoiceIntegrityTests(unittest.TestCase):
         self.assertEqual(totals["discount_amount"], 200.0)
         self.assertEqual(totals["tax_amount"], 180.0)
         self.assertEqual(totals["total_amount"], 2030.0)
+
+    def test_country_precision_and_rounding_modes_are_explicit(self):
+        self.assertEqual(money("2.5", decimal_places=0, rounding_mode="half_up"), 3)
+        self.assertEqual(money("2.5", decimal_places=0, rounding_mode="half_even"), 2)
+        self.assertEqual(money("2.01", decimal_places=0, rounding_mode="down"), 2)
+        self.assertEqual(money("2.01", decimal_places=0, rounding_mode="up"), 3)
+        self.assertEqual(money("1.23456", decimal_places=4), money("1.2346", decimal_places=4))
+
+    def test_invoice_totals_support_verified_zero_decimal_policy(self):
+        totals = calculate_invoice_totals(
+            [SimpleNamespace(quantity=1, unit_price="10.5")],
+            discount_percent=0,
+            tax_percent=10,
+            shipping_cost=0,
+            decimal_places=0,
+            rounding_mode="half_up",
+        )
+        self.assertEqual(totals["subtotal"], 11.0)
+        self.assertEqual(totals["tax_amount"], 1.0)
+        self.assertEqual(totals["total_amount"], 12.0)
+
+    def test_invalid_financial_policy_is_rejected(self):
+        with self.assertRaises(ValueError):
+            money(1, decimal_places=5)
+        with self.assertRaises(ValueError):
+            money(1, decimal_places=-1)
+        with self.assertRaises(ValueError):
+            money(1, rounding_mode="unknown")
 
     def test_invalid_percentages_and_shipping_are_rejected(self):
         items = [SimpleNamespace(quantity=1, unit_price=100)]
