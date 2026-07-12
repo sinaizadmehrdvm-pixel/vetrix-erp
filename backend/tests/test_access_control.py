@@ -109,6 +109,33 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(persisted_locale.json()["time_zone"], "Europe/Berlin")
         self.assertEqual(persisted_locale.json()["decimal_places"], 2)
 
+        policy_draft = self.client.post(
+            "/api/financial-policy",
+            headers=admin_headers,
+            json={
+                "version": "ci-de-2026-01",
+                "country_code": "DE",
+                "currency_code": "EUR",
+                "decimal_places": 2,
+                "rounding_mode": "half_even",
+                "effective_from": "2026-01-01",
+            },
+        )
+        self.assertEqual(policy_draft.status_code, 200, policy_draft.text)
+        policy_id = policy_draft.json()["policy_id"]
+        activated_policy = self.client.post(
+            f"/api/financial-policy/{policy_id}/activate",
+            headers=admin_headers,
+            json={"note": "Verified integration-test policy"},
+        )
+        self.assertEqual(activated_policy.status_code, 200, activated_policy.text)
+        current_policy = self.client.get(
+            "/api/financial-policy/active", headers=admin_headers
+        )
+        self.assertEqual(current_policy.status_code, 200, current_policy.text)
+        self.assertEqual(current_policy.json()["version"], "ci-de-2026-01")
+        self.assertEqual(current_policy.json()["rounding_mode"], "half_even")
+
         commerce_unauthorized = self.client.get("/api/online-commerce/summary")
         self.assertEqual(commerce_unauthorized.status_code, 401)
 
