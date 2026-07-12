@@ -26,7 +26,28 @@ export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState(savedLanguage);
   const savedCountry = localStorage.getItem("vetrix_country") || DEFAULT_COUNTRY;
   const [country, setCountryState] = useState(savedCountry);
-  const profile = getCountryProfile(country);
+  const [companyFormatting, setCompanyFormattingState] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("vetrix_company_formatting") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const baseProfile = getCountryProfile(country);
+  const profile = {
+    ...baseProfile,
+    currency: companyFormatting.currency_code || baseProfile.currency,
+    currencyDigits: Number.isInteger(companyFormatting.decimal_places)
+      ? companyFormatting.decimal_places
+      : baseProfile.currencyDigits,
+    calendar: companyFormatting.calendar_system || baseProfile.calendar,
+    timeZone: companyFormatting.time_zone || baseProfile.timeZone,
+    firstDayOfWeek: Number.isInteger(companyFormatting.first_day_of_week)
+      ? companyFormatting.first_day_of_week
+      : baseProfile.firstDayOfWeek,
+    measurementSystem: companyFormatting.measurement_system || baseProfile.measurementSystem,
+    fiscalYearStart: companyFormatting.fiscal_year_start || baseProfile.fiscalYearStart,
+  };
 
   const dictionary = translations[language] || translations.en;
   const dir = dictionary.dir || "ltr";
@@ -40,6 +61,25 @@ export function LanguageProvider({ children }) {
     const normalized = COUNTRY_PROFILES[nextCountry] ? nextCountry : DEFAULT_COUNTRY;
     localStorage.setItem("vetrix_country", normalized);
     setCountryState(normalized);
+  }, []);
+
+  const setCompanyFormatting = useCallback((settings = {}) => {
+    const safe = {
+      currency_code: String(settings.currency_code || ""),
+      decimal_places: Number.isInteger(Number(settings.decimal_places))
+        ? Math.max(0, Math.min(4, Number(settings.decimal_places)))
+        : undefined,
+      calendar_system: String(settings.calendar_system || ""),
+      time_zone: String(settings.time_zone || ""),
+      first_day_of_week: Number.isInteger(Number(settings.first_day_of_week))
+        ? Math.max(0, Math.min(6, Number(settings.first_day_of_week)))
+        : undefined,
+      measurement_system: String(settings.measurement_system || ""),
+      fiscal_year_start: String(settings.fiscal_year_start || ""),
+      rounding_mode: String(settings.rounding_mode || "half_up"),
+    };
+    localStorage.setItem("vetrix_company_formatting", JSON.stringify(safe));
+    setCompanyFormattingState(safe);
   }, []);
 
   useEffect(() => {
@@ -71,19 +111,23 @@ export function LanguageProvider({ children }) {
       isRTL: dir === "rtl",
       country,
       setCountry,
+      setCompanyFormatting,
+      companyFormatting,
       countryProfile: profile,
       countries: Object.values(COUNTRY_PROFILES),
       currency: profile.currency,
       calendar: profile.calendar,
       timeZone: profile.timeZone,
       measurementSystem: profile.measurementSystem,
+      roundingMode: companyFormatting.rounding_mode || "half_up",
+      decimalPlaces: profile.currencyDigits,
       n: (value, options) => formatCountryNumber(value, profile, language, options),
       money: (value, currencyOverride) => formatCountryMoney(value, profile, language, currencyOverride),
       date: (value, options) => formatCountryDate(value, profile, language, options),
       time: (value) => formatCountryTime(value, profile, language),
       languages: Object.values(translations),
     };
-  }, [language, dictionary, dir, country, profile]);
+  }, [language, dictionary, dir, country, companyFormatting]);
 
   return (
     <LanguageContext.Provider value={value}>
