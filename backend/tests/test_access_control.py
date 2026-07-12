@@ -81,6 +81,34 @@ class ApiAccessControlTests(unittest.TestCase):
         admin_token = login.json()["access_token"]
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
+        international_settings = self.client.post(
+            "/settings",
+            headers=admin_headers,
+            json={
+                "country_code": "DE",
+                "locale_code": "de-DE",
+                "currency_code": "EUR",
+                "currency": "EUR",
+                "calendar_system": "gregory",
+                "time_zone": "Europe/Berlin",
+                "first_day_of_week": 1,
+                "fiscal_year_start": "01-01",
+                "rounding_mode": "half_up",
+                "decimal_places": 2,
+                "measurement_system": "metric",
+                "tax_profile_version": "",
+                "tax_profile_verified_at": "",
+            },
+        )
+        self.assertEqual(international_settings.status_code, 200, international_settings.text)
+        persisted_locale = self.client.get("/settings", headers=admin_headers)
+        self.assertEqual(persisted_locale.status_code, 200, persisted_locale.text)
+        self.assertEqual(persisted_locale.json()["country_code"], "DE")
+        self.assertEqual(persisted_locale.json()["currency_code"], "EUR")
+        self.assertEqual(persisted_locale.json()["calendar_system"], "gregory")
+        self.assertEqual(persisted_locale.json()["time_zone"], "Europe/Berlin")
+        self.assertEqual(persisted_locale.json()["decimal_places"], 2)
+
         commerce_unauthorized = self.client.get("/api/online-commerce/summary")
         self.assertEqual(commerce_unauthorized.status_code, 401)
 

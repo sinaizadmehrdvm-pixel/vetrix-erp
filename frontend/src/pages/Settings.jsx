@@ -10,6 +10,8 @@ import {
   Upload,
   ShieldCheck,
   Bell,
+  Globe2,
+  CalendarDays,
 } from "lucide-react";
 import { useLanguage } from "../localization/LanguageContext";
 import { API_URL, getAuthHeaders } from "../services/api";
@@ -26,6 +28,18 @@ const emptySettings = {
   national_id: "",
   economic_code: "",
   currency: "تومان",
+  country_code: "IR",
+  locale_code: "fa-IR",
+  currency_code: "IRR",
+  calendar_system: "persian",
+  time_zone: "Asia/Tehran",
+  first_day_of_week: 6,
+  fiscal_year_start: "01-01-persian",
+  tax_profile_version: "",
+  tax_profile_verified_at: "",
+  rounding_mode: "half_up",
+  decimal_places: 0,
+  measurement_system: "metric",
   tax_percent: 10,
   discount_percent: 0,
   fiscal_year: "",
@@ -107,7 +121,7 @@ async function compressImage(file) {
 }
 
 export default function Settings() {
-  const { language, setLanguage, languages, dir, t } = useLanguage();
+  const { language, setLanguage, languages, dir, t, country, setCountry, countries, countryProfile } = useLanguage();
   const fa = language === "fa";
   const { theme, themes, setTheme } = useTheme();
 
@@ -151,6 +165,7 @@ export default function Settings() {
 
       setSettings({ ...emptySettings, ...data });
       if (data?.theme) setTheme(data.theme);
+      if (data?.country_code) setCountry(data.country_code);
     } catch (error) {
       console.error("Settings loading error:", error);
       setMessage(label.error);
@@ -277,6 +292,57 @@ export default function Settings() {
         </div>
       </Section>
 
+      <Section icon={<Globe2 />} title={fa ? "کشور و استانداردهای محلی" : "Country & Local Standards"}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <Field label={fa ? "کشور محل فعالیت شرکت" : "Company operating country"}>
+            <select
+              className={inputClass}
+              value={country}
+              onChange={(event) => {
+                const next = countries.find((item) => item.code === event.target.value);
+                if (!next) return;
+                setCountry(next.code);
+                setSettings((prev) => ({
+                  ...prev,
+                  country_code: next.code,
+                  locale_code: next.locale?.[language] || next.locale?.en,
+                  currency_code: next.currency,
+                  currency: next.currency,
+                  calendar_system: next.calendar,
+                  time_zone: next.timeZone,
+                  first_day_of_week: next.firstDayOfWeek,
+                  fiscal_year_start: next.fiscalYearStart,
+                  decimal_places: next.currencyDigits,
+                  measurement_system: next.measurementSystem,
+                  tax_profile_verified_at: "",
+                }));
+              }}
+            >
+              {countries.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {fa ? item.name.fa : item.name.en}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <InfoCard title={fa ? "ارز و اعشار" : "Currency & decimals"} value={`${countryProfile.currency} · ${showDigits(countryProfile.currencyDigits, fa)}`} />
+          <InfoCard title={fa ? "تقویم اصلی" : "Primary calendar"} value={countryProfile.calendar} />
+          <InfoCard title={fa ? "منطقه زمانی" : "Time zone"} value={countryProfile.timeZone} />
+          <InfoCard title={fa ? "سیستم اندازه‌گیری" : "Measurement system"} value={countryProfile.measurementSystem} />
+          <InfoCard title={fa ? "شروع سال مالی" : "Fiscal year start"} value={countryProfile.fiscalYearStart} />
+        </div>
+
+        <div className="mt-4 rounded-2xl p-4 flex items-start gap-3" style={{ background: "var(--erp-glow)", border: "1px solid var(--erp-border)" }}>
+          <CalendarDays className="erp-accent shrink-0" />
+          <p className="text-sm">
+            {fa
+              ? "تغییر کشور، قالب پول، تاریخ، ساعت، تقویم، منطقه زمانی و واحدها را هماهنگ می‌کند. نرخ مالیات تا زمان تأیید حسابدار همان کشور به‌صورت قابل‌ویرایش باقی می‌ماند."
+              : "Changing country aligns money, dates, calendar, time zone, and units. Tax rates remain editable until verified by a local accountant."}
+          </p>
+        </div>
+      </Section>
+
       <Section icon={<Building2 />} title={label.company}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={fa ? "نام شرکت" : "Company Name"}>
@@ -343,10 +409,12 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={fa ? "واحد پول" : "Currency"}>
             <select className={inputClass} value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
-              <option value="تومان">تومان</option>
-              <option value="ریال">ریال</option>
-              <option value="USD">{fa ? "دلار" : "USD"}</option>
-              <option value="EUR">{fa ? "یورو" : "EUR"}</option>
+              <option value="IRR">{fa ? "ریال ایران (IRR)" : "Iranian rial (IRR)"}</option>
+              <option value="تومان">{fa ? "تومان (واحد نمایشی)" : "Toman (display unit)"}</option>
+              <option value="EUR">{fa ? "یورو (EUR)" : "Euro (EUR)"}</option>
+              <option value="AED">{fa ? "درهم امارات (AED)" : "UAE dirham (AED)"}</option>
+              <option value="GBP">{fa ? "پوند بریتانیا (GBP)" : "Pound sterling (GBP)"}</option>
+              <option value="USD">{fa ? "دلار آمریکا (USD)" : "US dollar (USD)"}</option>
             </select>
           </Field>
 

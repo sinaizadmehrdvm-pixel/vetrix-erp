@@ -7,13 +7,25 @@ import {
 } from "react";
 
 import { translations } from "./translations";
-import { formatNumber, formatMoney, formatDate, formatTime } from "./helpers";
+import {
+  COUNTRY_PROFILES,
+  DEFAULT_COUNTRY,
+  formatCountryDate,
+  formatCountryMoney,
+  formatCountryNumber,
+  formatCountryTime,
+  getCountryProfile,
+  localeFor,
+} from "./countryProfiles";
 
 const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
   const savedLanguage = localStorage.getItem("vetrix_language") || "en";
   const [language, setLanguageState] = useState(savedLanguage);
+  const savedCountry = localStorage.getItem("vetrix_country") || DEFAULT_COUNTRY;
+  const [country, setCountryState] = useState(savedCountry);
+  const profile = getCountryProfile(country);
 
   const dictionary = translations[language] || translations.en;
   const dir = dictionary.dir || "ltr";
@@ -21,6 +33,12 @@ export function LanguageProvider({ children }) {
   function setLanguage(nextLanguage) {
     localStorage.setItem("vetrix_language", nextLanguage);
     setLanguageState(nextLanguage);
+  }
+
+  function setCountry(nextCountry) {
+    const normalized = COUNTRY_PROFILES[nextCountry] ? nextCountry : DEFAULT_COUNTRY;
+    localStorage.setItem("vetrix_country", normalized);
+    setCountryState(normalized);
   }
 
   useEffect(() => {
@@ -48,15 +66,23 @@ export function LanguageProvider({ children }) {
       t: translate,
       dictionary,
       dir,
-      locale: dictionary.locale || "en-US",
+      locale: localeFor(profile, language),
       isRTL: dir === "rtl",
-      n: (value) => formatNumber(value, language),
-      money: (value) => formatMoney(value, language),
-      date: (value) => formatDate(value, language),
-      time: (value) => formatTime(value, language),
+      country,
+      setCountry,
+      countryProfile: profile,
+      countries: Object.values(COUNTRY_PROFILES),
+      currency: profile.currency,
+      calendar: profile.calendar,
+      timeZone: profile.timeZone,
+      measurementSystem: profile.measurementSystem,
+      n: (value, options) => formatCountryNumber(value, profile, language, options),
+      money: (value, currencyOverride) => formatCountryMoney(value, profile, language, currencyOverride),
+      date: (value, options) => formatCountryDate(value, profile, language, options),
+      time: (value) => formatCountryTime(value, profile, language),
       languages: Object.values(translations),
     };
-  }, [language, dictionary, dir]);
+  }, [language, dictionary, dir, country, profile]);
 
   return (
     <LanguageContext.Provider value={value}>
