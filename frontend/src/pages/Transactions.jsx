@@ -83,22 +83,9 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function todayJalali() {
-  return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-    .format(new Date())
-    .replace(/‏/g, "");
-}
-
-function todayEnglish() {
+function todayByLanguage() {
+  // Business dates stay ISO in storage; presentation uses the selected country calendar.
   return new Date().toISOString().slice(0, 10);
-}
-
-function todayByLanguage(language) {
-  return language === "fa" ? todayJalali() : todayEnglish();
 }
 
 function getReasonLabel(reason, language) {
