@@ -121,7 +121,7 @@ async function compressImage(file) {
 }
 
 export default function Settings() {
-  const { language, setLanguage, languages, dir, t, country, setCountry, countries, countryProfile } = useLanguage();
+  const { language, setLanguage, languages, dir, t, country, setCountry, setCompanyFormatting, countries, countryProfile } = useLanguage();
   const fa = language === "fa";
   const { theme, themes, setTheme } = useTheme();
 
@@ -166,6 +166,7 @@ export default function Settings() {
       setSettings({ ...emptySettings, ...data });
       if (data?.theme) setTheme(data.theme);
       if (data?.country_code) setCountry(data.country_code);
+      if (data) setCompanyFormatting(data);
     } catch (error) {
       console.error("Settings loading error:", error);
       setMessage(label.error);
@@ -302,6 +303,16 @@ export default function Settings() {
                 const next = countries.find((item) => item.code === event.target.value);
                 if (!next) return;
                 setCountry(next.code);
+                setCompanyFormatting({
+                  currency_code: next.currency,
+                  decimal_places: next.currencyDigits,
+                  calendar_system: next.calendar,
+                  time_zone: next.timeZone,
+                  first_day_of_week: next.firstDayOfWeek,
+                  measurement_system: next.measurementSystem,
+                  fiscal_year_start: next.fiscalYearStart,
+                  rounding_mode: "half_up",
+                });
                 setSettings((prev) => ({
                   ...prev,
                   country_code: next.code,
