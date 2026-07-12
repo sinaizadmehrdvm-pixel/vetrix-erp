@@ -67,6 +67,28 @@ def _event(conn, policy_id, event_type, actor, detail=""):
     """), {"policy_id": policy_id, "event_type": event_type, "actor": actor, "detail": detail, "created_at": _now()})
 
 
+def financial_policy_values(conn, business_date=None):
+    _ensure_schema(conn)
+    effective_date = business_date or date.today().isoformat()
+    row = conn.execute(text("""
+        SELECT decimal_places, rounding_mode, version, country_code, currency_code
+        FROM financial_policy_versions
+        WHERE status='active' AND effective_from<=:effective_date
+          AND (effective_to IS NULL OR effective_to>=:effective_date)
+        ORDER BY effective_from DESC, id DESC LIMIT 1
+    """), {"effective_date": effective_date}).mappings().first()
+    if not row:
+        return {
+            "decimal_places": 2,
+            "rounding_mode": "half_up",
+            "version": "compatibility-default",
+            "verified": False,
+        }
+    result = dict(row)
+    result["verified"] = True
+    return result
+
+
 class PolicyDraft(BaseModel):
     version: str = Field(min_length=1, max_length=80)
     country_code: str = Field(min_length=2, max_length=2)
@@ -108,18 +130,9 @@ def list_policies():
 def active_policy():
     with engine.begin() as conn:
         _ensure_schema(conn)
-        row = conn.execute(text("""
-            SELECT * FROM financial_policy_versions
-            WHERE status='active' AND effective_from<=:today
-              AND (effective_to IS NULL OR effective_to>=:today)
-            ORDER BY effective_from DESC, id DESC LIMIT 1
-        """), {"today": date.today().isoformat()}).mappings().first()
-        return dict(row) if row else {
-            "status": "compatibility_default",
-            "decimal_places": 2,
-            "rounding_mode": "half_up",
-            "verified": False,
-        }
+        policy = financial_policy_values(conn)
+        policy["status"] = "active" if policy.get("verified") else "compatibility_default"
+        return policy
 
 
 @router.post("")
