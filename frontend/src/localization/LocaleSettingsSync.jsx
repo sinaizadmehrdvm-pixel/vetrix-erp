@@ -8,7 +8,7 @@ const COUNTRY_STORAGE_KEY = "vetrix_country";
 
 export default function LocaleSettingsSync() {
   const { user, authReady } = useAuth();
-  const { country, setCountry } = useLanguage();
+  const { country, setCountry, setCompanyFormatting } = useLanguage();
 
   useEffect(() => {
     if (!authReady || !user) return undefined;
@@ -22,6 +22,7 @@ export default function LocaleSettingsSync() {
         if (active && serverCountry && serverCountry !== country) {
           setCountry(serverCountry);
         }
+        if (active) setCompanyFormatting(data);
       })
       .catch(() => {
         // Offline desktop startup keeps the last verified local profile.
@@ -30,7 +31,7 @@ export default function LocaleSettingsSync() {
       });
 
     return () => { active = false; };
-  }, [authReady, user, country, setCountry]);
+  }, [authReady, user, country, setCountry, setCompanyFormatting]);
 
   return null;
 }
