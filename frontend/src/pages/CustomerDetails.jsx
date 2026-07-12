@@ -98,7 +98,7 @@ function sortLedgerRows(rows) {
 
 export default function CustomerDetails() {
   const { id } = useParams();
-  const { language, n, money, dir } = useLanguage();
+  const { language, n, money, date, dir } = useLanguage();
 
   const [party, setParty] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -113,16 +113,7 @@ export default function CustomerDetails() {
   const isFa = language === "fa";
 
   function formatDate(value) {
-    if (!value) return "-";
-    try {
-      return new Intl.DateTimeFormat(isFa ? "fa-IR-u-ca-persian" : "en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }).format(new Date(value));
-    } catch {
-      return String(value);
-    }
+    return value ? date(value, { month: "long" }) : "-";
   }
 
   async function load() {
