@@ -47,6 +47,7 @@ export const translations = {
     aiBusiness: "AI BI",
     onlineCommerce: "Online Sales & Advertising",
     changeRequests: "Voice Change Requests",
+    financialPolicy: "Verified Financial Policy",
     settings: "Settings",
     logout: "Logout",
 
@@ -250,6 +251,7 @@ export const translations = {
     aiBusiness: "هوش تجاری",
     onlineCommerce: "فروش آنلاین و تبلیغات",
     changeRequests: "درخواست تغییر با ویس",
+    financialPolicy: "سیاست مالی تأییدشده",
     settings: "تنظیمات",
     logout: "خروج",
 
