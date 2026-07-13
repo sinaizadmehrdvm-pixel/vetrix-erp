@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.0 — 2026-07-13
+
+### Added
+
+- International operating profiles for Iran, United States, United Kingdom, Germany, United Arab Emirates, and Turkey
+- Company-wide locale synchronization for currency, precision, calendars, time zones, week starts, fiscal years, and measurement systems
+- Versioned and auditable financial-policy administration with administrator verification
+- Explicit financial rounding engine supporting 0–4 decimal places and half-up, half-even, down, and up modes
+
+### Improved
+
+- Consistent precision and rounding across invoice items, discounts, taxes, shipping, totals, settlements, payment status, and general-ledger posting
+- Locale-aware dates, numbers, currencies, reports, and bilingual navigation
+- Safe compatibility behavior when no verified company policy is active
+- Historical accounting records remain unchanged when a new policy becomes effective
+
+### Security and validation
+
+- Administrator-only policy creation and activation
+- Effective-date boundary checks and policy event history
+- Backend regression tests, frontend audits/build, and packaged Windows smoke tests
+
+
 ## 1.1.0 — 2026-07-12
 
 ### Added
