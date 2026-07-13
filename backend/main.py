@@ -33,6 +33,7 @@ from app.analytics.profit_engine import build_profit_analysis
 from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
 from app.export.pdf_export import build_invoice_pdf
 from app.export.excel_export import build_invoice_excel
+from app.export.localization import format_report_date, format_report_money, localized_digits
 from app.timeline.activity import get_recent_activity
 from app.backup.auto_backup import (
     create_database_backup,
@@ -3094,29 +3095,20 @@ def _esc(value):
     )
 
 
-def _fmt_money(value):
-    try:
-        amount = float(value or 0)
-    except Exception:
-        amount = 0
-    return f"{amount:,.0f} تومان"
+def _fmt_money(value, settings=None, language="fa"):
+    return format_report_money(value, settings, language)
 
 
-def _fmt_date(value):
-    if not value:
-        return "-"
-    try:
-        if hasattr(value, "strftime"):
-            return value.strftime("%Y/%m/%d - %H:%M")
-        return str(value)
-    except Exception:
-        return str(value)
+def _fmt_date(value, settings=None, language="fa"):
+    return format_report_date(value, settings, language, include_time=True)
 
 
-def _print_page(title: str, body_html: str):
+def _print_page(title: str, body_html: str, language="fa"):
+    language = "fa" if language == "fa" else "en"
+    direction = "rtl" if language == "fa" else "ltr"
     return HTMLResponse(f"""
     <!doctype html>
-    <html lang="fa" dir="rtl">
+    <html lang="{language}" dir="{direction}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3163,6 +3155,7 @@ def print_invoice_preview(
     page_size: str = "A4",
     template: str = "official",
     edit: int = 1,
+    language: str = "fa",
 ):
     db: Session = SessionLocal()
     try:
@@ -3185,31 +3178,36 @@ def print_invoice_preview(
             AccountingEntry.source_id == invoice.id,
         ).all()
 
+        language = "fa" if language == "fa" else "en"
         def fa_digits(value):
-            return str(value).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+            return localized_digits(value, language)
 
         def money(value):
-            amount = float(value or 0)
-            currency = getattr(settings, "currency", "تومان") or "تومان"
-            return fa_digits(f"{amount:,.0f}") + f" {currency}"
+            return format_report_money(value, settings, language)
 
         def status_fa(value):
-            return {
-                "paid": "تسویه شده",
-                "unpaid": "تسویه نشده",
-                "partial": "تسویه ناقص",
-                "draft": "پیش نویس",
-                "final": "نهایی",
-            }.get(str(value or "").lower(), str(value or "-"))
+            raw = str(value or "").lower()
+            labels = {
+                "paid": "تسویه شده", "unpaid": "تسویه نشده",
+                "partial": "تسویه ناقص", "draft": "پیش نویس", "final": "نهایی",
+            } if language == "fa" else {
+                "paid": "Paid", "unpaid": "Unpaid", "partial": "Partially paid",
+                "draft": "Draft", "final": "Final",
+            }
+            return labels.get(raw, raw or "-")
 
         def invoice_type_fa(value):
-            return {
-                "sale": "فاکتور فروش",
-                "buy": "فاکتور خرید",
-                "proforma": "پیش فاکتور",
-                "return_sale": "مرجوعی فروش",
+            raw = str(value or "")
+            labels = {
+                "sale": "فاکتور فروش", "buy": "فاکتور خرید",
+                "proforma": "پیش فاکتور", "return_sale": "مرجوعی فروش",
                 "return_buy": "مرجوعی خرید",
-            }.get(str(value or ""), str(value or "-"))
+            } if language == "fa" else {
+                "sale": "Sales invoice", "buy": "Purchase invoice",
+                "proforma": "Proforma invoice", "return_sale": "Sales return",
+                "return_buy": "Purchase return",
+            }
+            return labels.get(raw, raw or "-")
 
         def make_qr_data_uri(payload):
             try:
@@ -3461,7 +3459,7 @@ def print_invoice_preview(
             <div class="invoice-title">
               <h1>{_esc(invoice_title)}</h1>
               <div class="muted">شماره: #{fa_digits(invoice.id)}</div>
-              <div class="muted">تاریخ: {fa_digits(_fmt_date(invoice.created_at))}</div>
+              <div class="muted">تاریخ: {fa_digits(_fmt_date(invoice.created_at, settings, language))}</div>
             </div>
 
             <div class="brand-box">
@@ -3562,14 +3560,14 @@ def print_invoice_preview(
         """
 
         db.close()
-        return _print_page(invoice_title, body)
+        return _print_page(invoice_title, body, language)
 
     except Exception as e:
         db.close()
         return HTMLResponse(f"<h2>خطا</h2><pre>{_esc(e)}</pre>", status_code=500)
 
 @app.get("/print/transaction/{entry_id}")
-def print_transaction_receipt(entry_id: int):
+def print_transaction_receipt(entry_id: int, language: str = "fa"):
     db: Session = SessionLocal()
     try:
         entry = db.query(AccountingEntry).filter(AccountingEntry.id == entry_id).first()
@@ -3577,6 +3575,8 @@ def print_transaction_receipt(entry_id: int):
             db.close()
             return HTMLResponse("<h2>Transaction not found</h2>", status_code=404)
 
+        language = "fa" if language == "fa" else "en"
+        settings = get_or_create_settings(db)
         customer = db.query(Customer).filter(Customer.id == entry.customer_id).first()
 
         invoice = None
@@ -3597,7 +3597,7 @@ def print_transaction_receipt(entry_id: int):
           <div style="text-align:left">
             <h1>{_esc(title)}</h1>
             <div class="muted">شماره رسید: #{entry.id}</div>
-            <div class="muted">تاریخ: {_fmt_date(entry.created_at)}</div>
+            <div class="muted">تاریخ: {_fmt_date(entry.created_at, settings, language)}</div>
           </div>
         </div>
 
@@ -3605,7 +3605,7 @@ def print_transaction_receipt(entry_id: int):
           <div class="box"><div class="label">طرف حساب</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
           <div class="box"><div class="label">موبایل / تلفن</div><div class="value">{_esc(getattr(customer, "phone", "") if customer else "-")}</div></div>
           <div class="box"><div class="label">نوع سند</div><div class="value">{_esc(title)}</div></div>
-          <div class="box"><div class="label">مبلغ</div><div class="value">{_fmt_money(amount)}</div></div>
+          <div class="box"><div class="label">مبلغ</div><div class="value">{_fmt_money(amount, settings, language)}</div></div>
           <div class="box"><div class="label">روش پرداخت</div><div class="value">{_esc(method)}</div></div>
           <div class="box"><div class="label">فاکتور مرتبط</div><div class="value">{("#" + str(invoice.id)) if invoice else "بدون فاکتور"}</div></div>
         </div>
@@ -3617,7 +3617,7 @@ def print_transaction_receipt(entry_id: int):
 
         <div class="box" style="margin-top:12px">
           <div class="label">مانده بعد از ثبت</div>
-          <div class="value">{_fmt_money(entry.balance_after)}</div>
+          <div class="value">{_fmt_money(entry.balance_after, settings, language)}</div>
         </div>
 
         <div class="footer">
@@ -3627,7 +3627,7 @@ def print_transaction_receipt(entry_id: int):
         """
 
         db.close()
-        return _print_page(title, body)
+        return _print_page(title, body, language)
 
     except Exception as e:
         db.close()
