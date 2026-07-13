@@ -3684,13 +3684,28 @@ def export_pdf(
 
 
 @app.get("/export/invoices-excel")
-def export_excel():
+def export_excel(language: str = "en"):
     db: Session = SessionLocal()
-    invoices = db.query(Invoice).all()
-    path = build_invoice_excel(invoices)
-    db.close()
-    return FileResponse(
-        path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename="vetrix_invoices.xlsx"
-    )
+    try:
+        language = "fa" if language == "fa" else "en"
+        invoices = db.query(Invoice).all()
+        settings = get_or_create_settings(db)
+        customer_ids = [item.customer_id for item in invoices if item.customer_id]
+        customer_rows = (
+            db.query(Customer).filter(Customer.id.in_(customer_ids)).all()
+            if customer_ids else []
+        )
+        customers = {customer.id: customer.name for customer in customer_rows}
+        path = build_invoice_excel(
+            invoices,
+            settings=settings,
+            customers=customers,
+            language=language,
+        )
+        return FileResponse(
+            path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=f"vetrix_invoices_{language}.xlsx",
+        )
+    finally:
+        db.close()
