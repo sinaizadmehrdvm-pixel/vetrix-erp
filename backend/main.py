@@ -64,6 +64,7 @@ from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
 from app.online_commerce import router as online_commerce_router
 from app.change_requests import router as change_requests_router
+from app.financial_policy import financial_policy_values, router as financial_policy_router
 from app.rbac import (
     ROLE_LABELS,
     is_authorized,
@@ -259,6 +260,7 @@ app.include_router(backup_router)
 app.include_router(system_health_router)
 app.include_router(online_commerce_router)
 app.include_router(change_requests_router)
+app.include_router(financial_policy_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -1289,7 +1291,8 @@ def delete_product(product_id: int):
         db.close()
         return {"status": "error", "message": str(e)}
 
-def invoice_settled_amount(db: Session, invoice: Invoice) -> float:
+def invoice_settled_amount(db: Session, invoice: Invoice, policy=None) -> float:
+    policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
     settlement_type = expected_settlement_type(invoice.invoice_type)
     if not settlement_type:
         return 0.0
@@ -1297,14 +1300,27 @@ def invoice_settled_amount(db: Session, invoice: Invoice) -> float:
         AccountingEntry.source_id == invoice.id,
         AccountingEntry.source_type == settlement_type,
     ).all()
-    if settlement_type == "receipt":
-        return float(sum(float(entry.credit or 0) for entry in entries))
-    return float(sum(float(entry.debit or 0) for entry in entries))
+    raw_total = (
+        sum(float(entry.credit or 0) for entry in entries)
+        if settlement_type == "receipt"
+        else sum(float(entry.debit or 0) for entry in entries)
+    )
+    return float(accounting_money(
+        raw_total,
+        policy["decimal_places"],
+        policy["rounding_mode"],
+    ))
 
 
-def sync_invoice_payment_status(db: Session, invoice: Invoice):
-    settled = invoice_settled_amount(db, invoice)
-    invoice.payment_status = calculate_payment_status(invoice.total_amount, settled)
+def sync_invoice_payment_status(db: Session, invoice: Invoice, policy=None):
+    policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
+    settled = invoice_settled_amount(db, invoice, policy)
+    invoice.payment_status = calculate_payment_status(
+        invoice.total_amount,
+        settled,
+        policy["decimal_places"],
+        policy["rounding_mode"],
+    )
     return settled
 
 
@@ -1364,20 +1380,26 @@ def add_invoice_customer_entry(db: Session, invoice: Invoice):
         add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
 
 
-def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products):
+def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products, policy=None):
+    policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
+    policy_money = lambda value: accounting_money(
+        value,
+        policy["decimal_places"],
+        policy["rounding_mode"],
+    )
     description = f"ثبت خودکار فاکتور شماره {invoice.id}"
-    total = float(accounting_money(invoice.total_amount))
-    subtotal = float(accounting_money(getattr(invoice, "subtotal", 0) or 0))
-    discount = float(accounting_money(
+    total = float(policy_money(invoice.total_amount))
+    subtotal = float(policy_money(getattr(invoice, "subtotal", 0) or 0))
+    discount = float(policy_money(
         getattr(invoice, "discount_amount", 0) or 0
     ))
-    taxable_base = float(accounting_money(subtotal - discount))
-    tax = float(accounting_money(getattr(invoice, "tax_amount", 0) or 0))
-    shipping = float(accounting_money(
+    taxable_base = float(policy_money(subtotal - discount))
+    tax = float(policy_money(getattr(invoice, "tax_amount", 0) or 0))
+    shipping = float(policy_money(
         getattr(invoice, "shipping_cost", 0) or 0
     ))
-    acquisition_value = float(accounting_money(taxable_base + shipping))
-    cost = float(accounting_money(sum(
+    acquisition_value = float(policy_money(taxable_base + shipping))
+    cost = float(policy_money(sum(
         float(item.quantity)
         * float(getattr(products[item.product_id], "buy_price", 0) or 0)
         for item in items
@@ -1436,8 +1458,14 @@ def post_transaction_to_general_ledger(
     entry: AccountingEntry,
     method: str,
     invoice: Optional[Invoice] = None,
+    policy=None,
 ):
-    amount = float(accounting_money(entry.credit or entry.debit))
+    policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
+    amount = float(accounting_money(
+        entry.credit or entry.debit,
+        policy["decimal_places"],
+        policy["rounding_mode"],
+    ))
     cash_account = cash_account_for_method(method)
     counterpart = settlement_counterpart_account(
         invoice.invoice_type if invoice else None,
@@ -1476,7 +1504,12 @@ def create_invoice(data: InvoiceCreate):
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
         if not customer:
             raise ValueError("Customer not found")
-        totals = calculate_invoice_totals(data.items, data.discount_percent, data.tax_percent, data.shipping_cost)
+        policy = financial_policy_values(db.connection())
+        totals = calculate_invoice_totals(
+            data.items, data.discount_percent, data.tax_percent, data.shipping_cost,
+            decimal_places=policy["decimal_places"],
+            rounding_mode=policy["rounding_mode"],
+        )
         products = validate_invoice_products(db, data)
         invoice = Invoice(
             invoice_type=data.invoice_type,
@@ -1495,12 +1528,12 @@ def create_invoice(data: InvoiceCreate):
                 invoice_id=invoice.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                unit_price=float(accounting_money(item.unit_price)),
-                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price))),
+                unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
+                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
-        post_invoice_to_general_ledger(db, invoice, data.items, products)
+        post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.commit()
         db.refresh(invoice)
         return {
@@ -1547,7 +1580,12 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
             AccountingEntry.source_id == invoice_id,
         ).delete(synchronize_session=False)
         db.flush()
-        totals = calculate_invoice_totals(data.items, data.discount_percent, data.tax_percent, data.shipping_cost)
+        policy = financial_policy_values(db.connection())
+        totals = calculate_invoice_totals(
+            data.items, data.discount_percent, data.tax_percent, data.shipping_cost,
+            decimal_places=policy["decimal_places"],
+            rounding_mode=policy["rounding_mode"],
+        )
         products = validate_invoice_products(db, data)
         invoice.invoice_type = data.invoice_type
         invoice.customer_id = data.customer_id
@@ -1563,12 +1601,12 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
                 invoice_id=invoice.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                unit_price=float(accounting_money(item.unit_price)),
-                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price))),
+                unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
+                total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
         add_invoice_customer_entry(db, invoice)
-        post_invoice_to_general_ledger(db, invoice, data.items, products)
+        post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.flush()
         rebuild_customer_balances(db, old_customer_id)
         if data.customer_id != old_customer_id:
@@ -1677,9 +1715,14 @@ def list_invoices():
 def create_payment_or_receipt(data: PaymentCreate):
     db: Session = SessionLocal()
     try:
+        policy = financial_policy_values(db.connection())
         if data.transaction_type not in {"receipt", "payment"}:
             raise ValueError("transaction_type must be receipt or payment")
-        amount = float(accounting_money(data.amount))
+        amount = float(accounting_money(
+            data.amount,
+            policy["decimal_places"],
+            policy["rounding_mode"],
+        ))
         if amount <= 0:
             raise ValueError("Amount must be greater than zero")
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
@@ -1701,8 +1744,12 @@ def create_payment_or_receipt(data: PaymentCreate):
                 raise ValueError(
                     f"{invoice.invoice_type} invoices require a {expected_type} transaction"
                 )
-            settled_before = invoice_settled_amount(db, invoice)
-            remaining_before = float(accounting_money(invoice.total_amount - settled_before))
+            settled_before = invoice_settled_amount(db, invoice, policy)
+            remaining_before = float(accounting_money(
+                invoice.total_amount - settled_before,
+                policy["decimal_places"],
+                policy["rounding_mode"],
+            ))
             if amount > remaining_before:
                 raise ValueError(
                     f"Transaction exceeds invoice remaining amount: {remaining_before}"
@@ -1730,12 +1777,16 @@ def create_payment_or_receipt(data: PaymentCreate):
             )
 
         db.flush()
-        settled = sync_invoice_payment_status(db, invoice) if invoice else 0.0
+        settled = sync_invoice_payment_status(db, invoice, policy) if invoice else 0.0
         remaining = (
-            float(accounting_money(invoice.total_amount - settled))
+            float(accounting_money(
+                invoice.total_amount - settled,
+                policy["decimal_places"],
+                policy["rounding_mode"],
+            ))
             if invoice else None
         )
-        post_transaction_to_general_ledger(db, entry, data.method, invoice)
+        post_transaction_to_general_ledger(db, entry, data.method, invoice, policy)
         db.commit()
         return {
             "status": "created",
