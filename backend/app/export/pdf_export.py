@@ -20,6 +20,8 @@ import base64
 import tempfile
 import html
 
+from app.export.localization import format_report_date, format_report_money
+
 try:
     from app.designer.engine import apply_template
 except Exception:
@@ -87,24 +89,14 @@ def _get_attr(obj, key, default=""):
     return getattr(obj, key, default)
 
 
-def _format_date(value, language="fa"):
-    if not value:
-        return "-"
-    try:
-        if hasattr(value, "strftime"):
-            text = value.strftime("%Y/%m/%d - %H:%M")
-        else:
-            text = str(value).replace("T", " ")[:16]
-    except Exception:
-        text = str(value)
-
-    return _fa_digits(text) if language == "fa" else text
+def _format_date(value, language="fa", settings=None):
+    return format_report_date(value, settings, language, include_time=True)
 
 
-def _money(value, currency="تومان", language="fa"):
-    text = f"{_safe_float(value):,.0f} {currency}"
-    return _fa_digits(text) if language == "fa" else text
-
+def _money(value, currency=None, language="fa", settings=None):
+    if settings is None:
+        settings = {"currency_code": currency or "", "decimal_places": 0}
+    return format_report_money(value, settings, language)
 
 def _status_label(value, language="fa"):
     raw = str(value or "").lower()
@@ -611,9 +603,9 @@ def build_invoice_pdf(
     total_sum = sum(_safe_float(_get_attr(i, "total_amount", 0)) for i in invoices)
 
     summary_text = (
-        f"تعداد فاکتور: {count} | جمع کل: {_money(total_sum, currency, language)}"
+        f"تعداد فاکتور: {count} | جمع کل: {_money(total_sum, currency, language, settings)}"
         if fa
-        else f"Invoice count: {count} | Total: {_money(total_sum, currency, language)}"
+        else f"Invoice count: {count} | Total: {_money(total_sum, currency, language, settings)}"
     )
 
     elements.append(_p(summary_text, styles["subtitle"], language))
@@ -644,13 +636,13 @@ def build_invoice_pdf(
         total = _safe_float(_get_attr(inv, "total_amount", 0))
         remaining = _safe_float(_get_attr(inv, "remaining_amount", total))
         status = _get_attr(inv, "payment_status", _get_attr(inv, "status", ""))
-        date = _format_date(_get_attr(inv, "created_at", ""), language)
+        date = _format_date(_get_attr(inv, "created_at", ""), language, settings)
 
         if thermal:
             if fa:
                 row = [
                     _status_label(status, language),
-                    _money(total, currency, language),
+                    _money(total, currency, language, settings),
                     customer_name,
                     _invoice_type_label(inv_type, language),
                     f"#{_fa_digits(inv_id)}",
@@ -660,15 +652,15 @@ def build_invoice_pdf(
                     f"#{inv_id}",
                     _invoice_type_label(inv_type, language),
                     customer_name,
-                    _money(total, currency, language),
+                    _money(total, currency, language, settings),
                     _status_label(status, language),
                 ]
         else:
             if fa:
                 row = [
                     _status_label(status, language),
-                    _money(remaining, currency, language),
-                    _money(total, currency, language),
+                    _money(remaining, currency, language, settings),
+                    _money(total, currency, language, settings),
                     customer_name,
                     _invoice_type_label(inv_type, language),
                     date,
@@ -680,8 +672,8 @@ def build_invoice_pdf(
                     date,
                     _invoice_type_label(inv_type, language),
                     customer_name,
-                    _money(total, currency, language),
-                    _money(remaining, currency, language),
+                    _money(total, currency, language, settings),
+                    _money(remaining, currency, language, settings),
                     _status_label(status, language),
                 ]
 
