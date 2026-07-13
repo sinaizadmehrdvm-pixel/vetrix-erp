@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -112,7 +112,8 @@ def _validate(payload: PolicyDraft):
 
 
 @router.get("")
-def list_policies():
+def list_policies(request: Request):
+    _admin(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -170,12 +171,16 @@ def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
             raise HTTPException(status_code=404, detail="Financial policy not found")
         if policy["status"] != "draft":
             raise HTTPException(status_code=409, detail="Only draft policy can be activated")
+        effective_from = date.fromisoformat(policy["effective_from"])
+        if effective_from > date.today():
+            raise HTTPException(status_code=409, detail="A future policy can only be activated on or after its effective date")
+        previous_effective_to = (effective_from - timedelta(days=1)).isoformat()
         now = _now()
         conn.execute(text("""
             UPDATE financial_policy_versions
             SET status='retired', effective_to=:yesterday
             WHERE status='active' AND id<>:id
-        """), {"yesterday": date.today().isoformat(), "id": policy_id})
+        """), {"yesterday": previous_effective_to, "id": policy_id})
         conn.execute(text("""
             UPDATE financial_policy_versions
             SET status='active', verified_by=:actor, verified_at=:now,
@@ -192,7 +197,8 @@ def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
 
 
 @router.get("/{policy_id}/events")
-def policy_events(policy_id: int):
+def policy_events(policy_id: int, request: Request):
+    _admin(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
