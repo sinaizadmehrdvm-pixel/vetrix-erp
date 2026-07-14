@@ -118,7 +118,7 @@ def _ingest(source, event_id, sender, message_reference, transcript, media_refer
                submitted_at)
             VALUES
               (:source, :source_reference, '', :transcript, 'note_only',
-               NULL, '{}', 'pending_approval', :actor, :now, :now)
+               NULL, '{}', 'needs_transcript_review', :actor, :now, NULL)
         """), {
             "source": source,
             "source_reference": str(message_reference or "")[:500],
@@ -156,7 +156,7 @@ def _ingest(source, event_id, sender, message_reference, transcript, media_refer
             actor,
             f"source={source};media={str(media_reference or '')[:500]}",
         )
-        return {"status": "pending_approval", "request_id": request_id}
+        return {"status": "needs_transcript_review", "request_id": request_id}
 
 
 def _telegram_voice(payload):
