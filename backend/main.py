@@ -3284,21 +3284,21 @@ def print_invoice_preview(
 
         company_rows = ""
         if manager_name:
-            company_rows += f"<div>مدیر: {_esc(manager_name)}</div>"
+            company_rows += f"<div>{_print_label(language, 'مدیر:', 'Manager:')} {_esc(manager_name)}</div>"
         if phone:
-            company_rows += f"<div>تلفن: {fa_digits(_esc(phone))}</div>"
+            company_rows += f"<div>{_print_label(language, 'تلفن:', 'Phone:')} {fa_digits(_esc(phone))}</div>"
         if mobile:
-            company_rows += f"<div>موبایل: {fa_digits(_esc(mobile))}</div>"
+            company_rows += f"<div>{_print_label(language, 'موبایل:', 'Mobile:')} {fa_digits(_esc(mobile))}</div>"
         if email:
-            company_rows += f"<div>ایمیل: {_esc(email)}</div>"
+            company_rows += f"<div>{_print_label(language, 'ایمیل:', 'Email:')} {_esc(email)}</div>"
         if website:
-            company_rows += f"<div>وب سایت: {_esc(website)}</div>"
+            company_rows += f"<div>{_print_label(language, 'وب‌سایت:', 'Website:')} {_esc(website)}</div>"
         if national_id:
-            company_rows += f"<div>شناسه ملی: {fa_digits(_esc(national_id))}</div>"
+            company_rows += f"<div>{_print_label(language, 'شناسه ملی:', 'National ID:')} {fa_digits(_esc(national_id))}</div>"
         if economic_code:
-            company_rows += f"<div>کد اقتصادی: {fa_digits(_esc(economic_code))}</div>"
+            company_rows += f"<div>{_print_label(language, 'کد اقتصادی:', 'Economic code:')} {fa_digits(_esc(economic_code))}</div>"
         if address:
-            company_rows += f"<div>آدرس: {_esc(address)}</div>"
+            company_rows += f"<div>{_print_label(language, 'آدرس:', 'Address:')} {_esc(address)}</div>"
 
         rows = ""
         for index, item in enumerate(items, start=1):
@@ -3306,7 +3306,7 @@ def print_invoice_preview(
             rows += f"""
             <tr>
               <td>{fa_digits(index)}</td>
-              <td>{_esc(product.name if product else "نامشخص")}</td>
+              <td>{_esc(product.name if product else _print_label(language, "نامشخص", "Unknown"))}</td>
               <td>{fa_digits(item.quantity)}</td>
               <td>{money(item.unit_price)}</td>
               <td>{money(item.total_price)}</td>
@@ -3331,6 +3331,8 @@ def print_invoice_preview(
             page_class = "thermal58"
 
         editable = "true" if int(edit or 0) == 1 else "false"
+        print_direction = "rtl" if language == "fa" else "ltr"
+        print_align = "right" if language == "fa" else "left"
 
         body = f"""
         <style>
@@ -3347,7 +3349,7 @@ def print_invoice_preview(
             padding: 10px;
             background: #071028;
             border-bottom: 1px solid #164e63;
-            direction: rtl;
+            direction: {print_direction};
           }}
           .toolbar button, .toolbar select {{
             border: 0;
@@ -3360,8 +3362,8 @@ def print_invoice_preview(
           }}
           .toolbar select {{ background:#1e3a8a; color:white; }}
           .page {{
-            direction: rtl;
-            text-align: right;
+            direction: {print_direction};
+            text-align: {print_align};
             background: white;
             color: #0f172a;
             width: 210mm;
@@ -3397,7 +3399,7 @@ def print_invoice_preview(
           }}
           .brand {{ font-size: 28px; font-weight: 900; color: #0891b2; }}
           .company-info {{ font-size: 12px; color: #334155; line-height: 1.9; margin-top: 8px; }}
-          .invoice-title {{ text-align: right; }}
+          .invoice-title {{ text-align: {print_align}; }}
           .invoice-title h1 {{ margin: 0 0 8px; font-size: 32px; color: #0f172a; }}
           .muted {{ color: #64748b; font-size: 12px; }}
           .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }}
@@ -3418,7 +3420,7 @@ def print_invoice_preview(
           }}
           .row {{ display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }}
           .row.final {{ background: #ecfeff; color: #0891b2; font-size: 17px; font-weight: 900; }}
-          .tracking {{ margin-top: 12px; direction: rtl; text-align: right; }}
+          .tracking {{ margin-top: 12px; direction: {print_direction}; text-align: {print_align}; }}
           .codes {{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px; align-items:center; }}
           .qr-img {{ width:96px; height:96px; object-fit:contain; }}
           .barcode-img {{ max-width:260px; max-height:74px; object-fit:contain; }}
@@ -3490,7 +3492,7 @@ def print_invoice_preview(
                 <th>{_print_label(language, 'شرح کالا / خدمات', 'Product / Service')}</th>
                 <th>{_print_label(language, 'تعداد', 'Quantity')}</th>
                 <th>{_print_label(language, 'قیمت واحد', 'Unit price')}</th>
-                <th>جمع</th>
+                <th>{_print_label(language, 'جمع', 'Total')}</th>
               </tr>
             </thead>
             <tbody>{rows}</tbody>
@@ -3513,7 +3515,7 @@ def print_invoice_preview(
 
           <div class="box tracking">
             <div class="label">{_print_label(language, 'اطلاعات تراکنش', 'Transaction details')}</div>
-            <div class="value">فاکتور شماره {fa_digits(invoice.id)} | {_print_label(language, 'مبلغ کل:', 'Total:')} {money(total_amount)} | {_print_label(language, 'باقی مانده', 'Remaining')}: {money(remaining_amount)}</div>
+            <div class="value">{_print_label(language, 'فاکتور شماره', 'Invoice number')} {fa_digits(invoice.id)} | {_print_label(language, 'مبلغ کل:', 'Total:')} {money(total_amount)} | {_print_label(language, 'باقی مانده', 'Remaining')}: {money(remaining_amount)}</div>
           </div>
 
           <div class="codes">
