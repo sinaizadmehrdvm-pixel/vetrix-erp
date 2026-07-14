@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 
 from app.change_requests import _ensure_schema, _event
 from app.database import engine
@@ -128,20 +127,23 @@ def _ingest(source, event_id, sender, message_reference, transcript, media_refer
             "now": _now(),
         })
         request_id = created.lastrowid
-        try:
-            conn.execute(text("""
-                INSERT INTO inbound_voice_events
-                  (source, external_event_id, sender_reference,
-                   change_request_id, received_at)
-                VALUES (:source, :event_id, :sender, :request_id, :now)
-            """), {
-                "source": source,
-                "event_id": clean_event,
-                "sender": str(sender)[:300],
-                "request_id": request_id,
-                "now": _now(),
-            })
-        except IntegrityError:
+        recorded = conn.execute(text("""
+            INSERT OR IGNORE INTO inbound_voice_events
+              (source, external_event_id, sender_reference,
+               change_request_id, received_at)
+            VALUES (:source, :event_id, :sender, :request_id, :now)
+        """), {
+            "source": source,
+            "event_id": clean_event,
+            "sender": str(sender)[:300],
+            "request_id": request_id,
+            "now": _now(),
+        })
+        if recorded.rowcount == 0:
+            conn.execute(
+                text("DELETE FROM managed_change_requests WHERE id=:id"),
+                {"id": request_id},
+            )
             duplicate = conn.execute(text("""
                 SELECT change_request_id FROM inbound_voice_events
                 WHERE source=:source AND external_event_id=:event_id
