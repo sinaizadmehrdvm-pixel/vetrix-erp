@@ -70,6 +70,11 @@ from app.storefront_sync import router as storefront_sync_router
 from app.campaign_delivery import router as campaign_delivery_router
 from app.financial_policy import financial_policy_values, router as financial_policy_router
 from app.data_import import router as data_import_router
+from app.security import (
+    login_attempt_key,
+    login_retry_after,
+    record_login_result,
+)
 from app.rbac import (
     ROLE_LABELS,
     is_authorized,
@@ -302,6 +307,8 @@ async def require_authenticated_api(request: Request, call_next):
                 pass
 
     if is_public_request(request.url.path, request.method):
+        if request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            return await call_and_audit()
         return await call_next(request)
 
     if request.url.path == "/users" and request.method.upper() == "POST":
@@ -327,6 +334,21 @@ async def require_authenticated_api(request: Request, call_next):
             status_code=401,
             content={"detail": "Invalid or expired token"},
         )
+
+    try:
+        authenticated_user_id = int(request.state.auth.get("sub"))
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=401, content={"detail": "Invalid authentication context"})
+
+    auth_db: Session = SessionLocal()
+    try:
+        authenticated_user = auth_db.query(User).filter(User.id == authenticated_user_id).first()
+        if not authenticated_user:
+            return JSONResponse(status_code=401, content={"detail": "User no longer exists"})
+        request.state.auth["username"] = authenticated_user.username
+        request.state.auth["role"] = normalize_role(authenticated_user.role)
+    finally:
+        auth_db.close()
 
     if not is_authorized(
         request.state.auth.get("role"),
@@ -816,8 +838,8 @@ def require_admin(request: Request):
 @app.post("/users")
 def create_user(data: UserCreate, request: Request):
     require_admin(request)
-    if len(data.password) < 10:
-        raise HTTPException(status_code=400, detail="Password must contain at least 10 characters")
+    if len(data.password) < 12:
+        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
     raw_role = str(data.role).strip().lower()
     requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
     if raw_role not in ROLE_LABELS:
@@ -907,18 +929,30 @@ def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
 
 
 @app.post("/login")
-def login(data: LoginRequest):
+def login(data: LoginRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    attempt_key = login_attempt_key(client_ip, data.username)
+    retry_after = login_retry_after(attempt_key)
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     db: Session = SessionLocal()
     try:
         user = db.query(User).filter(User.username == data.username).first()
         if not user or not verify_password(data.password, user.password):
+            record_login_result(attempt_key, False)
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
+        record_login_result(attempt_key, True)
         if password_needs_upgrade(user.password):
             user.password = hash_password(data.password)
             db.commit()
 
-        token = create_access_token(user.id, user.username, user.role)
+        token = create_access_token(user.id, user.username, normalize_role(user.role))
         return {
             "status": "success",
             "message": "Login successful",
