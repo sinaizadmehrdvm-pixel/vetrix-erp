@@ -126,6 +126,9 @@ PUBLIC_PATHS = {
     "/api/inbound-voice/telegram",
     "/api/inbound-voice/whatsapp",
     "/api/storefront-sync/products",
+    "/api/campaign-delivery/claim",
+    "/api/campaign-delivery/complete",
+    "/api/campaign-delivery/fail",
 }
 
 

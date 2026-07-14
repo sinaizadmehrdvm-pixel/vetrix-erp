@@ -134,6 +134,25 @@ export default function OnlineCommerce() {
     } catch (error) { toast.error(error.message); }
   }
 
+  async function queueCampaign(item) {
+    try {
+      const result = await fetch(`${API_URL}/api/campaign-delivery/queue/${item.id}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }).then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || "Queue failed");
+        return data;
+      });
+      toast.success(result.duplicate
+        ? (fa ? "کمپین از قبل در صف انتشار است." : "Campaign is already queued.")
+        : (fa ? "کمپین وارد صف امن انتشار شد." : "Campaign entered the secure delivery queue."));
+      load();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
+
   async function createCampaign(event) {
     event.preventDefault();
     try {
@@ -231,7 +250,7 @@ export default function OnlineCommerce() {
             <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><ShieldCheck size={18} />{fa ? "ارسال برای تأیید مدیر" : "Submit for approval"}</button>
           </form>
           <div className="space-y-3">
-            {campaigns.map((item) => <CampaignCard key={item.id} item={item} fa={fa} />)}
+            {campaigns.map((item) => <CampaignCard key={item.id} item={item} fa={fa} canQueue={["admin", "accountant"].includes(user?.role) && ["approved", "scheduled"].includes(item.status)} onQueue={() => queueCampaign(item)} />)}
             {!campaigns.length && <div className="erp-surface rounded-3xl p-8 text-center">{fa ? "کمپینی ثبت نشده است." : "No campaigns yet."}</div>}
           </div>
         </div>
@@ -304,7 +323,7 @@ function Input({ label, value, onChange, type = "text", required = false }) {
   return <label className="block text-sm font-bold">{label}<input required={required} type={type} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={value} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
-function CampaignCard({ item, fa }) {
+function CampaignCard({ item, fa, canQueue, onQueue }) {
   const status = { draft: fa ? "پیش‌نویس" : "Draft", pending_approval: fa ? "در انتظار تأیید" : "Pending approval", approved: fa ? "تأییدشده" : "Approved", scheduled: fa ? "زمان‌بندی‌شده" : "Scheduled", published: fa ? "منتشرشده" : "Published", rejected: fa ? "ردشده" : "Rejected", failed: fa ? "ناموفق" : "Failed" }[item.status] || item.status;
-  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><h3 className="font-black text-lg">{item.title}</h3><p className="text-sm mt-1" style={{ color: "var(--erp-muted)" }}>{item.channel} {item.product_name ? `• ${item.product_name}` : ""}</p></div><span className="rounded-full px-3 py-1 h-fit text-sm font-black" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{status}</span></div>{item.body && <p className="mt-3 whitespace-pre-wrap">{item.body}</p>}</article>;
+  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><h3 className="font-black text-lg">{item.title}</h3><p className="text-sm mt-1" style={{ color: "var(--erp-muted)" }}>{item.channel} {item.product_name ? `• ${item.product_name}` : ""}</p></div><span className="rounded-full px-3 py-1 h-fit text-sm font-black" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{status}</span></div>{item.body && <p className="mt-3 whitespace-pre-wrap">{item.body}</p>}{item.external_reference && <p className="mt-3 text-xs erp-accent" dir="ltr">{item.external_reference}</p>}{canQueue && <button type="button" onClick={onQueue} className="mt-4 rounded-xl px-4 py-2 font-black flex items-center gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Send size={17} />{fa ? "ارسال به صف امن انتشار" : "Queue secure delivery"}</button>}</article>;
 }

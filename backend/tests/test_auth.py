@@ -34,6 +34,18 @@ class AuthenticationPolicyTests(unittest.TestCase):
         self.assertFalse(
             is_public_request("/api/storefront-sync/readiness", "GET")
         )
+        self.assertTrue(
+            is_public_request("/api/campaign-delivery/claim", "POST")
+        )
+        self.assertTrue(
+            is_public_request("/api/campaign-delivery/complete", "POST")
+        )
+        self.assertFalse(
+            is_public_request("/api/campaign-delivery/readiness", "GET")
+        )
+        self.assertFalse(
+            is_public_request("/api/campaign-delivery/queue/1", "POST")
+        )
         self.assertFalse(is_public_request("/customers", "GET"))
         self.assertFalse(is_public_request("/export/invoices-pdf", "GET"))
 

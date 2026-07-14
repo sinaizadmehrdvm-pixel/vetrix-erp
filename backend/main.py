@@ -67,6 +67,7 @@ from app.online_commerce import router as online_commerce_router
 from app.change_requests import router as change_requests_router
 from app.inbound_voice import router as inbound_voice_router
 from app.storefront_sync import router as storefront_sync_router
+from app.campaign_delivery import router as campaign_delivery_router
 from app.financial_policy import financial_policy_values, router as financial_policy_router
 from app.data_import import router as data_import_router
 from app.rbac import (
@@ -266,6 +267,7 @@ app.include_router(online_commerce_router)
 app.include_router(change_requests_router)
 app.include_router(inbound_voice_router)
 app.include_router(storefront_sync_router)
+app.include_router(campaign_delivery_router)
 app.include_router(financial_policy_router)
 app.include_router(data_import_router)
 
