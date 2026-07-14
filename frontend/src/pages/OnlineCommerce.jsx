@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgePercent, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useLanguage } from "../localization/LanguageContext";
+import { useAuth } from "../auth/AuthContext";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
+
+async function voiceApi(path, options = {}) {
+  const response = await fetch(`${API_URL}/api/inbound-voice${path}`, {
+    ...options,
+    headers: { ...getAuthHeaders(), ...(options.headers || {}) },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Voice connection check failed");
+  return data;
+}
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api/online-commerce${path}`, {
@@ -18,12 +29,15 @@ async function api(path, options = {}) {
 
 export default function OnlineCommerce() {
   const { language, dir, money, n } = useLanguage();
+  const { user } = useAuth();
   const fa = language === "fa";
   const [tab, setTab] = useState("products");
   const [summary, setSummary] = useState(null);
   const [products, setProducts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [checkingConnections, setCheckingConnections] = useState(false);
   const [campaign, setCampaign] = useState({
     title: "", body: "", channel: "instagram", product_id: "", media_url: "",
     destination_url: "", scheduled_at: "",
@@ -56,6 +70,30 @@ export default function OnlineCommerce() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function checkConnections(showToast = false) {
+    if (!["admin", "accountant"].includes(user?.role)) return;
+    setCheckingConnections(true);
+    try {
+      const result = await voiceApi(showToast ? "/diagnostics" : "/status", {
+        method: showToast ? "POST" : "GET",
+      });
+      setConnectionStatus(result);
+      if (showToast) {
+        toast.success(result.all_ready
+          ? (fa ? "همه اتصال‌های صوتی آماده‌اند." : "All voice connections are ready.")
+          : (fa ? "برخی تنظیمات اتصال هنوز کامل نیست." : "Some connection settings are incomplete."));
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setCheckingConnections(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tab === "connections") checkConnections(false);
+  }, [tab, user?.role]);
 
   function patchProduct(id, patch) {
     setProducts((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
@@ -186,12 +224,36 @@ export default function OnlineCommerce() {
 
       {tab === "connections" && (
         <div className="erp-surface rounded-3xl p-6">
-          <ShieldCheck className="erp-accent mb-3" size={34} />
-          <h2 className="text-xl font-black">{fa ? "اتصال امن سرویس‌ها" : "Secure service connections"}</h2>
-          <p className="mt-2" style={{ color: "var(--erp-muted)" }}>
-            {fa ? "زیرساخت آماده است. کلید خام داخل برنامه ذخیره نمی‌شود؛ پس از دریافت API رسمی سایت، تلگرام، واتساپ یا شبکه اجتماعی، فقط ارجاع امن Secret ثبت خواهد شد." : "Infrastructure is ready. Raw keys are never stored in the app; official APIs use secure secret references."}
-          </p>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">{channels.map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "آماده پیکربندی" : "Ready to configure"}</span></div>)}</div>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <ShieldCheck className="erp-accent mb-3" size={34} />
+              <h2 className="text-xl font-black">{fa ? "اتصال امن سرویس‌ها" : "Secure service connections"}</h2>
+              <p className="mt-2" style={{ color: "var(--erp-muted)" }}>
+                {fa ? "فقط وضعیت تنظیم‌شدن Secretها نمایش داده می‌شود و مقدار هیچ کلیدی از سرور خارج نمی‌شود." : "Only secret readiness is reported; secret values never leave the server."}
+              </p>
+            </div>
+            {["admin", "accountant"].includes(user?.role) && <button type="button" onClick={() => checkConnections(true)} disabled={checkingConnections} className="rounded-2xl px-4 py-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028", opacity: checkingConnections ? .6 : 1 }}><Activity size={18} />{checkingConnections ? "..." : (fa ? "اجرای عیب‌یابی امن" : "Run secure diagnostics")}</button>}
+          </div>
+          {!["admin", "accountant"].includes(user?.role) && <div className="mt-5 rounded-2xl p-4 flex gap-3 items-center" style={{ background: "rgba(245,158,11,.12)", color: "#fde68a" }}><AlertTriangle />{fa ? "مشاهده وضعیت اتصال فقط برای مدیر و حسابدار مجاز است." : "Connection status is restricted to managers."}</div>}
+          {connectionStatus && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+            {["telegram", "whatsapp"].map((channel) => {
+              const status = connectionStatus[channel];
+              return <article key={channel} className="rounded-2xl p-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${status.ready ? "#22c55e" : "#f59e0b"}` }}>
+                <div className="flex items-center justify-between gap-3"><strong className="text-lg">{channel}</strong>{status.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
+                <p className="mt-3 font-black" style={{ color: status.ready ? "#86efac" : "#fcd34d" }}>{status.ready ? (fa ? "آماده فعال‌سازی واقعی" : "Ready for live activation") : (fa ? "تنظیمات ناقص" : "Configuration incomplete")}</p>
+                <code className="block mt-3 text-xs" dir="ltr">{status.webhook_path}</code>
+              </article>;
+            })}
+            <article className="rounded-2xl p-5 md:col-span-2" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                <ConnectionMetric label={fa ? "فرستنده مجاز" : "Allowed senders"} value={n(connectionStatus.allowed_sender_count)} />
+                <ConnectionMetric label={fa ? "حساب سرویس معتبر" : "Valid service user"} value={connectionStatus.service_user?.valid && connectionStatus.service_user?.non_admin ? (fa ? "بله" : "Yes") : (fa ? "خیر" : "No")} />
+                <ConnectionMetric label={fa ? "پیام دریافت‌شده" : "Received events"} value={n(connectionStatus.events?.total || 0)} />
+                <ConnectionMetric label={fa ? "افشای Secret" : "Secret exposure"} value={connectionStatus.secrets_exposed ? (fa ? "خطر" : "Risk") : (fa ? "صفر" : "None")} />
+              </div>
+            </article>
+          </div>}
+          <div className="grid grid-cols-3 gap-3 mt-5">{["website", "instagram", "linkedin"].map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "فاز اتصال بعدی" : "Next connector phase"}</span></div>)}</div>
         </div>
       )}
     </div>
@@ -199,6 +261,10 @@ export default function OnlineCommerce() {
 }
 
 const inputStyle = { background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" };
+
+function ConnectionMetric({ label, value }) {
+  return <div className="rounded-xl p-3" style={{ background: "var(--erp-glow)" }}><strong className="block text-lg">{value}</strong><span className="text-xs" style={{ color: "var(--erp-muted)" }}>{label}</span></div>;
+}
 
 function Metric({ icon, label, value, n }) {
   return <div className="erp-surface rounded-2xl p-4"><div className="erp-accent">{icon}</div><strong className="block text-2xl mt-2">{n(value)}</strong><span className="text-sm" style={{ color: "var(--erp-muted)" }}>{label}</span></div>;

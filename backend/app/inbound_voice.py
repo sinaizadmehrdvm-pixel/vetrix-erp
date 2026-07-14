@@ -196,6 +196,91 @@ def _whatsapp_voice(payload):
     }
 
 
+def _manager(request):
+    auth = getattr(request.state, "auth", {})
+    role = str(auth.get("role") or "").lower()
+    if role not in {"admin", "accountant"}:
+        raise HTTPException(status_code=403, detail="Manager access is required")
+
+
+def _configuration_status():
+    allowed = [
+        value.strip()
+        for value in os.getenv("VETRIX_VOICE_ALLOWED_CHAT_IDS", "").split(",")
+        if value.strip()
+    ]
+    telegram_secret = bool(
+        os.getenv("VETRIX_TELEGRAM_WEBHOOK_SECRET", "").strip()
+    )
+    whatsapp_secret = bool(
+        os.getenv("VETRIX_WHATSAPP_APP_SECRET", "").strip()
+    )
+    whatsapp_verify = bool(
+        os.getenv("VETRIX_WHATSAPP_VERIFY_TOKEN", "").strip()
+    )
+    service_user_value = os.getenv("VETRIX_VOICE_SERVICE_USER_ID", "").strip()
+    service = {
+        "configured": bool(service_user_value),
+        "valid": False,
+        "non_admin": False,
+    }
+    recent_events = {"total": 0, "last_received_at": None}
+    with engine.begin() as conn:
+        _ensure_inbound_schema(conn)
+        if service_user_value.isdigit():
+            user = conn.execute(
+                text("SELECT role FROM users WHERE id=:id"),
+                {"id": int(service_user_value)},
+            ).mappings().first()
+            service["valid"] = bool(user)
+            service["non_admin"] = bool(
+                user and str(user["role"]).lower() != "admin"
+            )
+        event_stats = conn.execute(text("""
+            SELECT COUNT(*) total, MAX(received_at) last_received_at
+            FROM inbound_voice_events
+        """)).mappings().one()
+        recent_events = {
+            "total": int(event_stats["total"] or 0),
+            "last_received_at": event_stats["last_received_at"],
+        }
+    common_ready = bool(allowed) and service["valid"] and service["non_admin"]
+    return {
+        "telegram": {
+            "ready": common_ready and telegram_secret,
+            "secret_configured": telegram_secret,
+            "webhook_path": "/api/inbound-voice/telegram",
+        },
+        "whatsapp": {
+            "ready": common_ready and whatsapp_secret and whatsapp_verify,
+            "app_secret_configured": whatsapp_secret,
+            "verify_token_configured": whatsapp_verify,
+            "webhook_path": "/api/inbound-voice/whatsapp",
+        },
+        "allowed_sender_count": len(allowed),
+        "service_user": service,
+        "events": recent_events,
+        "secrets_exposed": False,
+    }
+
+
+@router.get("/status")
+def connection_status(request: Request):
+    _manager(request)
+    return _configuration_status()
+
+
+@router.post("/diagnostics")
+def run_connection_diagnostics(request: Request):
+    _manager(request)
+    result = _configuration_status()
+    result["checked_at"] = _now()
+    result["all_ready"] = (
+        result["telegram"]["ready"] and result["whatsapp"]["ready"]
+    )
+    return result
+
+
 @router.post("/telegram")
 async def telegram_webhook(request: Request):
     _verify_telegram_secret(
