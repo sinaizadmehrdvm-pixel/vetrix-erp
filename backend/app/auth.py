@@ -125,6 +125,7 @@ PUBLIC_PATHS = {
     "/favicon.ico",
     "/api/inbound-voice/telegram",
     "/api/inbound-voice/whatsapp",
+    "/api/storefront-sync/products",
 }
 
 
