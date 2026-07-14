@@ -1,8 +1,13 @@
+import hashlib
 import json
+import os
+import secrets
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -13,6 +18,33 @@ router = APIRouter(prefix="/api/change-requests", tags=["Managed Change Requests
 ALLOWED_SOURCES = {"in_app", "telegram", "whatsapp", "other"}
 ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only"}
 ALLOWED_PRODUCT_FIELDS = {"is_published", "sync_stock", "online_price", "discount_percent", "sale_start", "sale_end", "website_slug"}
+ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".opus"}
+MAX_AUDIO_BYTES = 20 * 1024 * 1024
+
+
+def _audio_directory():
+    root = Path(os.getenv("VETRIX_UPLOAD_DIR", "./uploads"))
+    directory = root / "managed-change-audio"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _audio_path(reference):
+    filename = Path(str(reference or "")).name
+    if not filename or filename != str(reference) or filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid audio reference")
+    suffix = Path(filename).suffix.lower()
+    if suffix not in ALLOWED_AUDIO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported audio file type")
+    return _audio_directory() / filename
+
+
+def _require_managed_audio(reference):
+    path = _audio_path(reference)
+    if not path.is_file():
+        raise HTTPException(status_code=400, detail="Uploaded audio file was not found")
+    return path
+
 
 
 def _now():
@@ -138,6 +170,56 @@ class DecisionPayload(BaseModel):
     note: str = Field(default="", max_length=2000)
 
 
+@router.post("/audio")
+async def upload_audio(request: Request, audio: UploadFile = File(...)):
+    _auth(request)
+    original_suffix = Path(audio.filename or "").suffix.lower()
+    if original_suffix not in ALLOWED_AUDIO_EXTENSIONS:
+        raise HTTPException(status_code=415, detail="Unsupported audio file type")
+    if audio.content_type and not (
+        audio.content_type.startswith("audio/")
+        or audio.content_type in {"application/ogg", "video/webm"}
+    ):
+        raise HTTPException(status_code=415, detail="File content type is not audio")
+    reference = f"{secrets.token_hex(16)}{original_suffix}"
+    destination = _audio_path(reference)
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        with destination.open("xb") as output:
+            while chunk := await audio.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_AUDIO_BYTES:
+                    raise HTTPException(status_code=413, detail="Audio file exceeds 20 MB")
+                digest.update(chunk)
+                output.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        await audio.close()
+    return {
+        "reference": reference,
+        "original_name": Path(audio.filename or "voice").name,
+        "content_type": audio.content_type or "application/octet-stream",
+        "size_bytes": size,
+        "sha256": digest.hexdigest(),
+    }
+
+
+@router.get("/audio/{reference}")
+def download_audio(reference: str, request: Request):
+    _auth(request)
+    path = _require_managed_audio(reference)
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=f"voice-request{path.suffix}",
+    )
+
+
 @router.get("")
 def list_requests(status: str = "all"):
     allowed = {"all", "draft", "pending_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
@@ -185,6 +267,8 @@ def request_detail(request_id: int):
 def create_request(payload: ChangeRequestPayload, request: Request):
     actor, _ = _auth(request)
     _validate(payload.action_type, payload.target_id, payload.proposed_changes)
+    if payload.audio_reference:
+        _require_managed_audio(payload.audio_reference)
     with engine.begin() as conn:
         _ensure_schema(conn)
         if payload.action_type == "online_product_update":
