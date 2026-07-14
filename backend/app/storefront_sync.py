@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
 from app.database import engine
+from app.online_commerce import _ensure_schema as _ensure_commerce_schema
 
 router = APIRouter(prefix="/api/storefront-sync", tags=["Signed Storefront Sync"])
 MAX_CLOCK_SKEW_SECONDS = 300
@@ -66,6 +67,7 @@ def _verify_request(request, now=None):
 
 def _feed(updated_since=""):
     with engine.begin() as conn:
+        _ensure_commerce_schema(conn)
         settings = conn.execute(text("""
             SELECT currency_code, decimal_places, country_code, locale_code
             FROM app_settings ORDER BY id LIMIT 1
@@ -127,6 +129,7 @@ def storefront_readiness(request: Request):
         raise HTTPException(status_code=403, detail="Manager access is required")
     secret = os.getenv("VETRIX_STOREFRONT_SYNC_SECRET", "").strip()
     with engine.begin() as conn:
+        _ensure_commerce_schema(conn)
         published = conn.execute(text("""
             SELECT COUNT(*) FROM online_product_settings WHERE is_published=1
         """)).scalar() or 0
