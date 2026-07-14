@@ -25,18 +25,19 @@ import {
   getCustomers,
   getProducts,
   getInvoices,
+  getInvoice,
   createInvoice as apiCreateInvoice,
+  updateInvoice as apiUpdateInvoice,
+  deleteInvoice as apiDeleteInvoice,
   getCustomerLedger,
 } from "../services/api";
 
-import axios from "axios";
 import { useLanguage } from "../localization/LanguageContext";
 import InvoiceSummary from "../invoice/InvoiceSummary";
 import InvoicePrint from "../invoice/InvoicePrint";
 import { getCache, setCache } from "../storage/db";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
-const API = "http://127.0.0.1:8001";
 
 const CUSTOMERS_CACHE_KEY = "customers";
 const PRODUCTS_CACHE_KEY = "products";
@@ -375,8 +376,8 @@ export default function Invoices() {
       let savedInvoice;
 
       if (editingId) {
-        const res = await axios.put(`${API}/invoices/${editingId}`, payload);
-        if (res?.data?.status === "error") throw new Error(res.data.message);
+        const result = await apiUpdateInvoice(editingId, payload);
+        if (result?.status === "error") throw new Error(result.message);
         savedInvoice = enrichInvoice(payload, cleanItems, editingId);
       } else {
         const res = await apiCreateInvoice(payload);
@@ -435,8 +436,8 @@ export default function Invoices() {
   let fullInvoice = invoice;
 
   try {
-    const res = await axios.get(`${API}/invoices/${invoice.id}`);
-    fullInvoice = res?.data || invoice;
+    const result = await getInvoice(invoice.id);
+    fullInvoice = result || invoice;
   } catch (error) {
     console.warn("Could not load full invoice details:", error);
   }
@@ -488,10 +489,10 @@ export default function Invoices() {
     if (!ok) return;
 
     try {
-      const res = await axios.delete(`${API}/invoices/${invoice.id}`);
+      const result = await apiDeleteInvoice(invoice.id);
 
-      if (res?.data?.status === "error") {
-        throw new Error(res.data.message);
+      if (result?.status === "error") {
+        throw new Error(result.message);
       }
 
       const next = invoices.filter((inv) => String(inv.id) !== String(invoice.id));
