@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { Link } from "react-router-dom";
 
 import StatsCard from "../widgets/StatsCard";
 import SalesChart from "../charts/SalesChart";
@@ -37,12 +37,12 @@ import {
   UserRoundCheck,
   Boxes,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/LanguageContext";
-import { getReportsOverview } from "../services/api";
+import { fetchAuthenticatedResource, getDashboardStats, getReportsOverview } from "../services/api";
 
-const API = "http://127.0.0.1:8001";
 
 function toNumber(value) {
   return Number(
@@ -220,7 +220,7 @@ function buildQuickActions(fa) {
 }
 
 export default function Dashboard() {
-  const { t, n, money, dir, language } = useLanguage();
+  const { t, n, money, time, dir, language } = useLanguage();
 
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
@@ -234,13 +234,18 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError("");
-      const statsRes = await axios.get(`${API}/dashboard-stats`);
-      const activityRes = await axios.get(`${API}/activity`).catch(() => ({ data: [] }));
-      const reportsRes = await getReportsOverview().catch(() => null);
+      const [statsData, activityResponse, reportsData] = await Promise.all([
+        getDashboardStats(),
+        fetchAuthenticatedResource("/activity").catch(() => null),
+        getReportsOverview().catch(() => null),
+      ]);
+      const activityData = activityResponse
+        ? await activityResponse.json().catch(() => [])
+        : [];
 
-      setStats(statsRes.data || {});
-      setReports(reportsRes || {});
-      setActivity(safeArray(activityRes.data));
+      setStats(statsData || {});
+      setReports(reportsData || {});
+      setActivity(safeArray(activityData));
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Dashboard loading error:", error);
@@ -317,7 +322,7 @@ export default function Dashboard() {
           {lastUpdate && (
             <p className="text-xs text-slate-500 mt-2">
               {fa ? "آخرین بروزرسانی: " : "Last update: "}
-              {lastUpdate.toLocaleTimeString(fa ? "fa-IR" : "en-US")}
+{time(lastUpdate)}
             </p>
           )}
         </div>
@@ -379,6 +384,12 @@ export default function Dashboard() {
         <StatsCard title={fa ? "کالاهای کم موجود" : "Low stock"} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
       </div>
 
+      <details className="group rounded-[2rem] border border-cyan-400/20 bg-slate-900/40 p-4">
+        <summary className="cursor-pointer list-none rounded-2xl bg-slate-800/80 px-4 py-3 text-cyan-200 font-black flex items-center justify-between gap-3">
+          <span>{fa ? "نمایش جزئیات و تحلیل‌های بیشتر" : "Show more details and analytics"}</span>
+          <ChevronDown className="transition-transform group-open:rotate-180" size={20} />
+        </summary>
+        <div className="pt-4">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginBottom: 30, direction: dir }}>
         <StatsCard title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="#6366f1" />
         <StatsCard title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="#10b981" />
@@ -393,20 +404,22 @@ export default function Dashboard() {
         <BusinessPulse fa={fa} n={n} money={money} reports={reports} stats={dashboardData} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(360px,1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <InventoryAlerts alerts={dashboardData.alerts || []} />
         <AiInsights insight={dashboardData.ai_insight} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(420px,1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <RecentInvoices invoices={dashboardData.recent_invoices || []} />
         <TopProducts products={dashboardData.top_products || []} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(420px,1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <LiveNotification notifications={dashboardData.live_notifications || []} />
         <ActivityTimeline items={activityData} />
       </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -430,7 +443,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
           <div className="text-slate-400 mt-2">{scoreLabel}</div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 min-w-[320px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[320px]">
           <MiniKpi
             fa={fa}
             title={fa ? "سود خالص" : "Net profit"}
@@ -535,14 +548,14 @@ function QuickActions({ fa, actions }) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {actions.map((item, index) => (
-          <a
+          <Link
             key={index}
-            href={item.path}
+            to={item.path}
             className="rounded-2xl bg-slate-800/80 hover:bg-slate-700 border border-white/5 px-4 py-3 text-white font-bold flex items-center justify-center gap-2 transition-all"
           >
             <span className="text-cyan-300">{item.icon}</span>
             {item.title}
-          </a>
+          </Link>
         ))}
       </div>
     </div>
