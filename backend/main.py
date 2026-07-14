@@ -33,6 +33,7 @@ from app.analytics.profit_engine import build_profit_analysis
 from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
 from app.export.pdf_export import build_invoice_pdf
 from app.export.excel_export import build_invoice_excel
+from app.export.localization import format_report_date, format_report_money, localized_digits
 from app.timeline.activity import get_recent_activity
 from app.backup.auto_backup import (
     create_database_backup,
@@ -3094,29 +3095,24 @@ def _esc(value):
     )
 
 
-def _fmt_money(value):
-    try:
-        amount = float(value or 0)
-    except Exception:
-        amount = 0
-    return f"{amount:,.0f} تومان"
+def _fmt_money(value, settings=None, language="fa"):
+    return format_report_money(value, settings, language)
 
 
-def _fmt_date(value):
-    if not value:
-        return "-"
-    try:
-        if hasattr(value, "strftime"):
-            return value.strftime("%Y/%m/%d - %H:%M")
-        return str(value)
-    except Exception:
-        return str(value)
+def _fmt_date(value, settings=None, language="fa"):
+    return format_report_date(value, settings, language, include_time=True)
 
 
-def _print_page(title: str, body_html: str):
+def _print_label(language, fa, en):
+    return fa if language == "fa" else en
+
+
+def _print_page(title: str, body_html: str, language="fa"):
+    language = "fa" if language == "fa" else "en"
+    direction = "rtl" if language == "fa" else "ltr"
     return HTMLResponse(f"""
     <!doctype html>
-    <html lang="fa" dir="rtl">
+    <html lang="{language}" dir="{direction}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -3163,6 +3159,7 @@ def print_invoice_preview(
     page_size: str = "A4",
     template: str = "official",
     edit: int = 1,
+    language: str = "fa",
 ):
     db: Session = SessionLocal()
     try:
@@ -3185,31 +3182,36 @@ def print_invoice_preview(
             AccountingEntry.source_id == invoice.id,
         ).all()
 
+        language = "fa" if language == "fa" else "en"
         def fa_digits(value):
-            return str(value).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+            return localized_digits(value, language)
 
         def money(value):
-            amount = float(value or 0)
-            currency = getattr(settings, "currency", "تومان") or "تومان"
-            return fa_digits(f"{amount:,.0f}") + f" {currency}"
+            return format_report_money(value, settings, language)
 
         def status_fa(value):
-            return {
-                "paid": "تسویه شده",
-                "unpaid": "تسویه نشده",
-                "partial": "تسویه ناقص",
-                "draft": "پیش نویس",
-                "final": "نهایی",
-            }.get(str(value or "").lower(), str(value or "-"))
+            raw = str(value or "").lower()
+            labels = {
+                "paid": "تسویه شده", "unpaid": "تسویه نشده",
+                "partial": "تسویه ناقص", "draft": "پیش نویس", "final": "نهایی",
+            } if language == "fa" else {
+                "paid": "Paid", "unpaid": "Unpaid", "partial": "Partially paid",
+                "draft": "Draft", "final": "Final",
+            }
+            return labels.get(raw, raw or "-")
 
         def invoice_type_fa(value):
-            return {
-                "sale": "فاکتور فروش",
-                "buy": "فاکتور خرید",
-                "proforma": "پیش فاکتور",
-                "return_sale": "مرجوعی فروش",
+            raw = str(value or "")
+            labels = {
+                "sale": "فاکتور فروش", "buy": "فاکتور خرید",
+                "proforma": "پیش فاکتور", "return_sale": "مرجوعی فروش",
                 "return_buy": "مرجوعی خرید",
-            }.get(str(value or ""), str(value or "-"))
+            } if language == "fa" else {
+                "sale": "Sales invoice", "buy": "Purchase invoice",
+                "proforma": "Proforma invoice", "return_sale": "Sales return",
+                "return_buy": "Purchase return",
+            }
+            return labels.get(raw, raw or "-")
 
         def make_qr_data_uri(payload):
             try:
@@ -3282,21 +3284,21 @@ def print_invoice_preview(
 
         company_rows = ""
         if manager_name:
-            company_rows += f"<div>مدیر: {_esc(manager_name)}</div>"
+            company_rows += f"<div>{_print_label(language, 'مدیر:', 'Manager:')} {_esc(manager_name)}</div>"
         if phone:
-            company_rows += f"<div>تلفن: {fa_digits(_esc(phone))}</div>"
+            company_rows += f"<div>{_print_label(language, 'تلفن:', 'Phone:')} {fa_digits(_esc(phone))}</div>"
         if mobile:
-            company_rows += f"<div>موبایل: {fa_digits(_esc(mobile))}</div>"
+            company_rows += f"<div>{_print_label(language, 'موبایل:', 'Mobile:')} {fa_digits(_esc(mobile))}</div>"
         if email:
-            company_rows += f"<div>ایمیل: {_esc(email)}</div>"
+            company_rows += f"<div>{_print_label(language, 'ایمیل:', 'Email:')} {_esc(email)}</div>"
         if website:
-            company_rows += f"<div>وب سایت: {_esc(website)}</div>"
+            company_rows += f"<div>{_print_label(language, 'وب‌سایت:', 'Website:')} {_esc(website)}</div>"
         if national_id:
-            company_rows += f"<div>شناسه ملی: {fa_digits(_esc(national_id))}</div>"
+            company_rows += f"<div>{_print_label(language, 'شناسه ملی:', 'National ID:')} {fa_digits(_esc(national_id))}</div>"
         if economic_code:
-            company_rows += f"<div>کد اقتصادی: {fa_digits(_esc(economic_code))}</div>"
+            company_rows += f"<div>{_print_label(language, 'کد اقتصادی:', 'Economic code:')} {fa_digits(_esc(economic_code))}</div>"
         if address:
-            company_rows += f"<div>آدرس: {_esc(address)}</div>"
+            company_rows += f"<div>{_print_label(language, 'آدرس:', 'Address:')} {_esc(address)}</div>"
 
         rows = ""
         for index, item in enumerate(items, start=1):
@@ -3304,7 +3306,7 @@ def print_invoice_preview(
             rows += f"""
             <tr>
               <td>{fa_digits(index)}</td>
-              <td>{_esc(product.name if product else "نامشخص")}</td>
+              <td>{_esc(product.name if product else _print_label(language, "نامشخص", "Unknown"))}</td>
               <td>{fa_digits(item.quantity)}</td>
               <td>{money(item.unit_price)}</td>
               <td>{money(item.total_price)}</td>
@@ -3329,6 +3331,8 @@ def print_invoice_preview(
             page_class = "thermal58"
 
         editable = "true" if int(edit or 0) == 1 else "false"
+        print_direction = "rtl" if language == "fa" else "ltr"
+        print_align = "right" if language == "fa" else "left"
 
         body = f"""
         <style>
@@ -3345,7 +3349,7 @@ def print_invoice_preview(
             padding: 10px;
             background: #071028;
             border-bottom: 1px solid #164e63;
-            direction: rtl;
+            direction: {print_direction};
           }}
           .toolbar button, .toolbar select {{
             border: 0;
@@ -3358,8 +3362,8 @@ def print_invoice_preview(
           }}
           .toolbar select {{ background:#1e3a8a; color:white; }}
           .page {{
-            direction: rtl;
-            text-align: right;
+            direction: {print_direction};
+            text-align: {print_align};
             background: white;
             color: #0f172a;
             width: 210mm;
@@ -3395,7 +3399,7 @@ def print_invoice_preview(
           }}
           .brand {{ font-size: 28px; font-weight: 900; color: #0891b2; }}
           .company-info {{ font-size: 12px; color: #334155; line-height: 1.9; margin-top: 8px; }}
-          .invoice-title {{ text-align: right; }}
+          .invoice-title {{ text-align: {print_align}; }}
           .invoice-title h1 {{ margin: 0 0 8px; font-size: 32px; color: #0f172a; }}
           .muted {{ color: #64748b; font-size: 12px; }}
           .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }}
@@ -3416,7 +3420,7 @@ def print_invoice_preview(
           }}
           .row {{ display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }}
           .row.final {{ background: #ecfeff; color: #0891b2; font-size: 17px; font-weight: 900; }}
-          .tracking {{ margin-top: 12px; direction: rtl; text-align: right; }}
+          .tracking {{ margin-top: 12px; direction: {print_direction}; text-align: {print_align}; }}
           .codes {{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px; align-items:center; }}
           .qr-img {{ width:96px; height:96px; object-fit:contain; }}
           .barcode-img {{ max-width:260px; max-height:74px; object-fit:contain; }}
@@ -3441,18 +3445,18 @@ def print_invoice_preview(
         </style>
 
         <div class="toolbar no-print">
-          <button onclick="window.print()">چاپ / ذخیره PDF</button>
-          <button onclick="toggleEdit()">ویرایش صفحه</button>
+          <button onclick="window.print()">{_print_label(language, 'چاپ / ذخیره', 'Print / Save')} PDF</button>
+          <button onclick="toggleEdit()">{_print_label(language, 'ویرایش صفحه', 'Edit page')}</button>
           <select onchange="setSize(this.value)">
-            <option value="a4">A4 رسمی</option>
-            <option value="a5">A5 جمع و جور</option>
-            <option value="thermal80">فیش ۸۰ میلی متر</option>
-            <option value="thermal58">فیش ۵۸ میلی متر</option>
+            <option value="a4">A4 {_print_label(language, 'رسمی', 'Official')}</option>
+            <option value="a5">A5 {_print_label(language, 'جمع و جور', 'Compact')}</option>
+            <option value="thermal80">{_print_label(language, 'فیش ۸۰ میلی متر', '80 mm receipt')}</option>
+            <option value="thermal58">{_print_label(language, 'فیش ۵۸ میلی متر', '58 mm receipt')}</option>
           </select>
           <select onchange="setTemplate(this.value)">
-            <option value="official">رسمی</option>
-            <option value="premium">پرمیوم</option>
-            <option value="compact">فشرده</option>
+            <option value="official">{_print_label(language, 'رسمی', 'Official')}</option>
+            <option value="premium">{_print_label(language, 'پرمیوم', 'Premium')}</option>
+            <option value="compact">{_print_label(language, 'فشرده', 'Compact')}</option>
           </select>
         </div>
 
@@ -3460,82 +3464,82 @@ def print_invoice_preview(
           <div class="top">
             <div class="invoice-title">
               <h1>{_esc(invoice_title)}</h1>
-              <div class="muted">شماره: #{fa_digits(invoice.id)}</div>
-              <div class="muted">تاریخ: {fa_digits(_fmt_date(invoice.created_at))}</div>
+              <div class="muted">{_print_label(language, 'شماره:', 'Number:')} #{fa_digits(invoice.id)}</div>
+              <div class="muted">{_print_label(language, 'تاریخ:', 'Date:')} {fa_digits(_fmt_date(invoice.created_at, settings, language))}</div>
             </div>
 
             <div class="brand-box">
               {logo_html}
               <div>
                 <div class="brand">{_esc(company_name)}</div>
-                <div class="muted">سیستم حسابداری و مدیریت فروش</div>
+                <div class="muted">{_print_label(language, 'سیستم حسابداری و مدیریت فروش', 'Accounting and sales management')}</div>
                 <div class="company-info">{company_rows}</div>
               </div>
             </div>
           </div>
 
           <div class="grid">
-            <div class="box"><div class="label">طرف حساب</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
-            <div class="box"><div class="label">موبایل / تلفن</div><div class="value">{fa_digits(_esc(customer_phone)) if customer_phone else "ثبت نشده"}</div></div>
-            <div class="box"><div class="label">آدرس</div><div class="value">{_esc(customer_address) if customer_address else "ثبت نشده"}</div></div>
-            <div class="box"><div class="label">وضعیت تسویه</div><div class="value">{status_fa(getattr(invoice, "payment_status", "unpaid"))}</div></div>
+            <div class="box"><div class="label">{_print_label(language, 'طرف حساب', 'Party')}</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
+            <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{fa_digits(_esc(customer_phone)) if customer_phone else _print_label(language, 'ثبت نشده', 'Not registered')}</div></div>
+            <div class="box"><div class="label">{_print_label(language, 'آدرس', 'Address')}</div><div class="value">{_esc(customer_address) if customer_address else _print_label(language, 'ثبت نشده', 'Not registered')}</div></div>
+            <div class="box"><div class="label">{_print_label(language, 'وضعیت تسویه', 'Settlement status')}</div><div class="value">{status_fa(getattr(invoice, "payment_status", "unpaid"))}</div></div>
           </div>
 
           <table>
             <thead>
               <tr>
-                <th>ردیف</th>
-                <th>شرح کالا / خدمات</th>
-                <th>تعداد</th>
-                <th>قیمت واحد</th>
-                <th>جمع</th>
+                <th>{_print_label(language, 'ردیف', 'Row')}</th>
+                <th>{_print_label(language, 'شرح کالا / خدمات', 'Product / Service')}</th>
+                <th>{_print_label(language, 'تعداد', 'Quantity')}</th>
+                <th>{_print_label(language, 'قیمت واحد', 'Unit price')}</th>
+                <th>{_print_label(language, 'جمع', 'Total')}</th>
               </tr>
             </thead>
             <tbody>{rows}</tbody>
           </table>
 
           <div class="totals">
-            <div class="row"><span>جمع جزء</span><strong>{money(getattr(invoice, "subtotal", 0))}</strong></div>
-            <div class="row"><span>تخفیف</span><strong>{money(getattr(invoice, "discount_amount", 0))}</strong></div>
-            <div class="row"><span>مالیات</span><strong>{money(getattr(invoice, "tax_amount", 0))}</strong></div>
-            <div class="row"><span>حمل</span><strong>{money(getattr(invoice, "shipping_cost", 0))}</strong></div>
-            <div class="row final"><span>مبلغ نهایی</span><strong>{money(total_amount)}</strong></div>
-            <div class="row"><span>پرداخت / دریافت شده</span><strong>{money(settled_amount)}</strong></div>
-            <div class="row"><span>باقی مانده</span><strong>{money(remaining_amount)}</strong></div>
+            <div class="row"><span>{_print_label(language, 'جمع جزء', 'Subtotal')}</span><strong>{money(getattr(invoice, "subtotal", 0))}</strong></div>
+            <div class="row"><span>{_print_label(language, 'تخفیف', 'Discount')}</span><strong>{money(getattr(invoice, "discount_amount", 0))}</strong></div>
+            <div class="row"><span>{_print_label(language, 'مالیات', 'Tax')}</span><strong>{money(getattr(invoice, "tax_amount", 0))}</strong></div>
+            <div class="row"><span>{_print_label(language, 'حمل', 'Shipping')}</span><strong>{money(getattr(invoice, "shipping_cost", 0))}</strong></div>
+            <div class="row final"><span>{_print_label(language, 'مبلغ نهایی', 'Grand total')}</span><strong>{money(total_amount)}</strong></div>
+            <div class="row"><span>{_print_label(language, 'پرداخت / دریافت شده', 'Settled')}</span><strong>{money(settled_amount)}</strong></div>
+            <div class="row"><span>{_print_label(language, 'باقی مانده', 'Remaining')}</span><strong>{money(remaining_amount)}</strong></div>
           </div>
 
           <div class="box" style="margin-top:16px">
-            <div class="label">توضیحات</div>
+            <div class="label">{_print_label(language, 'توضیحات', 'Notes')}</div>
             <div class="value">{_esc(getattr(invoice, "invoice_note", "") or "-")}</div>
           </div>
 
           <div class="box tracking">
-            <div class="label">اطلاعات تراکنش</div>
-            <div class="value">فاکتور شماره {fa_digits(invoice.id)} | مبلغ کل: {money(total_amount)} | باقی مانده: {money(remaining_amount)}</div>
+            <div class="label">{_print_label(language, 'اطلاعات تراکنش', 'Transaction details')}</div>
+            <div class="value">{_print_label(language, 'فاکتور شماره', 'Invoice number')} {fa_digits(invoice.id)} | {_print_label(language, 'مبلغ کل:', 'Total:')} {money(total_amount)} | {_print_label(language, 'باقی مانده', 'Remaining')}: {money(remaining_amount)}</div>
           </div>
 
           <div class="codes">
             <div class="box" style="text-align:center">
-              <div class="label">QR فاکتور</div>
-              {qr_html or "<div class='value'>QR فعال نیست</div>"}
+              <div class="label">{_print_label(language, 'QR فاکتور', 'Invoice QR')}</div>
+              {qr_html or ("<div class='value'>" + _print_label(language, 'QR فعال نیست', 'QR is disabled') + "</div>")}
             </div>
             <div class="box" style="text-align:center">
-              <div class="label">بارکد فاکتور</div>
-              {barcode_html or "<div class='value'>بارکد فعال نیست</div>"}
+              <div class="label">{_print_label(language, 'بارکد فاکتور', 'Invoice barcode')}</div>
+              {barcode_html or ("<div class='value'>" + _print_label(language, 'بارکد فعال نیست', 'Barcode is disabled') + "</div>")}
             </div>
           </div>
 
           <div class="box" style="margin-top:14px">
-            <div class="value">{_esc(invoice_footer or "با تشکر از اعتماد شما")}</div>
+            <div class="value">{_esc(invoice_footer or _print_label(language, 'با تشکر از اعتماد شما', 'Thank you for your trust'))}</div>
           </div>
 
           <div class="footer">
             <div class="sign">
-              امضاء فروشنده / حسابدار
+              {_print_label(language, 'امضاء فروشنده / حسابدار', 'Seller / Accountant signature')}
               {signature_html}
             </div>
             <div class="sign">
-              مهر شرکت / امضاء طرف حساب
+              {_print_label(language, 'مهر شرکت / امضاء طرف حساب', 'Company stamp / Party signature')}
               {stamp_html}
             </div>
           </div>
@@ -3556,20 +3560,20 @@ def print_invoice_preview(
           function toggleEdit() {{
             editable = !editable;
             document.getElementById("invoicePage").setAttribute("contenteditable", editable ? "true" : "false");
-            alert(editable ? "ویرایش صفحه فعال شد. روی متن‌ها کلیک کنید و تغییر دهید." : "ویرایش صفحه غیرفعال شد.");
+            alert(editable ? "{_print_label(language, 'ویرایش صفحه فعال شد.', 'Page editing enabled.')}" : "{_print_label(language, 'ویرایش صفحه غیرفعال شد.', 'Page editing disabled.')}");
           }}
         </script>
         """
 
         db.close()
-        return _print_page(invoice_title, body)
+        return _print_page(invoice_title, body, language)
 
     except Exception as e:
         db.close()
         return HTMLResponse(f"<h2>خطا</h2><pre>{_esc(e)}</pre>", status_code=500)
 
 @app.get("/print/transaction/{entry_id}")
-def print_transaction_receipt(entry_id: int):
+def print_transaction_receipt(entry_id: int, language: str = "fa"):
     db: Session = SessionLocal()
     try:
         entry = db.query(AccountingEntry).filter(AccountingEntry.id == entry_id).first()
@@ -3577,6 +3581,8 @@ def print_transaction_receipt(entry_id: int):
             db.close()
             return HTMLResponse("<h2>Transaction not found</h2>", status_code=404)
 
+        language = "fa" if language == "fa" else "en"
+        settings = get_or_create_settings(db)
         customer = db.query(Customer).filter(Customer.id == entry.customer_id).first()
 
         invoice = None
@@ -3584,7 +3590,7 @@ def print_transaction_receipt(entry_id: int):
             invoice = db.query(Invoice).filter(Invoice.id == entry.source_id).first()
 
         is_receipt = entry.source_type == "receipt"
-        title = "رسید دریافت" if is_receipt else "رسید پرداخت"
+        title = (_print_label(language, "رسید دریافت", "Receipt") if is_receipt else _print_label(language, "رسید پرداخت", "Payment"))
         amount = float(entry.credit or entry.debit or 0)
         method = "-"
 
@@ -3592,42 +3598,42 @@ def print_transaction_receipt(entry_id: int):
         <div class="top">
           <div>
             <div class="brand">Vetrix ERP</div>
-            <div class="muted">رسید رسمی دریافت و پرداخت</div>
+            <div class="muted">{_print_label(language, 'رسید رسمی دریافت و پرداخت', 'Official payment and receipt voucher')}</div>
           </div>
           <div style="text-align:left">
             <h1>{_esc(title)}</h1>
-            <div class="muted">شماره رسید: #{entry.id}</div>
-            <div class="muted">تاریخ: {_fmt_date(entry.created_at)}</div>
+            <div class="muted">{_print_label(language, 'شماره رسید:', 'Voucher number:')} #{entry.id}</div>
+            <div class="muted">{_print_label(language, 'تاریخ:', 'Date:')} {_fmt_date(entry.created_at, settings, language)}</div>
           </div>
         </div>
 
         <div class="grid">
-          <div class="box"><div class="label">طرف حساب</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
-          <div class="box"><div class="label">موبایل / تلفن</div><div class="value">{_esc(getattr(customer, "phone", "") if customer else "-")}</div></div>
-          <div class="box"><div class="label">نوع سند</div><div class="value">{_esc(title)}</div></div>
-          <div class="box"><div class="label">مبلغ</div><div class="value">{_fmt_money(amount)}</div></div>
-          <div class="box"><div class="label">روش پرداخت</div><div class="value">{_esc(method)}</div></div>
-          <div class="box"><div class="label">فاکتور مرتبط</div><div class="value">{("#" + str(invoice.id)) if invoice else "بدون فاکتور"}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'طرف حساب', 'Party')}</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{_esc(getattr(customer, "phone", "") if customer else "-")}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'نوع سند', 'Document type')}</div><div class="value">{_esc(title)}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'مبلغ', 'Amount')}</div><div class="value">{_fmt_money(amount, settings, language)}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'روش پرداخت', 'Payment method')}</div><div class="value">{_esc(method)}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'فاکتور مرتبط', 'Linked invoice')}</div><div class="value">{("#" + str(invoice.id)) if invoice else _print_label(language, 'بدون فاکتور', 'No linked invoice')}</div></div>
         </div>
 
         <div class="box" style="margin-top:16px">
-          <div class="label">شرح</div>
+          <div class="label">{_print_label(language, 'شرح', 'Description')}</div>
           <div class="value">{_esc(entry.description)}</div>
         </div>
 
         <div class="box" style="margin-top:12px">
-          <div class="label">مانده بعد از ثبت</div>
-          <div class="value">{_fmt_money(entry.balance_after)}</div>
+          <div class="label">{_print_label(language, 'مانده بعد از ثبت', 'Balance after posting')}</div>
+          <div class="value">{_fmt_money(entry.balance_after, settings, language)}</div>
         </div>
 
         <div class="footer">
-          <div class="sign">امضاء دریافت‌کننده</div>
-          <div class="sign">امضاء پرداخت‌کننده</div>
+          <div class="sign">{_print_label(language, 'امضاء دریافت‌کننده', 'Recipient signature')}</div>
+          <div class="sign">{_print_label(language, 'امضاء پرداخت‌کننده', 'Payer signature')}</div>
         </div>
         """
 
         db.close()
-        return _print_page(title, body)
+        return _print_page(title, body, language)
 
     except Exception as e:
         db.close()
@@ -3684,13 +3690,28 @@ def export_pdf(
 
 
 @app.get("/export/invoices-excel")
-def export_excel():
+def export_excel(language: str = "en"):
     db: Session = SessionLocal()
-    invoices = db.query(Invoice).all()
-    path = build_invoice_excel(invoices)
-    db.close()
-    return FileResponse(
-        path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename="vetrix_invoices.xlsx"
-    )
+    try:
+        language = "fa" if language == "fa" else "en"
+        invoices = db.query(Invoice).all()
+        settings = get_or_create_settings(db)
+        customer_ids = [item.customer_id for item in invoices if item.customer_id]
+        customer_rows = (
+            db.query(Customer).filter(Customer.id.in_(customer_ids)).all()
+            if customer_ids else []
+        )
+        customers = {customer.id: customer.name for customer in customer_rows}
+        path = build_invoice_excel(
+            invoices,
+            settings=settings,
+            customers=customers,
+            language=language,
+        )
+        return FileResponse(
+            path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=f"vetrix_invoices_{language}.xlsx",
+        )
+    finally:
+        db.close()
