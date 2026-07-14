@@ -4,6 +4,7 @@ import re
 import shutil
 import sqlite3
 import threading
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -142,6 +143,58 @@ def verify_database_backup(filename):
             raise FileNotFoundError("Backup not found")
         return backup_info(path, verify=True)
 
+
+
+def test_restore_database_backup(filename):
+    """Validate a restore candidate in isolation without mutating live data."""
+    with BACKUP_LOCK:
+        backup_path = _safe_backup_path(filename)
+        if not backup_path.exists():
+            raise FileNotFoundError("Backup not found")
+        temporary = backup_directory() / f".restore-test-{uuid.uuid4().hex}.db"
+        try:
+            shutil.copy2(backup_path, temporary)
+            with sqlite3.connect(str(temporary)) as connection:
+                integrity_rows = connection.execute("PRAGMA integrity_check").fetchall()
+                integrity_messages = [str(row[0]) for row in integrity_rows]
+                tables = {
+                    row[0] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ).fetchall()
+                }
+                required = {"users", "customers", "products", "invoices", "accounting_entries"}
+                missing = sorted(required - tables)
+                counts = {}
+                for table in sorted(required & tables):
+                    counts[table] = int(connection.execute(
+                        f'SELECT COUNT(*) FROM "{table}"'
+                    ).fetchone()[0])
+            valid = integrity_messages == ["ok"] and not missing
+            return {
+                "filename": filename,
+                "valid": valid,
+                "integrity_messages": integrity_messages,
+                "missing_core_tables": missing,
+                "core_row_counts": counts,
+                "table_count": len(tables),
+                "sha256": _sha256(temporary),
+                "tested_at": _utc_now().isoformat(),
+                "live_database_changed": False,
+            }
+        except sqlite3.DatabaseError as error:
+            return {
+                "filename": filename,
+                "valid": False,
+                "integrity_messages": [str(error)],
+                "missing_core_tables": [],
+                "core_row_counts": {},
+                "table_count": 0,
+                "sha256": _sha256(temporary) if temporary.exists() else "",
+                "tested_at": _utc_now().isoformat(),
+                "live_database_changed": False,
+            }
+        finally:
+            temporary.unlink(missing_ok=True)
 
 def delete_database_backup(filename):
     with BACKUP_LOCK:
