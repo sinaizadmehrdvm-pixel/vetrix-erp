@@ -166,3 +166,88 @@ img, svg { max-width: 100%; }
 @media (max-width: 380px) {
   .erp-import-metrics { grid-template-columns: 1fr; }
 }
+
+
+/* Unified forms and data tables */
+.erp-main :where(form, fieldset, .erp-form, .erp-surface) { min-width: 0; }
+.erp-main fieldset { margin: 0; padding: 0; border: 0; }
+.erp-main :where(label) { overflow-wrap: anywhere; }
+.erp-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  color: var(--erp-text);
+  background-color: var(--erp-panel-solid);
+  border-color: var(--erp-border);
+  text-align: start;
+}
+.erp-main :where(input, select, textarea)::placeholder { color: var(--erp-muted); opacity: .9; }
+.erp-main :where(textarea) { min-height: 108px; resize: vertical; line-height: 1.65; }
+.erp-main :where(input[type="checkbox"], input[type="radio"]) {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex: 0 0 auto;
+  accent-color: var(--erp-accent);
+}
+.erp-main :where(input[type="tel"], input[type="email"], input[type="url"]) {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+.erp-main :where(input[inputmode="numeric"], input[inputmode="decimal"], input[type="number"]) {
+  font-variant-numeric: tabular-nums;
+}
+[dir="rtl"] .erp-main :where(input[inputmode="numeric"], input[inputmode="decimal"], input[type="number"]) {
+  direction: rtl;
+}
+.erp-main :where(table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.erp-main :where(th, td) {
+  max-width: 28rem;
+  padding: 11px 12px;
+  text-align: start;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.erp-main :where(th) {
+  color: var(--erp-accent);
+  background: var(--erp-panel-solid);
+}
+.erp-main :where(tbody tr) { transition: background-color .18s ease; }
+.erp-main :where(tbody tr:hover) { background: var(--erp-glow); }
+.erp-main :where(.overflow-x-auto, .erp-table-scroll) {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.erp-main :where(.overflow-x-auto, .erp-table-scroll):focus-visible {
+  outline: 3px solid var(--erp-accent);
+  outline-offset: 2px;
+}
+.erp-main :where(.tabular-nums, [data-numeric]) { font-variant-numeric: tabular-nums; }
+.erp-main :where([dir="ltr"]) { unicode-bidi: isolate; }
+
+@media (max-width: 640px) {
+  .erp-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: 46px;
+    font-size: 16px;
+  }
+  .erp-main :where(button, [role="button"], a[class*="rounded"]) { min-height: 44px; }
+  .erp-main :where(table) { min-width: 680px; }
+  .erp-main :where(.overflow-x-auto, .erp-table-scroll) {
+    margin-inline: -2px;
+    padding-block-end: 5px;
+  }
+  .erp-main :where(th, td) { padding: 10px; }
+}
+
+@media print {
+  body { overflow: visible; background: #fff; color: #111827; }
+  .erp-sidebar, .erp-mobile-menu, .erp-sidebar-backdrop, .erp-skip-link { display: none !important; }
+  .erp-layout, .erp-main { display: block; height: auto; overflow: visible; background: #fff !important; color: #111827 !important; }
+  .erp-main { padding: 0; }
+  .erp-main :where(.overflow-x-auto, .erp-table-scroll) { overflow: visible; border: 0; }
+  .erp-main :where(table) { min-width: 0; color: #111827; }
+}
