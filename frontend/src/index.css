@@ -128,3 +128,41 @@ img, svg { max-width: 100%; }
   .erp-mobile-menu { width: 44px; justify-content: center; padding: 9px; }
   input, select, textarea, button { max-width: 100%; }
 }
+
+.erp-skip-link {
+  position: fixed;
+  inset-block-start: 8px;
+  inset-inline-start: 50%;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--erp-accent);
+  color: #071028;
+  font-weight: 900;
+  text-decoration: none;
+  transform: translate(-50%, -160%);
+}
+.erp-skip-link:focus { transform: translate(-50%, 0); }
+.erp-table-scroll {
+  width: 100%;
+  margin-top: 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--erp-border);
+  border-radius: 16px;
+}
+.erp-data-table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.erp-data-table :where(th, td) { padding: 11px 12px; text-align: start; border-bottom: 1px solid var(--erp-border); }
+.erp-data-table th { position: sticky; top: 0; background: var(--erp-panel-solid); color: var(--erp-accent); }
+.erp-import-metrics { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 9px; }
+.erp-main :where(input, select, textarea) { min-height: 42px; }
+.erp-main :where(button, [role="button"]) { min-height: 42px; }
+@media (max-width: 640px) {
+  .erp-import-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .erp-main :where(.grid) { min-width: 0; }
+  .erp-main :where(h1) { font-size: clamp(1.55rem, 8vw, 2.25rem) !important; line-height: 1.2; }
+  .erp-main :where(h2) { font-size: clamp(1.2rem, 6vw, 1.65rem) !important; }
+}
+@media (max-width: 380px) {
+  .erp-import-metrics { grid-template-columns: 1fr; }
+}
