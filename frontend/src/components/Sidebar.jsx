@@ -4,7 +4,7 @@ import {
   LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
-  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale,
+  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -66,6 +66,7 @@ const groups = [
       { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
       { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
       { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
+      { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
       { key: "financialPolicy", fa: "سیاست مالی تأییدشده", en: "Verified financial policy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
       { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },

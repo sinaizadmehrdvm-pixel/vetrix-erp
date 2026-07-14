@@ -66,6 +66,7 @@ from app.system_health import router as system_health_router
 from app.online_commerce import router as online_commerce_router
 from app.change_requests import router as change_requests_router
 from app.financial_policy import financial_policy_values, router as financial_policy_router
+from app.data_import import router as data_import_router
 from app.rbac import (
     ROLE_LABELS,
     is_authorized,
@@ -262,6 +263,7 @@ app.include_router(system_health_router)
 app.include_router(online_commerce_router)
 app.include_router(change_requests_router)
 app.include_router(financial_policy_router)
+app.include_router(data_import_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
