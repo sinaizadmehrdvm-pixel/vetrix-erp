@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, UsersRound, Package, Receipt, Wallet, BarChart3, Settings,
   LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
-  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet,
+  WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
 } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/LanguageContext";
 import LanguageSwitcher from "./language/LanguageSwitcher";
@@ -76,19 +76,36 @@ const groups = [
 
 export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout, user } = useAuth();
   const { t, dir, language } = useLanguage();
   const fa = language === "fa";
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useState(() => localStorage.getItem("vetrix_sidebar_compact") === "true");
   const [expanded, setExpanded] = useState(() => ({ daily: true }));
+  const [query, setQuery] = useState("");
 
-  const visibleGroups = useMemo(
-    () => groups.map((group) => ({
+  useEffect(() => {
+    localStorage.setItem("vetrix_sidebar_compact", String(compact));
+  }, [compact]);
+
+  useEffect(() => {
+    const activeGroup = groups.find((group) =>
+      group.items.some((item) => item.path === location.pathname)
+    );
+    if (activeGroup) setExpanded((current) => ({ ...current, [activeGroup.id]: true }));
+  }, [location.pathname]);
+
+  const visibleGroups = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase(language);
+    return groups.map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.roles || item.roles.includes(user?.role || "viewer")),
-    })).filter((group) => group.items.length),
-    [user?.role],
-  );
+      items: group.items.filter((item) => {
+        const permitted = !item.roles || item.roles.includes(user?.role || "viewer");
+        const searchable = `${label(item)} ${item.key} ${group.fa} ${group.en}`.toLocaleLowerCase(language);
+        return permitted && (!normalizedQuery || searchable.includes(normalizedQuery));
+      }),
+    })).filter((group) => group.items.length);
+  }, [user?.role, query, language, t]);
 
   function label(item) {
     if (item.fa || item.en) return fa ? item.fa : item.en;
@@ -134,6 +151,25 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
 
       {!compact && <div className="mb-4"><LanguageSwitcher /></div>}
 
+      {!compact && (
+        <label className="erp-surface mb-4 flex items-center gap-2 rounded-2xl px-3 py-2">
+          <Search size={18} aria-hidden="true" style={{ color: "var(--erp-accent)" }} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={fa ? "جستجو در امکانات…" : "Search features…"}
+            aria-label={fa ? "جستجو در منوی برنامه" : "Search application menu"}
+            className="min-w-0 flex-1 border-0 bg-transparent outline-none"
+            style={{ color: "var(--erp-text)" }}
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery("")} aria-label={fa ? "پاک‌کردن جستجو" : "Clear search"} className="p-1">
+              <X size={16} />
+            </button>
+          )}
+        </label>
+      )}
+
       <nav className="flex flex-col gap-2">
         {visibleGroups.map((group) => (
           <section key={group.id}>
@@ -150,7 +186,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
               </button>
             )}
 
-            {(compact || expanded[group.id]) && (
+            {(compact || query || expanded[group.id]) && (
               <div className="flex flex-col gap-1.5 mt-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
