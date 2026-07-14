@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, FileAudio, Mic, MicOff, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
+import { Check, FileAudio, Mic, MicOff, PencilLine, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
@@ -152,6 +152,21 @@ export default function ChangeRequestCenter() {
     }
   }
 
+  async function reviewTranscript(id, payload) {
+    try {
+      await api(`/${id}/review-transcript`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast.success(fa ? "متن بازبینی و برای تأیید نهایی آماده شد." : "Transcript reviewed and queued for final approval.");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
+      throw error;
+    }
+  }
+
   async function decide(id, action) {
     const note = window.prompt(action === "reject" ? (fa ? "دلیل رد را وارد کنید:" : "Enter rejection reason:") : (fa ? "یادداشت تأیید (اختیاری):" : "Approval note (optional):"), "");
     if (note === null || (action === "reject" && !note.trim())) return;
@@ -214,7 +229,7 @@ export default function ChangeRequestCenter() {
 
         <section className="space-y-3">
           <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{fa ? "امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است." : "Security: requesters cannot approve their own request and arbitrary commands are forbidden."}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} />)}
+          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} products={products} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} />)}
           {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{fa ? "درخواستی وجود ندارد." : "No requests yet."}</div>}
         </section>
       </div>
@@ -225,7 +240,87 @@ export default function ChangeRequestCenter() {
 const inputStyle = { width: "100%", padding: 12, borderRadius: 12, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" };
 function Field({ label, children }) { return <label className="block text-sm font-bold space-y-1"><span>{label}</span>{children}</label>; }
 
-function RequestCard({ item, fa, canApprove, onApprove, onReject, onAudio }) {
-  const status = { draft: fa ? "پیش‌نویس" : "Draft", pending_approval: fa ? "در انتظار تأیید" : "Pending approval", applied: fa ? "اعمال‌شده" : "Applied", rejected: fa ? "ردشده" : "Rejected", failed: fa ? "ناموفق" : "Failed" }[item.status] || item.status;
-  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div><span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span></div><p className="mt-4 whitespace-pre-wrap">{item.transcript}</p>{item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{fa ? "دریافت فایل صوتی امن" : "Download secured audio"}</button>}<pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>{item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}{canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}</article>;
+function RequestCard({ item, fa, products, canReview, canApprove, onReview, onApprove, onReject, onAudio }) {
+  const status = {
+    draft: fa ? "پیش‌نویس" : "Draft",
+    needs_transcript_review: fa ? "نیازمند بازبینی متن" : "Transcript review required",
+    pending_approval: fa ? "در انتظار تأیید" : "Pending approval",
+    applied: fa ? "اعمال‌شده" : "Applied",
+    rejected: fa ? "ردشده" : "Rejected",
+    failed: fa ? "ناموفق" : "Failed",
+  }[item.status] || item.status;
+  return <article className="erp-surface rounded-2xl p-5">
+    <div className="flex justify-between gap-3">
+      <div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div>
+      <span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span>
+    </div>
+    <p className="mt-4 whitespace-pre-wrap">{item.transcript}</p>
+    {item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{fa ? "دریافت فایل صوتی امن" : "Download secured audio"}</button>}
+    <pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>
+    {item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}
+    {canReview && <TranscriptReviewer item={item} products={products} fa={fa} onReview={onReview} />}
+    {canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}
+  </article>;
+}
+
+function TranscriptReviewer({ item, products, fa, onReview }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [review, setReview] = useState({
+    transcript: item.transcript || "",
+    action_type: "note_only",
+    target_id: "",
+    field: "online_price",
+    value: "",
+    campaign_title: "",
+    campaign_channel: "instagram",
+  });
+
+  async function submitReview() {
+    let proposed_changes = {};
+    let target_id = null;
+    if (review.action_type === "online_product_update") {
+      target_id = Number(review.target_id);
+      let value = review.value;
+      if (["online_price", "discount_percent"].includes(review.field)) value = Number(value);
+      if (["is_published", "sync_stock"].includes(review.field)) value = value === "true";
+      proposed_changes = { [review.field]: value };
+    }
+    if (review.action_type === "campaign_draft") {
+      proposed_changes = {
+        title: review.campaign_title,
+        channel: review.campaign_channel,
+        body: review.transcript,
+      };
+    }
+    setSaving(true);
+    try {
+      await onReview({
+        transcript: review.transcript,
+        action_type: review.action_type,
+        target_id,
+        proposed_changes,
+      });
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="mt-4 rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#f59e0b", color: "#451a03" }}><PencilLine size={17} />{fa ? "بازبینی متن و نوع تغییر" : "Review transcript & action"}</button>;
+
+  return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
+    <Field label={fa ? "متن نهایی تأییدشده توسط مدیر" : "Manager-reviewed final transcript"}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: e.target.value })} /></Field>
+    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option></select></Field>
+    {review.action_type === "online_product_update" && <>
+      <Field label={fa ? "کالا" : "Product"}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
+      <Field label={fa ? "فیلد مجاز" : "Allowed field"}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{fa ? "قیمت سایت" : "Online price"}</option><option value="discount_percent">{fa ? "درصد تخفیف" : "Discount percent"}</option><option value="is_published">{fa ? "انتشار" : "Published"}</option><option value="sync_stock">{fa ? "همگام‌سازی موجودی" : "Stock sync"}</option></select></Field>
+      <Field label={fa ? "مقدار جدید" : "New value"}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{fa ? "انتخاب" : "Choose"}</option><option value="true">{fa ? "فعال" : "Enabled"}</option><option value="false">{fa ? "غیرفعال" : "Disabled"}</option></select> : <input type="number" min="0" style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })} />}</Field>
+    </>}
+    {review.action_type === "campaign_draft" && <>
+      <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
+      <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel}>{channel}</option>)}</select></Field>
+    </>}
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-slate-600 text-white">{fa ? "انصراف" : "Cancel"}</button></div>
+  </div>;
 }
