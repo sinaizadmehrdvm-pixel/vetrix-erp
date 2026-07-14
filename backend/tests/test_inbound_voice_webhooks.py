@@ -4,12 +4,13 @@ import json
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 
-from app import inbound_voice
+from app import change_requests, inbound_voice
 
 
 class VerifiedVoiceWebhookTests(unittest.TestCase):
@@ -40,10 +41,15 @@ class VerifiedVoiceWebhookTests(unittest.TestCase):
             "VETRIX_VOICE_SERVICE_USER_ID": "7",
         })
         self.engine_patch = patch.object(inbound_voice, "engine", self.engine)
+        self.change_engine_patch = patch.object(
+            change_requests, "engine", self.engine
+        )
         self.env.start()
         self.engine_patch.start()
+        self.change_engine_patch.start()
 
     def tearDown(self):
+        self.change_engine_patch.stop()
         self.engine_patch.stop()
         self.env.stop()
         self.engine.dispose()
@@ -73,7 +79,7 @@ class VerifiedVoiceWebhookTests(unittest.TestCase):
             "telegram", "update-42", "1001", "1001:42", "", "file-42"
         )
 
-        self.assertEqual(first["status"], "pending_approval")
+        self.assertEqual(first["status"], "needs_transcript_review")
         self.assertEqual(second["status"], "duplicate")
         self.assertEqual(first["request_id"], second["request_id"])
         with self.engine.begin() as conn:
@@ -84,10 +90,51 @@ class VerifiedVoiceWebhookTests(unittest.TestCase):
             events = conn.execute(
                 text("SELECT COUNT(*) FROM inbound_voice_events")
             ).scalar()
-        self.assertEqual(request["status"], "pending_approval")
+        self.assertEqual(request["status"], "needs_transcript_review")
         self.assertEqual(request["action_type"], "note_only")
         self.assertEqual(request["requested_by"], 7)
         self.assertEqual(events, 1)
+
+    def test_manager_review_promotes_transcript_to_approval_queue(self):
+        created = inbound_voice._ingest(
+            "telegram", "update-review", "1001", "1001:77", "", "file-77"
+        )
+        manager_request = SimpleNamespace(
+            state=SimpleNamespace(auth={"sub": "99", "role": "admin"})
+        )
+        reviewed = change_requests.review_transcript(
+            created["request_id"],
+            change_requests.TranscriptReviewPayload(
+                transcript="Reviewed operational note",
+                action_type="note_only",
+                proposed_changes={},
+            ),
+            manager_request,
+        )
+
+        self.assertEqual(reviewed["status"], "pending_approval")
+        with self.engine.begin() as conn:
+            request = conn.execute(text("""
+                SELECT status, transcript, submitted_at
+                FROM managed_change_requests WHERE id=:id
+            """), {"id": created["request_id"]}).mappings().one()
+            event_types = [
+                row[0] for row in conn.execute(text("""
+                    SELECT event_type FROM managed_change_events
+                    WHERE request_id=:id ORDER BY id
+                """), {"id": created["request_id"]}).all()
+            ]
+        self.assertEqual(request["status"], "pending_approval")
+        self.assertEqual(request["transcript"], "Reviewed operational note")
+        self.assertIsNotNone(request["submitted_at"])
+        self.assertEqual(
+            event_types,
+            [
+                "verified_external_voice_received",
+                "transcript_reviewed",
+                "submitted",
+            ],
+        )
 
     def test_unlisted_sender_is_rejected_before_database_write(self):
         with self.assertRaises(HTTPException) as raised:
