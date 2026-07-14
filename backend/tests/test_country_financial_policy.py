@@ -39,10 +39,14 @@ class CountryFinancialPolicyContractTests(unittest.TestCase):
             _validate(self.policy(calendar_system="fictional"))
 
     def test_invalid_country_and_currency_codes_are_rejected(self):
+        with self.assertRaises(ValueError):
+            self.policy(country_code="FIN")
         with self.assertRaisesRegex(HTTPException, "country_code"):
-            _validate(self.policy(country_code="FIN"))
+            _validate(self.policy(country_code="F1"))
+        with self.assertRaises(ValueError):
+            self.policy(currency_code="EU")
         with self.assertRaisesRegex(HTTPException, "currency_code"):
-            _validate(self.policy(currency_code="EU"))
+            _validate(self.policy(currency_code="E1R"))
 
     def test_invalid_fiscal_start_is_rejected(self):
         with self.assertRaisesRegex(HTTPException, "fiscal year"):
