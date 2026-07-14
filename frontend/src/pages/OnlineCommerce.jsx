@@ -7,6 +7,15 @@ import { useAuth } from "../auth/AuthContext";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
 
+async function storefrontApi(path) {
+  const response = await fetch(`${API_URL}/api/storefront-sync${path}`, {
+    headers: getAuthHeaders(),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Storefront sync check failed");
+  return data;
+}
+
 async function voiceApi(path, options = {}) {
   const response = await fetch(`${API_URL}/api/inbound-voice${path}`, {
     ...options,
@@ -37,6 +46,7 @@ export default function OnlineCommerce() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [storefrontStatus, setStorefrontStatus] = useState(null);
   const [checkingConnections, setCheckingConnections] = useState(false);
   const [campaign, setCampaign] = useState({
     title: "", body: "", channel: "instagram", product_id: "", media_url: "",
@@ -75,13 +85,18 @@ export default function OnlineCommerce() {
     if (!["admin", "accountant"].includes(user?.role)) return;
     setCheckingConnections(true);
     try {
-      const result = await voiceApi(showToast ? "/diagnostics" : "/status", {
-        method: showToast ? "POST" : "GET",
-      });
+      const [result, storefront] = await Promise.all([
+        voiceApi(showToast ? "/diagnostics" : "/status", {
+          method: showToast ? "POST" : "GET",
+        }),
+        storefrontApi("/readiness"),
+      ]);
       setConnectionStatus(result);
+      setStorefrontStatus(storefront);
       if (showToast) {
-        toast.success(result.all_ready
-          ? (fa ? "همه اتصال‌های صوتی آماده‌اند." : "All voice connections are ready.")
+        const allReady = result.all_ready && storefront.ready;
+        toast.success(allReady
+          ? (fa ? "همه اتصال‌های صوتی و سایت آماده‌اند." : "Voice and storefront connections are ready.")
           : (fa ? "برخی تنظیمات اتصال هنوز کامل نیست." : "Some connection settings are incomplete."));
       }
     } catch (error) {
@@ -253,7 +268,18 @@ export default function OnlineCommerce() {
               </div>
             </article>
           </div>}
-          <div className="grid grid-cols-3 gap-3 mt-5">{["website", "instagram", "linkedin"].map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "فاز اتصال بعدی" : "Next connector phase"}</span></div>)}</div>
+          {storefrontStatus && <article className="rounded-2xl p-5 mt-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${storefrontStatus.ready ? "#22c55e" : "#f59e0b"}` }}>
+            <div className="flex items-center justify-between gap-3"><strong className="text-lg">{fa ? "همگام‌سازی فروشگاه" : "Storefront synchronization"}</strong>{storefrontStatus.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
+            <p className="mt-3 font-black" style={{ color: storefrontStatus.ready ? "#86efac" : "#fcd34d" }}>{storefrontStatus.ready ? (fa ? "فید امضاشده آماده اتصال است" : "Signed feed is ready") : (fa ? "Secret همگام‌سازی هنوز تنظیم نشده" : "Synchronization secret is not configured")}</p>
+            <code className="block mt-3 text-xs" dir="ltr">{storefrontStatus.feed_path}</code>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-center">
+              <ConnectionMetric label={fa ? "کالای منتشرشده" : "Published products"} value={n(storefrontStatus.published_products)} />
+              <ConnectionMetric label={fa ? "همگام با موجودی" : "Stock synced"} value={n(storefrontStatus.stock_synced_products)} />
+              <ConnectionMetric label={fa ? "امضای امنیتی" : "Security signature"} value={storefrontStatus.signature_algorithm} />
+              <ConnectionMetric label={fa ? "افشای Secret" : "Secret exposure"} value={storefrontStatus.secrets_exposed ? (fa ? "خطر" : "Risk") : (fa ? "صفر" : "None")} />
+            </div>
+          </article>}
+          <div className="grid grid-cols-2 gap-3 mt-5">{["instagram", "linkedin"].map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "فاز اتصال بعدی" : "Next connector phase"}</span></div>)}</div>
         </div>
       )}
     </div>

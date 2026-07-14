@@ -28,6 +28,12 @@ class AuthenticationPolicyTests(unittest.TestCase):
         self.assertFalse(
             is_public_request("/api/inbound-voice/telegram/debug", "GET")
         )
+        self.assertTrue(
+            is_public_request("/api/storefront-sync/products", "GET")
+        )
+        self.assertFalse(
+            is_public_request("/api/storefront-sync/readiness", "GET")
+        )
         self.assertFalse(is_public_request("/customers", "GET"))
         self.assertFalse(is_public_request("/export/invoices-pdf", "GET"))
 
