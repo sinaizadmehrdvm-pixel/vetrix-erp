@@ -9,6 +9,7 @@ import {
   RefreshCw,
   RotateCcw,
   ShieldAlert,
+  TestTube2,
   Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,6 +22,7 @@ import {
   downloadBackup,
   getBackups,
   restoreBackup,
+  testRestoreBackup,
   verifyBackup,
 } from "../services/backupApi";
 
@@ -33,6 +35,7 @@ export default function BackupRecovery() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState("");
+  const [rehearsals, setRehearsals] = useState({});
   const [error, setError] = useState("");
 
   const copy = {
@@ -52,13 +55,18 @@ export default function BackupRecovery() {
     actions: fa ? "عملیات" : "Actions",
     verify: fa ? "بررسی" : "Verify",
     download: fa ? "دانلود" : "Download",
+    rehearse: fa ? "آزمایش بازیابی" : "Test restore",
     restore: fa ? "بازیابی" : "Restore",
+    restoreLocked: fa ? "ابتدا آزمایش بازیابی موفق را اجرا کنید" : "Run a successful restore test first",
     remove: fa ? "حذف" : "Delete",
     valid: fa ? "سالم" : "Valid",
     notChecked: fa ? "بررسی‌نشده" : "Not checked",
     restoreWarning: fa
       ? "بازیابی، دیتابیس فعلی را جایگزین می‌کند. قبل از آن یک بکاپ اضطراری خودکار ساخته می‌شود."
       : "Restore replaces the current database. An emergency backup is created first.",
+    rehearsalInfo: fa
+      ? "بازیابی واقعی فقط پس از آزمایش موفق روی یک کپی موقت فعال می‌شود؛ دیتابیس جاری در آزمایش تغییر نمی‌کند."
+      : "Real restore unlocks only after a successful rehearsal on a temporary copy; the live database is never changed by the test.",
     autoInfo: fa
       ? "در صورت فعال‌بودن «بکاپ خودکار» در تنظیمات، بعد از فعالیت سیستم و حداکثر هر ۲۴ ساعت یک snapshot ساخته می‌شود."
       : "When Auto Backup is enabled in Settings, activity triggers at most one verified snapshot every 24 hours.",
@@ -123,6 +131,24 @@ export default function BackupRecovery() {
     }
   }
 
+  async function rehearse(item) {
+    setBusy(item.filename);
+    try {
+      const result = await testRestoreBackup(item.filename);
+      setRehearsals((current) => ({ ...current, [item.filename]: result }));
+      toast.success(
+        fa
+          ? `آزمایش بازیابی موفق بود؛ ${n(result.table_count)} جدول بررسی شد.`
+          : `Restore test passed; ${n(result.table_count)} tables checked.`,
+      );
+    } catch (requestError) {
+      setRehearsals((current) => ({ ...current, [item.filename]: { valid: false } }));
+      toast.error(requestError.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function download(item) {
     setBusy(item.filename);
     try {
@@ -136,6 +162,10 @@ export default function BackupRecovery() {
   }
 
   async function restore(item) {
+    if (!rehearsals[item.filename]?.valid) {
+      toast.error(copy.restoreLocked);
+      return;
+    }
     const expected = `RESTORE ${item.filename}`;
     const entered = window.prompt(
       `${copy.restoreWarning}\n\n${fa ? "برای تأیید دقیقاً وارد کنید:" : "Type exactly to confirm:"}\n${expected}`,
@@ -226,9 +256,13 @@ export default function BackupRecovery() {
         </div>
       </header>
 
-      <div style={{ ...card, padding: 15, marginBottom: 18, color: "#bae6fd", display: "flex", gap: 10, alignItems: "center" }}>
+      <div style={{ ...card, padding: 15, marginBottom: 10, color: "#bae6fd", display: "flex", gap: 10, alignItems: "center" }}>
         <FileCheck2 color="#67e8f9" />
         {copy.autoInfo}
+      </div>
+      <div style={{ ...card, padding: 15, marginBottom: 18, color: "#bbf7d0", display: "flex", gap: 10, alignItems: "center" }}>
+        <TestTube2 color="#86efac" />
+        {copy.rehearsalInfo}
       </div>
       {error && <div style={{ ...card, padding: 15, marginBottom: 18, color: "#fecaca" }}>{error}</div>}
 
@@ -260,8 +294,9 @@ export default function BackupRecovery() {
                   <td style={{ padding: 13 }}>
                     <div style={{ display: "flex", gap: 7 }}>
                       <ActionButton title={copy.verify} onClick={() => verify(item)} disabled={busy === item.filename}><FileCheck2 size={16} /></ActionButton>
+                      <ActionButton title={copy.rehearse} onClick={() => rehearse(item)} disabled={busy === item.filename}><TestTube2 size={16} /></ActionButton>
                       <ActionButton title={copy.download} onClick={() => download(item)} disabled={busy === item.filename}><Download size={16} /></ActionButton>
-                      <ActionButton title={copy.restore} onClick={() => restore(item)} disabled={busy === item.filename} danger><RotateCcw size={16} /></ActionButton>
+                      <ActionButton title={rehearsals[item.filename]?.valid ? copy.restore : copy.restoreLocked} onClick={() => restore(item)} disabled={busy === item.filename || !rehearsals[item.filename]?.valid} danger><RotateCcw size={16} /></ActionButton>
                       <ActionButton title={copy.remove} onClick={() => remove(item)} disabled={busy === item.filename} danger><Trash2 size={16} /></ActionButton>
                     </div>
                   </td>
@@ -277,7 +312,7 @@ export default function BackupRecovery() {
 
 function ActionButton({ title, onClick, disabled, danger, children }) {
   return (
-    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "#164e63", color: danger ? "#fecaca" : "#cffafe", cursor: disabled ? "wait" : "pointer", opacity: disabled ? 0.55 : 1 }}>
+    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "#164e63", color: danger ? "#fecaca" : "#cffafe", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
       {children}
     </button>
   );

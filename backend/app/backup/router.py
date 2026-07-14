@@ -8,6 +8,7 @@ from app.backup.auto_backup import (
     delete_database_backup,
     list_database_backups,
     restore_database_backup,
+    test_restore_database_backup,
     verify_database_backup,
 )
 
@@ -66,6 +67,23 @@ def download_backup(filename: str, request: Request):
         media_type="application/vnd.sqlite3",
         filename=filename,
     )
+
+
+@router.post("/{filename}/restore-test")
+def test_restore_backup(filename: str, request: Request):
+    _require_admin(request)
+    try:
+        result = test_restore_database_backup(filename)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if not result["valid"]:
+        raise HTTPException(status_code=409, detail={
+            "message": "Restore rehearsal failed",
+            "result": result,
+        })
+    return result
 
 
 @router.post("/{filename}/restore")
