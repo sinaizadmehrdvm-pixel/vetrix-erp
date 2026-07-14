@@ -170,6 +170,13 @@ class DecisionPayload(BaseModel):
     note: str = Field(default="", max_length=2000)
 
 
+class TranscriptReviewPayload(BaseModel):
+    transcript: str = Field(min_length=2, max_length=10000)
+    action_type: Literal["online_product_update", "campaign_draft", "note_only"]
+    target_id: Optional[int] = None
+    proposed_changes: Dict[str, Any] = Field(default_factory=dict)
+
+
 @router.post("/audio")
 async def upload_audio(request: Request, audio: UploadFile = File(...)):
     _auth(request)
@@ -222,7 +229,7 @@ def download_audio(reference: str, request: Request):
 
 @router.get("")
 def list_requests(status: str = "all"):
-    allowed = {"all", "draft", "pending_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
+    allowed = {"all", "draft", "needs_transcript_review", "pending_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
     if status not in allowed:
         raise HTTPException(status_code=400, detail="Invalid request status")
     with engine.begin() as conn:
@@ -290,6 +297,61 @@ def create_request(payload: ChangeRequestPayload, request: Request):
         request_id = result.lastrowid
         _event(conn, request_id, "created", actor, f"source={payload.source}")
         return {"status": "draft", "request_id": request_id}
+
+
+@router.post("/{request_id}/review-transcript")
+def review_transcript(
+    request_id: int,
+    payload: TranscriptReviewPayload,
+    request: Request,
+):
+    actor = _require_admin(request)
+    transcript = payload.transcript.strip()
+    _validate(payload.action_type, payload.target_id, payload.proposed_changes)
+    with engine.begin() as conn:
+        _ensure_schema(conn)
+        item = _row(conn, request_id)
+        if item["status"] != "needs_transcript_review":
+            raise HTTPException(
+                status_code=409,
+                detail="Request is not awaiting transcript review",
+            )
+        if payload.action_type == "online_product_update":
+            product = conn.execute(
+                text("SELECT id FROM products WHERE id=:id"),
+                {"id": payload.target_id},
+            ).first()
+            if not product:
+                raise HTTPException(status_code=404, detail="Product not found")
+        conn.execute(text("""
+            UPDATE managed_change_requests
+            SET transcript=:transcript, action_type=:action_type,
+                target_id=:target_id, proposed_changes=:proposed_changes,
+                status='pending_approval', submitted_at=:now,
+                decided_by=NULL, decided_at=NULL, decision_note=''
+            WHERE id=:id
+        """), {
+            "transcript": transcript,
+            "action_type": payload.action_type,
+            "target_id": payload.target_id,
+            "proposed_changes": json.dumps(
+                payload.proposed_changes,
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            "now": _now(),
+            "id": request_id,
+        })
+        detail = (
+            f"action={payload.action_type}; "
+            f"fields={','.join(sorted(payload.proposed_changes))}"
+        )
+        _event(conn, request_id, "transcript_reviewed", actor, detail)
+        _event(conn, request_id, "submitted", actor, "after transcript review")
+        return {
+            "status": "pending_approval",
+            "request_id": request_id,
+        }
 
 
 @router.post("/{request_id}/submit")
