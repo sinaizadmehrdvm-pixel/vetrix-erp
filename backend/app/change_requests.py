@@ -241,7 +241,11 @@ def list_requests(status: str = "all"):
             LEFT JOIN users requester ON requester.id=r.requested_by
             LEFT JOIN users decider ON decider.id=r.decided_by
             WHERE (:status='all' OR r.status=:status)
-            ORDER BY CASE WHEN r.status='pending_approval' THEN 0 ELSE 1 END,
+            ORDER BY CASE
+                       WHEN r.status='needs_transcript_review' THEN 0
+                       WHEN r.status='pending_approval' THEN 1
+                       ELSE 2
+                     END,
                      r.id DESC
         """), {"status": status}).mappings().all()
         result = []
