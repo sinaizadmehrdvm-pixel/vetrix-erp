@@ -23,6 +23,10 @@ export const createBackup = () =>
   request("/api/backups", { method: "POST" });
 export const verifyBackup = (filename) =>
   request(`/api/backups/${encodeURIComponent(filename)}/verify`);
+export const testRestoreBackup = (filename) =>
+  request(`/api/backups/${encodeURIComponent(filename)}/restore-test`, {
+    method: "POST",
+  });
 export const restoreBackup = (filename, confirmation) =>
   request(`/api/backups/${encodeURIComponent(filename)}/restore`, {
     method: "POST",
