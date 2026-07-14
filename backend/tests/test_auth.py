@@ -19,6 +19,15 @@ class AuthenticationPolicyTests(unittest.TestCase):
         self.assertTrue(is_public_request("/login", "POST"))
         self.assertTrue(is_public_request("/docs", "GET"))
         self.assertTrue(is_public_request("/customers", "OPTIONS"))
+        self.assertTrue(
+            is_public_request("/api/inbound-voice/telegram", "POST")
+        )
+        self.assertTrue(
+            is_public_request("/api/inbound-voice/whatsapp", "GET")
+        )
+        self.assertFalse(
+            is_public_request("/api/inbound-voice/telegram/debug", "GET")
+        )
         self.assertFalse(is_public_request("/customers", "GET"))
         self.assertFalse(is_public_request("/export/invoices-pdf", "GET"))
 
