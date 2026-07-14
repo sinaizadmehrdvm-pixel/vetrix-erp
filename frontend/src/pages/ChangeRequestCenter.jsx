@@ -24,6 +24,7 @@ export default function ChangeRequestCenter() {
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [audioName, setAudioName] = useState("");
+  const [audioFile, setAudioFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -57,7 +58,9 @@ export default function ChangeRequestCenter() {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(URL.createObjectURL(blob));
-        setAudioName(`voice-${Date.now()}.webm`);
+        const filename = `voice-${Date.now()}.webm`;
+        setAudioName(filename);
+        setAudioFile(new File([blob], filename, { type: blob.type }));
         stream.getTracks().forEach((track) => track.stop());
       };
       recorder.start();
@@ -79,6 +82,7 @@ export default function ChangeRequestCenter() {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioUrl(URL.createObjectURL(file));
     setAudioName(file.name);
+    setAudioFile(file);
   }
 
   function proposedChanges() {
@@ -95,13 +99,20 @@ export default function ChangeRequestCenter() {
   async function submit(event) {
     event.preventDefault();
     try {
+      let audioReference = "";
+      if (audioFile) {
+        const upload = new FormData();
+        upload.append("audio", audioFile, audioName || audioFile.name);
+        const stored = await api("/audio", { method: "POST", body: upload });
+        audioReference = stored.reference;
+      }
       const created = await api("", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source: form.source,
           source_reference: form.source_reference,
-          audio_reference: audioName,
+          audio_reference: audioReference,
           transcript: form.transcript,
           action_type: form.action_type,
           target_id: form.action_type === "online_product_update" ? Number(form.target_id) : null,
@@ -112,10 +123,33 @@ export default function ChangeRequestCenter() {
       toast.success(fa ? "درخواست برای تأیید مدیر ارسال شد." : "Request submitted for administrator approval.");
       setForm({ source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "" });
       setAudioName("");
+      setAudioFile(null);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setAudioUrl("");
       load();
     } catch (error) { toast.error(error.message); }
+  }
+
+  async function downloadStoredAudio(item) {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/change-requests/audio/${encodeURIComponent(item.audio_reference)}`,
+        { headers: getAuthHeaders() },
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Audio download failed");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `voice-request-${item.id}`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast.error(error.message);
+    }
   }
 
   async function decide(id, action) {
@@ -180,7 +214,7 @@ export default function ChangeRequestCenter() {
 
         <section className="space-y-3">
           <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{fa ? "امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است." : "Security: requesters cannot approve their own request and arbitrary commands are forbidden."}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} />)}
+          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} />)}
           {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{fa ? "درخواستی وجود ندارد." : "No requests yet."}</div>}
         </section>
       </div>
@@ -191,7 +225,7 @@ export default function ChangeRequestCenter() {
 const inputStyle = { width: "100%", padding: 12, borderRadius: 12, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" };
 function Field({ label, children }) { return <label className="block text-sm font-bold space-y-1"><span>{label}</span>{children}</label>; }
 
-function RequestCard({ item, fa, canApprove, onApprove, onReject }) {
+function RequestCard({ item, fa, canApprove, onApprove, onReject, onAudio }) {
   const status = { draft: fa ? "پیش‌نویس" : "Draft", pending_approval: fa ? "در انتظار تأیید" : "Pending approval", applied: fa ? "اعمال‌شده" : "Applied", rejected: fa ? "ردشده" : "Rejected", failed: fa ? "ناموفق" : "Failed" }[item.status] || item.status;
-  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div><span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span></div><p className="mt-4 whitespace-pre-wrap">{item.transcript}</p><pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>{item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}{canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}</article>;
+  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div><span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span></div><p className="mt-4 whitespace-pre-wrap">{item.transcript}</p>{item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{fa ? "دریافت فایل صوتی امن" : "Download secured audio"}</button>}<pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>{item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}{canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}</article>;
 }
