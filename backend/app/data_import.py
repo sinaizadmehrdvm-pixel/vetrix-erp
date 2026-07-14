@@ -4,7 +4,9 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from openpyxl import load_workbook
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
 from sqlalchemy import text
 
 from app.accounting.integrity import money
@@ -146,6 +148,64 @@ def _row_key(entity, row):
         ("code", row["code"].lower()) if row.get("code")
         else ("barcode", row["barcode"].lower()) if row.get("barcode")
         else ("name", row["name"].lower())
+    )
+
+
+@router.get("/template/{entity}")
+def download_template(entity: str, request: Request, language: str = "en"):
+    _admin(request)
+    if entity not in ENTITY_FIELDS:
+        raise HTTPException(status_code=404, detail="Unsupported import entity")
+    fa = language == "fa"
+    headers = {
+        "customers": (
+            ["نام طرف‌حساب", "تلفن", "ایمیل", "آدرس", "شهر", "شناسه ملی",
+             "کد اقتصادی", "شخص رابط", "نوع طرف‌حساب", "مانده افتتاحیه",
+             "سقف اعتبار", "یادداشت"]
+            if fa else
+            ["name", "phone", "email", "address", "city", "national_id",
+             "economic_code", "contact_person", "customer_type", "opening_balance",
+             "credit_limit", "notes"]
+        ),
+        "products": (
+            ["نام کالا", "کد کالا", "بارکد", "SKU", "برند", "واحد",
+             "قیمت خرید", "قیمت فروش", "موجودی اولیه", "حداقل موجودی",
+             "گروه اصلی", "گروه فرعی"]
+            if fa else
+            ["name", "code", "barcode", "sku", "brand", "unit", "buy_price",
+             "sell_price", "stock", "min_stock", "main_category", "sub_category"]
+        ),
+    }[entity]
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = ("طرف‌حساب‌ها" if entity == "customers" else "کالاها") if fa else entity.title()
+    sheet.sheet_view.rightToLeft = fa
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="0F172A")
+    sample = (
+        ["نمونه", "09120000000", "sample@example.com", "", "", "", "", "",
+         "customer", 0, 0, ""]
+        if entity == "customers" else
+        ["نمونه کالا", "P-001", "", "", "", "عدد", 0, 0, 0, 0, "", ""]
+    )
+    if not fa:
+        sample[0] = "Sample" if entity == "customers" else "Sample product"
+        if entity == "products":
+            sample[5] = "unit"
+    sheet.append(sample)
+    sheet.freeze_panes = "A2"
+    for column in sheet.columns:
+        sheet.column_dimensions[column[0].column_letter].width = 19
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    filename = f"vetrix_{entity}_import_{'fa' if fa else 'en'}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
