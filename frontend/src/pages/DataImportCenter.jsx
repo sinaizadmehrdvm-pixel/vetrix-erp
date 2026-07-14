@@ -64,11 +64,11 @@ export default function DataImportCenter() {
       </div>
       <p style={{ color: "#fbbf24", marginBottom: 0 }}><AlertTriangle size={17} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.warning}</p>
     </section>
-    {preview && <section style={{ ...card, padding: 18, marginBottom: 14 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(110px,1fr))", gap: 9 }}>
+    {preview && <section aria-live="polite" style={{ ...card, padding: 18, marginBottom: 14 }}>
+      <div className="erp-import-metrics">
         {[[t.total,preview.total_rows],[t.valid,preview.valid_rows],[t.errors,preview.error_rows],[t.duplicate,preview.duplicate_rows]].map(([label,value]) => <div key={label} style={{ padding: 13, borderRadius: 15, background: "var(--erp-bg)" }}><small style={{ color: "var(--erp-muted)" }}>{label}</small><strong style={{ display: "block", fontSize: 24 }}>{n(value)}</strong></div>)}
       </div>
-      <div style={{ overflowX: "auto", marginTop: 12 }}><table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}><thead><tr><th>#</th><th>{fa ? "نام" : "Name"}</th><th>{t.status}</th><th>{fa ? "جزئیات" : "Details"}</th></tr></thead><tbody>{preview.preview.map(row => <tr key={row.row}><td>{n(row.row)}</td><td>{row.data.name}</td><td>{row.errors.length ? t.errors : row.duplicate ? t.duplicate : t.valid}</td><td>{row.errors.map(x => x.message).join(" · ") || "—"}</td></tr>)}</tbody></table></div>
+      <div className="erp-table-scroll"><table className="erp-data-table"><thead><tr><th>#</th><th>{fa ? "نام" : "Name"}</th><th>{t.status}</th><th>{fa ? "جزئیات" : "Details"}</th></tr></thead><tbody>{preview.preview.map(row => <tr key={row.row}><td>{n(row.row)}</td><td>{row.data.name}</td><td>{row.errors.length ? t.errors : row.duplicate ? t.duplicate : t.valid}</td><td>{row.errors.map(x => x.message).join(" · ") || "—"}</td></tr>)}</tbody></table></div>
       <button disabled={!preview.can_apply || busy} onClick={runApply} style={{ marginTop: 13, padding: "12px 18px", borderRadius: 13, border: 0, fontWeight: 900, background: "#166534", color: "#dcfce7", opacity: !preview.can_apply || busy ? .5 : 1 }}><CheckCircle2 size={18} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.apply}</button>
     </section>}
     <section style={{ ...card, padding: 18 }}><h2><History size={21} style={{ display: "inline", marginInlineEnd: 8 }}/>{t.history}</h2>
