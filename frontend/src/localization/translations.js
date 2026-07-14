@@ -48,6 +48,7 @@ export const translations = {
     onlineCommerce: "Online Sales & Advertising",
     changeRequests: "Voice Change Requests",
     financialPolicy: "Verified Financial Policy",
+    dataImport: "Safe Data Import",
     settings: "Settings",
     logout: "Logout",
 
@@ -252,6 +253,7 @@ export const translations = {
     onlineCommerce: "فروش آنلاین و تبلیغات",
     changeRequests: "درخواست تغییر با ویس",
     financialPolicy: "سیاست مالی تأییدشده",
+    dataImport: "ورود گروهی اطلاعات",
     settings: "تنظیمات",
     logout: "خروج",
 
