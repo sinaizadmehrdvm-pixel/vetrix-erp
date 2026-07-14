@@ -112,11 +112,11 @@ img, svg { max-width: 100%; }
     min-width: min(86vw, 320px) !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
-    transform: translateX(calc(-1 * var(--drawer-direction, 110%)));
+    transform: translateX(-110%);
     transition: transform .24s ease !important;
     box-shadow: 0 24px 80px rgba(0,0,0,.45);
   }
-  [dir="rtl"] .erp-sidebar { --drawer-direction: -110%; }
+  [dir="rtl"] .erp-sidebar { transform: translateX(110%); }
   .erp-sidebar.is-open { transform: translateX(0); }
   .erp-sidebar .sidebar-menu-item { min-height: 44px; }
   .erp-surface { border-radius: 18px; }
