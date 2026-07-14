@@ -1,10 +1,37 @@
 # Changelog
 
+## 1.3.0 — 2026-07-14
+
+### Added
+
+- Secure Telegram and WhatsApp voice ingestion with verified webhooks, real audio upload, manager review, and controlled change execution
+- Signed storefront feed for accounting-controlled prices, stock, discounts, and incremental website synchronization
+- Idempotent manager-approved social campaign delivery queue
+- Explicit fail-closed Windows LAN server/client mode with strict origin and port validation
+- Searchable adaptive navigation and country-aware verified financial-policy profiles
+- Complete country policy governance for calendar, IANA time zone, week start, fiscal year, measurement system, currency, precision, rounding, and verified tax rate
+
+### Improved
+
+- Reduced dashboard scrolling with prioritized operational KPIs and expandable analytics
+- Responsive forms, tables, touch targets, printing, RTL/LTR input direction, and mobile overflow handling
+- Host-aware authenticated dashboard and invoice requests for local and LAN clients
+- Persistent compact navigation, active-group expansion, and client-side quick actions
+- Safe additive migrations for existing installations and unchanged historical accounting documents
+
+### Security and validation
+
+- Live database-backed role revalidation on every authenticated request
+- Immediate rejection of deleted users and removal of stale token privileges after role changes
+- Bounded failed-login throttling and tamper-evident auditing of login attempts
+- Twelve-character account password minimum
+- Backend regression suite, frontend dependency/fetch/route/translation audits, production build, and real Windows portable smoke tests
+
 ## 1.2.0 — 2026-07-13
 
 ### Added
 
-- International operating profiles for Iran, United States, United Kingdom, Germany, United Arab Emirates, and Turkey
+- International operating profiles for Iran, United States, United Kingdom, Germany, Finland, and the United Arab Emirates
 - Company-wide locale synchronization for currency, precision, calendars, time zones, week starts, fiscal years, and measurement systems
 - Versioned and auditable financial-policy administration with administrator verification
 - Explicit financial rounding engine supporting 0–4 decimal places and half-up, half-even, down, and up modes

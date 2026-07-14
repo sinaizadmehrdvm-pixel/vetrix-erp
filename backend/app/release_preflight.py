@@ -10,7 +10,7 @@ from app.database import engine
 from app.system_health import build_system_health
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 
 RELEASE_TABLES = {
     "accounting_approval_requests",
@@ -20,6 +20,12 @@ RELEASE_TABLES = {
     "bank_accounts",
     "fixed_assets",
     "treasury_cheques",
+    "inbound_voice_events",
+    "campaign_delivery_jobs",
+    "managed_change_requests",
+    "managed_change_events",
+    "financial_policy_versions",
+    "financial_policy_events",
 }
 
 CRITICAL_ROUTES = [
@@ -38,6 +44,10 @@ CRITICAL_ROUTES = [
     "/api/accounting/currencies",
     "/api/accounting/approvals",
     "/api/accounting/treasury/cheques",
+    "/api/inbound-voice/status",
+    "/api/storefront-sync/readiness",
+    "/api/campaign-delivery/readiness",
+    "/api/financial-policy/active",
 ]
 
 
@@ -81,7 +91,15 @@ def build_release_preflight(app=None):
         from app.accounting.currencies import ensure_currency_schema
         from app.accounting.fixed_assets import _ensure_schema as ensure_assets
         from app.accounting.treasury import _ensure_schema as ensure_treasury
-        for ensure in (ensure_approvals, ensure_banks, ensure_budgets, ensure_currency_schema, ensure_assets, ensure_treasury):
+        from app.campaign_delivery import _ensure_schema as ensure_campaign_delivery
+        from app.change_requests import _ensure_schema as ensure_change_requests
+        from app.financial_policy import _ensure_schema as ensure_financial_policy
+        from app.inbound_voice import _ensure_inbound_schema as ensure_inbound_voice
+        for ensure in (
+            ensure_approvals, ensure_banks, ensure_budgets, ensure_currency_schema,
+            ensure_assets, ensure_treasury, ensure_campaign_delivery,
+            ensure_change_requests, ensure_financial_policy, ensure_inbound_voice,
+        ):
             ensure(conn)
         tables = {
             row[0]

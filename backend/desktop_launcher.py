@@ -129,7 +129,7 @@ def main():
     ).start()
 
     print("=" * 58)
-    print("Vetrix ERP 1.2.0")
+    print("Vetrix ERP 1.3.0")
     print(f"Application: {network.local_url}")
     print(f"Mode: {'LAN server' if network.lan_enabled else 'local only'}")
     if network.lan_enabled:
