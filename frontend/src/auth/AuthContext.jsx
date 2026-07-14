@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import { API_URL } from "../services/api";
 
@@ -59,6 +60,37 @@ export function AuthProvider({ children }) {
     };
   }, [token]);
 
+  async function refreshCurrentUser() {
+    const response = await fetch(`${API_URL}/me`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_STORAGE_KEY)}` },
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.status !== "success" || !data?.user) {
+      throw new Error(data?.detail || data?.message || "Unable to refresh session");
+    }
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  }
+
+  async function changePassword(currentPassword, newPassword) {
+    const response = await fetch(`${API_URL}/users/me/password`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem(TOKEN_STORAGE_KEY)}`,
+      },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.status !== "updated" || !data?.user) {
+      throw new Error(data?.detail || data?.message || "Unable to change password");
+    }
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  }
+
   async function login(username, password) {
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
@@ -88,7 +120,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, authReady, login, logout }}>
+    <AuthContext.Provider value={{ user, token, authReady, login, logout, changePassword, refreshCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

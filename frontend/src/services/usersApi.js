@@ -23,3 +23,8 @@ export const updateUserRole = (id, role) =>
     method: "PUT",
     body: JSON.stringify({ role }),
   });
+
+export const resetUserPassword = (id, data) =>
+  request(`/users/${id}/password`, { method: "PUT", body: JSON.stringify(data) });
+export const changeOwnPassword = (data) =>
+  request("/users/me/password", { method: "PUT", body: JSON.stringify(data) });

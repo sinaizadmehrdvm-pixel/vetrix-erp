@@ -53,7 +53,12 @@ def ensure_audit_schema(conn):
 
 def classify_action(method, path):
     method = method.upper()
-    final_segment = path.rstrip("/").rsplit("/", 1)[-1]
+    normalized_path = path.rstrip("/")
+    if method == "PUT" and normalized_path == "/users/me/password":
+        return "user_password_changed"
+    if method == "PUT" and normalized_path.startswith("/users/") and normalized_path.endswith("/password"):
+        return "admin_password_reset"
+    final_segment = normalized_path.rsplit("/", 1)[-1]
     if method == "DELETE":
         return "delete"
     if method in {"PUT", "PATCH"}:

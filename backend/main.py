@@ -203,6 +203,12 @@ def ensure_database_schema():
     for name, sql in settings_columns.items():
         ensure_sqlite_column("app_settings", name, sql)
 
+    user_columns = {
+        "must_change_password": "must_change_password BOOLEAN DEFAULT 0 NOT NULL",
+    }
+    for name, sql in user_columns.items():
+        ensure_sqlite_column("users", name, sql)
+
 
 def ensure_extra_tables():
     """Create simple ERP extension tables used by the frontend pages."""
@@ -347,10 +353,22 @@ async def require_authenticated_api(request: Request, call_next):
             return JSONResponse(status_code=401, content={"detail": "User no longer exists"})
         request.state.auth["username"] = authenticated_user.username
         request.state.auth["role"] = normalize_role(authenticated_user.role)
+        request.state.auth["must_change_password"] = bool(getattr(authenticated_user, "must_change_password", False))
     finally:
         auth_db.close()
 
-    if not is_authorized(
+    is_password_change_request = request.url.path == "/users/me/password" and request.method.upper() == "PUT"
+
+    if request.state.auth.get("must_change_password") and not (
+        request.url.path in {"/me", "/users/me/password"}
+        or request.url.path.startswith("/api/audit")
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Password change required before continuing", "code": "password_change_required"},
+        )
+
+    if not is_password_change_request and not is_authorized(
         request.state.auth.get("role"),
         request.method,
         request.url.path,
@@ -386,6 +404,16 @@ class UserCreate(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     role: str
+
+
+class UserPasswordReset(BaseModel):
+    password: str
+    force_change_on_next_login: bool = True
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class LoginRequest(BaseModel):
@@ -867,6 +895,7 @@ def create_user(data: UserCreate, request: Request):
             "id": user.id,
             "username": user.username,
             "role": user.role,
+            "must_change_password": bool(getattr(user, "must_change_password", False)),
         }
     finally:
         db.close()
@@ -878,6 +907,7 @@ def user_to_auth_dict(user: User):
         "full_name": user.full_name,
         "username": user.username,
         "role": user.role,
+        "must_change_password": bool(getattr(user, "must_change_password", False)),
     }
 
 
@@ -891,6 +921,60 @@ def list_users(request: Request):
         db.close()
 
 
+
+@app.put("/users/me/password")
+def change_own_password(data: PasswordChangeRequest, request: Request):
+    if len(data.new_password) < 12:
+        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+
+    try:
+        user_id = int(request.state.auth["sub"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid authentication context")
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        if not verify_password(data.current_password, user.password):
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+        user.password = hash_password(data.new_password)
+        user.must_change_password = False
+        db.commit()
+        db.refresh(user)
+        return {"status": "updated", "user": user_to_auth_dict(user), "security_event": "user_password_changed"}
+    finally:
+        db.close()
+
+
+@app.put("/users/{user_id}/password")
+def admin_reset_user_password(user_id: int, data: UserPasswordReset, request: Request):
+    require_admin(request)
+    if len(data.password) < 12:
+        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
+
+    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.password = hash_password(data.password)
+        user.must_change_password = bool(data.force_change_on_next_login)
+        db.commit()
+        db.refresh(user)
+        return {
+            "status": "updated",
+            "user": user_to_auth_dict(user),
+            "security_event": "admin_password_reset",
+            "requires_next_login_change": user.must_change_password,
+            "self_reset": str(auth_user_id) == str(user_id),
+        }
+    finally:
+        db.close()
 
 
 @app.put("/users/{user_id}/role")
@@ -958,6 +1042,7 @@ def login(data: LoginRequest, request: Request):
             "message": "Login successful",
             "access_token": token,
             "token_type": "Bearer",
+            "requires_password_change": bool(getattr(user, "must_change_password", False)),
             "user": user_to_auth_dict(user),
         }
     finally:

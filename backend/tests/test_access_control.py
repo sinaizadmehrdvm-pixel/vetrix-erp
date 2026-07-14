@@ -2484,5 +2484,99 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(forbidden.status_code, 403)
 
 
+    def test_zzzzzzz_admin_password_recovery_forces_next_login_password_change(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        if admin_login.status_code != 200:
+            self.client.post(
+                "/users",
+                json={
+                    "full_name": "Recovery Administrator",
+                    "username": "ci-admin",
+                    "password": "StrongAdminPassword!42",
+                    "role": "admin",
+                },
+            )
+            admin_login = self.client.post(
+                "/login",
+                json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+            )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        user_response = self.client.post(
+            "/users",
+            headers=admin_headers,
+            json={
+                "full_name": "Recovery User",
+                "username": "password-recovery-user",
+                "password": "StrongUserPassword!42",
+                "role": "viewer",
+            },
+        )
+        user_id = user_response.json()["id"]
+
+        viewer_login = self.client.post(
+            "/login",
+            json={"username": "password-recovery-user", "password": "StrongUserPassword!42"},
+        )
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+        blocked_reset = self.client.put(
+            f"/users/{user_id}/password",
+            headers=viewer_headers,
+            json={"password": "TemporaryPassword!42"},
+        )
+        self.assertEqual(blocked_reset.status_code, 403)
+
+        reset = self.client.put(
+            f"/users/{user_id}/password",
+            headers=admin_headers,
+            json={"password": "TemporaryPassword!42", "force_change_on_next_login": True},
+        )
+        self.assertEqual(reset.status_code, 200, reset.text)
+        self.assertTrue(reset.json()["user"]["must_change_password"])
+        self.assertEqual(reset.json()["security_event"], "admin_password_reset")
+
+        forced_login = self.client.post(
+            "/login",
+            json={"username": "password-recovery-user", "password": "TemporaryPassword!42"},
+        )
+        self.assertEqual(forced_login.status_code, 200, forced_login.text)
+        self.assertTrue(forced_login.json()["requires_password_change"])
+        forced_headers = {"Authorization": f"Bearer {forced_login.json()['access_token']}"}
+        blocked_business_access = self.client.get("/customers", headers=forced_headers)
+        self.assertEqual(blocked_business_access.status_code, 403)
+        self.assertEqual(blocked_business_access.json()["code"], "password_change_required")
+
+        changed = self.client.put(
+            "/users/me/password",
+            headers=forced_headers,
+            json={
+                "current_password": "TemporaryPassword!42",
+                "new_password": "RecoveredStrongPassword!42",
+            },
+        )
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertFalse(changed.json()["user"]["must_change_password"])
+        self.assertEqual(changed.json()["security_event"], "user_password_changed")
+
+        refreshed_login = self.client.post(
+            "/login",
+            json={"username": "password-recovery-user", "password": "RecoveredStrongPassword!42"},
+        )
+        self.assertEqual(refreshed_login.status_code, 200, refreshed_login.text)
+        self.assertFalse(refreshed_login.json()["requires_password_change"])
+
+        events = self.client.get("/api/audit/events", headers=admin_headers)
+        audit_items = events.json()["items"]
+        paths = [item["path"] for item in audit_items]
+        actions = [item["action"] for item in audit_items]
+        self.assertIn(f"/users/{user_id}/password", paths)
+        self.assertIn("/users/me/password", paths)
+        self.assertIn("admin_password_reset", actions)
+        self.assertIn("user_password_changed", actions)
+
+
 if __name__ == "__main__":
     unittest.main()
