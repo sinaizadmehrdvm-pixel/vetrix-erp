@@ -74,7 +74,7 @@ const groups = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { t, dir, language } = useLanguage();
@@ -102,7 +102,9 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="erp-sidebar"
+      id="erp-primary-navigation"
+      aria-label={fa ? "منوی اصلی" : "Primary navigation"}
+      className={`erp-sidebar ${mobileOpen ? "is-open" : ""}`}
       style={{
         width: compact ? 86 : 280,
         minWidth: compact ? 86 : 280,
@@ -158,6 +160,7 @@ export default function Sidebar() {
                       to={item.path}
                       end={item.path === "/"}
                       title={compact ? label(item) : undefined}
+                      onClick={onNavigate}
                       className="sidebar-menu-item"
                       style={({ isActive }) => ({
                         display: "flex",
