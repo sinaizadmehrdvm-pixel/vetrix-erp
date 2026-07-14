@@ -8,12 +8,13 @@ import { API_URL } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, changePassword } = useAuth();
   const { language, dir } = useLanguage();
   const fa = language === "fa";
 
   const [mode, setMode] = useState("checking");
   const [form, setForm] = useState({ username: "", password: "" });
+  const [passwordChange, setPasswordChange] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [setup, setSetup] = useState({
     full_name: "",
     username: "",
@@ -53,13 +54,40 @@ export default function Login() {
     setError("");
     setSubmitting(true);
     try {
-      await login(form.username.trim(), form.password);
+      const signedInUser = await login(form.username.trim(), form.password);
+      if (signedInUser?.must_change_password) {
+        setPasswordChange({ current_password: form.password, new_password: "", confirm_password: "" });
+        setMode("force-password-change");
+        return;
+      }
       navigate("/", { replace: true });
     } catch (loginError) {
       setError(
         loginError?.message ||
           (fa ? "نام کاربری یا رمز عبور صحیح نیست." : "Invalid username or password."),
       );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleForcedPasswordChange(event) {
+    event.preventDefault();
+    setError("");
+    if (passwordChange.new_password.length < 12) {
+      setError(fa ? "رمز عبور جدید باید حداقل ۱۲ نویسه باشد." : "New password must contain at least 12 characters.");
+      return;
+    }
+    if (passwordChange.new_password !== passwordChange.confirm_password) {
+      setError(fa ? "تکرار رمز عبور جدید مطابقت ندارد." : "New password confirmation does not match.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await changePassword(passwordChange.current_password, passwordChange.new_password);
+      navigate("/", { replace: true });
+    } catch (changeError) {
+      setError(changeError?.message || (fa ? "تغییر رمز عبور انجام نشد." : "Password change failed."));
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +188,33 @@ export default function Login() {
             <button type="submit" disabled={submitting} className="w-full bg-emerald-400 text-black font-black py-4 rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2">
               <CheckCircle2 size={19} />
               {submitting ? (fa ? "در حال راه‌اندازی..." : "Setting up...") : (fa ? "ساخت مدیر و ورود" : "Create administrator & sign in")}
+            </button>
+          </form>
+        )}
+
+
+
+        {mode === "force-password-change" && (
+          <form onSubmit={handleForcedPasswordChange}>
+            <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/30 p-4 text-sm text-amber-100">
+              <KeyRound className="mb-2" size={22} />
+              {fa
+                ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
+                : "To continue, your administrator requires you to change your password."}
+            </div>
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="new-password">
+              {fa ? "رمز عبور جدید" : "New password"}
+            </label>
+            <input id="new-password" autoComplete="new-password" type="password" value={passwordChange.new_password} onChange={(event) => setPasswordChange({ ...passwordChange, new_password: event.target.value })} className={inputClass} minLength={12} required />
+
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="confirm-new-password">
+              {fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
+            </label>
+            <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
+
+            {error && <ErrorBox message={error} />}
+            <button type="submit" disabled={submitting} className="w-full bg-amber-300 text-black font-black py-4 rounded-2xl disabled:opacity-60">
+              {submitting ? (fa ? "در حال تغییر رمز..." : "Changing password...") : (fa ? "تغییر رمز و ادامه" : "Change password & continue")}
             </button>
           </form>
         )}

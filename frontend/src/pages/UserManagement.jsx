@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/LanguageContext";
-import { createUser, getRoles, getUsers, updateUserRole } from "../services/usersApi";
+import { createUser, getRoles, getUsers, resetUserPassword, updateUserRole } from "../services/usersApi";
 
 const emptyForm = {
   full_name: "",
@@ -33,6 +33,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [resetForms, setResetForms] = useState({});
   const [error, setError] = useState("");
 
   const copy = {
@@ -53,6 +54,11 @@ export default function UserManagement() {
     capabilities: fa ? "دسترسی‌ها" : "Capabilities",
     noUsers: fa ? "کاربری یافت نشد." : "No users found.",
     passwordHint: fa ? "حداقل ۱۲ نویسه پیشنهاد می‌شود" : "At least 12 characters is recommended",
+    resetPassword: fa ? "بازیابی امن رمز" : "Secure password recovery",
+    temporaryPassword: fa ? "رمز موقت امن" : "Secure temporary password",
+    forceNextLogin: fa ? "اجبار تغییر در ورود بعدی" : "Force change on next login",
+    resetPrompt: fa ? "رمز موقت فقط برای بازیابی اضطراری است و نباید از کانال ناامن ارسال شود." : "Temporary passwords are for emergency recovery only and must not be shared over insecure channels.",
+    forced: fa ? "تغییر رمز اجباری" : "Password change required",
   };
 
   const roleNames = {
@@ -94,7 +100,10 @@ export default function UserManagement() {
   }
 
   useEffect(() => {
+    // The page intentionally reloads admin/user metadata when language or admin status changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, isAdmin]);
 
   async function submit(event) {
@@ -121,6 +130,39 @@ export default function UserManagement() {
       toast.error(requestError.message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  function updateResetForm(userId, patch) {
+    setResetForms((current) => ({
+      ...current,
+      [userId]: { password: "", force: true, ...(current[userId] || {}), ...patch },
+    }));
+  }
+
+  async function resetPassword(target) {
+    const resetForm = resetForms[target.id] || { password: "", force: true };
+    const password = resetForm.password;
+    if (!password) {
+      toast.error(fa ? "رمز موقت را وارد کنید." : "Enter a temporary password.");
+      return;
+    }
+    if (password.length < 12) {
+      toast.error(fa ? "رمز عبور باید حداقل ۱۲ نویسه باشد." : "Password must be at least 12 characters.");
+      return;
+    }
+    setBusyId(target.id);
+    try {
+      await resetUserPassword(target.id, { password, force_change_on_next_login: resetForm.force !== false });
+      toast.success(resetForm.force !== false
+        ? fa ? "رمز عبور بازیابی شد و تغییر در ورود بعدی اجباری است." : "Password recovered and next-login change is required."
+        : fa ? "رمز عبور بازیابی شد." : "Password recovered.");
+      setResetForms((current) => ({ ...current, [target.id]: { password: "", force: true } }));
+      await load();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -216,6 +258,7 @@ export default function UserManagement() {
                     <strong style={{ fontSize: 17 }}>{target.full_name}</strong>
                     <div style={{ color: "#94a3b8", marginTop: 4, direction: "ltr", textAlign: dir === "rtl" ? "right" : "left" }}>@{target.username}</div>
                     {self && <span style={{ display: "inline-block", marginTop: 6, color: "#67e8f9", fontSize: 12 }}>{copy.current}</span>}
+                    {target.must_change_password && <span style={{ display: "inline-block", marginTop: 6, marginInlineStart: 6, color: "#fbbf24", fontSize: 12 }}>{copy.forced}</span>}
                   </div>
                   <select id={`role-${target.id}`} defaultValue={target.role === "user" ? "viewer" : target.role} disabled={self} style={input}>
                     {roles.map((item) => <option key={item.code} value={item.code}>{roleNames[item.code] || item.label}</option>)}
@@ -230,9 +273,34 @@ export default function UserManagement() {
                       ))}
                     </div>
                   </div>
-                  <button onClick={() => saveRole(target)} disabled={self || busyId === target.id} style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 13px", background: self ? "#334155" : "#155e75", color: self ? "#64748b" : "#cffafe", fontWeight: 900, cursor: self ? "not-allowed" : "pointer" }}>
-                    <Save size={16} />{busyId === target.id ? "..." : copy.save}
-                  </button>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <button onClick={() => saveRole(target)} disabled={self || busyId === target.id} style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 13px", background: self ? "#334155" : "#155e75", color: self ? "#64748b" : "#cffafe", fontWeight: 900, cursor: self ? "not-allowed" : "pointer" }}>
+                      <Save size={16} />{busyId === target.id ? "..." : copy.save}
+                    </button>
+                    <label style={{ display: "grid", gap: 5, color: "#fed7aa", fontSize: 12 }}>
+                      {copy.temporaryPassword}
+                      <input
+                        type="password"
+                        value={(resetForms[target.id] || {}).password || ""}
+                        onChange={(event) => updateResetForm(target.id, { password: event.target.value })}
+                        placeholder={copy.passwordHint}
+                        autoComplete="new-password"
+                        style={{ ...input, padding: "9px 10px" }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#fdba74", fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={(resetForms[target.id] || {}).force !== false}
+                        onChange={(event) => updateResetForm(target.id, { force: event.target.checked })}
+                      />
+                      {copy.forceNextLogin}
+                    </label>
+                    <button onClick={() => resetPassword(target)} disabled={busyId === target.id} style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 13px", background: "#7c2d12", color: "#ffedd5", fontWeight: 900, cursor: "pointer" }}>
+                      <KeyRound size={16} />{busyId === target.id ? "..." : copy.resetPassword}
+                    </button>
+                    <small style={{ color: "#fb923c", lineHeight: 1.5 }}>{copy.resetPrompt}</small>
+                  </div>
                 </div>
               </article>
             );
