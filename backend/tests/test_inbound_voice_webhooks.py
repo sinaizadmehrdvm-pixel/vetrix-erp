@@ -96,6 +96,29 @@ class VerifiedVoiceWebhookTests(unittest.TestCase):
             )
         self.assertEqual(raised.exception.status_code, 403)
 
+    def test_diagnostics_report_readiness_without_exposing_secrets(self):
+        result = inbound_voice._configuration_status()
+
+        self.assertTrue(result["telegram"]["ready"])
+        self.assertTrue(result["whatsapp"]["ready"])
+        self.assertEqual(result["allowed_sender_count"], 2)
+        self.assertTrue(result["service_user"]["valid"])
+        self.assertTrue(result["service_user"]["non_admin"])
+        self.assertFalse(result["secrets_exposed"])
+        serialized = json.dumps(result)
+        self.assertNotIn("telegram-secret", serialized)
+        self.assertNotIn("whatsapp-secret", serialized)
+        self.assertNotIn("verify-token", serialized)
+
+    def test_diagnostics_fail_closed_when_allow_list_is_empty(self):
+        with patch.dict(
+            os.environ, {"VETRIX_VOICE_ALLOWED_CHAT_IDS": ""}, clear=False
+        ):
+            result = inbound_voice._configuration_status()
+        self.assertFalse(result["telegram"]["ready"])
+        self.assertFalse(result["whatsapp"]["ready"])
+        self.assertEqual(result["allowed_sender_count"], 0)
+
     def test_whatsapp_voice_payload_is_parsed(self):
         payload = {
             "entry": [{
