@@ -210,13 +210,21 @@ class ApiAccessControlTests(unittest.TestCase):
         user_token = user_login.json()["access_token"]
         user_headers = {"Authorization": f"Bearer {user_token}"}
 
+        voice_upload = self.client.post(
+            "/api/change-requests/audio",
+            headers=user_headers,
+            files={"audio": ("voice-42.ogg", b"CI voice evidence", "audio/ogg")},
+        )
+        self.assertEqual(voice_upload.status_code, 200, voice_upload.text)
+        self.assertEqual(voice_upload.json()["size_bytes"], len(b"CI voice evidence"))
+
         voice_request = self.client.post(
             "/api/change-requests",
             headers=user_headers,
             json={
                 "source": "telegram",
                 "source_reference": "message-42",
-                "audio_reference": "voice-42.ogg",
+                "audio_reference": voice_upload.json()["reference"],
                 "transcript": "Please review this non-executable operational note.",
                 "action_type": "note_only",
                 "target_id": None,
