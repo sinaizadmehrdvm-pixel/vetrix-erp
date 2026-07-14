@@ -1,4 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
+import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -8,6 +10,8 @@ from app.database import engine
 
 router = APIRouter(prefix="/api/financial-policy", tags=["Financial Policy"])
 ROUNDING_MODES = {"half_up", "half_even", "down", "up"}
+CALENDAR_SYSTEMS = {"gregory", "persian", "islamic", "islamic-umalqura"}
+MEASUREMENT_SYSTEMS = {"metric", "us", "imperial"}
 
 
 def _now():
@@ -35,6 +39,12 @@ def _ensure_schema(conn):
             rounding_mode VARCHAR NOT NULL,
             effective_from VARCHAR NOT NULL,
             effective_to VARCHAR,
+            calendar_system VARCHAR NOT NULL DEFAULT 'gregory',
+            time_zone VARCHAR NOT NULL DEFAULT 'UTC',
+            first_day_of_week INTEGER NOT NULL DEFAULT 1,
+            fiscal_year_start VARCHAR NOT NULL DEFAULT '01-01',
+            measurement_system VARCHAR NOT NULL DEFAULT 'metric',
+            tax_percent REAL NOT NULL DEFAULT 0,
             status VARCHAR NOT NULL DEFAULT 'draft',
             verification_note TEXT DEFAULT '',
             verified_by INTEGER,
@@ -45,6 +55,19 @@ def _ensure_schema(conn):
             FOREIGN KEY(created_by) REFERENCES users(id)
         )
     """))
+    for definition in (
+        "calendar_system VARCHAR NOT NULL DEFAULT 'gregory'",
+        "time_zone VARCHAR NOT NULL DEFAULT 'UTC'",
+        "first_day_of_week INTEGER NOT NULL DEFAULT 1",
+        "fiscal_year_start VARCHAR NOT NULL DEFAULT '01-01'",
+        "measurement_system VARCHAR NOT NULL DEFAULT 'metric'",
+        "tax_percent REAL NOT NULL DEFAULT 0"
+    ):
+        try:
+            conn.execute(text(f"ALTER TABLE financial_policy_versions ADD COLUMN {definition}"))
+        except Exception as error:
+            if "duplicate column" not in str(error).lower():
+                raise
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS financial_policy_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +94,9 @@ def financial_policy_values(conn, business_date=None):
     _ensure_schema(conn)
     effective_date = business_date or date.today().isoformat()
     row = conn.execute(text("""
-        SELECT decimal_places, rounding_mode, version, country_code, currency_code
+        SELECT decimal_places, rounding_mode, version, country_code, currency_code,
+               calendar_system, time_zone, first_day_of_week, fiscal_year_start,
+               measurement_system, tax_percent
         FROM financial_policy_versions
         WHERE status='active' AND effective_from<=:effective_date
           AND (effective_to IS NULL OR effective_to>=:effective_date)
@@ -96,6 +121,12 @@ class PolicyDraft(BaseModel):
     decimal_places: int = Field(ge=0, le=4)
     rounding_mode: str = "half_up"
     effective_from: str
+    calendar_system: str = "gregory"
+    time_zone: str = "UTC"
+    first_day_of_week: int = Field(default=1, ge=0, le=6)
+    fiscal_year_start: str = "01-01"
+    measurement_system: str = "metric"
+    tax_percent: float = Field(default=0, ge=0, le=100)
 
 
 class PolicyDecision(BaseModel):
@@ -105,6 +136,20 @@ class PolicyDecision(BaseModel):
 def _validate(payload: PolicyDraft):
     if payload.rounding_mode not in ROUNDING_MODES:
         raise HTTPException(status_code=400, detail="Unsupported rounding mode")
+    if not re.fullmatch(r"[A-Za-z]{2}", payload.country_code):
+        raise HTTPException(status_code=400, detail="country_code must contain two letters")
+    if not re.fullmatch(r"[A-Za-z]{3}", payload.currency_code):
+        raise HTTPException(status_code=400, detail="currency_code must contain three letters")
+    if payload.calendar_system not in CALENDAR_SYSTEMS:
+        raise HTTPException(status_code=400, detail="Unsupported calendar system")
+    if payload.measurement_system not in MEASUREMENT_SYSTEMS:
+        raise HTTPException(status_code=400, detail="Unsupported measurement system")
+    try:
+        ZoneInfo(payload.time_zone)
+    except ZoneInfoNotFoundError:
+        raise HTTPException(status_code=400, detail="Unknown IANA time zone")
+    if not re.fullmatch(r"\d{2}-\d{2}(?:-[a-z]+)?|configurable", payload.fiscal_year_start):
+        raise HTTPException(status_code=400, detail="Invalid fiscal year start")
     try:
         date.fromisoformat(payload.effective_from)
     except ValueError:
@@ -146,10 +191,14 @@ def create_policy(payload: PolicyDraft, request: Request):
             result = conn.execute(text("""
                 INSERT INTO financial_policy_versions
                   (version, country_code, currency_code, decimal_places,
-                   rounding_mode, effective_from, status, created_by, created_at)
+                   rounding_mode, effective_from, calendar_system, time_zone,
+                   first_day_of_week, fiscal_year_start, measurement_system,
+                   tax_percent, status, created_by, created_at)
                 VALUES
                   (:version, :country_code, :currency_code, :decimal_places,
-                   :rounding_mode, :effective_from, 'draft', :actor, :now)
+                   :rounding_mode, :effective_from, :calendar_system, :time_zone,
+                   :first_day_of_week, :fiscal_year_start, :measurement_system,
+                   :tax_percent, 'draft', :actor, :now)
             """), {**payload.dict(), "country_code": payload.country_code.upper(),
                    "currency_code": payload.currency_code.upper(), "actor": actor, "now": _now()})
         except Exception as error:
@@ -189,8 +238,11 @@ def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
         conn.execute(text("""
             UPDATE app_settings SET decimal_places=:decimal_places,
               rounding_mode=:rounding_mode, currency_code=:currency_code,
-              country_code=:country_code, tax_profile_version=:version,
-              tax_profile_verified_at=:now
+              country_code=:country_code, calendar_system=:calendar_system,
+              time_zone=:time_zone, first_day_of_week=:first_day_of_week,
+              fiscal_year_start=:fiscal_year_start,
+              measurement_system=:measurement_system, tax_percent=:tax_percent,
+              tax_profile_version=:version, tax_profile_verified_at=:now
         """), {**dict(policy), "now": now})
         _event(conn, policy_id, "verified_and_activated", actor, decision.note.strip())
         return {"status": "active", "policy_id": policy_id, "version": policy["version"]}
