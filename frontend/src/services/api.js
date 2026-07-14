@@ -1,4 +1,5 @@
-const runtimeApiUrl = `${window.location.protocol}//${window.location.hostname}:8001`;\nconst API_URL = import.meta.env.VITE_API_URL || runtimeApiUrl;
+const runtimeApiUrl = `${window.location.protocol}//${window.location.hostname}:8001`;
+const API_URL = import.meta.env.VITE_API_URL || runtimeApiUrl;
 
 export function getAuthHeaders(headers = {}, includeJsonContentType = true) {
   const token = localStorage.getItem("vetrix_access_token");
