@@ -235,7 +235,7 @@ img, svg { max-width: 100%; }
     font-size: 16px;
   }
   .erp-main :where(button, [role="button"], a[class*="rounded"]) { min-height: 44px; }
-  .erp-main :where(table) { min-width: 680px; }
+  .erp-main :where(table) { display: block; width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
   .erp-main :where(.overflow-x-auto, .erp-table-scroll) {
     margin-inline: -2px;
     padding-block-end: 5px;
