@@ -31,7 +31,7 @@
 
 ### Added
 
-- International operating profiles for Iran, United States, United Kingdom, Germany, United Arab Emirates, and Turkey
+- International operating profiles for Iran, United States, United Kingdom, Germany, Finland, and the United Arab Emirates
 - Company-wide locale synchronization for currency, precision, calendars, time zones, week starts, fiscal years, and measurement systems
 - Versioned and auditable financial-policy administration with administrator verification
 - Explicit financial rounding engine supporting 0–4 decimal places and half-up, half-even, down, and up modes
