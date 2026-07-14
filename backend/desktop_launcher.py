@@ -10,10 +10,7 @@ import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-
-APP_HOST = "127.0.0.1"
-API_PORT = 8001
-WEB_PORT = 5173
+from app.network_config import load_network_config
 
 
 def bundle_path(*parts):
@@ -46,14 +43,11 @@ def load_or_create_secret(target):
     return secret
 
 
-def configure_environment():
+def configure_environment(network):
     target = data_directory()
     os.environ.setdefault("VETRIX_ENV", "desktop")
     os.environ.setdefault("VETRIX_JWT_SECRET", load_or_create_secret(target))
-    os.environ.setdefault(
-        "VETRIX_ALLOWED_ORIGINS",
-        f"http://{APP_HOST}:{WEB_PORT},http://localhost:{WEB_PORT}",
-    )
+    os.environ["VETRIX_ALLOWED_ORIGINS"] = ",".join(network.allowed_origins)
     database = (target / "vetrix.db").resolve().as_posix()
     os.environ.setdefault("VETRIX_DATABASE_URL", f"sqlite:///{database}")
     os.environ.setdefault("VETRIX_BACKUP_DIR", str(target / "backups"))
@@ -81,26 +75,28 @@ class SpaHandler(SimpleHTTPRequestHandler):
             super().log_message(format, *args)
 
 
-def assert_port_available(port):
+def assert_port_available(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         try:
-            probe.bind((APP_HOST, port))
+            probe.bind((host, port))
         except OSError as error:
             raise RuntimeError(
                 f"Port {port} is already in use. Close the other Vetrix instance and retry."
             ) from error
 
 
-def run_web_server():
-    server = ThreadingHTTPServer((APP_HOST, WEB_PORT), SpaHandler)
+def run_web_server(network):
+    server = ThreadingHTTPServer((network.bind_host, network.web_port), SpaHandler)
     server.serve_forever()
 
 
-def open_browser_when_ready():
-    url = f"http://{APP_HOST}:{WEB_PORT}"
+def open_browser_when_ready(network):
+    url = network.local_url
     for _ in range(60):
         try:
-            with socket.create_connection((APP_HOST, WEB_PORT), timeout=0.2):
+            with socket.create_connection(
+                (network.browser_host, network.web_port), timeout=0.2
+            ):
                 if os.getenv("VETRIX_NO_BROWSER") != "1":
                     webbrowser.open(url)
                 return
@@ -110,35 +106,43 @@ def open_browser_when_ready():
 
 def main():
     multiprocessing.freeze_support()
-    target = configure_environment()
-    assert_port_available(API_PORT)
-    assert_port_available(WEB_PORT)
+    network = load_network_config()
+    target = configure_environment(network)
+    assert_port_available(network.bind_host, network.api_port)
+    assert_port_available(network.bind_host, network.web_port)
 
     from main import app
     import uvicorn
 
     web_thread = threading.Thread(
         target=run_web_server,
+        args=(network,),
         name="vetrix-web",
         daemon=True,
     )
     web_thread.start()
     threading.Thread(
         target=open_browser_when_ready,
+        args=(network,),
         name="vetrix-browser",
         daemon=True,
     ).start()
 
     print("=" * 58)
     print("Vetrix ERP 1.2.0")
-    print(f"Application: http://{APP_HOST}:{WEB_PORT}")
+    print(f"Application: {network.local_url}")
+    print(f"Mode: {'LAN server' if network.lan_enabled else 'local only'}")
+    if network.lan_enabled:
+        print("Allowed client URLs:")
+        for origin in network.allowed_origins:
+            print(f"  {origin}")
     print(f"Data folder: {target}")
     print("Keep this window open while using Vetrix.")
     print("=" * 58)
     uvicorn.run(
         app,
-        host=APP_HOST,
-        port=API_PORT,
+        host=network.bind_host,
+        port=network.api_port,
         log_level="warning",
         access_log=False,
     )
