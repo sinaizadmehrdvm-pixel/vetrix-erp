@@ -123,6 +123,8 @@ PUBLIC_PATHS = {
     "/openapi.json",
     "/redoc",
     "/favicon.ico",
+    "/api/inbound-voice/telegram",
+    "/api/inbound-voice/whatsapp",
 }
 
 
