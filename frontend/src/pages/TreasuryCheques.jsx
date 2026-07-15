@@ -1,7 +1,8 @@
 import { useEffect,useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { AlertTriangle,Banknote,CheckCircle2,Clock3,Plus,RefreshCw,RotateCcw,Trash2,WalletCards,XCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL,getAuthHeaders } from "../services/api";
 import { createCheque,deleteCheque,getCheques,transitionCheque } from "../services/treasuryApi";
 
@@ -12,7 +13,12 @@ export default function TreasuryCheques(){
  const [form,setForm]=useState(empty);
  const c={title:fa?"خزانه‌داری و مدیریت چک‌ها":"Treasury & Cheques",sub:fa?"کنترل چک‌های دریافتی و پرداختی، سررسید، وصول و برگشت با سند خودکار":"Received and payable cheque lifecycle with due alerts and automatic vouchers",add:fa?"ثبت چک":"Add cheque",received:fa?"دریافتی":"Received",payable:fa?"پرداختی":"Payable",party:fa?"طرف‌حساب":"Party",amount:fa?"مبلغ":"Amount",number:fa?"شماره چک":"Cheque number",bank:fa?"بانک":"Bank",branch:fa?"شعبه":"Branch",issue:fa?"تاریخ صدور/دریافت":"Issue date",due:fa?"سررسید":"Due date",note:fa?"یادداشت":"Note",save:fa?"ثبت و صدور سند":"Save & post",all:fa?"همه":"All",pending:fa?"در جریان":"Pending",cleared:fa?"وصول‌شده":"Cleared",bounced:fa?"برگشتی":"Bounced",cancelled:fa?"باطل‌شده":"Cancelled",refresh:fa?"به‌روزرسانی":"Refresh",pendingReceived:fa?"دریافتی در جریان":"Pending received",pendingPayable:fa?"پرداختی در جریان":"Pending payable",overdue:fa?"سررسیدگذشته":"Overdue",dueSoon:fa?"نزدیک سررسید":"Due soon",actions:fa?"عملیات":"Actions",clear:fa?"وصول":"Clear",bounce:fa?"برگشت":"Bounce",cancel:fa?"ابطال":"Cancel",delete:fa?"حذف":"Delete",none:fa?"چکی ثبت نشده است.":"No cheques registered.",days:fa?"روز":"days"};
  async function load(){setLoading(true);setError("");try{const [r,cs]=await Promise.all([getCheques(direction,status),fetch(`${API_URL}/customers`,{headers:getAuthHeaders()}).then(x=>x.json())]);setData(r);setCustomers(Array.isArray(cs)?cs:[])}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{load()},[language]);
+ const stableLoad = useStableCallback(load);
+
+ useEffect(()=>{
+  const timer = setTimeout(() => { void stableLoad(); }, 0);
+  return () => clearTimeout(timer);
+ },[language, stableLoad]);
  async function submit(e){e.preventDefault();try{await createCheque({...form,customer_id:Number(form.customer_id),amount:Number(form.amount)});setForm(empty);await load()}catch(e){toast.error(e.message)}}
  async function move(id,next){try{await transitionCheque(id,{status:next,event_date:today,note:""});await load()}catch(e){toast.error(e.message)}}
  async function remove(id){try{await deleteCheque(id);await load()}catch(e){toast.error(e.message)}}

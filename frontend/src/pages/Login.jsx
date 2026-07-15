@@ -3,7 +3,7 @@ import { CheckCircle2, KeyRound, ShieldCheck, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL } from "../services/api";
 
 export default function Login() {

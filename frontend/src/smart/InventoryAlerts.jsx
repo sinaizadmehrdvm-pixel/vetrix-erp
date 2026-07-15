@@ -1,4 +1,4 @@
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 function translateAlert(message, t, language) {
   if (language !== "fa") {

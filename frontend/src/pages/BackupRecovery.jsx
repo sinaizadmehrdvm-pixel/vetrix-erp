@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -15,7 +16,7 @@ import {
 import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import {
   createBackup,
   deleteBackup,
@@ -96,9 +97,12 @@ export default function BackupRecovery() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load(false);
-  }, [language, isAdmin]);
+    const initialTimer = setTimeout(() => { void stableLoad(false); }, 0);
+    return () => clearTimeout(initialTimer);
+  }, [language, isAdmin, stableLoad]);
 
   async function create() {
     setCreating(true);

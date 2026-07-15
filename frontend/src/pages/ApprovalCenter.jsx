@@ -1,18 +1,24 @@
 import { useEffect,useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { CheckCircle2,Clock3,FileCheck2,RefreshCw,Send,ShieldCheck,XCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { approveVoucher,getApprovalRequests,getDraftVouchers,rejectVoucher,submitVoucherForApproval,withdrawApproval } from "../services/approvalApi";
 
 export default function ApprovalCenter(){
- const {language,dir,money,date,n}=useLanguage(),fa=language==="fa";
+ const {language,dir,money,date}=useLanguage(),fa=language==="fa";
  const [status,setStatus]=useState("pending"),[approvals,setApprovals]=useState([]),[drafts,setDrafts]=useState([]),[notes,setNotes]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState("");
  const c={title:fa?"مرکز تأیید اسناد":"Voucher Approval Center",sub:fa?"کنترل دو مرحله‌ای ثبت‌کننده و تأییدکننده با سابقه تصمیمات":"Maker-checker control with an auditable decision history",pending:fa?"در انتظار":"Pending",approved:fa?"تأییدشده":"Approved",rejected:fa?"ردشده":"Rejected",all:fa?"همه":"All",drafts:fa?"اسناد آماده ارسال":"Draft vouchers",voucher:fa?"سند":"Voucher",requester:fa?"درخواست‌کننده":"Requester",date:fa?"تاریخ":"Date",amount:fa?"مبلغ":"Amount",note:fa?"یادداشت تصمیم":"Decision note",submit:fa?"ارسال برای تأیید":"Submit",approve:fa?"تأیید":"Approve",reject:fa?"رد":"Reject",withdraw:fa?"انصراف":"Withdraw",refresh:fa?"به‌روزرسانی":"Refresh",none:fa?"موردی وجود ندارد.":"No items.",maker:fa?"ثبت‌کننده":"Maker",checker:fa?"تأییدکننده":"Checker",status:fa?"وضعیت":"Status"};
  async function load(next=status){setLoading(true);setError("");try{const [a,d]=await Promise.all([getApprovalRequests(next),getDraftVouchers()]);setApprovals(a);setDrafts(d.filter(x=>x.source_type==="manual"))}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{load()},[language]);
+ const stableLoad = useStableCallback(load);
+
+ useEffect(()=>{
+  const timer = setTimeout(() => { void stableLoad(); }, 0);
+  return () => clearTimeout(timer);
+ },[language, stableLoad]);
  async function changeStatus(v){setStatus(v);await load(v)}
  async function submit(id){try{await submitVoucherForApproval(id);toast.success(c.submit);await load()}catch(e){toast.error(e.message)}}
- async function decide(id,kind){try{const note=notes[id]||"";if(kind==="approve")await approveVoucher(id,note);else await rejectVoucher(id,note);setNotes({...notes,[id]:""});await load()}catch(e){toast.error(e.message)}}
+ async function decide(id,kind){try{const note=notes[id, stableLoad]||"";if(kind==="approve")await approveVoucher(id,note);else await rejectVoucher(id,note);setNotes({...notes,[id]:""});await load()}catch(e){toast.error(e.message)}}
  async function withdraw(id){try{await withdrawApproval(id);await load()}catch(e){toast.error(e.message)}}
  const card={background:"linear-gradient(145deg,rgba(15,23,42,.96),rgba(15,23,42,.74))",border:"1px solid rgba(34,211,238,.2)",borderRadius:22,boxShadow:"0 18px 55px rgba(2,6,23,.3)"},button={border:0,borderRadius:11,padding:"10px 13px",fontWeight:900,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6},input={background:"#1e293b",color:"white",border:"1px solid #334155",borderRadius:11,padding:"9px 11px"};
  return <div dir={dir} style={{color:"#f8fafc",maxWidth:1500,margin:"0 auto"}}>

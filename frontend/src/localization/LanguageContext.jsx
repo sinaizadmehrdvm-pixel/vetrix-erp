@@ -1,11 +1,10 @@
 import {
-  createContext,
-  useContext,
   useMemo,
   useState,
   useEffect,
   useCallback,
 } from "react";
+import { LanguageContext } from "./languageContext";
 
 import { translations } from "./translations";
 import {
@@ -19,8 +18,6 @@ import {
   localeFor,
 } from "./countryProfiles";
 
-const LanguageContext = createContext(null);
-
 export function LanguageProvider({ children }) {
   const savedLanguage = localStorage.getItem("vetrix_language") || "en";
   const [language, setLanguageState] = useState(savedLanguage);
@@ -33,21 +30,23 @@ export function LanguageProvider({ children }) {
       return {};
     }
   });
-  const baseProfile = getCountryProfile(country);
-  const profile = {
-    ...baseProfile,
-    currency: companyFormatting.currency_code || baseProfile.currency,
-    currencyDigits: Number.isInteger(companyFormatting.decimal_places)
-      ? companyFormatting.decimal_places
-      : baseProfile.currencyDigits,
-    calendar: companyFormatting.calendar_system || baseProfile.calendar,
-    timeZone: companyFormatting.time_zone || baseProfile.timeZone,
-    firstDayOfWeek: Number.isInteger(companyFormatting.first_day_of_week)
-      ? companyFormatting.first_day_of_week
-      : baseProfile.firstDayOfWeek,
-    measurementSystem: companyFormatting.measurement_system || baseProfile.measurementSystem,
-    fiscalYearStart: companyFormatting.fiscal_year_start || baseProfile.fiscalYearStart,
-  };
+  const profile = useMemo(() => {
+    const baseProfile = getCountryProfile(country);
+    return {
+      ...baseProfile,
+      currency: companyFormatting.currency_code || baseProfile.currency,
+      currencyDigits: Number.isInteger(companyFormatting.decimal_places)
+        ? companyFormatting.decimal_places
+        : baseProfile.currencyDigits,
+      calendar: companyFormatting.calendar_system || baseProfile.calendar,
+      timeZone: companyFormatting.time_zone || baseProfile.timeZone,
+      firstDayOfWeek: Number.isInteger(companyFormatting.first_day_of_week)
+        ? companyFormatting.first_day_of_week
+        : baseProfile.firstDayOfWeek,
+      measurementSystem: companyFormatting.measurement_system || baseProfile.measurementSystem,
+      fiscalYearStart: companyFormatting.fiscal_year_start || baseProfile.fiscalYearStart,
+    };
+  }, [country, companyFormatting]);
 
   const dictionary = translations[language] || translations.en;
   const dir = dictionary.dir || "ltr";
@@ -127,7 +126,7 @@ export function LanguageProvider({ children }) {
       time: (value) => formatCountryTime(value, profile, language),
       languages: Object.values(translations),
     };
-  }, [language, dictionary, dir, country, companyFormatting]);
+  }, [language, dictionary, dir, country, companyFormatting, profile, setLanguage, setCountry, setCompanyFormatting]);
 
   return (
     <LanguageContext.Provider value={value}>
@@ -138,10 +137,3 @@ export function LanguageProvider({ children }) {
   );
 }
 
-export function useLanguage() {
-  const context = useContext(LanguageContext);
-  if (!context) {
-    throw new Error("useLanguage must be used inside LanguageProvider");
-  }
-  return context;
-}

@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const MONTH_LABELS = {
   en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],

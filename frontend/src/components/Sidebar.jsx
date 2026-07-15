@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, UsersRound, Package, Receipt, Wallet, BarChart3, Settings,
   LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 
 const groups = [
@@ -92,8 +92,17 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
     const activeGroup = groups.find((group) =>
       group.items.some((item) => item.path === location.pathname)
     );
-    if (activeGroup) setExpanded((current) => ({ ...current, [activeGroup.id]: true }));
+    if (activeGroup) {
+      const timer = setTimeout(() => setExpanded((current) => ({ ...current, [activeGroup.id]: true })), 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
   }, [location.pathname]);
+
+  const label = useCallback((item) => {
+    if (item.fa || item.en) return fa ? item.fa : item.en;
+    return t(item.key) || t(item.fallbackKey) || item.key;
+  }, [fa, t]);
 
   const visibleGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(language);
@@ -105,12 +114,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         return permitted && (!normalizedQuery || searchable.includes(normalizedQuery));
       }),
     })).filter((group) => group.items.length);
-  }, [user?.role, query, language, t]);
-
-  function label(item) {
-    if (item.fa || item.en) return fa ? item.fa : item.en;
-    return t(item.key) || t(item.fallbackKey) || item.key;
-  }
+  }, [user?.role, query, language, label]);
 
   function toggleGroup(id) {
     if (compact) setCompact(false);

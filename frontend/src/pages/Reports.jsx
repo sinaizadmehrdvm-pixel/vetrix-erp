@@ -42,7 +42,7 @@ import {
   Area,
 } from "recharts";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 import {
   downloadAuthenticatedFile,
@@ -143,7 +143,7 @@ export default function Reports() {
   const [expenses, setExpenses] = useState([]);
   const [productProfit, setProductProfit] = useState([]);
   const [customerBalanceReport, setCustomerBalanceReport] = useState({ all: [], debtors: [], creditors: [] });
-  const [inventoryMovements, setInventoryMovements] = useState([]);
+  const [, setInventoryMovements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState("summary");
   const [error, setError] = useState("");
@@ -228,15 +228,16 @@ export default function Reports() {
   }
 
   useEffect(() => {
-    load();
+    const initialTimer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
-  const profit = overview?.profit_loss || {};
+  const profit = useMemo(() => overview?.profit_loss || {}, [overview]);
   const trial = overview?.trial_balance || {};
-  const cashflow = overview?.cashflow || {};
+  const cashflow = useMemo(() => overview?.cashflow || {}, [overview]);
   const invoiceSummary = overview?.invoice_summary || {};
-  const inventory = overview?.inventory || {};
+  const inventory = useMemo(() => overview?.inventory || {}, [overview]);
   const openInvoices = safeArray(overview?.open_invoices);
 
   const fallbackTotals = useMemo(() => {
@@ -277,13 +278,13 @@ export default function Reports() {
         stock_status: status,
       };
     });
-  }, [inventory?.products, products]);
+  }, [inventory, products]);
 
   const lowStockProducts = useMemo(() => {
     return safeArray(inventory?.low_stock_products).length
       ? safeArray(inventory.low_stock_products)
       : inventoryProducts.filter((p) => p.low_stock);
-  }, [inventory?.low_stock_products, inventoryProducts]);
+  }, [inventory, inventoryProducts]);
 
   const normalizedCustomerReport = useMemo(() => {
     const source = safeArray(customerBalanceReport?.all).length ? safeArray(customerBalanceReport.all) : customers;
@@ -606,22 +607,22 @@ export default function Reports() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Panel title={fa ? "بدهکاران برتر" : "Top debtors"}>
               {topDebtors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getDebtor(c))} color="text-red-300" />)}
-              {topDebtors.length === 0 && <Empty fa={fa} />}
+              {topDebtors.length === 0 && <Empty />}
             </Panel>
 
             <Panel title={fa ? "بستانکاران برتر" : "Top creditors"}>
               {topCreditors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getCreditor(c))} color="text-green-300" />)}
-              {topCreditors.length === 0 && <Empty fa={fa} />}
+              {topCreditors.length === 0 && <Empty />}
             </Panel>
 
             <Panel title={fa ? "هشدار فاکتورهای باز" : "Open invoice alerts"}>
               {openInvoices.slice(0, 10).map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={date(inv.created_at)} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-              {openInvoices.length === 0 && <Empty fa={fa} />}
+              {openInvoices.length === 0 && <Empty />}
             </Panel>
 
             <Panel title={fa ? "کالاهای کم‌موجودی" : "Low stock products"}>
               {lowStockProducts.slice(0, 10).map((p) => <Row key={p.id} title={p.name} subtitle={`${p.barcode || p.code || "-"} • ${fa ? "حداقل" : "Min"}: ${n(p.min_stock || 0)}`} value={n(p.stock || 0)} color="text-amber-300" />)}
-              {lowStockProducts.length === 0 && <Empty fa={fa} />}
+              {lowStockProducts.length === 0 && <Empty />}
             </Panel>
           </div>
         </div>
@@ -710,12 +711,12 @@ export default function Reports() {
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Panel title={fa ? "مطالبات از مشتریان" : "Receivables from customers"}>
-            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="debtor" />)}
-            {topDebtors.length === 0 && <Empty fa={fa} />}
+            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} type="debtor" />)}
+            {topDebtors.length === 0 && <Empty />}
           </Panel>
           <Panel title={fa ? "بدهی به تامین‌کنندگان / بستانکاران" : "Payables / Creditors"}>
-            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="creditor" />)}
-            {topCreditors.length === 0 && <Empty fa={fa} />}
+            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} type="creditor" />)}
+            {topCreditors.length === 0 && <Empty />}
           </Panel>
         </div>
       )}
@@ -736,8 +737,8 @@ export default function Reports() {
           </ChartPanel>
 
           <Panel title={fa ? "گزارش سود هر کالا" : "Product profit report"}>
-            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
-            {productProfitRows.length === 0 && <Empty fa={fa} />}
+            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} />)}
+            {productProfitRows.length === 0 && <Empty />}
           </Panel>
         </div>
       )}
@@ -745,7 +746,7 @@ export default function Reports() {
       {active === "invoices" && (
         <Panel title={fa ? "فاکتورهای باز و تسویه نشده" : "Open and unsettled invoices"}>
           {openInvoices.map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${inv.settlement_status || inv.payment_status || "-"}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-          {openInvoices.length === 0 && <Empty fa={fa} />}
+          {openInvoices.length === 0 && <Empty />}
         </Panel>
       )}
 
@@ -762,23 +763,23 @@ export default function Reports() {
           </Panel>
 
           <Panel title={fa ? "تراکنش‌های اخیر" : "Recent transactions"}>
-            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
-            {filteredTransactions.length === 0 && <Empty fa={fa} />}
+            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+            {filteredTransactions.length === 0 && <Empty />}
           </Panel>
         </div>
       )}
 
       {active === "inventory" && (
         <Panel title={fa ? "گزارش پیشرفته موجودی کالا" : "Advanced inventory report"}>
-          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
-          {inventoryProducts.length === 0 && <Empty fa={fa} />}
+          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} />)}
+          {inventoryProducts.length === 0 && <Empty />}
         </Panel>
       )}
 
       {active === "transactions" && (
         <Panel title={fa ? "گزارش کامل تراکنش‌ها" : "Full transactions report"}>
-          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
-          {filteredTransactions.length === 0 && <Empty fa={fa} />}
+          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+          {filteredTransactions.length === 0 && <Empty />}
         </Panel>
       )}
 
@@ -935,7 +936,7 @@ function InventoryRow({ item, money, n, fa }) {
   );
 }
 
-function TransactionRow({ item, money, date, fa }) {
+function TransactionRow({ item, money, date }) {
   const debit = toNumber(item.debit);
   const credit = toNumber(item.credit);
   const isDebit = debit > 0;

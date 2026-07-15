@@ -1,7 +1,7 @@
 import { useEffect,useState } from "react";
 import { Calculator,Landmark,Plus,RefreshCw,Trash2,Wrench } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { createFixedAsset,deleteFixedAsset,getFixedAssets,runAssetDepreciation } from "../services/fixedAssetsApi";
 
 export default function FixedAssets(){
@@ -13,7 +13,10 @@ export default function FixedAssets(){
  const c={title:fa?"دارایی‌های ثابت و استهلاک":"Fixed Assets & Depreciation",sub:fa?"ثبت بهای تمام‌شده، محاسبه استهلاک و ارزش دفتری با سند خودکار":"Track acquisition cost, automatic depreciation, and book value",
  add:fa?"ثبت دارایی":"Add asset",name:fa?"نام دارایی":"Asset name",code:fa?"کد دارایی":"Asset code",category:fa?"دسته‌بندی":"Category",purchase:fa?"تاریخ خرید":"Purchase date",cost:fa?"بهای تمام‌شده":"Acquisition cost",salvage:fa?"ارزش اسقاط":"Salvage value",life:fa?"عمر مفید (ماه)":"Useful life (months)",method:fa?"روش پرداخت":"Payment method",serial:fa?"شماره سریال":"Serial number",location:fa?"محل استقرار":"Location",save:fa?"ذخیره و ثبت سند":"Save & post",run:fa?"اجرای استهلاک تا تاریخ":"Run depreciation through",refresh:fa?"به‌روزرسانی":"Refresh",count:fa?"تعداد دارایی":"Assets",accumulated:fa?"استهلاک انباشته":"Accumulated depreciation",book:fa?"ارزش دفتری":"Book value",monthly:fa?"استهلاک ماهانه":"Monthly depreciation",recognized:fa?"ماه شناسایی‌شده":"Recognized months",status:fa?"وضعیت":"Status",delete:fa?"حذف":"Delete",no:fa?"دارایی ثابتی ثبت نشده است.":"No fixed assets registered.",bank:fa?"بانک":"Bank",cash:fa?"صندوق":"Cash"};
  async function load(){setLoading(true);setError("");try{setData(await getFixedAssets())}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{load()},[language]);
+ useEffect(()=>{
+  const timer = setTimeout(() => { void load(); }, 0);
+  return () => clearTimeout(timer);
+ },[language]);
  async function submit(e){e.preventDefault();try{await createFixedAsset({...form,acquisition_cost:Number(form.acquisition_cost),salvage_value:Number(form.salvage_value),useful_life_months:Number(form.useful_life_months)});setForm(empty);toast.success(c.save);await load()}catch(e){toast.error(e.message)}}
  async function run(){try{const r=await runAssetDepreciation({through_date:through});toast.success(`${r.posted_count} — ${money(r.total_depreciation)}`);await load()}catch(e){toast.error(e.message)}}
  async function remove(id){try{await deleteFixedAsset(id);await load()}catch(e){toast.error(e.message)}}

@@ -1,7 +1,8 @@
 import { useEffect,useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { AlertTriangle,BriefcaseBusiness,Building2,Plus,RefreshCw,Target,Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getAccountingChart } from "../services/accountingApi";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { createAccountingProject,createCostCenter,deleteBudgetLine,getBudgetDimensions,getBudgetVariance,saveBudgetLine } from "../services/budgetApi";
@@ -14,7 +15,12 @@ export default function BudgetControl(){
  const [budget,setBudget]=useState({account_id:"",cost_center_id:"",project_id:"",amount:"",note:""});
  const c={title:fa?"بودجه و مراکز هزینه":"Budget & Cost Control",sub:fa?"کنترل بودجه دوره‌ای، پروژه‌ها و انحراف عملکرد واقعی دفترکل":"Period budgets, projects, cost centers, and actual-ledger variance",period:fa?"دوره مالی":"Fiscal period",all:fa?"همه ابعاد":"All dimensions",center:fa?"مرکز هزینه":"Cost center",project:fa?"پروژه":"Project",code:fa?"کد":"Code",name:fa?"نام":"Name",add:fa?"افزودن":"Add",budget:fa?"ثبت بودجه":"Set budget",account:fa?"حساب درآمد/هزینه":"Revenue/expense account",amount:fa?"مبلغ بودجه":"Budget amount",note:fa?"یادداشت":"Note",refresh:fa?"به‌روزرسانی":"Refresh",totalBudget:fa?"کل بودجه":"Total budget",actual:fa?"عملکرد واقعی":"Actual",variance:fa?"انحراف":"Variance",usage:fa?"درصد مصرف":"Usage",over:fa?"ردیف‌های بیش از بودجه":"Over-budget lines",no:fa?"بودجه‌ای برای این فیلتر ثبت نشده است.":"No budget lines for this selection.",delete:fa?"حذف":"Delete"};
  async function bootstrap(){setLoading(true);setError("");try{const [p,d,a]=await Promise.all([getFiscalPeriods(),getBudgetDimensions(),getAccountingChart()]);setPeriods(p);setDims(d);setAccounts(a.filter(x=>["revenue","expense","contra"].includes(x.account_type)));const pid=periodId||p[0]?.id||"";setPeriodId(String(pid));if(pid)setData(await getBudgetVariance(pid,centerFilter,projectFilter))}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{bootstrap()},[language]);
+ const stableBootstrap = useStableCallback(bootstrap);
+
+ useEffect(()=>{
+  const timer = setTimeout(() => { void stableBootstrap(); }, 0);
+  return () => clearTimeout(timer);
+ },[language, stableBootstrap]);
  async function load(){if(!periodId)return;setLoading(true);try{setData(await getBudgetVariance(periodId,centerFilter,projectFilter));setDims(await getBudgetDimensions())}catch(e){setError(e.message)}finally{setLoading(false)}}
  async function addDimension(e){e.preventDefault();try{const fn=dimension.type==="center"?createCostCenter:createAccountingProject;await fn({code:dimension.code,name:dimension.name});setDimension({...dimension,code:"",name:""});await load()}catch(e){toast.error(e.message)}}
  async function addBudget(e){e.preventDefault();try{await saveBudgetLine({fiscal_period_id:Number(periodId),account_id:Number(budget.account_id),cost_center_id:budget.cost_center_id?Number(budget.cost_center_id):null,project_id:budget.project_id?Number(budget.project_id):null,amount:Number(budget.amount),note:budget.note});setBudget({...budget,amount:"",note:""});await load()}catch(e){toast.error(e.message)}}

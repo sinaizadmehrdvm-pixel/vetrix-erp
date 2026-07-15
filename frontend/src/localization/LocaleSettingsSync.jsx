@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "./LanguageContext";
+import { useLanguage } from "./useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
 
 const COUNTRY_STORAGE_KEY = "vetrix_country";

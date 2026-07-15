@@ -1,5 +1,5 @@
 import { FileText, QrCode, Printer, ShieldCheck } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function InvoicePrint({ invoice }) {
   const { t, money, n, dir, language } = useLanguage();

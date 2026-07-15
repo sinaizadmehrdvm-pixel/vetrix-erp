@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -13,19 +14,14 @@ import {
   RefreshCcw,
   AlertTriangle,
   Crown,
-  Star,
   PhoneCall,
   CalendarClock,
-  Tags,
   ShieldCheck,
   Activity,
-  TrendingUp,
-  Filter,
-  ArrowUpDown,
   Download,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import {
   getCustomers,
   createCustomer,
@@ -228,9 +224,12 @@ export default function Customers() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, [language]);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   function partyTypeLabel(type) {
     const map = {
@@ -247,17 +246,11 @@ export default function Customers() {
     return map[type] || "-";
   }
 
-  function balanceOf(item) {
-    return toNumber(item.balance);
-  }
+  const balanceOf = useCallback((item) => toNumber(item.balance), []);
 
-  function debtorOf(item) {
-    return Math.max(balanceOf(item), 0);
-  }
+  const debtorOf = useCallback((item) => Math.max(balanceOf(item), 0), [balanceOf]);
 
-  function creditorOf(item) {
-    return Math.max(-balanceOf(item), 0);
-  }
+  const creditorOf = useCallback((item) => Math.max(-balanceOf(item), 0), [balanceOf]);
 
   const summary = useMemo(() => {
     return parties.reduce(
@@ -275,7 +268,7 @@ export default function Customers() {
       },
       { totalDebtor: 0, totalCreditor: 0, totalBalance: 0, vipCount: 0, followupCount: 0, riskCount: 0, scoreSum: 0 }
     );
-  }, [parties, fa]);
+  }, [parties, fa, balanceOf, debtorOf, creditorOf]);
 
   const filtered = useMemo(() => {
     const keyword = toEnglishDigits(search).toLowerCase().trim();
@@ -327,7 +320,7 @@ export default function Customers() {
       if (sortMode === "name_asc") return String(a.name || "").localeCompare(String(b.name || ""));
       return 0;
     });
-  }, [parties, search, typeFilter, crmFilter, sortMode, fa]);
+  }, [parties, search, typeFilter, crmFilter, sortMode, fa, debtorOf, creditorOf]);
 
   function payloadFromForm() {
     return {

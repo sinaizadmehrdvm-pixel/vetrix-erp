@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   Activity,
   AlertTriangle,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getSystemHealth } from "../services/systemHealthApi";
 
 const categoryIcons = {
@@ -74,9 +75,12 @@ export default function SystemHealth() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, [language, isAdmin]);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, isAdmin, stableLoad]);
 
   const grouped = useMemo(() => {
     const result = {};

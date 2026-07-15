@@ -13,9 +13,9 @@ import {
   Globe2,
   CalendarDays,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
-import { useTheme } from "../theme/ThemeContext";
+import { useTheme } from "../theme/useTheme";
 
 const emptySettings = {
   company_name: "Vetrix ERP",
@@ -215,7 +215,8 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    loadSettings();
+    const initialTimer = setTimeout(() => { void loadSettings(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   AlertTriangle,
   BarChart3,
@@ -18,7 +19,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders, getReportsOverview } from "../services/api";
 
 
@@ -135,9 +136,12 @@ export default function BusinessIntelligence() {
     }
   }
 
+  const stableLoadBI = useStableCallback(loadBI);
+
   useEffect(() => {
-    loadBI();
-  }, [language]);
+    const timer = setTimeout(() => { void stableLoadBI(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoadBI]);
 
   const monthly = useMemo(() => normalizeMonthly(reports), [reports]);
   const maxSales = Math.max(...monthly.map((x) => toNumber(x.sales)), 1);

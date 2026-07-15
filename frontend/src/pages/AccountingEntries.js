@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { getAccountingChart } from "../services/accountingApi";
 import {
   cancelAccountingVoucher,
@@ -11,7 +12,7 @@ import {
   getAccountingVouchers,
   postAccountingVoucher,
 } from "../services/accountingEntriesApi";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const emptyLine = { account_id: "", description: "", debit: "", credit: "" };
 function h(tag, props, ...children) { return React.createElement(tag, props, ...children); }
@@ -70,7 +71,12 @@ export default function AccountingEntries() {
       setLoading(false);
     }
   }
-  useEffect(() => { load(); }, [language]);
+  const stableLoad = useStableCallback(load);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   const totals = useMemo(() => {
     const debit = form.lines.reduce((s, x) => s + toNumber(x.debit), 0);
@@ -124,8 +130,6 @@ export default function AccountingEntries() {
     onClick: () => setActiveTab(id),
     style: { ...styles.btn, background: activeTab === id ? "#22d3ee" : "#1e293b", color: activeTab === id ? "#020617" : "#a5f3fc" },
   }, label);
-
-  const MoneyCell = ({ value }) => h("td", { style: { ...styles.td, fontWeight: 900, color: Number(value || 0) ? "#a5f3fc" : "#64748b" } }, money(value || 0));
 
   function reportFilters() {
     return h("div", { style: { ...styles.card, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr))", gap: 12 } },

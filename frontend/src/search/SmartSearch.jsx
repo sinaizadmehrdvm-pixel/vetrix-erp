@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function SmartSearch({
   value,

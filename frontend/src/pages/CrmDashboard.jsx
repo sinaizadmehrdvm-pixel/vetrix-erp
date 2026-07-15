@@ -19,7 +19,7 @@ import {
   Eye,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders, getCustomers } from "../services/api";
 
 function toNumber(value) {
@@ -180,7 +180,8 @@ export default function CrmDashboard() {
   }
 
   useEffect(() => {
-    load();
+    const initialTimer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 

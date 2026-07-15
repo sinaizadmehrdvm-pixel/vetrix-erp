@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { Link } from "react-router-dom";
 import {
   ArrowDownCircle,
@@ -17,7 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import {
   getCustomers,
   openAuthenticatedDocument,
@@ -137,7 +138,7 @@ function normalizeTransaction(item = {}) {
 }
 
 export default function Transactions() {
-  const { t, money, language, dir, n, date } = useLanguage();
+  const { t, money, language, dir, date } = useLanguage();
   const fa = language === "fa";
 
   const [transactions, setTransactions] = useState([]);
@@ -199,20 +200,24 @@ export default function Transactions() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [language]);
+  const stableLoad = useStableCallback(load);
 
   useEffect(() => {
-    setForm((prev) => ({
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setForm((prev) => ({
       ...prev,
       date: prev.date || todayByLanguage(language),
-    }));
+    })), 0);
+    return () => clearTimeout(timer);
   }, [language]);
 
-  function partyName(id) {
+  const partyName = useCallback((id) => {
     return parties.find((p) => String(p.id) === String(id))?.name || "-";
-  }
+  }, [parties]);
 
   function methodLabel(method) {
     const map = {
@@ -278,7 +283,7 @@ export default function Transactions() {
         .toLowerCase()
         .includes(keyword)
     );
-  }, [transactions, search, parties, language]);
+  }, [transactions, search, language, partyName]);
 
   function resetForm() {
     setEditingId(null);

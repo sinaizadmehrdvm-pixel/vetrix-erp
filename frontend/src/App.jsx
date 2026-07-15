@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect } from "react";
 import MainLayout from "./layout/MainLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
-import { useLanguage } from "./localization/LanguageContext";
+import { useLanguage } from "./localization/useLanguage";
 import LocaleSettingsSync from "./localization/LocaleSettingsSync";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));

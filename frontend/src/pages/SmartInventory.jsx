@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Warehouse,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getSmartInventoryOverview } from "../services/api";
 
 function safeArray(value) {
@@ -70,7 +70,8 @@ export default function SmartInventory() {
   }
 
   useEffect(() => {
-    load();
+    const initialTimer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 

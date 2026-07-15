@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -11,7 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
 
@@ -85,9 +86,12 @@ export default function FinancialStatements() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load("");
-  }, [language]);
+    const initialTimer = setTimeout(() => { void stableLoad(""); }, 0);
+    return () => clearTimeout(initialTimer);
+  }, [language, stableLoad]);
 
   async function changePeriod(value) {
     setPeriodId(value);

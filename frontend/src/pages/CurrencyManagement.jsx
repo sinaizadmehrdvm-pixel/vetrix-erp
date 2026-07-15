@@ -1,7 +1,8 @@
 import { useEffect,useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { Coins,Plus,RefreshCw,TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { createCurrency,getCurrencies,getForeignCurrencyBalances,setExchangeRate } from "../services/currencyApi";
 
@@ -12,7 +13,12 @@ export default function CurrencyManagement(){
  const [currency,setCurrency]=useState({code:"",name:"",symbol:""}),[rate,setRate]=useState({currency_code:"",rate_date:today,rate_to_base:""});
  const c={title:fa?"حسابداری چندارزی":"Multi-Currency Accounting",sub:fa?"مدیریت ارز، تاریخچه نرخ و ارزش‌گذاری مانده‌های ارزی دفترکل":"Currency registry, exchange rates, and ledger balance revaluation",addCurrency:fa?"تعریف ارز":"Add currency",code:fa?"کد سه‌حرفی":"3-letter code",name:fa?"نام ارز":"Currency name",symbol:fa?"نماد":"Symbol",save:fa?"ذخیره":"Save",setRate:fa?"ثبت نرخ":"Set exchange rate",currency:fa?"ارز":"Currency",rate:fa?"نرخ به ارز پایه":"Rate to base",rateDate:fa?"تاریخ نرخ":"Rate date",period:fa?"دوره مالی":"Fiscal period",all:fa?"همه دوره‌ها":"All periods",asOf:fa?"ارزش‌گذاری تا تاریخ":"Revalue as of",refresh:fa?"به‌روزرسانی":"Refresh",carrying:fa?"ارزش دفتری":"Carrying value",current:fa?"ارزش روز":"Current value",difference:fa?"تفاوت تسعیر":"Unrealized difference",foreign:fa?"مانده ارزی":"Foreign balance",account:fa?"حساب":"Account",latest:fa?"آخرین نرخ":"Latest rate",no:fa?"مانده ارزی ثبت‌شده‌ای وجود ندارد.":"No foreign-currency balances.",total:fa?"جمع تفاوت تسعیر":"Total unrealized difference"};
  async function load(){setLoading(true);setError("");try{const [cs,ps,b]=await Promise.all([getCurrencies(asOf),getFiscalPeriods(),getForeignCurrencyBalances(periodId,asOf)]);setCurrencies(cs);setPeriods(ps);setData(b);if(!rate.currency_code&&cs.find(x=>!x.is_base))setRate(r=>({...r,currency_code:cs.find(x=>!x.is_base).code}))}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{load()},[language]);
+ const stableLoad = useStableCallback(load);
+
+ useEffect(()=>{
+  const timer = setTimeout(() => { void stableLoad(); }, 0);
+  return () => clearTimeout(timer);
+ },[language, stableLoad]);
  async function addCurrency(e){e.preventDefault();try{await createCurrency(currency);setCurrency({code:"",name:"",symbol:""});await load()}catch(e){toast.error(e.message)}}
  async function addRate(e){e.preventDefault();try{await setExchangeRate({...rate,rate_to_base:Number(rate.rate_to_base)});setRate({...rate,rate_to_base:""});await load()}catch(e){toast.error(e.message)}}
  const card={background:"linear-gradient(145deg,rgba(15,23,42,.96),rgba(15,23,42,.74))",border:"1px solid rgba(34,211,238,.2)",borderRadius:22,boxShadow:"0 18px 55px rgba(2,6,23,.3)"},input={background:"#1e293b",color:"white",border:"1px solid #334155",borderRadius:11,padding:"10px 12px",minWidth:0},button={border:0,borderRadius:11,padding:"10px 13px",fontWeight:900,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6};

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Tags, Plus, Trash2, Search } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { Plus, Trash2, Search } from "lucide-react";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function ProductCategories() {
   const { language, n } = useLanguage();

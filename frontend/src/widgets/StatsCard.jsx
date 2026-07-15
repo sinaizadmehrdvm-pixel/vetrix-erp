@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function StatsCard({
   title,

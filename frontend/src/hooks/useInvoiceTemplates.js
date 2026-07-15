@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "./useStableCallback";
 import { getPdfTemplates } from "../services/api";
 
 export function useInvoiceTemplates() {
@@ -19,9 +20,12 @@ export function useInvoiceTemplates() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, []);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [stableLoad]);
 
   return {
     templates,
