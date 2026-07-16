@@ -13,7 +13,7 @@ import {
   UsersRound,
   Wallet,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getAiBiSummary } from "../services/api";
 
 function safeArray(value) {
@@ -55,9 +55,9 @@ export default function AiBusinessIntelligence() {
   }
 
   useEffect(() => {
-    loadData();
+    const initialTimer = setTimeout(() => { void loadData(); }, 0);;
     const timer = setInterval(loadData, 30000);
-    return () => clearInterval(timer);
+    return () => { clearTimeout(initialTimer); clearInterval(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 

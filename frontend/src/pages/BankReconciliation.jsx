@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { CheckCircle2, Link2, Landmark, Plus, RefreshCw, Trash2, Unlink } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { addBankStatementLine, createBankAccount, deleteBankStatementLine, getBankAccounts, getBankCandidates, getBankReconciliationSummary, getBankStatement, matchBankStatementLine, unmatchBankStatementLine } from "../services/bankReconciliationApi";
 
 export default function BankReconciliation() {
@@ -29,7 +30,9 @@ export default function BankReconciliation() {
       else{setLines([]);setSummary(null);}
     }catch(e){setError(e.message);}finally{setLoading(false);}
   }
-  useEffect(()=>{load("");},[language]);
+  const stableLoad = useStableCallback(load);
+
+  useEffect(()=>{const initialTimer = setTimeout(() => { void stableLoad(""); }, 0);return()=>clearTimeout(initialTimer);},[language, stableLoad]);
   async function submitAccount(e){e.preventDefault();try{const r=await createBankAccount(accountForm);setAccountForm({...accountForm,name:"",bank_name:"",account_number:"",iban:""});await load(r.id);toast.success(copy.save);}catch(e){toast.error(e.message);}}
   async function submitLine(e){e.preventDefault();if(!accountId)return;try{await addBankStatementLine(accountId,{...lineForm,amount:Number(lineForm.amount)});setLineForm({...lineForm,description:"",reference:"",amount:""});await load(accountId);}catch(e){toast.error(e.message);}}
   async function find(line){try{setCandidates({...candidates,[line.id]:await getBankCandidates(accountId,line.id)});}catch(e){toast.error(e.message);}}

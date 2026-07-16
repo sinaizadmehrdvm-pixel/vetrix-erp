@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { AlertTriangle, CalendarDays, Download, HandCoins, Landmark, Printer, RefreshCw, Scale } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getAgingReport } from "../services/agingApi";
 
 export default function AgingReport() {
@@ -49,7 +50,12 @@ export default function AgingReport() {
     catch (requestError) { setError(requestError.message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, [language]);
+  const stableLoad = useStableCallback(load);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   const items = data?.items?.filter((item) => side === "all" || item.side === side) || [];
   const card = { background: "linear-gradient(145deg,rgba(15,23,42,.95),rgba(15,23,42,.72))", border: "1px solid rgba(34,211,238,.2)", borderRadius: 22, boxShadow: "0 18px 55px rgba(2,6,23,.3)" };

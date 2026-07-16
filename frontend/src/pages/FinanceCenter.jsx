@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Banknote,
   Building2,
-  CalendarClock,
   CreditCard,
   Download,
   Landmark,
@@ -11,14 +10,13 @@ import {
   Search,
   Send,
   ShieldCheck,
-  Trash2,
   Wallet,
   ArrowDownRight,
   ArrowUpRight,
   Repeat,
   AlertTriangle,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
 
 
@@ -135,7 +133,8 @@ export default function FinanceCenter() {
   }
 
   useEffect(() => {
-    loadFinance();
+    const initialTimer = setTimeout(() => { void loadFinance(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   Wallet,
   Plus,
@@ -9,7 +10,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { createExpense, deleteExpense, getExpenses } from "../services/api";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
@@ -123,9 +124,12 @@ export default function Expenses() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, [language]);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   async function addExpense() {
     const amount = toNumber(form.amount);

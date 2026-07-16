@@ -15,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getFinancialIntelligenceOverview, simulateFinancialScenario } from "../services/api";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 function toNum(v) {
   const n = Number(v || 0);
@@ -60,7 +60,8 @@ export default function FinancialIntelligence() {
   }
 
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const summary = data?.summary || {};
@@ -69,7 +70,6 @@ export default function FinancialIntelligence() {
   const products = data?.product_profitability || [];
   const customers = data?.customer_profitability || [];
   const recommendations = data?.recommendations || [];
-  const forecast = data?.sales_forecast || [];
 
   const healthLabel = useMemo(() => {
     if (summary.cash_health === "danger") return fa ? "پرریسک" : "Danger";

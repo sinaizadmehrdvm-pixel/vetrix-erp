@@ -1,4 +1,4 @@
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function LiveNotification({ notifications = [] }) {
   const { t, language, n, dir } = useLanguage();

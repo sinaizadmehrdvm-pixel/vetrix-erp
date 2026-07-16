@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAccountingChart, getAccountingMeta, seedAccountingChart, createAccountingAccount, updateAccountingAccount, toggleAccountingAccount, deleteAccountingAccount } from "../services/accountingApi";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const emptyForm = { code: "", name: "", account_type: "asset", level: "group", parent_id: "", normal_balance: "debit", description: "", color: "#22d3ee", is_active: true };
 const types = ["asset", "liability", "equity", "revenue", "expense", "contra"];
@@ -26,7 +26,10 @@ export default function AccountingCore() {
     } catch (e) { setMessage(e.message || "Accounting API error"); }
     finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, [language]);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language]);
 
   const filtered = useMemo(() => accounts.filter(a => !q || String(a.code).includes(q) || String(a.name).toLowerCase().includes(q.toLowerCase())), [accounts, q]);
   const stats = { total: accounts.length, active: accounts.filter(a => a.is_active !== false && a.is_active !== 0).length };

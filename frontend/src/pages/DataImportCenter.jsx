@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, History, Upload } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { applyImport, downloadImportTemplate, getImportBatches, previewImport } from "../services/dataImportApi";
 
 export default function DataImportCenter() {
@@ -32,7 +32,10 @@ export default function DataImportCenter() {
     warning: fa ? "ردیف‌های تکراری ثبت نمی‌شوند. اگر هر ردیف خطا داشته باشد، Apply تا رفع خطا مسدود است." : "Duplicates are skipped. Apply is blocked while any row has validation errors.",
   };
   async function load() { try { setBatches(await getImportBatches()); } catch (error) { toast.error(error.message); } }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   async function runPreview() {
     if (!file) return toast.error(t.choose);
     setBusy(true);

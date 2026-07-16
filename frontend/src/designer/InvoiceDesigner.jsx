@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate } from "../services/api";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const PAGE_SIZES = {
   A4: { w: 620, h: 820, label: "A4" },
@@ -96,9 +97,12 @@ export default function InvoiceDesigner() {
     }
   }
 
+  const stableLoadTemplates = useStableCallback(loadTemplates);
+
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    const timer = setTimeout(() => { void stableLoadTemplates(); }, 0);
+    return () => clearTimeout(timer);
+  }, [stableLoadTemplates]);
 
   function updateElement(id, patch) {
     setConfig((prev) => ({

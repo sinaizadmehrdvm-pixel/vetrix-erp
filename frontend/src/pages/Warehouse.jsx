@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Warehouse as WarehouseIcon, Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useStableCallback } from "../hooks/useStableCallback";
+import { Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal } from "lucide-react";
+import { useLanguage } from "../localization/useLanguage";
 import { createStockMovement, getProducts, getStockMovements } from "../services/api";
 
 const inputClass = "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
@@ -43,7 +44,12 @@ export default function Warehouse() {
     } catch (e) { console.error(e); setError(fa ? "خطا در دریافت اطلاعات انبار" : "Error loading warehouse data"); }
     finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, [language]);
+  const stableLoad = useStableCallback(load);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   async function addMovement() {
     if (!form.product_id || !form.quantity) { alert(fa ? "کالا و تعداد را وارد کن" : "Select product and quantity"); return; }

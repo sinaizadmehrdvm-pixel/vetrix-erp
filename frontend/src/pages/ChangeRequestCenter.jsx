@@ -3,7 +3,7 @@ import { Check, FileAudio, Mic, MicOff, PencilLine, RefreshCw, Send, ShieldCheck
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api/change-requests${path}`, {
@@ -46,7 +46,8 @@ export default function ChangeRequestCenter() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }; }, []);
+  useEffect(() => { const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, []);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
 
   async function startRecording() {
     try {

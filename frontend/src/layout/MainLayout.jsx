@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function MainLayout() {
   const { dir, language } = useLanguage();

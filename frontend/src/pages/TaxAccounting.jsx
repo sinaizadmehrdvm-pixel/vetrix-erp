@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { Download, Printer, ReceiptText, RefreshCw, Scale, ShoppingCart, TrendingUp } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getVatReport } from "../services/taxApi";
 
@@ -54,7 +55,9 @@ export default function TaxAccounting() {
     }
   }
 
-  useEffect(() => { load(""); }, [language]);
+  const stableLoad = useStableCallback(load);
+
+  useEffect(() => { const initialTimer = setTimeout(() => { void stableLoad(""); }, 0); return () => clearTimeout(initialTimer); }, [language, stableLoad]);
 
   async function changePeriod(value) {
     setPeriodId(value);

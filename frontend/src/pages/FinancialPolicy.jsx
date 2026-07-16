@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, FileClock, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import {
   activateFinancialPolicy,
   createFinancialPolicy,
@@ -85,7 +85,10 @@ export default function FinancialPolicy() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   async function submit(event) {
     event.preventDefault();

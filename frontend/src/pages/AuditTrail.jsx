@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Fingerprint,
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getAuditEvents, getAuditIntegrity } from "../services/auditApi";
 
 const PAGE_SIZE = 50;
@@ -96,9 +96,12 @@ export default function AuditTrail() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load(0, applied);
-  }, [language, isAdmin]);
+    const initialTimer = setTimeout(() => { void stableLoad(0, applied); }, 0);
+    return () => clearTimeout(initialTimer);
+  }, [language, isAdmin, applied, stableLoad]);
 
   function applyFilters(event) {
     event.preventDefault();

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { useAuth } from "../auth/AuthContext";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
@@ -79,7 +80,10 @@ export default function OnlineCommerce() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   async function checkConnections(showToast = false) {
     if (!["admin", "accountant"].includes(user?.role)) return;
@@ -106,9 +110,12 @@ export default function OnlineCommerce() {
     }
   }
 
+  const stableCheckConnections = useStableCallback(checkConnections);
+
   useEffect(() => {
-    if (tab === "connections") checkConnections(false);
-  }, [tab, user?.role]);
+    if (tab === "connections") { const timer = setTimeout(() => { void stableCheckConnections(false); }, 0); return () => clearTimeout(timer); }
+    return undefined;
+  }, [tab, user?.role, stableCheckConnections]);
 
   function patchProduct(id, patch) {
     setProducts((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));

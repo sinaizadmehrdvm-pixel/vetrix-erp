@@ -12,7 +12,7 @@ import {
 import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { createUser, getRoles, getUsers, resetUserPassword, updateUserRole } from "../services/usersApi";
 
 const emptyForm = {

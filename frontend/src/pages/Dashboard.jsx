@@ -40,7 +40,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { fetchAuthenticatedResource, getDashboardStats, getReportsOverview } from "../services/api";
 
 
@@ -257,9 +257,9 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    loadDashboard();
+    const initialTimer = setTimeout(() => { void loadDashboard(); }, 0);
     const timer = setInterval(loadDashboard, 10000);
-    return () => clearInterval(timer);
+    return () => { clearTimeout(initialTimer); clearInterval(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
@@ -271,11 +271,11 @@ export default function Dashboard() {
       ai_insight: normalizeInsight(stats.ai_insight, t),
       live_notifications: normalizeNotifications(stats.live_notifications, t),
     };
-  }, [stats, t, language]);
+  }, [stats, t]);
 
   const activityData = useMemo(() => {
     return normalizeActivity(activity, t);
-  }, [activity, t, language]);
+  }, [activity, t]);
 
   if (!dashboardData) {
     return (

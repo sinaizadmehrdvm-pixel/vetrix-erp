@@ -10,7 +10,7 @@ import {
   Eye,
 } from "lucide-react";
 import { API_URL, getPdfTemplates } from "../services/api";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const PAGE_SIZES = [
   { value: "A4", fa: "A4 رسمی", en: "A4 official" },
@@ -122,7 +122,8 @@ export default function PrintStudioModal({ invoice, onClose }) {
   }
 
   useEffect(() => {
-    loadTemplates();
+    const initialTimer = setTimeout(() => { void loadTemplates(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -132,8 +133,10 @@ export default function PrintStudioModal({ invoice, onClose }) {
 
   useEffect(() => {
     if (selectedTemplate?.page_size) {
-      setPageSize(selectedTemplate.page_size);
+      const timer = setTimeout(() => setPageSize(selectedTemplate.page_size), 0);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, [selectedTemplate]);
 
   const printUrl = useMemo(() => {

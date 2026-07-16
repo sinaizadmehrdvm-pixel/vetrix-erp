@@ -14,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getCache } from "../storage/db";
 import { getPdfTemplates, savePdfTemplate } from "../services/api";
 
@@ -168,7 +168,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }, [id, propInvoice]);
 
   useEffect(() => {
-    loadTemplates();
+    const timer = setTimeout(() => { void loadTemplates(); }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   async function loadTemplates() {

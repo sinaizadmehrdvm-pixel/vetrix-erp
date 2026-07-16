@@ -1,5 +1,5 @@
 import { FileSpreadsheet, FileText } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function ExportButtons() {
   const API = "http://127.0.0.1:8001";

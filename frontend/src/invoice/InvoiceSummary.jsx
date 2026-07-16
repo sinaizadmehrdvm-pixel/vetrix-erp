@@ -1,5 +1,5 @@
 import { Receipt, Percent, Truck, Calculator } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function InvoiceSummary({
   subtotal = 0,

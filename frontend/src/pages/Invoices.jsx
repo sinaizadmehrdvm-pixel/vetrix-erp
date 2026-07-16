@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   FileText,
   Plus,
@@ -32,7 +33,7 @@ import {
   getCustomerLedger,
 } from "../services/api";
 
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import InvoiceSummary from "../invoice/InvoiceSummary";
 import InvoicePrint from "../invoice/InvoicePrint";
 import { getCache, setCache } from "../storage/db";
@@ -217,9 +218,12 @@ export default function Invoices() {
     }
   }
 
+  const stableLoadData = useStableCallback(loadData);
+
   useEffect(() => {
-    loadData();
-  }, [language]);
+    const timer = setTimeout(() => { void stableLoadData(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoadData]);
 
   useEffect(() => {
     async function loadCustomerLedger() {

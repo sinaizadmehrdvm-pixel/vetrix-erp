@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BellRing, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshCw, ShieldAlert, Sparkles, Target, TrendingUp, Trophy, UserRound, Wallet } from "lucide-react";
+import { ArrowLeft, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshCw, ShieldAlert, Sparkles, Target, TrendingUp, Trophy, UserRound, Wallet } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useLanguage } from "../../localization/LanguageContext";
+import { useLanguage } from "../../localization/useLanguage";
 import {
   API_URL,
   createCrmInteraction,
@@ -27,32 +27,10 @@ import CustomerAI from "./components/CustomerAI";
 
 const API_BASE = API_URL || "http://127.0.0.1:8001";
 
-function cleanPhone(value) {
-  let phone = String(value || "").replace(/[^\\d+]/g, "");
-  if (!phone) return "";
-  if (phone.startsWith("00")) phone = phone.slice(2);
-  if (phone.startsWith("0")) phone = `98${phone.slice(1)}`;
-  if (phone.startsWith("+")) phone = phone.slice(1);
-  return phone;
-}
-
-function openWhatsApp(phone, text = "") {
-  const cleaned = cleanPhone(phone);
-  if (!cleaned) return false;
-  const url = `https://wa.me/${cleaned}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
-  window.open(url, "_blank", "noreferrer");
-  return true;
-}
-
 function toNumber(value) {
-  return Number(
-    String(value ?? "")
-      .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-      .replace(/[,،]/g, "")
-      .replace(/[^\d.-]/g, "") || 0
-  );
+  return Number(String(value ?? "").replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[,،]/g, "").replace(/[^\d.-]/g, "") || 0);
 }
+
 
 function riskLabel(risk, fa) {
   const mapFa = { low: "کم", medium: "متوسط", high: "زیاد", critical: "بحرانی" };
@@ -157,7 +135,8 @@ async function fetchCustomerFiles(customerId) {
   }
 
   useEffect(() => {
-    loadCustomer360();
+    const initialTimer = setTimeout(() => { void loadCustomer360(); }, 0);
+    return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, language]);
 
@@ -253,14 +232,6 @@ async function fetchCustomerFiles(customerId) {
   }
 
   
-function handleWhatsApp() {
-    const text = fa
-      ? `سلام ${data?.customer?.name || ""} عزیز، از طرف Vetrix ERP برای پیگیری با شما در ارتباط هستیم.`
-      : `Hello ${data?.customer?.name || ""}, we are contacting you from Vetrix ERP for follow-up.`;
-    const ok = openWhatsApp(data?.customer?.mobile || data?.customer?.phone, text);
-    if (!ok) setMessage(fa ? "شماره موبایل معتبر برای واتساپ ثبت نشده است." : "No valid WhatsApp number.");
-  }
-
   const customer = data?.customer;
   const summary = data?.summary || {};
   const ai = data?.ai || {};

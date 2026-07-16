@@ -1,4 +1,4 @@
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 export default function TopProducts({ products = [] }) {
   const { t, n, money, dir } = useLanguage();

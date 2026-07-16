@@ -1,5 +1,5 @@
 import { Globe2 } from "lucide-react";
-import { useLanguage } from "../../localization/LanguageContext";
+import { useLanguage } from "../../localization/useLanguage";
 
 export default function LanguageSwitcher() {
   const { language, setLanguage, languages } = useLanguage();

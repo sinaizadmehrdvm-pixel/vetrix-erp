@@ -16,12 +16,11 @@ import {
   MessageCircle,
   BellRing,
   Plus,
-  Save,
   Star,
   Sparkles,
   CheckCircle2,
 } from "lucide-react";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import { getCustomerLedger } from "../services/api";
 
 function toNumber(value) {
@@ -133,19 +132,23 @@ export default function CustomerDetails() {
   }
 
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`vetrix_crm_${id}`) || "{}");
-      setCrmNotes(Array.isArray(saved.notes) ? saved.notes : []);
-      setFollowupDate(saved.followupDate || "");
-    } catch {
-      setCrmNotes([]);
-      setFollowupDate("");
-    }
+    const timer = setTimeout(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(`vetrix_crm_${id}`) || "{}");
+        setCrmNotes(Array.isArray(saved.notes) ? saved.notes : []);
+        setFollowupDate(saved.followupDate || "");
+      } catch {
+        setCrmNotes([]);
+        setFollowupDate("");
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [id]);
 
   function saveCrmState(nextNotes = crmNotes, nextFollowup = followupDate) {
@@ -198,24 +201,23 @@ export default function CustomerDetails() {
   }
 
   const normalizedLedger = useMemo(() => {
-    let running = 0;
-
-    return sortLedgerRows(ledger).map((row) => {
+    return sortLedgerRows(ledger).reduce((rows, row) => {
+      const previousBalance = rows.at(-1)?.computedBalance || 0;
       const debit = getDebit(row);
       const credit = getCredit(row);
-      running += debit - credit;
-
-      return {
+      const computedBalance = previousBalance + debit - credit;
+      rows.push({
         ...row,
         debit,
         credit,
-        computedBalance: running,
-        shownBalance: row.balance !== undefined && row.balance !== null ? toNumber(row.balance) : running,
-      };
-    });
+        computedBalance,
+        shownBalance: row.balance !== undefined && row.balance !== null ? toNumber(row.balance) : computedBalance,
+      });
+      return rows;
+    }, []);
   }, [ledger]);
 
-  const finance = useMemo(() => {
+  const finance = (() => {
     const totalDebit = normalizedLedger.reduce((s, x) => s + toNumber(x.debit), 0);
     const totalCredit = normalizedLedger.reduce((s, x) => s + toNumber(x.credit), 0);
     const computedBalance = totalDebit - totalCredit;
@@ -251,23 +253,22 @@ export default function CustomerDetails() {
       paid,
       lastActivity,
     };
-  }, [normalizedLedger, party]);
+  })();
 
   const visibleRows = viewMode === "bank"
     ? normalizedLedger.filter((r) => r.source_type === "receipt" || r.source_type === "payment")
     : normalizedLedger;
 
   const bankRows = useMemo(() => {
-    let cashBalance = 0;
-
     return normalizedLedger
       .filter((row) => row.source_type === "receipt" || row.source_type === "payment")
-      .map((row) => {
+      .reduce((rows, row) => {
+        const previousBalance = rows.at(-1)?.cashBalance || 0;
         const inflow = row.source_type === "receipt" ? toNumber(row.credit || row.amount) : 0;
         const outflow = row.source_type === "payment" ? toNumber(row.debit || row.amount) : 0;
-        cashBalance += inflow - outflow;
-        return { ...row, inflow, outflow, cashBalance };
-      });
+        rows.push({ ...row, inflow, outflow, cashBalance: previousBalance + inflow - outflow });
+        return rows;
+      }, []);
   }, [normalizedLedger]);
 
   const customerIntelligence = useMemo(() => {
@@ -294,7 +295,7 @@ export default function CustomerDetails() {
 
   const crmTimeline = useMemo(() => {
     const ledgerEvents = normalizedLedger.slice(-8).map((row) => ({
-      id: `ledger-${row.id || row.source_id || Math.random()}`,
+      id: `ledger-${row.id || row.source_id || row.date || row.created_at || row.description || "item"}`,
       date: row.date || row.created_at,
       title: row.description || sourceLabel(row.source_type, language),
       amount: toNumber(row.debit) || toNumber(row.credit),

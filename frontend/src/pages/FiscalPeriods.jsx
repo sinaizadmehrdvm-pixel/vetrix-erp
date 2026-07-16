@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   AlertTriangle,
   CalendarDays,
@@ -15,7 +16,7 @@ import {
 import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 import {
   closeFiscalPeriod,
   createFiscalPeriod,
@@ -91,9 +92,12 @@ export default function FiscalPeriods() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, [language]);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
 
   const totals = useMemo(
     () =>

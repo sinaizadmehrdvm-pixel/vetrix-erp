@@ -40,7 +40,8 @@ export default function InvoiceBuilder() {
   }
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => { void loadData(); }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const calc = useMemo(() => {

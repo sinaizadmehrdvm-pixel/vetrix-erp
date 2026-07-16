@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStableCallback } from "../hooks/useStableCallback";
 import {
   Brain,
   RefreshCw,
@@ -21,7 +22,7 @@ import {
   markEnterpriseFollowupDone,
   moveEnterpriseOpportunityStage,
 } from "../services/api";
-import { useLanguage } from "../localization/LanguageContext";
+import { useLanguage } from "../localization/useLanguage";
 
 const STAGE_COLORS = {
   new: "#22d3ee",
@@ -69,12 +70,15 @@ export default function EnterpriseCRM() {
     }
   }
 
+  const stableLoad = useStableCallback(load);
+
   useEffect(() => {
-    load();
-  }, []);
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [stableLoad]);
 
   const summary = data?.summary || {};
-  const customerScores = data?.customer_scores || [];
+  const customerScores = useMemo(() => data?.customer_scores || [], [data]);
   const riskCustomers = data?.risk_customers || [];
   const stages = data?.pipeline_stages || [];
   const suggestions = data?.ai_suggestions || [];
