@@ -267,6 +267,7 @@ export const translations = {
     negativeNetProfit: "سود خالص منفی",
     negativeNetProfitText: "هزینه‌ها از فروش ثبت‌شده بیشتر هستند.",
     noCriticalAlerts: "هشدار مهمی در فروش، نقدینگی یا موجودی وجود ندارد.",
+    addCustomer: "افزودن طرف‌حساب",
     customers: "طرف‌حساب‌ها",
     parties: "طرف‌حساب‌ها",
     party: "طرف‌حساب",

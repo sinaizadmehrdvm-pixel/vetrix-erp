@@ -22,6 +22,10 @@ function toNumber(value) {
 
 function safeArray(value) { return Array.isArray(value) ? value : []; }
 
+function formatMoney(value, money) {
+  return money(toNumber(value));
+}
+
 function makeAlerts({ inventory, invoices, cash, profit, stats, t }) {
   const candidates = [
     [toNumber(inventory.low_stock_count ?? stats.low_stock) > 0, "danger", "inventoryAlert", "inventoryAlertText", "/warehouse"],
@@ -82,12 +86,12 @@ export default function Dashboard() {
   const alerts = makeAlerts({ inventory, invoices, cash, profit, stats: data, t });
   const actions = quickActions(t);
   const primaryKpis = [
-    ["salesToday", money(todayMonth.sales_today || 0), TrendingUp, "var(--erp-accent)"],
-    ["salesThisMonth", money(todayMonth.sales_month || data.total_revenue || 0), Receipt, "var(--erp-accent-2)"],
-    ["netProfit", money(profit.net_profit ?? data.net_profit ?? 0), Banknote, toNumber(profit.net_profit ?? data.net_profit) >= 0 ? "var(--erp-accent-2)" : "#ef4444"],
-    ["openInvoices", n(invoices.open_count || 0), Wallet, "#f59e0b"],
-    ["lowStock", n(inventory.low_stock_count ?? data.low_stock ?? 0), Package, "#ef4444"],
-    ["netCashflow", money(cash.net_cashflow || 0), CreditCard, toNumber(cash.net_cashflow) >= 0 ? "var(--erp-accent)" : "#ef4444"],
+    ["salesToday", formatMoney(todayMonth.sales_today, money), TrendingUp, "var(--erp-accent)"],
+    ["salesThisMonth", formatMoney(todayMonth.sales_month ?? data.total_revenue, money), Receipt, "var(--erp-accent-2)"],
+    ["netProfit", formatMoney(profit.net_profit ?? data.net_profit, money), Banknote, toNumber(profit.net_profit ?? data.net_profit) >= 0 ? "var(--erp-accent-2)" : "#ef4444"],
+    ["openInvoices", n(toNumber(invoices.open_count)), Wallet, "#f59e0b"],
+    ["lowStock", n(toNumber(inventory.low_stock_count ?? data.low_stock)), Package, "#ef4444"],
+    ["netCashflow", formatMoney(cash.net_cashflow, money), CreditCard, toNumber(cash.net_cashflow) >= 0 ? "var(--erp-accent)" : "#ef4444"],
   ];
 
   if (!stats) return <div className="dashboard-loading" dir={dir}>{t("loading")}</div>;
