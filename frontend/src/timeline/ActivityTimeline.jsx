@@ -49,10 +49,10 @@ export default function ActivityTimeline({ items = [] }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.9)",
+        background: "var(--erp-panel)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
       }}
     >
@@ -70,7 +70,7 @@ export default function ActivityTimeline({ items = [] }) {
       {items.length === 0 ? (
         <p
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-muted)",
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >
@@ -82,13 +82,13 @@ export default function ActivityTimeline({ items = [] }) {
             key={index}
             style={{
               padding: "14px 0",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              borderBottom: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
             <strong
               style={{
-                color: "#22d3ee",
+                color: "var(--erp-accent)",
                 display: "block",
                 marginBottom: 6,
                 fontSize: 16,
@@ -101,7 +101,7 @@ export default function ActivityTimeline({ items = [] }) {
 
             <div
               style={{
-                color: "#94a3b8",
+                color: "var(--erp-muted)",
                 fontSize: 13,
               }}
             >

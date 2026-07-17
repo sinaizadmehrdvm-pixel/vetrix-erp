@@ -14,7 +14,7 @@ const MONTH_LABELS = {
   fa: ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور"],
 };
 
-export default function SalesChart({ data = [] }) {
+export default function SalesChart({ data = [], compact = false }) {
   const { t, language, n, money, dir } = useLanguage();
 
   const chartData = data.map((item, index) => ({
@@ -29,25 +29,25 @@ export default function SalesChart({ data = [] }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.8)",
-        borderRadius: 24,
-        padding: 20,
-        minHeight: 360,
+        background: "var(--erp-panel)",
+        borderRadius: 16,
+        padding: compact ? 12 : 20,
+        minHeight: compact ? 235 : 360,
         direction: dir,
       }}
     >
       <h2
         style={{
-          color: "white",
-          marginBottom: 20,
+          color: "var(--erp-text)",
+          marginBottom: compact ? 8 : 20,
           textAlign: dir === "rtl" ? "right" : "left",
         }}
       >
         {t("salesOverview")}
       </h2>
 
-      <div style={{ direction: "ltr", width: "100%", minWidth: 0, height: 280, overflow: "hidden" }}>
-        <ResponsiveContainer width="99%" height={280}>
+      <div style={{ direction: "ltr", width: "100%", minWidth: 0, height: compact ? 180 : 280, overflow: "hidden" }}>
+        <ResponsiveContainer width="99%" height={compact ? 180 : 280}>
           <LineChart
             data={chartData}
             margin={{
@@ -60,15 +60,15 @@ export default function SalesChart({ data = [] }) {
             <XAxis
               dataKey="monthLabel"
               reversed={dir === "rtl"}
-              stroke="#94a3b8"
-              tick={{ fill: "#e2e8f0", fontSize: 13 }}
+              stroke="var(--erp-muted)"
+              tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
             />
 
             <YAxis
               orientation={dir === "rtl" ? "right" : "left"}
-              stroke="#94a3b8"
+              stroke="var(--erp-muted)"
               tickFormatter={(value) => n(value)}
-              tick={{ fill: "#e2e8f0", fontSize: 13 }}
+              tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
             />
 
             <Tooltip
@@ -88,7 +88,7 @@ export default function SalesChart({ data = [] }) {
             <Line
               type="monotone"
               dataKey="sales"
-              stroke="#22d3ee"
+              stroke="var(--erp-accent)"
               strokeWidth={4}
               dot={{ r: 5 }}
               activeDot={{ r: 8 }}

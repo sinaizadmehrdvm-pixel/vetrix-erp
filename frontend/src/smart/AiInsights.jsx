@@ -55,10 +55,10 @@ export default function AiInsights({ insight }) {
   return (
     <div
       style={{
-        background: "linear-gradient(135deg,#0f172a,#1e293b)",
+        background: "var(--erp-panel)",
         borderRadius: 24,
         padding: 24,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
       }}
     >
@@ -78,7 +78,7 @@ export default function AiInsights({ insight }) {
           fontSize: 22,
           marginBottom: 12,
           fontWeight: 800,
-          color: "#f8fafc",
+          color: "var(--erp-text)",
           textAlign: dir === "rtl" ? "right" : "left",
         }}
       >
@@ -87,7 +87,7 @@ export default function AiInsights({ insight }) {
 
       <div
         style={{
-          color: "#22d3ee",
+          color: "var(--erp-accent)",
           marginBottom: 12,
           fontWeight: 800,
           textAlign: dir === "rtl" ? "right" : "left",
@@ -98,7 +98,7 @@ export default function AiInsights({ insight }) {
 
       <div
         style={{
-          color: "#94a3b8",
+          color: "var(--erp-muted)",
           lineHeight: 1.8,
           textAlign: dir === "rtl" ? "right" : "left",
         }}

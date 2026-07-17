@@ -30,7 +30,7 @@ export default function InventoryAlerts({ alerts = [] }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.9)",
+        background: "var(--erp-panel)",
         borderRadius: 24,
         padding: 20,
         direction: dir,
@@ -38,7 +38,7 @@ export default function InventoryAlerts({ alerts = [] }) {
     >
       <h2
         style={{
-          color: "white",
+          color: "var(--erp-text)",
           marginBottom: 20,
           fontSize: 24,
           fontWeight: 900,
@@ -51,7 +51,7 @@ export default function InventoryAlerts({ alerts = [] }) {
       {alerts.length === 0 ? (
         <p
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-muted)",
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >
@@ -71,7 +71,7 @@ export default function InventoryAlerts({ alerts = [] }) {
               style={{
                 background: "rgba(239,68,68,0.15)",
                 border: "1px solid rgba(239,68,68,0.4)",
-                color: "#fca5a5",
+                color: "var(--erp-text)",
                 padding: 14,
                 borderRadius: 16,
                 marginBottom: 12,
@@ -101,7 +101,7 @@ export default function InventoryAlerts({ alerts = [] }) {
 
               <strong
                 style={{
-                  color: "#fef2f2",
+                  color: "var(--erp-text)",
                   minWidth: 40,
                   textAlign: "center",
                 }}

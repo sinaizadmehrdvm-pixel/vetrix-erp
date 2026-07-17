@@ -7,6 +7,7 @@ import { ThemeProvider } from "./theme/ThemeProvider";
 import "./index.css";
 import "./styles/rtl.css";
 import "./styles/fonts.css";
+import "./styles/dashboard.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

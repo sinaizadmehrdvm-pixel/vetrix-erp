@@ -93,7 +93,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
       group.items.some((item) => item.path === location.pathname)
     );
     if (activeGroup) {
-      const timer = setTimeout(() => setExpanded((current) => ({ ...current, [activeGroup.id]: true })), 0);
+      const timer = setTimeout(() => setExpanded({ [activeGroup.id]: true }), 0);
       return () => clearTimeout(timer);
     }
     return undefined;
@@ -118,7 +118,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
 
   function toggleGroup(id) {
     if (compact) setCompact(false);
-    setExpanded((current) => ({ ...current, [id]: !current[id] }));
+    setExpanded((current) => (current[id] ? {} : { [id]: true }));
   }
 
   return (
@@ -140,7 +140,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         transition: "width .24s ease, min-width .24s ease",
       }}
     >
-      <div className="flex items-center justify-between gap-2 mb-4">
+      <div className="flex items-center justify-between gap-2 mb-3">
         {!compact && <h1 className="erp-accent text-2xl font-black whitespace-nowrap">{t("appName")}</h1>}
         <button
           type="button"
@@ -153,10 +153,10 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         </button>
       </div>
 
-      {!compact && <div className="mb-4"><LanguageSwitcher /></div>}
+      {!compact && <div className="mb-3"><LanguageSwitcher /></div>}
 
       {!compact && (
-        <label className="erp-surface mb-4 flex items-center gap-2 rounded-2xl px-3 py-2">
+        <label className="erp-surface mb-3 flex items-center gap-2 rounded-2xl px-3 py-2">
           <Search size={18} aria-hidden="true" style={{ color: "var(--erp-accent)" }} />
           <input
             value={query}
@@ -174,7 +174,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         </label>
       )}
 
-      <nav className="flex flex-col gap-2">
+      <nav className="flex flex-col gap-1">
         {visibleGroups.map((group) => (
           <section key={group.id}>
             {!compact && (
