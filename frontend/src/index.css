@@ -251,3 +251,22 @@ img, svg { max-width: 100%; }
   .erp-main :where(.overflow-x-auto, .erp-table-scroll) { overflow: visible; border: 0; }
   .erp-main :where(table) { min-width: 0; color: #111827; }
 }
+
+/* Keep the navigation scrollbar available without making it a primary visual element. */
+.erp-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--erp-muted) 45%, transparent) transparent;
+}
+
+.erp-sidebar::-webkit-scrollbar { width: 8px; }
+.erp-sidebar::-webkit-scrollbar-track { background: transparent; }
+.erp-sidebar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--erp-muted) 42%, transparent);
+  background-clip: content-box;
+}
+.erp-sidebar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--erp-accent) 48%, transparent);
+  background-clip: content-box;
+}

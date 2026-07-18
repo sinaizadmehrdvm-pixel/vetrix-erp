@@ -1,6 +1,6 @@
 import { useLanguage } from "../localization/useLanguage";
 
-export default function RecentInvoices({ invoices = [] }) {
+export default function RecentInvoices({ invoices = [], compact = false }) {
   const { t, money, dir } = useLanguage();
 
   const gridColumns =
@@ -9,16 +9,16 @@ export default function RecentInvoices({ invoices = [] }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.9)",
-        borderRadius: 24,
-        padding: 20,
-        color: "white",
+        background: "var(--erp-panel)",
+        borderRadius: 16,
+        padding: compact ? 12 : 20,
+        color: "var(--erp-text)",
         direction: dir,
       }}
     >
       <h2
         style={{
-          marginBottom: 18,
+          marginBottom: compact ? 8 : 18,
           textAlign: dir === "rtl" ? "right" : "left",
         }}
       >
@@ -26,7 +26,7 @@ export default function RecentInvoices({ invoices = [] }) {
       </h2>
 
       {invoices.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>{t("noInvoices")}</p>
+        <p style={{ color: "var(--erp-muted)" }}>{t("noInvoices")}</p>
       ) : (
         <>
           <div
@@ -35,9 +35,9 @@ export default function RecentInvoices({ invoices = [] }) {
               gridTemplateColumns: gridColumns,
               gap: 12,
               paddingBottom: 10,
-              color: "#22d3ee",
+              color: "var(--erp-accent)",
               fontWeight: 900,
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              borderBottom: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
@@ -71,27 +71,27 @@ export default function RecentInvoices({ invoices = [] }) {
                   display: "grid",
                   gridTemplateColumns: gridColumns,
                   gap: 12,
-                  padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.08)",
-                  color: "#e2e8f0",
+                  padding: compact ? "8px 0" : "12px 0",
+                  borderBottom: "1px solid var(--erp-border)",
+                  color: "var(--erp-text)",
                   textAlign: dir === "rtl" ? "right" : "left",
                 }}
               >
                 {dir === "rtl" ? (
                   <>
-                    <span style={{ color: "#22c55e", fontWeight: 900 }}>
+                    <span style={{ color: "var(--erp-accent-2)", fontWeight: 900 }}>
                       {status}
                     </span>
                     <span>{total}</span>
                     <span>{customer}</span>
-                    <strong style={{ color: "#22d3ee" }}>{id}</strong>
+                    <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
                   </>
                 ) : (
                   <>
-                    <strong style={{ color: "#22d3ee" }}>{id}</strong>
+                    <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
                     <span>{customer}</span>
                     <span>{total}</span>
-                    <span style={{ color: "#22c55e", fontWeight: 900 }}>
+                    <span style={{ color: "var(--erp-accent-2)", fontWeight: 900 }}>
                       {status}
                     </span>
                   </>

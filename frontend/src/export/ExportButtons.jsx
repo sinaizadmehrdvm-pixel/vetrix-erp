@@ -18,26 +18,28 @@ export default function ExportButtons() {
       <a
         href={`${API}/export/invoices-excel`}
         target="_blank"
+        rel="noreferrer"
         style={btn}
       >
         <FileSpreadsheet size={18} />
-        {t.exportExcel}
+        {t("exportExcel")}
       </a>
 
       <a
         href={`${API}/export/invoices-pdf`}
         target="_blank"
+        rel="noreferrer"
         style={btn}
       >
         <FileText size={18} />
-        {t.exportPdf}
+        {t("exportPdf")}
       </a>
     </div>
   );
 }
 
 const btn = {
-  background: "#22d3ee",
+  background: "var(--erp-accent)",
   color: "#071028",
   padding: "12px 18px",
   borderRadius: 16,

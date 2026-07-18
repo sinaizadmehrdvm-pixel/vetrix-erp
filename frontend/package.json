@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "audit:fetch": "node scripts/audit-fetch.mjs",
-    "audit:routes": "node scripts/audit-routes.mjs"
+    "audit:routes": "node scripts/audit-routes.mjs",
+    "test:dashboard-kpis": "node scripts/verify-dashboard-kpis.mjs",
+    "test:sales-chart-labels": "node scripts/verify-sales-chart-labels.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

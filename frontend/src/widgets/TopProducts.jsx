@@ -9,10 +9,10 @@ export default function TopProducts({ products = [] }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.9)",
+        background: "var(--erp-panel)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
       }}
     >
@@ -26,7 +26,7 @@ export default function TopProducts({ products = [] }) {
       </h2>
 
       {products.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>{t("noProducts")}</p>
+        <p style={{ color: "var(--erp-muted)" }}>{t("noProducts")}</p>
       ) : (
         <>
           <div
@@ -35,9 +35,9 @@ export default function TopProducts({ products = [] }) {
               gridTemplateColumns: gridColumns,
               gap: 12,
               paddingBottom: 10,
-              color: "#22d3ee",
+              color: "var(--erp-accent)",
               fontWeight: 900,
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              borderBottom: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
@@ -69,7 +69,7 @@ export default function TopProducts({ products = [] }) {
                   gridTemplateColumns: gridColumns,
                   gap: 12,
                   padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.08)",
+                  borderBottom: "1px solid var(--erp-border)",
                   textAlign: dir === "rtl" ? "right" : "left",
                   alignItems: "center",
                 }}
