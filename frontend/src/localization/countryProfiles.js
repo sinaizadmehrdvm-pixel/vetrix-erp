@@ -120,18 +120,33 @@ export function localeFor(profile, language) {
   return profile.locale?.[language] || profile.locale?.en || "en-US";
 }
 
+function safeNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 export function formatCountryNumber(value, profile, language, options = {}) {
-  return new Intl.NumberFormat(localeFor(profile, language), options).format(Number(value || 0));
+  return new Intl.NumberFormat(localeFor(profile, language), options).format(safeNumber(value));
 }
 
 export function formatCountryMoney(value, profile, language, currencyOverride) {
   const currency = currencyOverride || profile.currency;
+  const amount = safeNumber(value);
+  const formattedNumber = new Intl.NumberFormat(localeFor(profile, language), {
+    minimumFractionDigits: profile.currencyDigits,
+    maximumFractionDigits: profile.currencyDigits,
+  }).format(amount);
+
+  if (language === "fa" && currency === "IRR") {
+    return `${formattedNumber} ریال`;
+  }
+
   return new Intl.NumberFormat(localeFor(profile, language), {
     style: "currency",
     currency,
     minimumFractionDigits: profile.currencyDigits,
     maximumFractionDigits: profile.currencyDigits,
-  }).format(Number(value || 0));
+  }).format(amount);
 }
 
 export function formatCountryDate(value, profile, language, options = {}) {
