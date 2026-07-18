@@ -26,6 +26,10 @@ function formatMoney(value, money) {
   return money(toNumber(value));
 }
 
+function cleanDisplayValue(value) {
+  return String(value ?? "").replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "").replace(/\u00a0/g, " ");
+}
+
 function makeAlerts({ inventory, invoices, cash, profit, stats, t }) {
   const candidates = [
     [toNumber(inventory.low_stock_count ?? stats.low_stock) > 0, "danger", "inventoryAlert", "inventoryAlertText", "/warehouse"],
@@ -123,7 +127,7 @@ export default function Dashboard() {
     <section className="dashboard-kpis" aria-label={t("businessSummary")}>
       {primaryKpis.map(([label, value, Icon, color]) => <article className="dashboard-kpi" key={label}>
         <span className="dashboard-kpi-icon" style={{ color }}><Icon size={19} aria-hidden="true" /></span>
-        <div><p>{t(label)}</p><strong>{value}</strong></div>
+        <div><p>{t(label)}</p><strong><bdi dir={dir}>{cleanDisplayValue(value)}</bdi></strong></div>
       </article>)}
     </section>
 
