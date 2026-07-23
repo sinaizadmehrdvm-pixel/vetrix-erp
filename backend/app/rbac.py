@@ -36,6 +36,8 @@ ROLE_CAPABILITIES = {
     "user": {"read"},
 }
 
+ALL_ROLES = {"admin", "accountant", "sales", "warehouse", "viewer", "user"}
+
 READ_RULES = (
     ("/users", {"admin"}),
     ("/settings", {"admin"}),
@@ -47,6 +49,34 @@ READ_RULES = (
     ("/expenses", {"admin", "accountant", "viewer", "user"}),
     ("/api/finance", {"admin", "accountant", "viewer", "user"}),
     ("/api/ai-bi", {"admin", "accountant", "viewer", "user"}),
+    # Everyday operational data stays readable by any authenticated role;
+    # listed explicitly so the default below can safely stay deny-by-default.
+    ("/customers", ALL_ROLES),
+    ("/products", ALL_ROLES),
+    ("/product-categories", ALL_ROLES),
+    ("/invoices", ALL_ROLES),
+    ("/transactions", ALL_ROLES),
+    ("/stock-movements", ALL_ROLES),
+    ("/reports", ALL_ROLES),
+    ("/export", ALL_ROLES),
+    ("/print", ALL_ROLES),
+    ("/activity", ALL_ROLES),
+    ("/dashboard-stats", ALL_ROLES),
+    ("/me", ALL_ROLES),
+    ("/roles", ALL_ROLES),
+    ("/designer", ALL_ROLES),
+    ("/finance", ALL_ROLES),
+    ("/api/auth", ALL_ROLES),
+    ("/api/crm", ALL_ROLES),
+    ("/crm/pipeline", ALL_ROLES),
+    ("/api/smart-inventory", ALL_ROLES),
+    ("/api/online-commerce", ALL_ROLES),
+    ("/api/campaign-delivery", ALL_ROLES),
+    ("/api/change-requests", ALL_ROLES),
+    ("/api/storefront-sync", ALL_ROLES),
+    ("/api/data-import", ALL_ROLES),
+    ("/api/inbound-voice", ALL_ROLES),
+    ("/api/financial-policy", ALL_ROLES),
 )
 
 MUTATION_RULES = (
@@ -93,7 +123,9 @@ def is_authorized(role, method, path):
         for prefix, allowed_roles in READ_RULES:
             if path == prefix or path.startswith(f"{prefix}/"):
                 return role in allowed_roles
-        return True
+        # New read endpoints stay closed until explicitly classified above,
+        # matching the deny-by-default behavior already used for mutations.
+        return False
 
     for prefix, allowed_roles in MUTATION_RULES:
         if path == prefix or path.startswith(f"{prefix}/"):
