@@ -1,1 +1,0 @@
-# Vetrix Enterprise CRM package
