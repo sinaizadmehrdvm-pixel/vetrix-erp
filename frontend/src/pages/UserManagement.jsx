@@ -23,7 +23,7 @@ const emptyForm = {
 };
 
 export default function UserManagement() {
-  const { user } = useAuth();
+  const { user, applyRefreshedToken } = useAuth();
   const { language, dir, n } = useLanguage();
   const fa = language === "fa";
   const isAdmin = user?.role === "admin";
@@ -153,7 +153,12 @@ export default function UserManagement() {
     }
     setBusyId(target.id);
     try {
-      await resetUserPassword(target.id, { password, force_change_on_next_login: resetForm.force !== false });
+      const result = await resetUserPassword(target.id, { password, force_change_on_next_login: resetForm.force !== false });
+      if (result?.self_reset && result?.access_token) {
+        // Resetting your own password revokes the token used to do it; adopt
+        // the fresh one so this session isn't unexpectedly logged out.
+        applyRefreshedToken(result.access_token);
+      }
       toast.success(resetForm.force !== false
         ? fa ? "رمز عبور بازیابی شد و تغییر در ورود بعدی اجباری است." : "Password recovered and next-login change is required."
         : fa ? "رمز عبور بازیابی شد." : "Password recovered.");

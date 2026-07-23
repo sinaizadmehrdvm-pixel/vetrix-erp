@@ -88,7 +88,19 @@ export function AuthProvider({ children }) {
     }
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
     setUser(data.user);
+    // Changing your own password revokes the token that made this request;
+    // the backend hands back a fresh one so this session keeps working.
+    if (data.access_token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+      setToken(data.access_token);
+    }
     return data.user;
+  }
+
+  function applyRefreshedToken(newToken) {
+    if (!newToken) return;
+    localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+    setToken(newToken);
   }
 
   async function login(username, password) {
@@ -112,6 +124,14 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    const activeToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (activeToken) {
+      // Best-effort server-side revocation; local sign-out proceeds regardless.
+      fetch(`${API_URL}/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${activeToken}` },
+      }).catch(() => {});
+    }
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setUser(null);
@@ -120,7 +140,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, authReady, login, logout, changePassword, refreshCurrentUser }}>
+    <AuthContext.Provider
+      value={{ user, token, authReady, login, logout, changePassword, refreshCurrentUser, applyRefreshedToken }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,10 @@
+import tempfile
 import unittest
+from unittest.mock import patch
 
+from sqlalchemy import create_engine
+
+from app import security
 from app.security import (
     BLOCK_SECONDS,
     MAX_LOGIN_FAILURES,
@@ -12,10 +17,23 @@ from app.security import (
 
 class LoginThrottleTests(unittest.TestCase):
     def setUp(self):
+        # Isolated engine so this suite never shares (or races on) the
+        # database other test modules point the shared engine at.
+        self.temp = tempfile.TemporaryDirectory()
+        self.engine = create_engine(
+            f"sqlite:///{self.temp.name}/login_throttle.db",
+            connect_args={"check_same_thread": False},
+        )
+        security.LoginThrottle.__table__.create(bind=self.engine, checkfirst=True)
+        self.engine_patch = patch.object(security, "engine", self.engine)
+        self.engine_patch.start()
         reset_login_throttle()
 
     def tearDown(self):
         reset_login_throttle()
+        self.engine_patch.stop()
+        self.engine.dispose()
+        self.temp.cleanup()
 
     def test_key_normalizes_username_and_separates_clients(self):
         self.assertEqual(

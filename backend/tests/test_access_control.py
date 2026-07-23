@@ -2538,6 +2538,11 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(reset.json()["user"]["must_change_password"])
         self.assertEqual(reset.json()["security_event"], "admin_password_reset")
 
+        # The password reset must revoke tokens issued before it, even
+        # though they haven't expired yet.
+        revoked_after_reset = self.client.get("/customers", headers=viewer_headers)
+        self.assertEqual(revoked_after_reset.status_code, 401)
+
         forced_login = self.client.post(
             "/login",
             json={"username": "password-recovery-user", "password": "TemporaryPassword!42"},
@@ -2561,12 +2566,32 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertFalse(changed.json()["user"]["must_change_password"])
         self.assertEqual(changed.json()["security_event"], "user_password_changed")
 
+        # Changing your own password revokes the token used to do it, but the
+        # response hands back a fresh one so the caller isn't logged out by
+        # its own action.
+        self.assertIn("access_token", changed.json())
+        old_token_after_change = self.client.get("/me", headers=forced_headers)
+        self.assertEqual(old_token_after_change.status_code, 401)
+        fresh_headers = {"Authorization": f"Bearer {changed.json()['access_token']}"}
+        fresh_token_works = self.client.get("/me", headers=fresh_headers)
+        self.assertEqual(fresh_token_works.status_code, 200, fresh_token_works.text)
+
         refreshed_login = self.client.post(
             "/login",
             json={"username": "password-recovery-user", "password": "RecoveredStrongPassword!42"},
         )
         self.assertEqual(refreshed_login.status_code, 200, refreshed_login.text)
         self.assertFalse(refreshed_login.json()["requires_password_change"])
+
+        # An explicit logout revokes the current token immediately, even
+        # though it hasn't expired.
+        refreshed_headers = {"Authorization": f"Bearer {refreshed_login.json()['access_token']}"}
+        still_works = self.client.get("/me", headers=refreshed_headers)
+        self.assertEqual(still_works.status_code, 200, still_works.text)
+        logout_response = self.client.post("/logout", headers=refreshed_headers)
+        self.assertEqual(logout_response.status_code, 200, logout_response.text)
+        after_logout = self.client.get("/me", headers=refreshed_headers)
+        self.assertEqual(after_logout.status_code, 401)
 
         events = self.client.get("/api/audit/events", headers=admin_headers)
         audit_items = events.json()["items"]

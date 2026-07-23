@@ -11,3 +11,7 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, default="user")
     must_change_password = Column(Boolean, default=False, nullable=False)
+    # Tokens carry the generation active when they were issued (see the "gen"
+    # JWT claim); bumping this rejects every previously issued token even if
+    # it hasn't expired yet, without depending on wall-clock precision.
+    token_generation = Column(Integer, default=0, nullable=False)

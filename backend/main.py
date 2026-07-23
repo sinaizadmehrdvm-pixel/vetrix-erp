@@ -205,6 +205,7 @@ def ensure_database_schema():
 
     user_columns = {
         "must_change_password": "must_change_password BOOLEAN DEFAULT 0 NOT NULL",
+        "token_generation": "token_generation INTEGER DEFAULT 0 NOT NULL",
     }
     for name, sql in user_columns.items():
         ensure_sqlite_column("users", name, sql)
@@ -351,6 +352,15 @@ async def require_authenticated_api(request: Request, call_next):
         authenticated_user = auth_db.query(User).filter(User.id == authenticated_user_id).first()
         if not authenticated_user:
             return JSONResponse(status_code=401, content={"detail": "User no longer exists"})
+
+        current_generation = int(getattr(authenticated_user, "token_generation", 0) or 0)
+        token_generation = int(request.state.auth.get("gen", 0) or 0)
+        if token_generation != current_generation:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Session has been revoked, please log in again"},
+            )
+
         request.state.auth["username"] = authenticated_user.username
         request.state.auth["role"] = normalize_role(authenticated_user.role)
         request.state.auth["must_change_password"] = bool(getattr(authenticated_user, "must_change_password", False))
@@ -360,7 +370,7 @@ async def require_authenticated_api(request: Request, call_next):
     is_password_change_request = request.url.path == "/users/me/password" and request.method.upper() == "PUT"
 
     if request.state.auth.get("must_change_password") and not (
-        request.url.path in {"/me", "/users/me/password"}
+        request.url.path in {"/me", "/users/me/password", "/logout"}
         or request.url.path.startswith("/api/audit")
     ):
         return JSONResponse(
@@ -943,9 +953,18 @@ def change_own_password(data: PasswordChangeRequest, request: Request):
             raise HTTPException(status_code=401, detail="Current password is incorrect")
         user.password = hash_password(data.new_password)
         user.must_change_password = False
+        user.token_generation = (user.token_generation or 0) + 1
         db.commit()
         db.refresh(user)
-        return {"status": "updated", "user": user_to_auth_dict(user), "security_event": "user_password_changed"}
+        return {
+            "status": "updated",
+            "user": user_to_auth_dict(user),
+            "security_event": "user_password_changed",
+            "access_token": create_access_token(
+                user.id, user.username, normalize_role(user.role), user.token_generation
+            ),
+            "token_type": "Bearer",
+        }
     finally:
         db.close()
 
@@ -962,17 +981,45 @@ def admin_reset_user_password(user_id: int, data: UserPasswordReset, request: Re
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+        self_reset = str(auth_user_id) == str(user_id)
         user.password = hash_password(data.password)
         user.must_change_password = bool(data.force_change_on_next_login)
+        user.token_generation = (user.token_generation or 0) + 1
         db.commit()
         db.refresh(user)
-        return {
+        response = {
             "status": "updated",
             "user": user_to_auth_dict(user),
             "security_event": "admin_password_reset",
             "requires_next_login_change": user.must_change_password,
-            "self_reset": str(auth_user_id) == str(user_id),
+            "self_reset": self_reset,
         }
+        if self_reset:
+            # The admin just revoked their own current token; hand back a fresh
+            # one so they aren't unexpectedly logged out by their own action.
+            response["access_token"] = create_access_token(
+                user.id, user.username, normalize_role(user.role), user.token_generation
+            )
+            response["token_type"] = "Bearer"
+        return response
+    finally:
+        db.close()
+
+
+@app.post("/logout")
+def logout(request: Request):
+    try:
+        user_id = int(request.state.auth["sub"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid authentication context")
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.token_generation = (user.token_generation or 0) + 1
+            db.commit()
+        return {"status": "logged_out"}
     finally:
         db.close()
 
@@ -1036,7 +1083,9 @@ def login(data: LoginRequest, request: Request):
             user.password = hash_password(data.password)
             db.commit()
 
-        token = create_access_token(user.id, user.username, normalize_role(user.role))
+        token = create_access_token(
+            user.id, user.username, normalize_role(user.role), user.token_generation
+        )
         return {
             "status": "success",
             "message": "Login successful",

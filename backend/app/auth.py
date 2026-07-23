@@ -87,13 +87,14 @@ def _jwt_secret() -> str:
     return "vetrix-development-secret-change-before-production"
 
 
-def create_access_token(user_id: int, username: str, role: str) -> str:
+def create_access_token(user_id: int, username: str, role: str, token_generation: int = 0) -> str:
     now = datetime.now(timezone.utc)
     lifetime_hours = max(1, int(os.getenv("VETRIX_TOKEN_HOURS", "12")))
     payload = {
         "sub": str(user_id),
         "username": username,
         "role": role,
+        "gen": int(token_generation or 0),
         "iat": now,
         "nbf": now,
         "exp": now + timedelta(hours=lifetime_hours),

@@ -91,6 +91,12 @@ class TokenSecurityTests(unittest.TestCase):
         self.assertEqual(payload["sub"], "7")
         self.assertEqual(payload["username"], "admin")
         self.assertEqual(payload["role"], "admin")
+        self.assertEqual(payload["gen"], 0)
+
+    def test_token_generation_claim_defaults_and_round_trips(self):
+        token = create_access_token(7, "admin", "admin", token_generation=3)
+        payload = decode_access_token(token)
+        self.assertEqual(payload["gen"], 3)
 
     def test_tampered_token_is_rejected(self):
         token = create_access_token(7, "admin", "admin")
