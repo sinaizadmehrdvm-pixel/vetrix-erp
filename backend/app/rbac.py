@@ -114,6 +114,10 @@ MUTATION_RULES = (
     ("/api/customer-portal", {"admin", "accountant", "sales"}),
     ("/api/supplier-portal", {"admin", "accountant", "warehouse"}),
     ("/api/recurring-invoices", {"admin", "accountant", "sales"}),
+    # /api/payments/session(/simulate) and /callback are public and
+    # self-verify by session authority, so this only governs the
+    # staff-triggered "generate a payment link" endpoint below.
+    ("/api/payments", {"admin", "accountant", "sales"}),
     ("/api/catalog", {"admin", "accountant", "sales"}),
     ("/api/pricing", {"admin", "accountant", "warehouse"}),
     ("/api/crm", {"admin", "sales"}),

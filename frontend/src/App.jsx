@@ -53,6 +53,7 @@ const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
 const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
 const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
 const SupplierPortalView = lazy(() => import("./pages/SupplierPortalView"));
+const PaymentGatewayView = lazy(() => import("./pages/PaymentGatewayView"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
 const PricingTiers = lazy(() => import("./pages/PricingTiers"));
@@ -110,6 +111,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/portal/:token" element={<CustomerPortalView />} />
           <Route path="/supplier-portal/:token" element={<SupplierPortalView />} />
+          <Route path="/pay/:authority" element={<PaymentGatewayView />} />
           <Route path="/catalog/:token" element={<CatalogPublicView />} />
         <Route
           path="/invoice-designer"

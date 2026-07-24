@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 TEST_DATABASE = Path(tempfile.gettempdir()) / f"vetrix-test-{os.getpid()}.db"
 TEST_BACKUP_DIR = Path(tempfile.gettempdir()) / f"vetrix-backups-{os.getpid()}"
@@ -3284,6 +3285,156 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(delete.status_code, 200, delete.text)
         listing_after_delete = self.client.get("/api/recurring-invoices", headers=headers)
         self.assertFalse(any(item["id"] == template_id for item in listing_after_delete.json()["items"]))
+
+    def test_zzzzzzzzzzzzzzzzzz_online_payment_gateway_sandbox_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Payment Gateway Customer"}
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Paid Online Widget", "sell_price": 750000, "stock": 100}
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        invoice = self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 750000}],
+            },
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        # Fails closed when no provider is configured.
+        unconfigured = self.client.post(
+            f"/api/payments/invoices/{invoice_id}/request", headers=headers
+        )
+        self.assertEqual(unconfigured.status_code, 503)
+
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            # A non-management role must not generate a payment link.
+            viewer_login = self.client.post(
+                "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+            )
+            self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+            viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+            viewer_blocked = self.client.post(
+                f"/api/payments/invoices/{invoice_id}/request", headers=viewer_headers
+            )
+            self.assertEqual(viewer_blocked.status_code, 403)
+
+            requested = self.client.post(
+                f"/api/payments/invoices/{invoice_id}/request", headers=headers
+            )
+            self.assertEqual(requested.status_code, 200, requested.text)
+            authority = requested.json()["authority"]
+            self.assertEqual(requested.json()["amount"], 750000)
+            self.assertIn(f"/pay/{authority}", requested.json()["redirect_url"])
+
+            # The session view is genuinely public - no auth header at all.
+            session_view = self.client.get(f"/api/payments/session?authority={authority}")
+            self.assertEqual(session_view.status_code, 200, session_view.text)
+            self.assertEqual(session_view.json()["status"], "pending")
+            self.assertEqual(session_view.json()["invoice_id"], invoice_id)
+
+            # A non-sandbox outcome value is rejected before touching state.
+            bad_outcome = self.client.post(
+                "/api/payments/session/simulate", json={"authority": authority, "outcome": "maybe"}
+            )
+            self.assertEqual(bad_outcome.status_code, 400)
+
+            simulate = self.client.post(
+                "/api/payments/session/simulate", json={"authority": authority, "outcome": "success"}
+            )
+            self.assertEqual(simulate.status_code, 200, simulate.text)
+            self.assertEqual(simulate.json()["status"], "success")
+
+            session_after = self.client.get(f"/api/payments/session?authority={authority}")
+            self.assertEqual(session_after.json()["status"], "success")
+
+            # A completed session cannot be simulated again.
+            replay = self.client.post(
+                "/api/payments/session/simulate", json={"authority": authority, "outcome": "success"}
+            )
+            self.assertEqual(replay.status_code, 400)
+
+            invoice_after = self.client.get(f"/customers/{customer_id}/ledger", headers=headers)
+            self.assertEqual(invoice_after.status_code, 200, invoice_after.text)
+            paid_row = next(
+                row for row in invoice_after.json()["ledger"]
+                if row["source_id"] == invoice_id and row["source_type"] == "receipt"
+            )
+            self.assertEqual(paid_row["credit"], 750000)
+
+            # A second invoice, to prove the sandbox failure path works and
+            # never touches the ledger.
+            second_invoice = self.client.post(
+                "/invoices", headers=headers,
+                json={
+                    "invoice_type": "sale", "customer_id": customer_id,
+                    "items": [{"product_id": product_id, "quantity": 1, "unit_price": 750000}],
+                },
+            )
+            second_invoice_id = second_invoice.json()["invoice_id"]
+            second_request = self.client.post(
+                f"/api/payments/invoices/{second_invoice_id}/request", headers=headers
+            )
+            second_authority = second_request.json()["authority"]
+            failure = self.client.post(
+                "/api/payments/session/simulate",
+                json={"authority": second_authority, "outcome": "failure"},
+            )
+            self.assertEqual(failure.status_code, 200, failure.text)
+            self.assertEqual(failure.json()["status"], "failed")
+
+            ledger_after_failure = self.client.get(f"/customers/{customer_id}/ledger", headers=headers)
+            receipts = [
+                row for row in ledger_after_failure.json()["ledger"]
+                if row["source_id"] == second_invoice_id and row["source_type"] == "receipt"
+            ]
+            self.assertEqual(receipts, [])
+
+        # Customer-portal self-service: a customer can request payment for
+        # their own invoice but not for someone else's.
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            access_link = self.client.post(
+                f"/api/customer-portal/{customer_id}/access-link", headers=headers
+            )
+            self.assertEqual(access_link.status_code, 200, access_link.text)
+            portal_headers = {"Authorization": f"Bearer {access_link.json()['token']}"}
+
+            portal_pay = self.client.post(
+                "/api/customer-portal/pay", headers=portal_headers,
+                json={"invoice_id": second_invoice_id},
+            )
+            self.assertEqual(portal_pay.status_code, 200, portal_pay.text)
+
+            other_customer = self.client.post(
+                "/customers", headers=headers, json={"name": "Someone Else"}
+            )
+            other_invoice = self.client.post(
+                "/invoices", headers=headers,
+                json={
+                    "invoice_type": "sale", "customer_id": other_customer.json()["id"],
+                    "items": [{"product_id": product_id, "quantity": 1, "unit_price": 750000}],
+                },
+            )
+            cross_customer_blocked = self.client.post(
+                "/api/customer-portal/pay", headers=portal_headers,
+                json={"invoice_id": other_invoice.json()["invoice_id"]},
+            )
+            self.assertEqual(cross_customer_blocked.status_code, 404)
 
 
 if __name__ == "__main__":

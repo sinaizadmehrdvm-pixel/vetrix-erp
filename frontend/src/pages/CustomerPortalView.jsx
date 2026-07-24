@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertTriangle, FileText, ShieldCheck, Wallet } from "lucide-react";
+import { AlertTriangle, CreditCard, FileText, ShieldCheck, Wallet } from "lucide-react";
 
 import { API_URL } from "../services/api";
 
@@ -16,6 +16,8 @@ export default function CustomerPortalView() {
   const [ledger, setLedger] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState(null);
+  const [payError, setPayError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -48,6 +50,24 @@ export default function CustomerPortalView() {
     load();
     return () => { active = false; };
   }, [token]);
+
+  async function payInvoice(invoiceId) {
+    setPayError("");
+    setPayingId(invoiceId);
+    try {
+      const res = await fetch(`${API_URL}/api/customer-portal/pay`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: invoiceId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Could not start the payment.");
+      window.location.assign(data.redirect_url);
+    } catch (err) {
+      setPayError(err.message);
+      setPayingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -94,6 +114,9 @@ export default function CustomerPortalView() {
           <div className="flex items-center gap-2 text-cyan-300 font-black mb-4">
             <FileText size={18} /> Invoices
           </div>
+          {payError && (
+            <p className="text-rose-300 text-sm mb-3">{payError}</p>
+          )}
           {invoices.length === 0 ? (
             <p className="text-slate-400">No invoices yet.</p>
           ) : (
@@ -107,7 +130,19 @@ export default function CustomerPortalView() {
                     <div className="font-bold">#{invoice.id} — {invoice.invoice_type}</div>
                     <div className="text-xs text-slate-400">{invoice.payment_status}</div>
                   </div>
-                  <div className="font-black text-cyan-300">{money(invoice.total_amount)}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="font-black text-cyan-300">{money(invoice.total_amount)}</div>
+                    {invoice.invoice_type === "sale" && invoice.payment_status !== "paid" && (
+                      <button
+                        onClick={() => payInvoice(invoice.id)}
+                        disabled={payingId === invoice.id}
+                        className="px-3 py-2 rounded-xl bg-emerald-400 text-slate-950 font-black text-sm flex items-center gap-1 disabled:opacity-60"
+                      >
+                        <CreditCard size={14} />
+                        {payingId === invoice.id ? "..." : "Pay now"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

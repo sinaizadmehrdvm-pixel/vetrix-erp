@@ -265,11 +265,15 @@ PUBLIC_PATHS = {
     "/api/customer-portal/me",
     "/api/customer-portal/invoices",
     "/api/customer-portal/ledger",
+    "/api/customer-portal/pay",
     "/api/supplier-portal/me",
     "/api/supplier-portal/invoices",
     "/api/supplier-portal/ledger",
     "/api/catalog/view",
     "/api/catalog/view/order",
+    "/api/payments/session",
+    "/api/payments/session/simulate",
+    "/api/payments/callback",
 }
 
 

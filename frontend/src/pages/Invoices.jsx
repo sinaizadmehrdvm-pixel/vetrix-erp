@@ -35,6 +35,7 @@ import {
   getCustomerLedger,
   getPriceQuote,
   lookupProductByCode,
+  requestInvoicePaymentLink,
 } from "../services/api";
 import toast from "react-hot-toast";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
@@ -692,6 +693,18 @@ export default function Invoices() {
     window.open(`/invoice-print/${invoice.id}`, "_blank", "noreferrer");
   }
 
+  async function getPaymentLink(invoice) {
+    try {
+      const result = await requestInvoicePaymentLink(invoice.id);
+      await navigator.clipboard.writeText(result.redirect_url);
+      toast.success(
+        fa ? "لینک پرداخت کپی شد." : "Payment link copied to clipboard."
+      );
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
+
   const selectedCustomerBalance = Number(
     selectedCustomerLedger?.customer?.balance ?? selectedCustomerLedger?.balance ?? 0
   );
@@ -1113,6 +1126,17 @@ export default function Invoices() {
                           <Edit3 size={16} />
                           {label.edit}
                         </button>
+
+                        {invoice.invoice_type === "sale" && (invoice.payment_status || invoice.status) !== "paid" && (
+                          <button
+                            type="button"
+                            onClick={() => getPaymentLink(invoice)}
+                            className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-200 font-bold inline-flex items-center gap-2"
+                          >
+                            <CreditCard size={16} />
+                            {fa ? "لینک پرداخت" : "Payment link"}
+                          </button>
+                        )}
 
                         <button
                           type="button"

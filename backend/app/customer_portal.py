@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from jwt import PyJWTError
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -12,6 +13,7 @@ from app.database import SessionLocal
 from app.models.accounting_entry import AccountingEntry
 from app.models.customer import Customer
 from app.models.invoice import Invoice
+from app.payment_gateway import request_payment_for_invoice
 
 router = APIRouter(prefix="/api/customer-portal", tags=["Customer Self-Service Portal"])
 
@@ -96,6 +98,23 @@ def portal_invoices(request: Request):
         }
     finally:
         db.close()
+
+
+class PortalPayRequest(BaseModel):
+    invoice_id: int
+
+
+@router.post("/pay")
+def portal_pay_invoice(data: PortalPayRequest, request: Request):
+    db: Session = SessionLocal()
+    try:
+        customer = _authenticated_portal_customer(request, db)
+        invoice = db.query(Invoice).filter(Invoice.id == data.invoice_id).first()
+        if not invoice or invoice.customer_id != customer.id:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+    finally:
+        db.close()
+    return request_payment_for_invoice(data.invoice_id)
 
 
 @router.get("/ledger")

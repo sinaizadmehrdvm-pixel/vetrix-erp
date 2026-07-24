@@ -215,6 +215,13 @@ export async function deleteRecurringInvoice(id) {
   return await request(`/api/recurring-invoices/${id}`, { method: "DELETE" });
 }
 
+// Online payment gateway (staff-triggered; the customer-portal's own
+// self-service payment call uses a portal token, not the staff auth
+// header this helper attaches, so it's made directly in CustomerPortalView.jsx)
+export async function requestInvoicePaymentLink(invoiceId) {
+  return await request(`/api/payments/invoices/${invoiceId}/request`, { method: "POST" });
+}
+
 // Digital & print product catalog
 export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
 export async function createCatalogLink(data) {
