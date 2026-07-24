@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float
 from datetime import datetime
 from app.database import Base
 
@@ -20,3 +20,8 @@ class Customer(Base):
     credit_limit = Column(Float, default=0)
     notes = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Self-service portal: a shareable link stays valid only while enabled,
+    # and bumping the generation instantly invalidates every link issued
+    # before the bump (no way to enumerate/guess a live link back to valid).
+    portal_access_enabled = Column(Boolean, default=False, nullable=False)
+    portal_token_generation = Column(Integer, default=0, nullable=False)

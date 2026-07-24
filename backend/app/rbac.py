@@ -77,6 +77,10 @@ READ_RULES = (
     ("/api/data-import", ALL_ROLES),
     ("/api/inbound-voice", ALL_ROLES),
     ("/api/financial-policy", ALL_ROLES),
+    # The customer-facing GET paths (/me, /invoices, /ledger) never reach
+    # this check - they're public and verify their own portal token - so
+    # this only ever governs the staff-only status/manage endpoints below.
+    ("/api/customer-portal", {"admin", "accountant", "sales"}),
 )
 
 MUTATION_RULES = (
@@ -97,6 +101,7 @@ MUTATION_RULES = (
     ("/transactions", {"admin", "accountant", "sales"}),
     ("/invoices", {"admin", "accountant", "sales"}),
     ("/customers", {"admin", "accountant", "sales"}),
+    ("/api/customer-portal", {"admin", "accountant", "sales"}),
     ("/api/crm", {"admin", "sales"}),
     ("/products", {"admin", "warehouse"}),
     ("/product-categories", {"admin", "warehouse"}),

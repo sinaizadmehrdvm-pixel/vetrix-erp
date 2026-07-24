@@ -51,6 +51,7 @@ const ChangeRequestCenter = lazy(() => import("./pages/ChangeRequestCenter"));
 const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
 const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
 const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
+const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -102,6 +103,7 @@ function AppContent() {
       >
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/portal/:token" element={<CustomerPortalView />} />
         <Route
           path="/invoice-designer"
           element={

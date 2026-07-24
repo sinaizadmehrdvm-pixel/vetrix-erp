@@ -76,6 +76,7 @@ from app.rbac import (
 from app.settings_routes import get_or_create_settings, router as settings_router
 from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
+from app.customer_portal import router as customer_portal_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -119,6 +120,8 @@ def ensure_database_schema():
         "opening_balance": "opening_balance FLOAT DEFAULT 0",
         "credit_limit": "credit_limit FLOAT DEFAULT 0",
         "notes": "notes VARCHAR",
+        "portal_access_enabled": "portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "portal_token_generation": "portal_token_generation INTEGER DEFAULT 0 NOT NULL",
     }
 
     invoice_columns = {
@@ -242,6 +245,7 @@ app.include_router(settings_router)
 app.include_router(users_router)
 app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
+app.include_router(customer_portal_router)
 
 default_origins = ",".join([
     "http://localhost:5173",

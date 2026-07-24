@@ -147,6 +147,42 @@ def decode_mfa_challenge_token(token: str) -> dict:
     )
 
 
+CUSTOMER_PORTAL_AUDIENCE = "vetrix-erp-customer-portal"
+CUSTOMER_PORTAL_LINK_DAYS = 90
+
+
+def create_customer_portal_token(customer_id: int, token_generation: int = 0) -> str:
+    """Long-lived, narrowly-scoped link a staff member hands to a customer.
+
+    A distinct audience keeps this from ever being accepted as a staff
+    access token; the "gen" claim lets staff instantly invalidate every
+    previously issued link by bumping the customer's stored generation,
+    without needing a server-side revocation list.
+    """
+    now = datetime.now(timezone.utc)
+    payload = {
+        "customer_id": customer_id,
+        "gen": int(token_generation or 0),
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(days=CUSTOMER_PORTAL_LINK_DAYS),
+        "iss": TOKEN_ISSUER,
+        "aud": CUSTOMER_PORTAL_AUDIENCE,
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+
+def decode_customer_portal_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _jwt_secret(),
+        algorithms=[TOKEN_ALGORITHM],
+        issuer=TOKEN_ISSUER,
+        audience=CUSTOMER_PORTAL_AUDIENCE,
+        options={"require": ["exp", "iat", "customer_id", "iss", "aud"]},
+    )
+
+
 PUBLIC_PATHS = {
     "/",
     "/health",
@@ -163,6 +199,9 @@ PUBLIC_PATHS = {
     "/api/campaign-delivery/claim",
     "/api/campaign-delivery/complete",
     "/api/campaign-delivery/fail",
+    "/api/customer-portal/me",
+    "/api/customer-portal/invoices",
+    "/api/customer-portal/ledger",
 }
 
 

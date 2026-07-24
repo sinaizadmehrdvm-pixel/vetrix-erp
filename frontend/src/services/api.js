@@ -172,6 +172,17 @@ export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`
 export async function getAiBiRecommendations() { return await request(`/api/ai-bi/recommendations`); }
 export async function getAiBiAnomalies() { return await request(`/api/ai-bi/anomalies`); }
 
+// Customer self-service portal (staff-side management)
+export async function getCustomerPortalStatus(customerId) {
+  return await request(`/api/customer-portal/${customerId}/status`);
+}
+export async function createCustomerPortalLink(customerId) {
+  return await request(`/api/customer-portal/${customerId}/access-link`, { method: "POST" });
+}
+export async function revokeCustomerPortalAccess(customerId) {
+  return await request(`/api/customer-portal/${customerId}/revoke`, { method: "POST" });
+}
+
 // Vetrix Smart Inventory API - Enterprise Phase 2
 export async function getSmartInventoryOverview(params = {}) {
   const q = new URLSearchParams(params).toString();

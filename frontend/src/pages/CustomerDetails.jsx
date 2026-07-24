@@ -19,9 +19,17 @@ import {
   Star,
   Sparkles,
   CheckCircle2,
+  Link2,
+  ShieldOff,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
-import { getCustomerLedger } from "../services/api";
+import {
+  createCustomerPortalLink,
+  getCustomerLedger,
+  getCustomerPortalStatus,
+  revokeCustomerPortalAccess,
+} from "../services/api";
 
 function toNumber(value) {
   const cleaned = String(value ?? "")
@@ -108,6 +116,9 @@ export default function CustomerDetails() {
   const [newNote, setNewNote] = useState("");
   const [followupDate, setFollowupDate] = useState("");
   const [crmMessage, setCrmMessage] = useState("");
+  const [portalEnabled, setPortalEnabled] = useState(false);
+  const [portalLink, setPortalLink] = useState("");
+  const [portalBusy, setPortalBusy] = useState(false);
 
   const isFa = language === "fa";
 
@@ -136,6 +147,51 @@ export default function CustomerDetails() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    let active = true;
+    getCustomerPortalStatus(id)
+      .then((data) => { if (active) setPortalEnabled(Boolean(data?.enabled)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+
+  async function generatePortalLink() {
+    setPortalBusy(true);
+    try {
+      const data = await createCustomerPortalLink(id);
+      setPortalLink(`${window.location.origin}/portal/${data.token}`);
+      setPortalEnabled(true);
+      toast.success(isFa ? "لینک پورتال ساخته شد." : "Portal link created.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPortalBusy(false);
+    }
+  }
+
+  async function revokePortalLink() {
+    setPortalBusy(true);
+    try {
+      await revokeCustomerPortalAccess(id);
+      setPortalEnabled(false);
+      setPortalLink("");
+      toast.success(isFa ? "دسترسی پورتال لغو شد." : "Portal access revoked.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPortalBusy(false);
+    }
+  }
+
+  async function copyPortalLink() {
+    try {
+      await navigator.clipboard.writeText(portalLink);
+      toast.success(isFa ? "لینک کپی شد." : "Link copied.");
+    } catch {
+      toast.error(isFa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
+    }
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -381,6 +437,26 @@ export default function CustomerDetails() {
             <RefreshCcw size={18} />
             {isFa ? "به‌روزرسانی" : "Refresh"}
           </button>
+
+          {portalEnabled ? (
+            <button
+              onClick={revokePortalLink}
+              disabled={portalBusy}
+              className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
+            >
+              <ShieldOff size={18} />
+              {isFa ? "لغو پورتال مشتری" : "Revoke customer portal"}
+            </button>
+          ) : (
+            <button
+              onClick={generatePortalLink}
+              disabled={portalBusy}
+              className="px-4 py-3 rounded-2xl bg-indigo-500/15 text-indigo-200 font-black flex items-center gap-2 border border-indigo-400/20 disabled:opacity-60"
+            >
+              <Link2 size={18} />
+              {isFa ? "ساخت لینک پورتال مشتری" : "Create customer portal link"}
+            </button>
+          )}
         </div>
 
         <div className="text-right">
@@ -392,6 +468,18 @@ export default function CustomerDetails() {
           </p>
         </div>
       </div>
+
+      {portalLink && (
+        <div className="bg-indigo-500/10 border border-indigo-400/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px] font-mono text-sm text-indigo-200 break-all">{portalLink}</div>
+          <button
+            onClick={copyPortalLink}
+            className="px-4 py-2 rounded-xl bg-indigo-400 text-slate-950 font-black flex-shrink-0"
+          >
+            {isFa ? "کپی لینک" : "Copy link"}
+          </button>
+        </div>
+      )}
 
       <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
         <div className="flex items-center justify-between mb-5">
