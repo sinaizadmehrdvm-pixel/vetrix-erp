@@ -115,10 +115,43 @@ def decode_access_token(token: str) -> dict:
     )
 
 
+MFA_TOKEN_AUDIENCE = "vetrix-erp-mfa-challenge"
+MFA_CHALLENGE_MINUTES = 5
+
+
+def create_mfa_challenge_token(user_id: int) -> str:
+    """Short-lived token proving a username/password check already passed,
+    scoped to a distinct audience so it can never be used as a real access
+    token even if it leaked."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "purpose": "mfa",
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(minutes=MFA_CHALLENGE_MINUTES),
+        "iss": TOKEN_ISSUER,
+        "aud": MFA_TOKEN_AUDIENCE,
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+
+def decode_mfa_challenge_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _jwt_secret(),
+        algorithms=[TOKEN_ALGORITHM],
+        issuer=TOKEN_ISSUER,
+        audience=MFA_TOKEN_AUDIENCE,
+        options={"require": ["exp", "iat", "sub", "iss", "aud"]},
+    )
+
+
 PUBLIC_PATHS = {
     "/",
     "/health",
     "/login",
+    "/login/totp",
     "/setup/status",
     "/docs",
     "/openapi.json",

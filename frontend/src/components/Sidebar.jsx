@@ -70,6 +70,7 @@ const groups = [
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
       { key: "financialPolicy", fa: "سیاست مالی تأییدشده", en: "Verified financial policy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
       { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
+      { key: "accountSecurity", fa: "امنیت حساب کاربری", en: "Account security", icon: ShieldCheck, path: "/account-security" },
     ],
   },
 ];

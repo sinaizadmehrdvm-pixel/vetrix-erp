@@ -8,13 +8,14 @@ import { API_URL } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, changePassword } = useAuth();
+  const { login, changePassword, completeTotpLogin } = useAuth();
   const { language, dir } = useLanguage();
   const fa = language === "fa";
 
   const [mode, setMode] = useState("checking");
   const [form, setForm] = useState({ username: "", password: "" });
   const [passwordChange, setPasswordChange] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [mfa, setMfa] = useState({ token: "", code: "" });
   const [setup, setSetup] = useState({
     full_name: "",
     username: "",
@@ -54,8 +55,13 @@ export default function Login() {
     setError("");
     setSubmitting(true);
     try {
-      const signedInUser = await login(form.username.trim(), form.password);
-      if (signedInUser?.must_change_password) {
+      const result = await login(form.username.trim(), form.password);
+      if (result?.mfaRequired) {
+        setMfa({ token: result.mfaToken, code: "" });
+        setMode("totp");
+        return;
+      }
+      if (result?.must_change_password) {
         setPasswordChange({ current_password: form.password, new_password: "", confirm_password: "" });
         setMode("force-password-change");
         return;
@@ -65,6 +71,28 @@ export default function Login() {
       setError(
         loginError?.message ||
           (fa ? "نام کاربری یا رمز عبور صحیح نیست." : "Invalid username or password."),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleTotpLogin(event) {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      const signedInUser = await completeTotpLogin(mfa.token, mfa.code.trim());
+      if (signedInUser?.must_change_password) {
+        setPasswordChange({ current_password: "", new_password: "", confirm_password: "" });
+        setMode("force-password-change");
+        return;
+      }
+      navigate("/", { replace: true });
+    } catch (totpError) {
+      setError(
+        totpError?.message ||
+          (fa ? "کد وارد شده صحیح نیست." : "That code isn't valid."),
       );
     } finally {
       setSubmitting(false);
@@ -215,6 +243,42 @@ export default function Login() {
             {error && <ErrorBox message={error} />}
             <button type="submit" disabled={submitting} className="w-full bg-amber-300 text-black font-black py-4 rounded-2xl disabled:opacity-60">
               {submitting ? (fa ? "در حال تغییر رمز..." : "Changing password...") : (fa ? "تغییر رمز و ادامه" : "Change password & continue")}
+            </button>
+          </form>
+        )}
+
+        {mode === "totp" && (
+          <form onSubmit={handleTotpLogin}>
+            <div className="mb-5 rounded-2xl border border-cyan-400/25 bg-cyan-950/30 p-4 text-sm text-cyan-100">
+              <ShieldCheck className="mb-2" size={22} />
+              {fa
+                ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
+                : "Enter the 6-digit code from your authenticator app, or a recovery code."}
+            </div>
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="totp-code">
+              {fa ? "کد تأیید" : "Verification code"}
+            </label>
+            <input
+              id="totp-code"
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              value={mfa.code}
+              onChange={(event) => setMfa({ ...mfa, code: event.target.value })}
+              className={inputClass}
+              required
+              autoFocus
+            />
+
+            {error && <ErrorBox message={error} />}
+            <button type="submit" disabled={submitting} className="w-full bg-cyan-400 text-black font-black py-4 rounded-2xl disabled:opacity-60">
+              {submitting ? (fa ? "در حال بررسی..." : "Verifying...") : (fa ? "تأیید و ورود" : "Verify & sign in")}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("login"); setMfa({ token: "", code: "" }); setError(""); }}
+              className="w-full mt-3 text-sm text-gray-400 hover:text-gray-200"
+            >
+              {fa ? "بازگشت به ورود" : "Back to login"}
             </button>
           </form>
         )}

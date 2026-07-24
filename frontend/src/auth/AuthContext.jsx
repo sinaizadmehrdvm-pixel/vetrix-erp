@@ -103,6 +103,15 @@ export function AuthProvider({ children }) {
     setToken(newToken);
   }
 
+  function applySignedInSession(data) {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+    setUser(data.user);
+    setToken(data.access_token);
+    setAuthReady(true);
+    return data.user;
+  }
+
   async function login(username, password) {
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
@@ -111,16 +120,32 @@ export function AuthProvider({ children }) {
     });
     const data = await response.json().catch(() => null);
 
-    if (!response.ok || data?.status !== "success" || !data?.access_token || !data?.user) {
+    if (!response.ok) {
+      throw new Error(data?.message || data?.detail || "Unable to sign in");
+    }
+    if (data?.status === "mfa_required" && data?.mfa_token) {
+      return { mfaRequired: true, mfaToken: data.mfa_token };
+    }
+    if (data?.status !== "success" || !data?.access_token || !data?.user) {
       throw new Error(data?.message || data?.detail || "Unable to sign in");
     }
 
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
-    setUser(data.user);
-    setToken(data.access_token);
-    setAuthReady(true);
-    return data.user;
+    return applySignedInSession(data);
+  }
+
+  async function completeTotpLogin(mfaToken, code) {
+    const response = await fetch(`${API_URL}/login/totp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mfa_token: mfaToken, code }),
+    });
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || data?.status !== "success" || !data?.access_token || !data?.user) {
+      throw new Error(data?.message || data?.detail || "Invalid code");
+    }
+
+    return applySignedInSession(data);
   }
 
   function logout() {
@@ -141,7 +166,17 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, authReady, login, logout, changePassword, refreshCurrentUser, applyRefreshedToken }}
+      value={{
+        user,
+        token,
+        authReady,
+        login,
+        logout,
+        changePassword,
+        refreshCurrentUser,
+        applyRefreshedToken,
+        completeTotpLogin,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -73,6 +73,7 @@ from app.rbac import (
 )
 from app.settings_routes import get_or_create_settings, router as settings_router
 from app.users_routes import require_admin, router as users_router
+from app.mfa_routes import router as mfa_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -156,6 +157,9 @@ def ensure_database_schema():
     user_columns = {
         "must_change_password": "must_change_password BOOLEAN DEFAULT 0 NOT NULL",
         "token_generation": "token_generation INTEGER DEFAULT 0 NOT NULL",
+        "totp_secret": "totp_secret VARCHAR",
+        "totp_enabled": "totp_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "totp_recovery_codes": "totp_recovery_codes TEXT",
     }
     for name, sql in user_columns.items():
         ensure_sqlite_column("users", name, sql)
@@ -234,6 +238,7 @@ app.include_router(financial_policy_router)
 app.include_router(data_import_router)
 app.include_router(settings_router)
 app.include_router(users_router)
+app.include_router(mfa_router)
 
 default_origins = ",".join([
     "http://localhost:5173",

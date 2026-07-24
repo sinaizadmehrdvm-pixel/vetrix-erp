@@ -10,6 +10,7 @@ os.environ["VETRIX_DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ["VETRIX_BACKUP_DIR"] = str(TEST_BACKUP_DIR)
 os.environ["VETRIX_JWT_SECRET"] = "integration-test-secret-not-for-production"
 
+import pyotp
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -2601,6 +2602,97 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertIn("/users/me/password", paths)
         self.assertIn("admin_password_reset", actions)
         self.assertIn("user_password_changed", actions)
+
+    def test_zzzzzzzz_totp_two_factor_setup_login_and_disable_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        status_before = self.client.get("/api/auth/totp/status", headers=headers)
+        self.assertEqual(status_before.status_code, 200, status_before.text)
+        self.assertFalse(status_before.json()["enabled"])
+
+        setup = self.client.post("/api/auth/totp/setup", headers=headers)
+        self.assertEqual(setup.status_code, 200, setup.text)
+        secret = setup.json()["secret"]
+        self.assertIn("otpauth://", setup.json()["provisioning_uri"])
+        self.assertTrue(setup.json()["qr_code"].startswith("data:image/png;base64,"))
+
+        totp = pyotp.TOTP(secret)
+        bad_verify = self.client.post("/api/auth/totp/verify", headers=headers, json={"code": "000000"})
+        self.assertEqual(bad_verify.status_code, 401)
+
+        verify = self.client.post("/api/auth/totp/verify", headers=headers, json={"code": totp.now()})
+        self.assertEqual(verify.status_code, 200, verify.text)
+        recovery_codes = verify.json()["recovery_codes"]
+        self.assertEqual(len(recovery_codes), 8)
+
+        status_after = self.client.get("/api/auth/totp/status", headers=headers)
+        self.assertTrue(status_after.json()["enabled"])
+
+        # Password alone no longer returns an access token once TOTP is on.
+        password_only_login = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"}
+        )
+        self.assertEqual(password_only_login.status_code, 200, password_only_login.text)
+        self.assertEqual(password_only_login.json()["status"], "mfa_required")
+        mfa_token = password_only_login.json()["mfa_token"]
+        self.assertNotIn("access_token", password_only_login.json())
+
+        wrong_code = self.client.post("/login/totp", json={"mfa_token": mfa_token, "code": "111111"})
+        self.assertEqual(wrong_code.status_code, 401)
+
+        completed_login = self.client.post(
+            "/login/totp", json={"mfa_token": mfa_token, "code": totp.now()}
+        )
+        self.assertEqual(completed_login.status_code, 200, completed_login.text)
+        self.assertEqual(completed_login.json()["status"], "success")
+        self.assertIn("access_token", completed_login.json())
+        fresh_headers = {"Authorization": f"Bearer {completed_login.json()['access_token']}"}
+
+        # A recovery code logs in once, then is rejected on reuse.
+        second_login = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"}
+        )
+        recovery_mfa_token = second_login.json()["mfa_token"]
+        recovery_code = recovery_codes[0]
+        recovery_login = self.client.post(
+            "/login/totp", json={"mfa_token": recovery_mfa_token, "code": recovery_code}
+        )
+        self.assertEqual(recovery_login.status_code, 200, recovery_login.text)
+
+        third_login = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"}
+        )
+        reused_mfa_token = third_login.json()["mfa_token"]
+        reused_recovery_login = self.client.post(
+            "/login/totp", json={"mfa_token": reused_mfa_token, "code": recovery_code}
+        )
+        self.assertEqual(reused_recovery_login.status_code, 401)
+
+        # Disabling requires the current password and a valid second factor.
+        wrong_password_disable = self.client.post(
+            "/api/auth/totp/disable",
+            headers=fresh_headers,
+            json={"password": "wrong-password", "code": totp.now()},
+        )
+        self.assertEqual(wrong_password_disable.status_code, 401)
+
+        disable = self.client.post(
+            "/api/auth/totp/disable",
+            headers=fresh_headers,
+            json={"password": "StrongAdminPassword!42", "code": totp.now()},
+        )
+        self.assertEqual(disable.status_code, 200, disable.text)
+
+        final_login = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"}
+        )
+        self.assertEqual(final_login.status_code, 200, final_login.text)
+        self.assertEqual(final_login.json()["status"], "success")
 
 
 if __name__ == "__main__":

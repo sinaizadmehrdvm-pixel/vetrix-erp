@@ -50,6 +50,7 @@ const OnlineCommerce = lazy(() => import("./pages/OnlineCommerce"));
 const ChangeRequestCenter = lazy(() => import("./pages/ChangeRequestCenter"));
 const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
 const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
+const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -159,6 +160,7 @@ function AppContent() {
           <Route path="change-requests" element={<ChangeRequestCenter />} />
           <Route path="financial-policy" element={<FinancialPolicy />} />
           <Route path="data-import" element={<DataImportCenter />} />
+          <Route path="account-security" element={<AccountSecurity />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

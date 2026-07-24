@@ -4,14 +4,18 @@ from sqlalchemy.orm import Session
 
 from app.auth import (
     create_access_token,
+    create_mfa_challenge_token,
+    decode_mfa_challenge_token,
     hash_password,
     password_needs_upgrade,
     verify_password,
 )
 from app.database import SessionLocal
+from app.mfa import consume_recovery_code, verify_totp_code
 from app.models.user import User
 from app.rbac import ROLE_LABELS, normalize_role
 from app.security import login_attempt_key, login_retry_after, record_login_result
+from jwt import PyJWTError
 
 router = APIRouter()
 
@@ -40,6 +44,11 @@ class PasswordChangeRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class MfaLoginRequest(BaseModel):
+    mfa_token: str
+    code: str
 
 
 @router.get("/setup/status")
@@ -267,9 +276,72 @@ def login(data: LoginRequest, request: Request):
             record_login_result(attempt_key, False)
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
-        record_login_result(attempt_key, True)
         if password_needs_upgrade(user.password):
             user.password = hash_password(data.password)
+            db.commit()
+
+        if user.totp_enabled:
+            # Password proven, but the login throttle only clears once the
+            # second factor also succeeds (see /login/totp) - a correct
+            # password alone must not grant a fresh set of TOTP guesses.
+            return {
+                "status": "mfa_required",
+                "mfa_token": create_mfa_challenge_token(user.id),
+            }
+
+        record_login_result(attempt_key, True)
+        token = create_access_token(
+            user.id, user.username, normalize_role(user.role), user.token_generation
+        )
+        return {
+            "status": "success",
+            "message": "Login successful",
+            "access_token": token,
+            "token_type": "Bearer",
+            "requires_password_change": bool(getattr(user, "must_change_password", False)),
+            "user": user_to_auth_dict(user),
+        }
+    finally:
+        db.close()
+
+
+@router.post("/login/totp")
+def login_totp(data: MfaLoginRequest, request: Request):
+    try:
+        challenge = decode_mfa_challenge_token(data.mfa_token)
+        user_id = int(challenge["sub"])
+    except (PyJWTError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired two-factor challenge")
+
+    client_ip = request.client.host if request.client else "unknown"
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.totp_enabled:
+            raise HTTPException(status_code=401, detail="Invalid or expired two-factor challenge")
+
+        attempt_key = login_attempt_key(client_ip, user.username)
+        retry_after = login_retry_after(attempt_key)
+        if retry_after:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed login attempts. Try again later.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        code_ok = verify_totp_code(user.totp_secret, data.code)
+        updated_recovery_codes = None
+        if not code_ok:
+            updated_recovery_codes = consume_recovery_code(user.totp_recovery_codes, data.code)
+            code_ok = updated_recovery_codes is not None
+
+        if not code_ok:
+            record_login_result(attempt_key, False)
+            raise HTTPException(status_code=401, detail="Invalid authenticator or recovery code")
+
+        record_login_result(attempt_key, True)
+        if updated_recovery_codes is not None:
+            user.totp_recovery_codes = updated_recovery_codes
             db.commit()
 
         token = create_access_token(
