@@ -107,7 +107,7 @@ function getEventLabel(event, fa) {
 function getEventTone(event) {
   const type = String(event?.type || event?.source || "").toLowerCase();
 
-  if (type.includes("invoice")) return "border-cyan-400/20 bg-cyan-400/10 text-cyan-200";
+  if (type.includes("invoice")) return "border-[var(--erp-border)] bg-[var(--erp-glow)] text-[var(--erp-accent)]";
   if (type.includes("payment") || type.includes("receipt")) return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
   if (type.includes("task") || type.includes("reminder")) return "border-amber-400/20 bg-amber-400/10 text-amber-200";
   if (type.includes("loyalty") || type.includes("gift")) return "border-yellow-400/20 bg-yellow-400/10 text-yellow-200";
@@ -190,14 +190,14 @@ export default function CustomerTimeline({
   }
 
   return (
-    <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5 text-white">
+    <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h2 className="text-2xl font-black text-cyan-300 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <CalendarClock />
             {fa ? "تایم‌لاین کامل مشتری" : "Customer Timeline"}
           </h2>
-          <p className="text-slate-400 text-sm mt-2">
+          <p className="text-[var(--erp-muted)] text-sm mt-2">
             {fa
               ? "همه فاکتورها، پرداخت‌ها، تماس‌ها، یادداشت‌ها، وظایف و فعالیت‌های مشتری در یک مسیر زمانی"
               : "Invoices, payments, calls, notes, tasks and customer activities in one timeline"}
@@ -208,7 +208,7 @@ export default function CustomerTimeline({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -224,19 +224,19 @@ export default function CustomerTimeline({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3 mb-4">
         <div className="relative">
-          <Search size={18} className="absolute top-3.5 right-4 text-slate-500" />
+          <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={fa ? "جستجو در تایم‌لاین..." : "Search timeline..."}
-            className="w-full bg-slate-800 text-white rounded-2xl pr-11 pl-4 py-3 outline-none border border-cyan-400/10"
+            className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]"
           />
         </div>
 
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 outline-none border border-cyan-400/10"
+          className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
         >
           <option value="all">{fa ? "همه رویدادها" : "All events"}</option>
           <option value="invoice">{fa ? "فاکتورها" : "Invoices"}</option>
@@ -254,7 +254,7 @@ export default function CustomerTimeline({
             value={quickNote}
             onChange={(e) => setQuickNote(e.target.value)}
             placeholder={fa ? "یادداشت سریع برای این مشتری..." : "Quick note for this customer..."}
-            className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 outline-none border border-cyan-400/10"
+            className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
           />
           <button
             type="button"
@@ -268,7 +268,7 @@ export default function CustomerTimeline({
       )}
 
       <div className="relative">
-        <div className="absolute right-5 top-0 bottom-0 w-px bg-cyan-400/20 hidden md:block" />
+        <div className="absolute right-5 top-0 bottom-0 w-px bg-[var(--erp-border)] hidden md:block" />
 
         <div className="space-y-4 max-h-[650px] overflow-y-auto pr-1">
           {filtered.map((event) => (
@@ -277,7 +277,7 @@ export default function CustomerTimeline({
                 {getEventIcon(event)}
               </div>
 
-              <div className="rounded-3xl bg-slate-800/70 border border-white/5 p-4 hover:border-cyan-400/20 transition">
+              <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 hover:border-cyan-400/20 transition">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-3">
                     <div className={`md:hidden w-10 h-10 rounded-2xl border flex items-center justify-center ${getEventTone(event)}`}>
@@ -285,8 +285,8 @@ export default function CustomerTimeline({
                     </div>
 
                     <div>
-                      <div className="font-black text-white">{event.title || "-"}</div>
-                      <div className="text-xs text-slate-500 mt-1">{formatDate(event.date, fa)}</div>
+                      <div className="font-black text-[var(--erp-text)]">{event.title || "-"}</div>
+                      <div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(event.date, fa)}</div>
                     </div>
                   </div>
 
@@ -308,13 +308,13 @@ export default function CustomerTimeline({
                 </div>
 
                 {event.description && event.description !== event.title && (
-                  <div className="mt-3 text-slate-300 text-sm leading-7 whitespace-pre-line">
+                  <div className="mt-3 text-[var(--erp-muted)] text-sm leading-7 whitespace-pre-line">
                     {event.description}
                   </div>
                 )}
 
                 {event.amount > 0 && (
-                  <div className="mt-3 inline-flex px-3 py-2 rounded-2xl bg-cyan-400/10 text-cyan-200 font-black">
+                  <div className="mt-3 inline-flex px-3 py-2 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">
                     {money(event.amount)}
                   </div>
                 )}
@@ -323,7 +323,7 @@ export default function CustomerTimeline({
           ))}
 
           {filtered.length === 0 && (
-            <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-8 text-center text-slate-400">
+            <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">
               {fa ? "رویدادی برای نمایش وجود ندارد." : "No events to show."}
             </div>
           )}
@@ -335,9 +335,9 @@ export default function CustomerTimeline({
 
 function TimelineStat({ title, value }) {
   return (
-    <div className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
-      <div className="text-slate-400 text-xs font-bold">{title}</div>
-      <div className="text-2xl font-black text-cyan-300 mt-2">{value}</div>
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+      <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
+      <div className="text-2xl font-black text-[var(--erp-accent)] mt-2">{value}</div>
     </div>
   );
 }

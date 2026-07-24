@@ -6,8 +6,8 @@ import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { disableTotp, getTotpStatus, setupTotp, verifyTotp } from "../services/mfaApi";
 
-const card = "rounded-2xl border border-white/10 bg-white/5 p-6";
-const input = "w-full mb-4 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
+const card = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-6";
+const input = "w-full mb-4 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 const primaryButton = "rounded-xl bg-cyan-400 text-black font-black px-5 py-3 disabled:opacity-60";
 
 export default function AccountSecurity() {
@@ -104,9 +104,9 @@ export default function AccountSecurity() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <ShieldCheck className="text-cyan-400" />
+        <ShieldCheck className="text-[var(--erp-accent)]" />
         {fa ? "امنیت حساب کاربری" : "Account security"}
       </h1>
 
@@ -158,7 +158,7 @@ export default function AccountSecurity() {
         </h2>
 
         {loadingStatus ? (
-          <p className="text-gray-400">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
         ) : recoveryCodes ? (
           <div>
             <p className="mb-3 text-emerald-300 font-bold">
@@ -168,7 +168,7 @@ export default function AccountSecurity() {
             </p>
             <div className="grid grid-cols-2 gap-2 font-mono text-sm mb-4">
               {recoveryCodes.map((code) => (
-                <div key={code} className="rounded-lg bg-black/30 px-3 py-2 text-center">{code}</div>
+                <div key={code} className="rounded-lg bg-[var(--erp-panel-solid)] px-3 py-2 text-center">{code}</div>
               ))}
             </div>
             <button className={primaryButton} onClick={() => setRecoveryCodes(null)}>
@@ -208,13 +208,13 @@ export default function AccountSecurity() {
           </div>
         ) : setupState ? (
           <div>
-            <p className="mb-3 text-gray-300">
+            <p className="mb-3 text-[var(--erp-muted)]">
               {fa
                 ? "کد QR را با Google Authenticator یا برنامه مشابه اسکن کنید، سپس کد شش‌رقمی را وارد کنید."
                 : "Scan the QR code with Google Authenticator (or similar), then enter the 6-digit code."}
             </p>
             <img src={setupState.qr_code} alt="TOTP QR code" className="mb-3 rounded-xl bg-white p-2 w-48 h-48" />
-            <p className="mb-4 font-mono text-sm text-gray-400 break-all">{setupState.secret}</p>
+            <p className="mb-4 font-mono text-sm text-[var(--erp-muted)] break-all">{setupState.secret}</p>
             <form onSubmit={handleVerify}>
               <input
                 inputMode="numeric"
@@ -232,7 +232,7 @@ export default function AccountSecurity() {
           </div>
         ) : (
           <div>
-            <p className="mb-4 text-gray-400">
+            <p className="mb-4 text-[var(--erp-muted)]">
               {fa
                 ? "احراز هویت دومرحله‌ای فعال نیست. با فعال‌سازی، ورود به حساب علاوه بر رمز عبور به یک کد یک‌بارمصرف نیز نیاز خواهد داشت."
                 : "Two-factor authentication is off. Enabling it requires a one-time code in addition to your password at every login."}

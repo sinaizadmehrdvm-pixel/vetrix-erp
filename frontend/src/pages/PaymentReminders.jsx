@@ -10,12 +10,12 @@ import {
   sendPaymentReminderNow,
 } from "../services/api";
 
-const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
+const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 
 const STATUS_STYLES = {
   sent: "bg-emerald-500/20 text-emerald-200",
   failed: "bg-red-500/15 text-red-200",
-  skipped_not_configured: "bg-white/10 text-slate-300",
+  skipped_not_configured: "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]",
   skipped_no_email: "bg-amber-500/15 text-amber-200",
 };
 
@@ -70,9 +70,9 @@ export default function PaymentReminders() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <BellRing className="text-cyan-400" />
+        <BellRing className="text-[var(--erp-accent)]" />
         {fa ? "یادآوری خودکار پرداخت‌های معوق" : "Automated overdue payment reminders"}
       </h1>
 
@@ -88,19 +88,19 @@ export default function PaymentReminders() {
                 ? (fa ? "ایمیل پیکربندی شده" : "Email is configured")
                 : (fa ? "ایمیل پیکربندی نشده" : "Email is not configured")}
             </span>
-            <span className="text-slate-400">
+            <span className="text-[var(--erp-muted)]">
               {fa
                 ? `آستانه معوقگی: ${status.overdue_days_threshold} روز`
                 : `Overdue threshold: ${status.overdue_days_threshold} day(s)`}
             </span>
-            <span className="text-slate-400">
+            <span className="text-[var(--erp-muted)]">
               {fa
                 ? `فاصله بین یادآوری‌ها: ${status.cooldown_days} روز`
                 : `Cooldown between reminders: ${status.cooldown_days} day(s)`}
             </span>
           </div>
           {!status.smtp_configured && (
-            <p className="text-xs text-slate-400 mt-3 flex items-center gap-2">
+            <p className="text-xs text-[var(--erp-muted)] mt-3 flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-300 flex-shrink-0" />
               {fa
                 ? "بدون تنظیم SMTP، یادآوری‌ها فقط ثبت می‌شوند و ایمیلی ارسال نمی‌شود."
@@ -113,16 +113,16 @@ export default function PaymentReminders() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "فاکتورهای معوق" : "Overdue invoices"}</h2>
         {loading ? (
-          <p className="text-slate-400">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
         ) : overdue.length === 0 ? (
-          <p className="text-slate-400">{fa ? "فاکتور معوقی وجود ندارد." : "No overdue invoices."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "فاکتور معوقی وجود ندارد." : "No overdue invoices."}</p>
         ) : (
           <div className="space-y-2">
             {overdue.map((item) => (
-              <div key={item.invoice_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/20 px-4 py-3">
+              <div key={item.invoice_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <div>
                   <div className="font-bold">#{item.invoice_id} — {item.customer_name}</div>
-                  <div className="text-xs text-slate-400">{money(item.remaining_amount)}</div>
+                  <div className="text-xs text-[var(--erp-muted)]">{money(item.remaining_amount)}</div>
                 </div>
                 <button
                   onClick={() => handleSendNow(item.invoice_id)}
@@ -141,15 +141,15 @@ export default function PaymentReminders() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "گزارش یادآوری‌ها" : "Reminder log"}</h2>
         {log.length === 0 ? (
-          <p className="text-slate-400">{fa ? "هنوز یادآوری ثبت نشده است." : "No reminders logged yet."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "هنوز یادآوری ثبت نشده است." : "No reminders logged yet."}</p>
         ) : (
           <div className="space-y-2">
             {log.map((entry) => (
-              <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-4 py-3 text-sm">
+              <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3 text-sm">
                 <div>
                   <span className="font-bold">#{entry.invoice_id}</span>{" "}
-                  <span className="text-slate-300">{entry.customer_name}</span>
-                  {entry.detail && <span className="text-slate-500 ms-2">— {entry.detail}</span>}
+                  <span className="text-[var(--erp-muted)]">{entry.customer_name}</span>
+                  {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {entry.detail}</span>}
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-slate-300"}`}>
                   {entry.status}

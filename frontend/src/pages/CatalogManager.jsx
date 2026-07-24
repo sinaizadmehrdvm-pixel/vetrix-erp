@@ -16,8 +16,8 @@ import {
   revokeCatalogLink,
 } from "../services/api";
 
-const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
+const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
+const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 const buttonClass = "rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
 const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || "").replace(/\D/g, "");
@@ -187,9 +187,9 @@ export default function CatalogManager() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <BookOpen className="text-cyan-400" />
+        <BookOpen className="text-[var(--erp-accent)]" />
         {fa ? "کاتالوگ دیجیتال و چاپی" : "Digital & print catalog"}
       </h1>
 
@@ -209,14 +209,14 @@ export default function CatalogManager() {
             <button
               type="button"
               onClick={() => setMode("category")}
-              className={`flex-1 rounded-xl py-2 font-bold ${mode === "category" ? "bg-cyan-400 text-black" : "bg-black/20 text-slate-300"}`}
+              className={`flex-1 rounded-xl py-2 font-bold ${mode === "category" ? "bg-cyan-400 text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
               {fa ? "بر اساس گروه کالایی" : "By category"}
             </button>
             <button
               type="button"
               onClick={() => setMode("custom")}
-              className={`flex-1 rounded-xl py-2 font-bold ${mode === "custom" ? "bg-cyan-400 text-black" : "bg-black/20 text-slate-300"}`}
+              className={`flex-1 rounded-xl py-2 font-bold ${mode === "custom" ? "bg-cyan-400 text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
               {fa ? "انتخاب دلخواه کالا" : "Custom selection"}
             </button>
@@ -237,7 +237,7 @@ export default function CatalogManager() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <div className="max-h-48 overflow-auto space-y-1 rounded-xl bg-black/20 p-2">
+              <div className="max-h-48 overflow-auto space-y-1 rounded-xl bg-[var(--erp-panel-solid)] p-2">
                 {filteredProducts.map((product) => (
                   <label key={product.id} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/5 cursor-pointer">
                     <input
@@ -250,7 +250,7 @@ export default function CatalogManager() {
                       }}
                     />
                     <span className="text-sm">{product.name}</span>
-                    <span className="text-xs text-slate-400 ms-auto">{money(product.sell_price || product.price || 0)}</span>
+                    <span className="text-xs text-[var(--erp-muted)] ms-auto">{money(product.sell_price || product.price || 0)}</span>
                   </label>
                 ))}
               </div>
@@ -258,7 +258,7 @@ export default function CatalogManager() {
           )}
 
           {mode === "category" && (
-            <label className="flex items-center gap-2 mb-4 text-sm text-slate-300">
+            <label className="flex items-center gap-2 mb-4 text-sm text-[var(--erp-muted)]">
               <input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} />
               {fa ? "فقط کالاهای موجود" : "In-stock products only"}
             </label>
@@ -274,16 +274,16 @@ export default function CatalogManager() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "کاتالوگ‌های ساخته‌شده" : "Your catalogs"}</h2>
         {loading ? (
-          <p className="text-slate-400">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
         ) : catalogs.length === 0 ? (
-          <p className="text-slate-400">{fa ? "هنوز کاتالوگی نساخته‌اید." : "No catalogs yet."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "هنوز کاتالوگی نساخته‌اید." : "No catalogs yet."}</p>
         ) : (
           <div className="space-y-3">
             {catalogs.map((catalog) => (
-              <div key={catalog.id} className="rounded-xl bg-black/20 p-4 flex flex-wrap items-center justify-between gap-3">
+              <div key={catalog.id} className="rounded-xl bg-[var(--erp-panel-solid)] p-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-bold">{catalog.title}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--erp-muted)]">
                     {catalog.product_count} {fa ? "کالا" : "products"} •{" "}
                     {catalog.enabled ? (fa ? "فعال" : "Active") : (fa ? "غیرفعال" : "Disabled")}
                   </div>
@@ -314,7 +314,7 @@ export default function CatalogManager() {
                       <Send size={14} /> Telegram
                     </a>
                   )}
-                  <button onClick={() => downloadPdf(catalog.id, catalog.title)} className="px-3 py-2 rounded-xl bg-cyan-500/20 text-cyan-200 text-sm font-bold flex items-center gap-1">
+                  <button onClick={() => downloadPdf(catalog.id, catalog.title)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold flex items-center gap-1">
                     <FileDown size={14} /> PDF
                   </button>
                   {catalog.enabled ? (
@@ -336,19 +336,19 @@ export default function CatalogManager() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "سفارش‌های دریافتی از کاتالوگ" : "Catalog orders"}</h2>
         {orders.length === 0 ? (
-          <p className="text-slate-400">{fa ? "سفارشی دریافت نشده است." : "No orders yet."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "سفارشی دریافت نشده است." : "No orders yet."}</p>
         ) : (
           <div className="space-y-3">
             {orders.map((order) => (
-              <div key={order.id} className="rounded-xl bg-black/20 p-4">
+              <div key={order.id} className="rounded-xl bg-[var(--erp-panel-solid)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="font-bold">{order.customer_name}</div>
-                    <div className="text-xs text-slate-400">{order.customer_phone}</div>
+                    <div className="text-xs text-[var(--erp-muted)]">{order.customer_phone}</div>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-white/10">{order.status}</span>
+                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">{order.status}</span>
                 </div>
-                <ul className="text-sm text-slate-300 mt-2 list-disc ps-5">
+                <ul className="text-sm text-[var(--erp-muted)] mt-2 list-disc ps-5">
                   {order.items.map((item, index) => (
                     <li key={index}>{item.name} × {item.quantity}</li>
                   ))}
@@ -371,21 +371,21 @@ export default function CatalogManager() {
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-2">{fa ? "گزارش سفارش‌های چت (واتساپ/تلگرام)" : "Chat order log (WhatsApp/Telegram)"}</h2>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--erp-muted)] mb-4">
           {fa
             ? "مشتریان می‌توانند با ارسال پیام «ORDER» به شماره واتساپ یا ربات تلگرام کسب‌وکار شما، مستقیماً سفارش ثبت کنند. هر پیام دریافتی این‌جا ثبت می‌شود، چه سفارش ساخته شود چه نه."
             : "Customers can place an order by texting an \"ORDER\" message to your business WhatsApp number or Telegram bot. Every inbound message is logged here, whether or not it turned into an order."}
         </p>
         {messages.length === 0 ? (
-          <p className="text-slate-400">{fa ? "هنوز پیامی دریافت نشده است." : "No chat messages received yet."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "هنوز پیامی دریافت نشده است." : "No chat messages received yet."}</p>
         ) : (
           <div className="space-y-2">
             {messages.map((m) => (
-              <div key={m.id} className="rounded-xl bg-black/20 p-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div key={m.id} className="rounded-xl bg-[var(--erp-panel-solid)] p-3 flex flex-wrap items-center justify-between gap-2 text-sm">
                 <div>
-                  <span className="font-bold uppercase text-xs px-2 py-1 rounded-lg bg-white/10 me-2">{m.source}</span>
-                  <span className="text-slate-300">{m.sender_reference}</span>
-                  {m.detail && <span className="text-slate-500 ms-2">— {m.detail}</span>}
+                  <span className="font-bold uppercase text-xs px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)] me-2">{m.source}</span>
+                  <span className="text-[var(--erp-muted)]">{m.sender_reference}</span>
+                  {m.detail && <span className="text-[var(--erp-muted)] ms-2">— {m.detail}</span>}
                 </div>
                 <span
                   className={`text-xs font-bold px-2 py-1 rounded-lg ${
@@ -393,7 +393,7 @@ export default function CatalogManager() {
                       ? "bg-emerald-500/20 text-emerald-200"
                       : m.status === "rejected"
                       ? "bg-red-500/15 text-red-200"
-                      : "bg-white/10 text-slate-300"
+                      : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"
                   }`}
                 >
                   {m.status}

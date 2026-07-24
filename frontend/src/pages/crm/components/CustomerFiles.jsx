@@ -84,13 +84,13 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
   }
 
   return (
-    <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5 text-white">
+    <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h2 className="text-2xl font-black text-cyan-300 flex items-center gap-2"><FolderOpen />{fa ? "فایل‌ها و اسناد مشتری" : "Customer Files & Documents"}</h2>
-          <p className="text-slate-400 text-sm mt-2">{fa ? "قراردادها، مدارک هویتی، تصاویر، PDFها، اسناد گارانتی و فایل‌های خدمات" : "Contracts, identity documents, images, PDFs, warranty and service files"}</p>
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2"><FolderOpen />{fa ? "فایل‌ها و اسناد مشتری" : "Customer Files & Documents"}</h2>
+          <p className="text-[var(--erp-muted)] text-sm mt-2">{fa ? "قراردادها، مدارک هویتی، تصاویر، PDFها، اسناد گارانتی و فایل‌های خدمات" : "Contracts, identity documents, images, PDFs, warranty and service files"}</p>
         </div>
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60">
+        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60">
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}
         </button>
       </div>
@@ -102,12 +102,12 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
         <FileStat title={fa ? "تصاویر" : "Images"} value={n(stats.images)} />
       </div>
 
-      <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-5 mb-5">
-        <h3 className="text-cyan-300 font-black mb-4 flex items-center gap-2"><UploadCloud size={21} />{fa ? "افزودن فایل جدید" : "Upload new file"}</h3>
-        <div onClick={() => inputRef.current?.click()} className="border-2 border-dashed border-cyan-400/20 bg-slate-900/70 rounded-3xl p-8 text-center cursor-pointer hover:border-cyan-300/50 transition mb-4">
-          <UploadCloud size={42} className="mx-auto text-cyan-300 mb-3" />
-          <div className="font-black text-white">{selectedFile ? selectedFile.name : fa ? "برای انتخاب فایل کلیک کن" : "Click to choose a file"}</div>
-          <div className="text-slate-400 text-sm mt-2">{fa ? "PDF، تصویر، Word، Excel، ZIP و سایر فایل‌ها" : "PDF, image, Word, Excel, ZIP and more"}</div>
+      <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5 mb-5">
+        <h3 className="text-[var(--erp-accent)] font-black mb-4 flex items-center gap-2"><UploadCloud size={21} />{fa ? "افزودن فایل جدید" : "Upload new file"}</h3>
+        <div onClick={() => inputRef.current?.click()} className="border-2 border-dashed border-[var(--erp-border)] bg-[var(--erp-panel)] rounded-3xl p-8 text-center cursor-pointer hover:border-cyan-300/50 transition mb-4">
+          <UploadCloud size={42} className="mx-auto text-[var(--erp-accent)] mb-3" />
+          <div className="font-black text-[var(--erp-text)]">{selectedFile ? selectedFile.name : fa ? "برای انتخاب فایل کلیک کن" : "Click to choose a file"}</div>
+          <div className="text-[var(--erp-muted)] text-sm mt-2">{fa ? "PDF، تصویر، Word، Excel، ZIP و سایر فایل‌ها" : "PDF, image, Word, Excel, ZIP and more"}</div>
           <input ref={inputRef} type="file" className="hidden" onChange={(e) => chooseFile(e.target.files?.[0] || null)} />
         </div>
 
@@ -133,10 +133,10 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3 mb-4">
         <div className="relative">
-          <Search size={18} className="absolute top-3.5 right-4 text-slate-500" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={fa ? "جستجو در فایل‌ها..." : "Search files..."} className="w-full bg-slate-800 text-white rounded-2xl pr-11 pl-4 py-3 outline-none border border-cyan-400/10" />
+          <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={fa ? "جستجو در فایل‌ها..." : "Search files..."} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" />
         </div>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 outline-none border border-cyan-400/10">
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]">
           <option value="all">{fa ? "همه دسته‌ها" : "All categories"}</option>
           <option value="document">{fa ? "سند عمومی" : "Document"}</option>
           <option value="contract">{fa ? "قرارداد" : "Contract"}</option>
@@ -151,38 +151,38 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((file) => (
-          <div key={file.id} className="rounded-3xl bg-slate-800/70 border border-white/5 p-4 hover:border-cyan-400/20 transition">
+          <div key={file.id} className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 hover:border-cyan-400/20 transition">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20 flex items-center justify-center">{fileIcon(file)}</div>
-                <div><div className="font-black text-white break-words">{file.title}</div><div className="text-xs text-slate-500 mt-1">{formatDate(file.created_at, fa)}</div></div>
+                <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] flex items-center justify-center">{fileIcon(file)}</div>
+                <div><div className="font-black text-[var(--erp-text)] break-words">{file.title}</div><div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(file.created_at, fa)}</div></div>
               </div>
               {onDeleteFile && <button type="button" onClick={() => onDeleteFile(file.id)} className="w-9 h-9 rounded-xl bg-red-500/10 text-red-200 flex items-center justify-center"><Trash2 size={16} /></button>}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-cyan-400/10 text-cyan-200 border border-cyan-400/20">{fileCategoryLabel(file.category, fa)}</span>
-              {file.size && <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-500/10 text-slate-300 border border-slate-400/20">{file.size}</span>}
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)]">{fileCategoryLabel(file.category, fa)}</span>
+              {file.size && <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-500/10 text-[var(--erp-muted)] border border-slate-400/20">{file.size}</span>}
             </div>
 
-            {file.description && <p className="text-slate-300 text-sm leading-7 mt-3 line-clamp-3">{file.description}</p>}
+            {file.description && <p className="text-[var(--erp-muted)] text-sm leading-7 mt-3 line-clamp-3">{file.description}</p>}
 
             <div className="mt-4">
-              {file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="w-full px-4 py-3 rounded-2xl bg-slate-900 text-cyan-200 font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "باز کردن / دانلود" : "Open / Download"}</a> : <button type="button" disabled className="w-full px-4 py-3 rounded-2xl bg-slate-900 text-slate-500 font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "فایل هنوز آپلود نشده" : "No uploaded file"}</button>}
+              {file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-accent)] font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "باز کردن / دانلود" : "Open / Download"}</a> : <button type="button" disabled className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-muted)] font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "فایل هنوز آپلود نشده" : "No uploaded file"}</button>}
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <div className="md:col-span-2 xl:col-span-3 rounded-3xl bg-slate-800/60 border border-white/5 p-8 text-center text-slate-400">{fa ? "فایلی برای نمایش وجود ندارد." : "No files to show."}</div>}
+        {filtered.length === 0 && <div className="md:col-span-2 xl:col-span-3 rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">{fa ? "فایلی برای نمایش وجود ندارد." : "No files to show."}</div>}
       </div>
 
       <style>{`
-        .crm-input { width: 100%; background: #0f172a; color: white; border: 1px solid rgba(34,211,238,.14); border-radius: 16px; padding: 12px; outline: none; }
-        .crm-input::placeholder { color: rgba(148, 163, 184, .75); }
+        .crm-input { width: 100%; background: var(--erp-panel-solid); color: var(--erp-text); border: 1px solid var(--erp-border); border-radius: 16px; padding: 12px; outline: none; }
+        .crm-input::placeholder { color: var(--erp-muted); }
       `}</style>
     </section>
   );
 }
 
 function FileStat({ title, value }) {
-  return <div className="rounded-2xl bg-slate-800/70 border border-white/5 p-4"><div className="text-slate-400 text-xs font-bold">{title}</div><div className="text-2xl font-black text-cyan-300 mt-2">{value}</div></div>;
+  return <div className="rounded-2xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-4"><div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div><div className="text-2xl font-black text-[var(--erp-accent)] mt-2">{value}</div></div>;
 }

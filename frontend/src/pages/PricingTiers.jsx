@@ -10,8 +10,8 @@ import {
   getProducts,
 } from "../services/api";
 
-const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
+const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
+const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 
 export default function PricingTiers() {
   const { dir, language, money } = useLanguage();
@@ -101,14 +101,14 @@ export default function PricingTiers() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <Layers className="text-cyan-400" />
+        <Layers className="text-[var(--erp-accent)]" />
         {fa ? "قیمت‌گذاری پلکانی و عمده‌فروشی" : "Tiered & wholesale pricing"}
       </h1>
 
       <section className={cardClass}>
-        <label className="block text-sm text-slate-300 mb-2">
+        <label className="block text-sm text-[var(--erp-muted)] mb-2">
           {fa ? "انتخاب کالا" : "Select product"}
         </label>
         <select
@@ -124,7 +124,7 @@ export default function PricingTiers() {
         </select>
 
         {selectedProduct && (
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--erp-muted)] mb-4">
             {fa ? "قیمت پایه: " : "Base price: "}{money(selectedProduct.sell_price || selectedProduct.price || 0)}
           </p>
         )}
@@ -169,15 +169,15 @@ export default function PricingTiers() {
 
             <div className="space-y-2">
               {tiers.length === 0 ? (
-                <p className="text-slate-400">{fa ? "پله قیمتی تعریف نشده است." : "No price tiers yet."}</p>
+                <p className="text-[var(--erp-muted)]">{fa ? "پله قیمتی تعریف نشده است." : "No price tiers yet."}</p>
               ) : (
                 tiers.map((tier) => (
-                  <div key={tier.id} className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3">
+                  <div key={tier.id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                     <div className="text-sm">
                       {fa ? "از " : "From "} {tier.min_quantity} {fa ? "عدد به بعد: " : "units: "}
-                      <span className="font-black text-cyan-300">{money(tier.unit_price)}</span>
+                      <span className="font-black text-[var(--erp-accent)]">{money(tier.unit_price)}</span>
                       {tier.customer_group && (
-                        <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-white/10">
+                        <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">
                           {tier.customer_group === "wholesale" ? (fa ? "عمده" : "wholesale") : (fa ? "خرده" : "retail")}
                         </span>
                       )}

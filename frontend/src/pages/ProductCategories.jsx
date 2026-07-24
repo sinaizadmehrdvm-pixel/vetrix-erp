@@ -47,38 +47,38 @@ export default function ProductCategories() {
   return (
     <div dir={language === "fa" ? "rtl" : "ltr"} className="space-y-6">
       <div>
-        <h1 className="text-4xl font-black text-cyan-400">
+        <h1 className="text-4xl font-black text-[var(--erp-accent)]">
           {language === "fa" ? "دسته‌بندی کالا" : "Product Categories"}
         </h1>
 
-        <p className="text-slate-400 mt-2">
+        <p className="text-[var(--erp-muted)] mt-2">
           {language === "fa"
             ? "تعریف گروه اصلی، گروه فرعی و کد دسته‌بندی کالاها"
             : "Define main groups, sub groups and category codes"}
         </p>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <input
             placeholder={language === "fa" ? "گروه اصلی" : "Main category"}
             value={form.main}
             onChange={(e) => setForm({ ...form, main: e.target.value })}
-            className="bg-slate-800 rounded-2xl p-4 outline-none"
+            className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none"
           />
 
           <input
             placeholder={language === "fa" ? "گروه فرعی" : "Sub category"}
             value={form.sub}
             onChange={(e) => setForm({ ...form, sub: e.target.value })}
-            className="bg-slate-800 rounded-2xl p-4 outline-none"
+            className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none"
           />
 
           <input
             placeholder={language === "fa" ? "کد دسته‌بندی" : "Category code"}
             value={form.code}
             onChange={(e) => setForm({ ...form, code: e.target.value })}
-            className="bg-slate-800 rounded-2xl p-4 outline-none"
+            className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none"
           />
         </div>
 
@@ -91,8 +91,8 @@ export default function ProductCategories() {
         </button>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-slate-800 rounded-2xl px-4 py-3 mb-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
           <Search size={18} />
           <input
             placeholder={language === "fa" ? "جستجوی دسته‌بندی..." : "Search category..."}
@@ -102,7 +102,7 @@ export default function ProductCategories() {
 
         <table className="w-full">
           <thead>
-            <tr className="text-cyan-300 border-b border-cyan-500/20">
+            <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
               <th className="p-4 text-start">ID</th>
               <th className="p-4 text-start">
                 {language === "fa" ? "گروه اصلی" : "Main"}
@@ -123,7 +123,7 @@ export default function ProductCategories() {
             {categories.map((item) => (
               <tr
                 key={item.id}
-                className="border-b border-white/5 hover:bg-cyan-500/5"
+                className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5"
               >
                 <td className="p-4">#{n(item.id)}</td>
                 <td className="p-4 font-bold">{item.main}</td>

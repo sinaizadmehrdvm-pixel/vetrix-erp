@@ -13,8 +13,8 @@ import {
   resumeRecurringInvoice,
 } from "../services/api";
 
-const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
+const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
+const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 const buttonClass = "rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
 const emptyItem = { product_id: "", quantity: "1", unit_price: "" };
@@ -168,9 +168,9 @@ export default function RecurringInvoices() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <CalendarClock className="text-cyan-400" />
+        <CalendarClock className="text-[var(--erp-accent)]" />
         {fa ? "فاکتورهای تکرارشونده / اشتراکی" : "Recurring / subscription invoices"}
       </h1>
 
@@ -230,7 +230,7 @@ export default function RecurringInvoices() {
                 </div>
               </div>
             ))}
-            <button type="button" onClick={addRow} className="text-sm text-cyan-300 hover:text-cyan-200 flex items-center gap-1">
+            <button type="button" onClick={addRow} className="text-sm text-[var(--erp-accent)] hover:text-cyan-200 flex items-center gap-1">
               <Plus size={14} /> {fa ? "افزودن ردیف" : "Add row"}
             </button>
           </div>
@@ -277,21 +277,21 @@ export default function RecurringInvoices() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "الگوهای فعال" : "Your templates"}</h2>
         {loading ? (
-          <p className="text-slate-400">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
         ) : templates.length === 0 ? (
-          <p className="text-slate-400">{fa ? "هنوز الگویی نساخته‌اید." : "No recurring templates yet."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "هنوز الگویی نساخته‌اید." : "No recurring templates yet."}</p>
         ) : (
           <div className="space-y-3">
             {templates.map((template) => (
-              <div key={template.id} className="rounded-xl bg-black/20 p-4 flex flex-wrap items-center justify-between gap-3">
+              <div key={template.id} className="rounded-xl bg-[var(--erp-panel-solid)] p-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-bold">
                     {template.customer_name || `#${template.customer_id}`}
-                    <span className="ms-2 text-cyan-300 font-black">
+                    <span className="ms-2 text-[var(--erp-accent)] font-black">
                       {money((template.items || []).reduce((sum, item) => sum + item.quantity * item.unit_price, 0))}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--erp-muted)]">
                     {frequencyLabel(template, fa)} •{" "}
                     {fa ? "اجرای بعدی: " : "Next run: "}{template.next_run_date} •{" "}
                     {template.active ? (fa ? "فعال" : "Active") : (fa ? "متوقف" : "Paused")}

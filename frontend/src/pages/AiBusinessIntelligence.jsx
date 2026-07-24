@@ -89,20 +89,20 @@ export default function AiBusinessIntelligence() {
   return (
     <div
       dir={dir}
-      className="min-h-screen text-white"
+      className="min-h-screen text-[var(--erp-text)]"
       style={{
         padding: 30,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,.18), transparent 34%), radial-gradient(circle at top right, rgba(16,185,129,.13), transparent 36%), #071028",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 34%), radial-gradient(circle at top right, rgba(16,185,129,.13), transparent 36%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400 flex items-center gap-3">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3">
             <BrainCircuit size={36} />
             {fa ? "هوش تجاری Vetrix" : "Vetrix AI Business Intelligence"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "تحلیل هوشمند فروش، سود، نقدینگی، موجودی، مطالبات و ریسک‌های مدیریتی"
               : "Smart analysis for sales, profit, cashflow, inventory, receivables and business risk"}
@@ -126,32 +126,32 @@ export default function AiBusinessIntelligence() {
       )}
 
       {!data ? (
-        <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-8 text-slate-300">
+        <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-8 text-[var(--erp-muted)]">
           {fa ? "در حال آماده‌سازی تحلیل هوشمند..." : "Preparing AI analysis..."}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
-            <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-6 overflow-hidden relative">
-              <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-cyan-400/10 blur-3xl" />
+            <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-6 overflow-hidden relative">
+              <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full bg-[var(--erp-glow)] blur-3xl" />
               <div className="relative">
-                <div className="flex items-center gap-2 text-cyan-300 font-black mb-3">
+                <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
                   <Gauge /> {fa ? "امتیاز سلامت کسب‌وکار" : "Business health score"}
                 </div>
                 <div className="text-7xl font-black" style={scoreStyle}>{n(score)}</div>
                 <div className="text-xl font-black mt-2" style={scoreStyle}>{scoreLabel(score, fa)}</div>
-                <div className="h-3 rounded-full bg-slate-800 mt-5 overflow-hidden">
+                <div className="h-3 rounded-full bg-[var(--erp-panel-solid)] mt-5 overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${score}%`, background: scoreColor(score) }}
                   />
                 </div>
-                <p className="text-slate-300 mt-5 leading-8">{data.narrative}</p>
+                <p className="text-[var(--erp-muted)] mt-5 leading-8">{data.narrative}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <KpiCard title={fa ? "فروش خالص" : "Net sales"} value={money(kpis.net_sales || 0)} icon={<TrendingUp />} color="#22d3ee" />
+              <KpiCard title={fa ? "فروش خالص" : "Net sales"} value={money(kpis.net_sales || 0)} icon={<TrendingUp />} color="var(--erp-accent)" />
               <KpiCard title={fa ? "سود ناخالص" : "Gross profit"} value={money(kpis.gross_profit || 0)} icon={<BarChart3 />} color={(kpis.gross_profit || 0) >= 0 ? "#10b981" : "#ef4444"} />
               <KpiCard title={fa ? "رشد فروش ماه" : "Monthly sales growth"} value={`${n(Number(kpis.sales_growth_percent || 0).toFixed(1))}%`} icon={(kpis.sales_growth_percent || 0) >= 0 ? <TrendingUp /> : <TrendingDown />} color={(kpis.sales_growth_percent || 0) >= 0 ? "#10b981" : "#ef4444"} />
               <KpiCard title={fa ? "جریان نقدی خالص" : "Net cashflow"} value={money(kpis.net_cashflow || 0)} icon={<Wallet />} color={(kpis.net_cashflow || 0) >= 0 ? "#10b981" : "#ef4444"} />
@@ -170,10 +170,10 @@ export default function AiBusinessIntelligence() {
             <Panel title={fa ? "پیشنهادهای مدیریتی" : "Management recommendations"} icon={<Sparkles />}>
               <div className="space-y-3">
                 {recommendations.map((item, index) => (
-                  <div key={index} className="rounded-2xl bg-slate-800/80 border border-white/5 p-4">
-                    <div className="text-white font-black">{item.title}</div>
-                    <div className="text-slate-300 text-sm mt-2 leading-7">{item.text}</div>
-                    <div className="text-cyan-300 text-xs font-bold mt-3">{fa ? "اثر مورد انتظار: " : "Expected impact: "}{item.impact}</div>
+                  <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+                    <div className="text-[var(--erp-text)] font-black">{item.title}</div>
+                    <div className="text-[var(--erp-muted)] text-sm mt-2 leading-7">{item.text}</div>
+                    <div className="text-[var(--erp-accent)] text-xs font-bold mt-3">{fa ? "اثر مورد انتظار: " : "Expected impact: "}{item.impact}</div>
                   </div>
                 ))}
               </div>
@@ -254,7 +254,7 @@ export default function AiBusinessIntelligence() {
               {!anomalies ? (
                 <div className="text-slate-400">{fa ? "در حال بررسی..." : "Scanning..."}</div>
               ) : anomalies.items.length === 0 ? (
-                <div className="text-slate-400 rounded-2xl bg-slate-800/60 p-4 flex items-center gap-2">
+                <div className="text-[var(--erp-muted)] rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center gap-2">
                   <CheckCircle2 size={18} /> {fa ? "ناهنجاری‌ای شناسایی نشد." : "No anomalies detected."}
                 </div>
               ) : (
@@ -285,8 +285,8 @@ export default function AiBusinessIntelligence() {
 
 function KpiCard({ title, value, icon, color }) {
   return (
-    <div className="rounded-[1.5rem] bg-slate-900/70 border border-cyan-500/20 p-5">
-      <div className="flex items-center gap-2 text-slate-400 text-sm font-bold mb-3">
+    <div className="rounded-[1.5rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
+      <div className="flex items-center gap-2 text-[var(--erp-muted)] text-sm font-bold mb-3">
         <span style={{ color }}>{icon}</span>
         {title}
       </div>
@@ -297,8 +297,8 @@ function KpiCard({ title, value, icon, color }) {
 
 function Panel({ title, icon, children }) {
   return (
-    <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-5">
-      <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">{icon}{title}</h2>
+    <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">{icon}{title}</h2>
       {children}
     </div>
   );
@@ -310,7 +310,7 @@ function AlertRow({ item }) {
     rose: "bg-rose-500/10 border-rose-400/20 text-rose-200",
     amber: "bg-amber-500/10 border-amber-400/20 text-amber-200",
     emerald: "bg-emerald-500/10 border-emerald-400/20 text-emerald-200",
-    cyan: "bg-cyan-500/10 border-cyan-400/20 text-cyan-200",
+    cyan: "bg-[var(--erp-glow)] border-[var(--erp-border)] text-[var(--erp-accent)]",
   }[color];
   return (
     <div className={`rounded-2xl border p-4 ${cls}`}>
@@ -351,11 +351,11 @@ function DataPanel({ title, icon, items, money, n, type, fa }) {
             <CheckCircle2 size={18} /> {fa ? "موردی برای نمایش وجود ندارد." : "Nothing to show."}
           </div>
         ) : items.map((item, index) => (
-          <div key={index} className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
+          <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="font-black text-white">{item.name || item.customer_name || `#${item.invoice_id || item.id}`}</div>
-                <div className="text-slate-400 text-xs mt-1">
+                <div className="font-black text-[var(--erp-text)]">{item.name || item.customer_name || `#${item.invoice_id || item.id}`}</div>
+                <div className="text-[var(--erp-muted)] text-xs mt-1">
                   {type === "customer" && `${fa ? "فروش: " : "Sales: "}${money(item.sales_amount || 0)} • ${fa ? "فاکتور: " : "Invoices: "}${n(item.invoice_count || 0)}`}
                   {type === "risk" && `${fa ? "مانده: " : "Balance: "}${money(item.balance || 0)} • ${fa ? "امتیاز: " : "Score: "}${n(item.score || 0)}`}
                   {type === "stock" && `${fa ? "موجودی: " : "Stock: "}${n(item.stock || 0)} • ${fa ? "حداقل: " : "Min: "}${n(item.min_stock || 0)}`}
@@ -363,7 +363,7 @@ function DataPanel({ title, icon, items, money, n, type, fa }) {
                   {type === "invoice" && `${fa ? "باقی‌مانده: " : "Remaining: "}${money(item.remaining_amount || 0)} • ${fa ? "سن: " : "Age: "}${n(item.age_days || 0)} ${fa ? "روز" : "days"}`}
                 </div>
               </div>
-              <span className="text-cyan-300 font-black">#{n(index + 1)}</span>
+              <span className="text-[var(--erp-accent)] font-black">#{n(index + 1)}</span>
             </div>
           </div>
         ))}

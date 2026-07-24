@@ -319,7 +319,7 @@ export default function Dashboard() {
 
   if (!dashboardData) {
     return (
-      <div style={{ color: "white", padding: 30, direction: dir }}>
+      <div style={{ color: "var(--erp-text)", padding: 30, direction: dir }}>
         {language === "fa" ? "در حال بارگذاری..." : "Loading..."}
       </div>
     );
@@ -351,16 +351,16 @@ export default function Dashboard() {
     >
       <div className="flex items-start justify-between gap-4 flex-wrap mb-7">
         <div>
-          <h1 className="text-white text-4xl font-black mb-2 text-right">
+          <h1 className="text-[var(--erp-text)] text-4xl font-black mb-2 text-right">
             {t("dashboard")}
           </h1>
-          <p className="text-slate-400">
+          <p className="text-[var(--erp-muted)]">
             {fa
               ? "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار"
               : "Smart dashboard for sales, cashflow, profit, receivables, alerts and business growth"}
           </p>
           {lastUpdate && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-[var(--erp-muted)] mt-2">
               {fa ? "آخرین بروزرسانی: " : "Last update: "}
 {time(lastUpdate)}
             </p>
@@ -373,7 +373,7 @@ export default function Dashboard() {
             type="button"
             onClick={loadDashboard}
             disabled={loading}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20 disabled:opacity-60"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
             {fa ? "به‌روزرسانی" : "Refresh"}
@@ -424,8 +424,8 @@ export default function Dashboard() {
         <StatsCard title={fa ? "کالاهای کم موجود" : "Low stock"} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
       </div>
 
-      <details className="group rounded-[2rem] border border-cyan-400/20 bg-slate-900/40 p-4">
-        <summary className="cursor-pointer list-none rounded-2xl bg-slate-800/80 px-4 py-3 text-cyan-200 font-black flex items-center justify-between gap-3">
+      <details className="group rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
+        <summary className="cursor-pointer list-none rounded-2xl bg-[var(--erp-panel-solid)] px-4 py-3 text-[var(--erp-accent)] font-black flex items-center justify-between gap-3">
           <span>{fa ? "نمایش جزئیات و تحلیل‌های بیشتر" : "Show more details and analytics"}</span>
           <ChevronDown className="transition-transform group-open:rotate-180" size={20} />
         </summary>
@@ -469,13 +469,13 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
   const scoreLabel = score >= 75 ? (fa ? "عالی" : "Excellent") : score >= 45 ? (fa ? "نیازمند توجه" : "Needs attention") : (fa ? "بحرانی" : "Critical");
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-6 shadow-2xl">
+    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 shadow-2xl">
       <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl" />
       <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl" />
 
       <div className="relative flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="flex items-center gap-2 text-cyan-300 font-black mb-2">
+          <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-2">
             <Gauge size={22} />
             {fa ? "امتیاز سلامت کسب‌وکار" : "Business health score"}
           </div>
@@ -515,7 +515,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
         </div>
       </div>
 
-      <div className="relative mt-5 h-3 rounded-full bg-slate-800 overflow-hidden">
+      <div className="relative mt-5 h-3 rounded-full bg-[var(--erp-panel-solid)] overflow-hidden">
         <div
           className="h-full rounded-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400"
           style={{ width: `${score}%` }}
@@ -527,8 +527,8 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
 
 function MiniKpi({ title, value, positive, icon }) {
   return (
-    <div className="rounded-2xl bg-slate-800/80 border border-white/5 p-4">
-      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mb-2">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+      <div className="flex items-center gap-2 text-[var(--erp-muted)] text-xs font-bold mb-2">
         <span className={positive ? "text-emerald-300" : "text-rose-300"}>{icon}</span>
         {title}
       </div>
@@ -539,13 +539,13 @@ function MiniKpi({ title, value, positive, icon }) {
 
 function SmartAlertCenter({ fa, alerts }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2">
+        <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <BellRing />
           {fa ? "مرکز هشدار هوشمند" : "Smart Alert Center"}
         </h2>
-        <span className="text-xs rounded-full bg-cyan-400/10 text-cyan-200 px-3 py-1">
+        <span className="text-xs rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] px-3 py-1">
           {fa ? "زنده" : "Live"}
         </span>
       </div>
@@ -561,15 +561,15 @@ function SmartAlertCenter({ fa, alerts }) {
                 ? "bg-amber-500/10 border-amber-400/20"
                 : item.level === "success"
                 ? "bg-emerald-500/10 border-emerald-400/20"
-                : "bg-cyan-500/10 border-cyan-400/20"
+                : "bg-[var(--erp-glow)] border-[var(--erp-border)]"
             }`}
           >
             <div className="flex items-start gap-3">
-              <div className="text-cyan-300 mt-1">{item.icon}</div>
+              <div className="text-[var(--erp-accent)] mt-1">{item.icon}</div>
               <div className="flex-1">
-                <div className="text-white font-black">{item.title}</div>
-                <div className="text-slate-300 text-sm mt-1">{item.text}</div>
-                <div className="text-cyan-300 text-xs font-bold mt-2">{item.action}</div>
+                <div className="text-[var(--erp-text)] font-black">{item.title}</div>
+                <div className="text-[var(--erp-muted)] text-sm mt-1">{item.text}</div>
+                <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{item.action}</div>
               </div>
             </div>
           </div>
@@ -581,8 +581,8 @@ function SmartAlertCenter({ fa, alerts }) {
 
 function QuickActions({ fa, actions }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/60 p-4 mb-5">
-      <div className="flex items-center gap-2 text-cyan-300 font-black mb-3">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5">
+      <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
         <Sparkles size={20} />
         {fa ? "دسترسی سریع عملیاتی" : "Quick actions"}
       </div>
@@ -591,9 +591,9 @@ function QuickActions({ fa, actions }) {
           <Link
             key={index}
             to={item.path}
-            className="rounded-2xl bg-slate-800/80 hover:bg-slate-700 border border-white/5 px-4 py-3 text-white font-bold flex items-center justify-center gap-2 transition-all"
+            className="rounded-2xl bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-text)] font-bold flex items-center justify-center gap-2 transition-all"
           >
-            <span className="text-cyan-300">{item.icon}</span>
+            <span className="text-[var(--erp-accent)]">{item.icon}</span>
             {item.title}
           </Link>
         ))}
@@ -630,21 +630,21 @@ function BusinessPulse({ fa, n, money, reports, stats }) {
       title: fa ? "نقدینگی ماه" : "Monthly cash",
       value: money(cash.net_cashflow || 0),
       icon: <UserRoundCheck size={18} />,
-      color: toNumber(cash.net_cashflow) >= 0 ? "text-cyan-300" : "text-rose-300",
+      color: toNumber(cash.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300",
     },
   ];
 
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl h-full">
-      <h2 className="text-cyan-300 font-black text-xl mb-4">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl h-full">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">
         {fa ? "نبض کسب‌وکار" : "Business pulse"}
       </h2>
       <div className="space-y-3">
         {rows.map((row, index) => (
-          <div key={index} className="rounded-2xl bg-slate-800/70 p-4 flex items-center justify-between gap-3">
+          <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`${row.color}`}>{row.icon}</div>
-              <div className="text-slate-300 font-bold">{row.title}</div>
+              <div className="text-[var(--erp-muted)] font-bold">{row.title}</div>
             </div>
             <div className={`font-black ${row.color}`}>{row.value}</div>
           </div>

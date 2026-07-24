@@ -100,14 +100,14 @@ export default function SmartInventory() {
   const summary = data?.summary || {};
 
   return (
-    <div dir={dir} className="min-h-screen p-6 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white">
+    <div dir={dir} className="min-h-screen p-6 bg-[var(--erp-bg)] text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400 flex items-center gap-3">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3">
             <Warehouse />
             {fa ? "انبار هوشمند" : "Smart Inventory"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "پیش‌بینی کمبود موجودی، کالای راکد، سفارش مجدد و تحلیل ABC"
               : "Stockout forecast, dead stock, reorder plan and ABC analysis"}
@@ -140,19 +140,19 @@ export default function SmartInventory() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5 mb-5">
-        <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-5">
+        <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-            <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2">
+            <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
               <Brain />
               {fa ? "تحلیل هوشمند انبار" : "Inventory intelligence"}
             </h2>
             <div className="relative min-w-[260px]">
-              <Search className="absolute top-3 right-3 text-slate-500" size={18} />
+              <Search className="absolute top-3 right-3 text-[var(--erp-muted)]" size={18} />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={fa ? "جستجوی کالا، برند، کد..." : "Search product, brand, code..."}
-                className="w-full bg-slate-800 border border-cyan-500/10 rounded-2xl py-3 pr-10 pl-4 outline-none text-white"
+                className="w-full bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl py-3 pr-10 pl-4 outline-none text-[var(--erp-text)]"
               />
             </div>
           </div>
@@ -165,9 +165,9 @@ export default function SmartInventory() {
             <TabButton active={tab === "all"} onClick={() => setTab("all")} label={fa ? "همه کالاها" : "All"} />
           </div>
 
-          <div className="overflow-auto rounded-2xl border border-slate-700">
+          <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
             <table className="w-full text-sm min-w-[980px]">
-              <thead className="bg-slate-800 text-cyan-200">
+              <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
                 <tr>
                   <th className="p-3 text-right">{fa ? "کالا" : "Product"}</th>
                   <th className="p-3">{fa ? "موجودی" : "Stock"}</th>
@@ -180,16 +180,16 @@ export default function SmartInventory() {
               </thead>
               <tbody>
                 {rows.length ? rows.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-800 hover:bg-slate-800/50">
+                  <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-slate-800/50">
                     <td className="p-3">
-                      <div className="font-black text-white">{item.name || "-"}</div>
-                      <div className="text-xs text-slate-400 mt-1">{item.brand || item.code || item.barcode || "-"}</div>
+                      <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
+                      <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
                     </td>
                     <td className="p-3 text-center font-bold">{n(item.stock || 0)} {item.unit || ""}</td>
                     <td className="p-3 text-center">{n(item.net_qty_90d || 0)}</td>
                     <td className="p-3 text-center">{item.days_left == null ? "-" : `${n(item.days_left)} ${fa ? "روز" : "days"}`}</td>
                     <td className="p-3 text-center font-black text-amber-300">{n(item.suggested_reorder_qty || 0)}</td>
-                    <td className="p-3 text-center"><span className="px-3 py-1 rounded-full bg-cyan-400/10 text-cyan-200 font-black">{item.abc_class || "C"}</span></td>
+                    <td className="p-3 text-center"><span className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">{item.abc_class || "C"}</span></td>
                     <td className="p-3 text-center">
                       <span className={`px-3 py-1 rounded-full border text-xs font-black ${levelClass(item.risk_level)}`}>
                         {levelLabel(item.risk_level, fa)}
@@ -198,7 +198,7 @@ export default function SmartInventory() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-[var(--erp-muted)]">
                       {loading ? (fa ? "در حال دریافت..." : "Loading...") : (fa ? "داده‌ای برای نمایش وجود ندارد." : "No data.")}
                     </td>
                   </tr>
@@ -209,24 +209,24 @@ export default function SmartInventory() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-5">
-            <h2 className="text-cyan-300 font-black text-xl mb-4 flex items-center gap-2">
+          <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
+            <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
               <PackageCheck />
               {fa ? "پیشنهادهای عملیاتی" : "Actionable insights"}
             </h2>
             <div className="space-y-3">
               {safeArray(data?.insights).map((insight, index) => (
-                <div key={index} className={`rounded-2xl p-4 border ${insight.type === "danger" ? "bg-rose-500/10 border-rose-400/20" : insight.type === "warning" ? "bg-amber-500/10 border-amber-400/20" : insight.type === "success" ? "bg-emerald-500/10 border-emerald-400/20" : "bg-cyan-500/10 border-cyan-400/20"}`}>
-                  <div className="font-black text-white">{insight.title}</div>
-                  <div className="text-slate-300 text-sm mt-1">{insight.message}</div>
-                  <div className="text-cyan-300 text-xs font-bold mt-2">{insight.action}</div>
+                <div key={index} className={`rounded-2xl p-4 border ${insight.type === "danger" ? "bg-rose-500/10 border-rose-400/20" : insight.type === "warning" ? "bg-amber-500/10 border-amber-400/20" : insight.type === "success" ? "bg-emerald-500/10 border-emerald-400/20" : "bg-[var(--erp-glow)] border-[var(--erp-border)]"}`}>
+                  <div className="font-black text-[var(--erp-text)]">{insight.title}</div>
+                  <div className="text-[var(--erp-muted)] text-sm mt-1">{insight.message}</div>
+                  <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{insight.action}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-500/20 p-5">
-            <h2 className="text-cyan-300 font-black text-xl mb-4">{fa ? "تحلیل ABC" : "ABC analysis"}</h2>
+          <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
+            <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">{fa ? "تحلیل ABC" : "ABC analysis"}</h2>
             <AbcRow fa={fa} n={n} label="A" items={safeArray(data?.abc?.A)} desc={fa ? "کالاهای حیاتی و پرفروش" : "Critical high-value items"} />
             <AbcRow fa={fa} n={n} label="B" items={safeArray(data?.abc?.B)} desc={fa ? "کالاهای متوسط" : "Medium-value items"} />
             <AbcRow fa={fa} n={n} label="C" items={safeArray(data?.abc?.C)} desc={fa ? "کالاهای کم‌اثر" : "Low-impact items"} />
@@ -239,18 +239,18 @@ export default function SmartInventory() {
 
 function KpiCard({ icon, title, value, color }) {
   const colorClass = {
-    cyan: "text-cyan-300 bg-cyan-500/10 border-cyan-400/20",
+    cyan: "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]",
     rose: "text-rose-300 bg-rose-500/10 border-rose-400/20",
     amber: "text-amber-300 bg-amber-500/10 border-amber-400/20",
     emerald: "text-emerald-300 bg-emerald-500/10 border-emerald-400/20",
-  }[color] || "text-cyan-300 bg-cyan-500/10 border-cyan-400/20";
+  }[color] || "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]";
 
   return (
     <div className={`rounded-[2rem] border p-5 ${colorClass}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-slate-300 text-sm font-bold">{title}</div>
-          <div className="text-2xl font-black mt-2 text-white">{value}</div>
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+          <div className="text-2xl font-black mt-2 text-[var(--erp-text)]">{value}</div>
         </div>
         <div className="text-3xl">{icon}</div>
       </div>
@@ -263,7 +263,7 @@ function TabButton({ active, onClick, label }) {
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 rounded-2xl font-black ${active ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-slate-300"}`}
+      className={`px-4 py-2 rounded-2xl font-black ${active ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
     >
       {label}
     </button>
@@ -272,12 +272,12 @@ function TabButton({ active, onClick, label }) {
 
 function AbcRow({ label, items, desc, fa, n }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-800 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--erp-border)] py-3 last:border-b-0">
       <div>
-        <div className="font-black text-white">{label}</div>
-        <div className="text-xs text-slate-400">{desc}</div>
+        <div className="font-black text-[var(--erp-text)]">{label}</div>
+        <div className="text-xs text-[var(--erp-muted)]">{desc}</div>
       </div>
-      <div className="text-cyan-300 font-black">{n(items.length)} {fa ? "کالا" : "items"}</div>
+      <div className="text-[var(--erp-accent)] font-black">{n(items.length)} {fa ? "کالا" : "items"}</div>
     </div>
   );
 }

@@ -78,17 +78,17 @@ export default function FinancialIntelligence() {
   }, [summary.cash_health, fa]);
 
   if (loading) {
-    return <div dir={dir} className="min-h-screen bg-slate-950 text-white p-8">{fa ? "در حال بارگذاری هوش مالی..." : "Loading financial intelligence..."}</div>;
+    return <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] p-8">{fa ? "در حال بارگذاری هوش مالی..." : "Loading financial intelligence..."}</div>;
   }
 
   return (
-    <div dir={dir} className="min-h-screen p-7 text-white bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+    <div dir={dir} className="min-h-screen p-7 text-[var(--erp-text)] bg-gradient-to-br from-[var(--erp-bg)] via-[var(--erp-panel-solid)] to-[var(--erp-bg-soft)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-7">
         <div>
-          <h1 className="text-4xl font-black text-cyan-300 flex items-center gap-3">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3">
             <Brain /> {fa ? "هوش مالی مدیریتی" : "Financial Intelligence"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa ? "پیش‌بینی جریان نقدی، سود واقعی، KPI مدیرعامل و شبیه‌ساز مالی" : "Cashflow forecast, profitability, CEO KPIs and financial simulator"}
           </p>
         </div>
@@ -110,9 +110,9 @@ export default function FinancialIntelligence() {
         <Panel title={fa ? "پیش‌بینی جریان نقدی" : "Cash Flow Forecast"} icon={<Cash />}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(cashflow.periods || []).map((p) => (
-              <div key={p.days} className="rounded-3xl bg-slate-800/70 border border-cyan-400/10 p-4">
-                <div className="text-cyan-200 font-black">{n(p.days)} {fa ? "روز آینده" : "days"}</div>
-                <div className="mt-3 text-sm text-slate-300 space-y-2">
+              <div key={p.days} className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+                <div className="text-[var(--erp-accent)] font-black">{n(p.days)} {fa ? "روز آینده" : "days"}</div>
+                <div className="mt-3 text-sm text-[var(--erp-muted)] space-y-2">
                   <Row label={fa ? "ورودی" : "Inflow"} value={money(p.expected_inflow)} />
                   <Row label={fa ? "خروجی" : "Outflow"} value={money(p.expected_outflow)} />
                   <Row label={fa ? "مانده" : "Net"} value={money(p.net_cashflow)} strong />
@@ -166,10 +166,10 @@ export default function FinancialIntelligence() {
             {fa ? "اجرای سناریو" : "Run Scenario"}
           </button>
           {simulation && (
-            <div className="mt-4 rounded-3xl bg-slate-800/80 border border-emerald-400/20 p-4 space-y-2">
+            <div className="mt-4 rounded-3xl bg-[var(--erp-panel-solid)] border border-emerald-400/20 p-4 space-y-2">
               <Row label={fa ? "سود خالص شبیه‌سازی" : "Simulated net profit"} value={money(simulation.result.simulated_net_profit)} strong />
               <Row label={fa ? "تغییر سود" : "Profit delta"} value={money(simulation.result.profit_delta)} strong />
-              <div className={simulation.result.status === "better" ? "text-emerald-300 font-black" : simulation.result.status === "worse" ? "text-red-300 font-black" : "text-slate-300 font-black"}>
+              <div className={simulation.result.status === "better" ? "text-emerald-300 font-black" : simulation.result.status === "worse" ? "text-red-300 font-black" : "text-[var(--erp-muted)] font-black"}>
                 {simulation.result.status === "better" ? (fa ? "سناریو سودده‌تر است" : "Better scenario") : simulation.result.status === "worse" ? (fa ? "سناریو ریسک دارد" : "Risky scenario") : fa ? "بدون تغییر مهم" : "Neutral"}
               </div>
             </div>
@@ -180,12 +180,12 @@ export default function FinancialIntelligence() {
           <div className="space-y-3">
             {recommendations.map((r, i) => (
               <div key={i} className={`rounded-3xl p-4 border ${r.level === "danger" ? "bg-red-500/10 border-red-400/20" : r.level === "warning" ? "bg-amber-500/10 border-amber-400/20" : "bg-emerald-500/10 border-emerald-400/20"}`}>
-                <div className="flex items-center gap-2 font-black text-white">
+                <div className="flex items-center gap-2 font-black text-[var(--erp-text)]">
                   {r.level === "danger" || r.level === "warning" ? <AlertTriangle size={18} /> : <TrendingUp size={18} />}
                   {r.title}
                 </div>
-                <p className="text-slate-300 mt-2 text-sm">{r.message}</p>
-                <div className="text-cyan-200 mt-2 text-xs font-bold">{r.action}</div>
+                <p className="text-[var(--erp-muted)] mt-2 text-sm">{r.message}</p>
+                <div className="text-[var(--erp-accent)] mt-2 text-xs font-bold">{r.action}</div>
               </div>
             ))}
           </div>
@@ -203,8 +203,8 @@ function riskLabel(risk, fa) {
 
 function Panel({ title, icon, children }) {
   return (
-    <div className="rounded-[28px] bg-slate-900/70 border border-cyan-500/20 p-5 shadow-2xl">
-      <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">{icon}{title}</h2>
+    <div className="rounded-[28px] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">{icon}{title}</h2>
       {children}
     </div>
   );
@@ -212,7 +212,7 @@ function Panel({ title, icon, children }) {
 
 function KpiCard({ title, value, icon, tone }) {
   const tones = {
-    cyan: "border-cyan-400/25 bg-cyan-500/10 text-cyan-200",
+    cyan: "border-[var(--erp-border)] bg-[var(--erp-glow)] text-[var(--erp-accent)]",
     emerald: "border-emerald-400/25 bg-emerald-500/10 text-emerald-200",
     red: "border-red-400/25 bg-red-500/10 text-red-200",
     amber: "border-amber-400/25 bg-amber-500/10 text-amber-200",
@@ -224,16 +224,16 @@ function KpiCard({ title, value, icon, tone }) {
         <div className="text-sm font-bold opacity-90">{title}</div>
         {icon}
       </div>
-      <div className="mt-4 text-2xl font-black text-white">{value}</div>
+      <div className="mt-4 text-2xl font-black text-[var(--erp-text)]">{value}</div>
     </div>
   );
 }
 
 function Row({ label, value, strong }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
-      <span className="text-slate-400">{label}</span>
-      <b className={strong ? "text-cyan-200" : "text-white"}>{value}</b>
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--erp-border)] pb-2">
+      <span className="text-[var(--erp-muted)]">{label}</span>
+      <b className={strong ? "text-[var(--erp-accent)]" : "text-[var(--erp-text)]"}>{value}</b>
     </div>
   );
 }
@@ -241,26 +241,26 @@ function Row({ label, value, strong }) {
 function SimInput({ label, value, onChange }) {
   return (
     <label className="block">
-      <span className="text-cyan-200 text-sm font-bold">{label}</span>
-      <input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 w-full rounded-2xl bg-slate-800 border border-cyan-400/20 p-3 text-white outline-none" />
+      <span className="text-[var(--erp-accent)] text-sm font-bold">{label}</span>
+      <input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 w-full rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-3 text-[var(--erp-text)] outline-none" />
     </label>
   );
 }
 
 function Table({ headers, rows, empty }) {
   return (
-    <div className="overflow-auto rounded-2xl border border-cyan-400/10">
+    <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
       <table className="w-full text-sm">
-        <thead className="bg-slate-800 text-cyan-100">
+        <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
           <tr>{headers.map((h) => <th key={h} className="p-3 text-right">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.length ? rows.map((row, i) => (
-            <tr key={i} className="border-t border-white/10 hover:bg-white/5">
+            <tr key={i} className="border-t border-[var(--erp-border)] hover:bg-white/5">
               {row.map((cell, j) => <td key={j} className="p-3 text-slate-200">{cell}</td>)}
             </tr>
           )) : (
-            <tr><td colSpan={headers.length} className="p-6 text-center text-slate-400">{empty}</td></tr>
+            <tr><td colSpan={headers.length} className="p-6 text-center text-[var(--erp-muted)]">{empty}</td></tr>
           )}
         </tbody>
       </table>

@@ -263,15 +263,15 @@ export default function CrmDashboard() {
       style={{
         direction: dir,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), #071028",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {fa ? "مرکز CRM هوشمند" : "Smart CRM Center"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "تحلیل مشتریان، امتیاز وفاداری، ریسک اعتباری، پیگیری مطالبات و پیشنهاد اقدام بعدی"
               : "Customer analytics, loyalty score, credit risk, follow-up and next-best-action"}
@@ -282,7 +282,7 @@ export default function CrmDashboard() {
           type="button"
           onClick={load}
           disabled={loading}
-          className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-200 border border-cyan-500/20 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] border border-[var(--erp-border)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -297,7 +297,7 @@ export default function CrmDashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
-        <CrmStat icon={<Users />} title={fa ? "کل مشتریان" : "Customers"} value={n(summary.total)} color="text-cyan-300" />
+        <CrmStat icon={<Users />} title={fa ? "کل مشتریان" : "Customers"} value={n(summary.total)} color="text-[var(--erp-accent)]" />
         <CrmStat icon={<Crown />} title={fa ? "VIP" : "VIP"} value={n(summary.vip)} color="text-yellow-300" />
         <CrmStat icon={<PhoneCall />} title={fa ? "نیازمند پیگیری" : "Follow-up"} value={n(summary.followup)} color="text-amber-300" />
         <CrmStat icon={<ShieldAlert />} title={fa ? "ریسک اعتباری" : "Credit risk"} value={n(summary.critical)} color="text-rose-300" />
@@ -328,13 +328,13 @@ export default function CrmDashboard() {
 
 function CrmStat({ icon, title, value, color }) {
   return (
-    <div className="rounded-3xl bg-slate-900/70 border border-cyan-500/20 p-5 shadow-2xl">
+    <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 shadow-2xl">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
           <div className={`text-3xl font-black mt-3 ${color}`}>{value}</div>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 text-cyan-300 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
           {icon}
         </div>
       </div>
@@ -346,12 +346,12 @@ function CrmHero({ fa, n, money, avgScore, debt, credit, followup }) {
   const scoreColor = avgScore >= 75 ? "text-emerald-300" : avgScore >= 50 ? "text-amber-300" : "text-rose-300";
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-6 shadow-2xl">
-      <div className="absolute -top-24 -left-24 w-72 h-72 bg-cyan-400/10 rounded-full blur-3xl" />
+    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-6 shadow-2xl">
+      <div className="absolute -top-24 -left-24 w-72 h-72 bg-[var(--erp-glow)] rounded-full blur-3xl" />
       <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-purple-400/10 rounded-full blur-3xl" />
 
       <div className="relative">
-        <div className="flex items-center gap-2 text-cyan-300 font-black text-xl mb-4">
+        <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black text-xl mb-4">
           <Sparkles />
           {fa ? "تحلیل کلی ارتباط با مشتری" : "Customer relationship intelligence"}
         </div>
@@ -359,8 +359,8 @@ function CrmHero({ fa, n, money, avgScore, debt, credit, followup }) {
         <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5 items-center">
           <div>
             <div className={`text-7xl font-black ${scoreColor}`}>{n(avgScore)}</div>
-            <div className="text-slate-400 mt-2">{fa ? "امتیاز میانگین CRM" : "Average CRM score"}</div>
-            <div className="h-3 bg-slate-800 rounded-full overflow-hidden mt-4">
+            <div className="text-[var(--erp-muted)] mt-2">{fa ? "امتیاز میانگین CRM" : "Average CRM score"}</div>
+            <div className="h-3 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden mt-4">
               <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${avgScore}%` }} />
             </div>
           </div>
@@ -378,9 +378,9 @@ function CrmHero({ fa, n, money, avgScore, debt, credit, followup }) {
 
 function MiniBox({ title, value, icon, color }) {
   return (
-    <div className="rounded-2xl bg-slate-800/80 border border-white/5 p-4">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
       <div className={`mb-2 ${color}`}>{icon}</div>
-      <div className="text-slate-400 text-xs font-bold">{title}</div>
+      <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
       <div className={`font-black text-lg mt-2 ${color}`}>{value}</div>
     </div>
   );
@@ -388,8 +388,8 @@ function MiniBox({ title, value, icon, color }) {
 
 function NextBestActions({ fa, money, items }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
-      <h2 className="text-cyan-300 font-black text-xl mb-4 flex items-center gap-2">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
         <Star />
         {fa ? "اقدام پیشنهادی بعدی" : "Next-best-actions"}
       </h2>
@@ -406,9 +406,9 @@ function NextBestActions({ fa, money, items }) {
             <div className="flex items-start gap-3">
               <div className={item.risk.color}>{item.risk.icon}</div>
               <div className="flex-1">
-                <div className="text-white font-black">{item.name}</div>
-                <div className="text-slate-300 text-sm mt-1">{item.risk.text}</div>
-                <div className="text-xs text-slate-400 mt-2">
+                <div className="text-[var(--erp-text)] font-black">{item.name}</div>
+                <div className="text-[var(--erp-muted)] text-sm mt-1">{item.risk.text}</div>
+                <div className="text-xs text-[var(--erp-muted)] mt-2">
                   {fa ? "مانده: " : "Balance: "}
                   <b className={item.risk.color}>{money(Math.abs(getBalance(item)))}</b>
                 </div>
@@ -426,35 +426,35 @@ function NextBestActions({ fa, money, items }) {
 
 function TopCustomers({ fa, n, money, items }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
-      <h2 className="text-cyan-300 font-black text-xl mb-4 flex items-center gap-2">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
         <TrendingUp />
         {fa ? "ارزشمندترین مشتریان" : "Top customer value"}
       </h2>
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-slate-800/70 p-4 border border-white/5">
+          <div key={item.id} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 border border-[var(--erp-border)]">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
-                <div className="font-black text-white">{item.name}</div>
-                <div className="text-xs text-slate-400">{item.phone || (fa ? "بدون شماره" : "No phone")}</div>
+                <div className="font-black text-[var(--erp-text)]">{item.name}</div>
+                <div className="text-xs text-[var(--erp-muted)]">{item.phone || (fa ? "بدون شماره" : "No phone")}</div>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color} ${item.level.border}`}>
                 {item.level.label}
               </span>
             </div>
-            <div className="h-2 bg-slate-900 rounded-full overflow-hidden mb-2">
+            <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-2">
               <div className="h-full bg-cyan-400" style={{ width: `${item.score}%` }} />
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">{fa ? "امتیاز" : "Score"}: {n(item.score)}</span>
-              <span className="text-slate-300 font-bold">{money(Math.abs(getBalance(item)))}</span>
+              <span className="text-[var(--erp-muted)]">{fa ? "امتیاز" : "Score"}: {n(item.score)}</span>
+              <span className="text-[var(--erp-muted)] font-bold">{money(Math.abs(getBalance(item)))}</span>
             </div>
           </div>
         ))}
 
-        {items.length === 0 && <div className="text-slate-400">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>}
+        {items.length === 0 && <div className="text-[var(--erp-muted)]">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>}
       </div>
     </div>
   );
@@ -462,28 +462,28 @@ function TopCustomers({ fa, n, money, items }) {
 
 function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2">
+        <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <Users />
           {fa ? "لیست تحلیلی مشتریان" : "Customer analytics list"}
         </h2>
 
         <div className="flex gap-2 flex-wrap">
-          <div className="bg-slate-800 rounded-2xl px-3 py-2 flex items-center gap-2">
-            <Search size={16} className="text-cyan-300" />
+          <div className="bg-[var(--erp-panel-solid)] rounded-2xl px-3 py-2 flex items-center gap-2">
+            <Search size={16} className="text-[var(--erp-accent)]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={fa ? "جستجو..." : "Search..."}
-              className="bg-transparent outline-none text-white placeholder-slate-500 w-44"
+              className="bg-transparent outline-none text-[var(--erp-text)] placeholder-[var(--erp-muted)] w-44"
             />
           </div>
 
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="bg-slate-800 text-white rounded-2xl px-3 py-2 outline-none"
+            className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-3 py-2 outline-none"
           >
             <option value="all">{fa ? "همه" : "All"}</option>
             <option value="vip">VIP</option>
@@ -497,7 +497,7 @@ function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
-            <tr className="text-cyan-300 border-b border-cyan-500/20">
+            <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
               <th className="p-3 text-right">{fa ? "مشتری" : "Customer"}</th>
               <th className="p-3 text-right">{fa ? "امتیاز" : "Score"}</th>
               <th className="p-3 text-right">{fa ? "وضعیت" : "Status"}</th>
@@ -509,10 +509,10 @@ function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter 
 
           <tbody>
             {items.map((item) => (
-              <tr key={item.id} className="border-b border-slate-800 hover:bg-cyan-500/5">
+              <tr key={item.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
                 <td className="p-3">
-                  <div className="font-black text-white">{item.name}</div>
-                  <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                  <div className="font-black text-[var(--erp-text)]">{item.name}</div>
+                  <div className="text-xs text-[var(--erp-muted)] flex items-center gap-1 mt-1">
                     <PhoneCall size={12} />
                     {item.phone || "-"}
                   </div>
@@ -523,9 +523,9 @@ function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter 
                     <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color}`}>
                       {item.level.label}
                     </span>
-                    <span className="text-slate-400 text-xs">{n(item.score)}/100</span>
+                    <span className="text-[var(--erp-muted)] text-xs">{n(item.score)}/100</span>
                   </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${item.score}%` }} />
                   </div>
                 </td>
@@ -536,24 +536,24 @@ function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter 
                   </span>
                 </td>
 
-                <td className={`p-3 font-black ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-cyan-300"}`}>
+                <td className={`p-3 font-black ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-[var(--erp-accent)]"}`}>
                   {money(Math.abs(getBalance(item)))}
                 </td>
 
-                <td className="p-3 text-slate-300">
+                <td className="p-3 text-[var(--erp-muted)]">
                   <div className="flex items-center gap-1 text-xs">
-                    <CalendarClock size={13} className="text-cyan-300" />
+                    <CalendarClock size={13} className="text-[var(--erp-accent)]" />
                     {item.risk.text}
                   </div>
                 </td>
 
                 <td className="p-3">
                   <div className="flex gap-2">
-                    <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-cyan-500/20 text-cyan-200 font-bold flex items-center gap-1">
+                    <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold flex items-center gap-1">
                       <Eye size={15} />
                       {fa ? "پرونده" : "Profile"}
                     </Link>
-                    <Link to="/invoices" className="px-3 py-2 rounded-xl bg-slate-700 text-white font-bold flex items-center gap-1">
+                    <Link to="/invoices" className="px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold flex items-center gap-1">
                       <Receipt size={15} />
                       {fa ? "فاکتور" : "Invoice"}
                     </Link>
@@ -564,7 +564,7 @@ function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter 
 
             {items.length === 0 && (
               <tr>
-                <td colSpan="6" className="p-8 text-center text-slate-400">
+                <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
                   {fa ? "موردی یافت نشد." : "No customer found."}
                 </td>
               </tr>

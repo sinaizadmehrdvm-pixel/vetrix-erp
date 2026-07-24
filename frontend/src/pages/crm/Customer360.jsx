@@ -271,8 +271,8 @@ async function fetchCustomerFiles(customerId) {
 
   if (!customer) {
     return (
-      <div dir={dir} className="min-h-screen bg-slate-950 text-white p-8">
-        <Link to="/customers" className="text-cyan-300 font-bold">
+      <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] p-8">
+        <Link to="/customers" className="text-[var(--erp-accent)] font-bold">
           {fa ? "بازگشت به طرف‌حساب‌ها" : "Back to customers"}
         </Link>
         <div className="mt-6">
@@ -302,23 +302,23 @@ async function fetchCustomerFiles(customerId) {
   return (
     <div
       dir={dir}
-      className="min-h-screen p-6 space-y-6 text-white"
+      className="min-h-screen p-6 space-y-6 text-[var(--erp-text)]"
       style={{
         direction: dir,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 35%), #071028",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 35%), radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 35%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <Link to="/customers" className="inline-flex items-center gap-2 text-cyan-300 font-bold mb-4">
+          <Link to="/customers" className="inline-flex items-center gap-2 text-[var(--erp-accent)] font-bold mb-4">
             <ArrowLeft size={18} />
             {fa ? "بازگشت به طرف‌حساب‌ها" : "Back to customers"}
           </Link>
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {fa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Enterprise"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "پرونده کامل مالی، CRM، وفاداری، فایل‌ها، وظایف، تایم‌لاین و هوش فروش مشتری"
               : "Unified finance, CRM, loyalty, files, tasks, timeline and sales intelligence"}
@@ -328,7 +328,7 @@ async function fetchCustomerFiles(customerId) {
         <button
           onClick={loadCustomer360}
           disabled={loading}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20 disabled:opacity-60"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -338,16 +338,16 @@ async function fetchCustomerFiles(customerId) {
       {message && <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-4 text-emerald-200">{message}</div>}
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5">
-        <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-6 shadow-2xl">
+        <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-6 shadow-2xl">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-16 h-16 rounded-3xl bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+                <div className="w-16 h-16 rounded-3xl bg-[var(--erp-glow)] border border-[var(--erp-border)] flex items-center justify-center text-[var(--erp-accent)]">
                   <UserRound size={32} />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-white">{customer.name}</h2>
-                  <p className="text-slate-400">
+                  <h2 className="text-3xl font-black text-[var(--erp-text)]">{customer.name}</h2>
+                  <p className="text-[var(--erp-muted)]">
                     {levelLabel(loyaltyLevel, fa)} • {riskLabel(risk, fa)} • {date(customer.created_at, { month: "long" })}
                   </p>
                 </div>
@@ -355,22 +355,22 @@ async function fetchCustomerFiles(customerId) {
 
               <div className="flex flex-wrap gap-2 mt-4">
                 {tags.map((tag) => (
-                  <span key={tag} className="px-3 py-1 rounded-full bg-cyan-400/10 text-cyan-200 border border-cyan-400/20 text-xs font-bold">
+                  <span key={tag} className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] text-xs font-bold">
                     {tag}
                   </span>
                 ))}
                 {!tags.length && (
-                  <span className="px-3 py-1 rounded-full bg-slate-400/10 text-slate-300 border border-slate-400/20 text-xs font-bold">
+                  <span className="px-3 py-1 rounded-full bg-slate-400/10 text-[var(--erp-muted)] border border-slate-400/20 text-xs font-bold">
                     {fa ? "بدون برچسب" : "No tags"}
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="text-center rounded-3xl bg-slate-800/80 p-5 min-w-[160px]">
-              <div className="text-slate-400 text-sm">{fa ? "امتیاز مشتری" : "Customer score"}</div>
-              <div className="text-5xl font-black text-cyan-300 mt-2">{n(score)}</div>
-              <div className="text-xs text-slate-500">/100</div>
+            <div className="text-center rounded-3xl bg-[var(--erp-panel-solid)] p-5 min-w-[160px]">
+              <div className="text-[var(--erp-muted)] text-sm">{fa ? "امتیاز مشتری" : "Customer score"}</div>
+              <div className="text-5xl font-black text-[var(--erp-accent)] mt-2">{n(score)}</div>
+              <div className="text-xs text-[var(--erp-muted)]">/100</div>
             </div>
           </div>
 
@@ -381,7 +381,7 @@ async function fetchCustomerFiles(customerId) {
           </div>
         </div>
 
-        <div className="rounded-[2rem] bg-slate-900/70 border border-yellow-400/20 p-6 shadow-2xl">
+        <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-yellow-400/20 p-6 shadow-2xl">
           <h2 className="text-yellow-300 font-black text-xl flex items-center gap-2 mb-4">
             <Trophy />
             {fa ? "باشگاه مشتریان" : "Customer Loyalty"}
@@ -395,11 +395,11 @@ async function fetchCustomerFiles(customerId) {
           </div>
 
           <div className="mt-5">
-            <div className="flex justify-between text-xs text-slate-400 mb-2">
+            <div className="flex justify-between text-xs text-[var(--erp-muted)] mb-2">
               <span>{fa ? "پیشرفت تا سطح بعدی" : "Next level progress"}</span>
               <span>{n(Math.round(progress))}%</span>
             </div>
-            <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-3 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-yellow-400 to-cyan-400" style={{ width: `${progress}%` }} />
             </div>
           </div>
@@ -427,7 +427,7 @@ async function fetchCustomerFiles(customerId) {
         <Stat icon={<Sparkles />} title={fa ? "مصرف اعتبار" : "Credit usage"} value={`${n(creditUsage)}%`} />
       </section>
 
-      <nav className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-2 flex gap-2 overflow-auto">
+      <nav className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-2 flex gap-2 overflow-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -435,7 +435,7 @@ async function fetchCustomerFiles(customerId) {
             className={`px-5 py-3 rounded-2xl font-black whitespace-nowrap transition ${
               activeTab === tab.id
                 ? "bg-cyan-400 text-slate-950"
-                : "bg-slate-800/70 text-slate-300 hover:text-cyan-200"
+                : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)] hover:text-[var(--erp-accent)]"
             }`}
           >
             {fa ? tab.fa : tab.en}
@@ -457,8 +457,8 @@ async function fetchCustomerFiles(customerId) {
           />
 
           <div className="space-y-5">
-            <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-6 shadow-2xl">
-              <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">
+            <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-6 shadow-2xl">
+              <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
                 <Sparkles />
                 {fa ? "تحلیل سریع فروش" : "Quick Sales Insight"}
               </h2>
@@ -569,15 +569,15 @@ async function fetchCustomerFiles(customerId) {
       <style>{`
         .crm-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.18);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
         }
         .crm-input::placeholder {
-          color: rgba(203, 213, 225, .65);
+          color: var(--erp-muted);
         }
         .crm-btn {
           background: #22d3ee;
@@ -597,25 +597,25 @@ async function fetchCustomerFiles(customerId) {
 
 function Info({ icon, label, value }) {
   return (
-    <div className="rounded-2xl bg-slate-800/70 p-4">
-      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mb-2">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4">
+      <div className="flex items-center gap-2 text-[var(--erp-muted)] text-xs font-bold mb-2">
         {icon}
         {label}
       </div>
-      <div className="font-black text-white break-words">{value}</div>
+      <div className="font-black text-[var(--erp-text)] break-words">{value}</div>
     </div>
   );
 }
 
 function Stat({ icon, title, value }) {
   return (
-    <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5">
+    <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
-          <div className="text-2xl font-black text-cyan-300 mt-2">{value}</div>
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+          <div className="text-2xl font-black text-[var(--erp-accent)] mt-2">{value}</div>
         </div>
-        <div className="text-cyan-300">{icon}</div>
+        <div className="text-[var(--erp-accent)]">{icon}</div>
       </div>
     </div>
   );
@@ -623,17 +623,17 @@ function Stat({ icon, title, value }) {
 
 function Kpi({ title, value, wide }) {
   return (
-    <div className={`rounded-2xl bg-slate-800/70 p-4 ${wide ? "col-span-2" : ""}`}>
-      <div className="text-slate-400 text-xs font-bold">{title}</div>
-      <div className="text-white font-black mt-2">{value}</div>
+    <div className={`rounded-2xl bg-[var(--erp-panel-solid)] p-4 ${wide ? "col-span-2" : ""}`}>
+      <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
+      <div className="text-[var(--erp-text)] font-black mt-2">{value}</div>
     </div>
   );
 }
 
 function CrmForm({ title, icon, children }) {
   return (
-    <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5">
-      <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">
+    <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
         {icon}
         {title}
       </h2>

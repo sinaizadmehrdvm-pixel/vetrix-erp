@@ -281,32 +281,32 @@ export default function CustomerAI({
   }
 
   return (
-    <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5 text-white">
+    <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h2 className="text-2xl font-black text-cyan-300 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <Brain />
             {fa ? "هوش فروش مشتری" : "Customer Sales Intelligence"}
           </h2>
-          <p className="text-slate-400 text-sm mt-2">
+          <p className="text-[var(--erp-muted)] text-sm mt-2">
             {fa ? "تحلیل رفتار خرید، ریسک ریزش، احتمال خرید مجدد، RFM و پیشنهاد اقدام بعدی" : "Purchase behavior, churn risk, purchase probability, RFM and next-best action"}
           </p>
         </div>
 
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60">
+        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60">
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
         </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
-        <div className="rounded-[2rem] bg-slate-800/70 border border-white/5 p-5">
+        <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
           <div className="text-center">
-            <div className="text-slate-400 text-sm font-bold">{fa ? "امتیاز سلامت مشتری" : "Customer health score"}</div>
-            <div className="relative w-48 h-48 mx-auto my-5 rounded-full flex items-center justify-center" style={{ background: `conic-gradient(#22d3ee ${analysis.healthScore * 3.6}deg, rgba(51,65,85,.8) 0deg)` }}>
-              <div className="w-36 h-36 rounded-full bg-slate-900 flex flex-col items-center justify-center">
-                <div className="text-5xl font-black text-cyan-300">{n(analysis.healthScore)}</div>
-                <div className="text-slate-500 text-xs">/100</div>
+            <div className="text-[var(--erp-muted)] text-sm font-bold">{fa ? "امتیاز سلامت مشتری" : "Customer health score"}</div>
+            <div className="relative w-48 h-48 mx-auto my-5 rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--erp-accent) ${analysis.healthScore * 3.6}deg, var(--erp-panel-solid) 0deg)` }}>
+              <div className="w-36 h-36 rounded-full bg-[var(--erp-bg-soft)] flex flex-col items-center justify-center">
+                <div className="text-5xl font-black text-[var(--erp-accent)]">{n(analysis.healthScore)}</div>
+                <div className="text-[var(--erp-muted)] text-xs">/100</div>
               </div>
             </div>
 
@@ -327,7 +327,7 @@ export default function CustomerAI({
               <CalendarClock size={18} />
               {fa ? "ساخت وظیفه پیشنهادی" : "Create suggested task"}
             </button>
-            <button type="button" onClick={createCallInteraction} className="px-4 py-3 rounded-2xl bg-slate-700 text-cyan-200 font-black flex items-center justify-center gap-2">
+            <button type="button" onClick={createCallInteraction} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center justify-center gap-2">
               <Phone size={18} />
               {fa ? "ثبت تماس پیشنهادی" : "Log suggested call"}
             </button>
@@ -341,8 +341,8 @@ export default function CustomerAI({
             <AiMetric icon={<AlertTriangle />} title={fa ? "ریسک پرداخت" : "Payment risk"} value={`${n(Math.round(analysis.paymentRisk))}%`} progress={analysis.paymentRisk} tone={analysis.paymentRisk >= 60 ? "rose" : "emerald"} />
           </div>
 
-          <div className="rounded-[2rem] bg-slate-800/70 border border-white/5 p-5">
-            <h3 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">
+          <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
+            <h3 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
               <LineChart />
               {fa ? "تحلیل RFM" : "RFM Analysis"}
             </h3>
@@ -353,8 +353,8 @@ export default function CustomerAI({
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-slate-800/70 border border-white/5 p-5">
-            <h3 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">
+          <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
+            <h3 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
               <Sparkles />
               {fa ? "پیشنهادهای هوشمند Vetrix" : "Vetrix Smart Suggestions"}
             </h3>
@@ -363,8 +363,8 @@ export default function CustomerAI({
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-slate-800/70 border border-white/5 p-5">
-            <h3 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-4">
+          <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
+            <h3 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
               <TrendingUp />
               {fa ? "اقدام بعدی پیشنهادی" : "Next Best Action"}
             </h3>
@@ -388,27 +388,27 @@ function riskTone(risk) {
 
 function MiniKpi({ title, value, wide }) {
   return (
-    <div className={`rounded-2xl bg-slate-900/70 border border-white/5 p-4 ${wide ? "col-span-2" : ""}`}>
-      <div className="text-slate-400 text-xs font-bold">{title}</div>
-      <div className="text-white font-black mt-2">{value}</div>
+    <div className={`rounded-2xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-4 ${wide ? "col-span-2" : ""}`}>
+      <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
+      <div className="text-[var(--erp-text)] font-black mt-2">{value}</div>
     </div>
   );
 }
 
 function AiMetric({ icon, title, value, progress, tone = "cyan" }) {
-  const toneColor = tone === "rose" ? "#fb7185" : tone === "emerald" ? "#34d399" : "#22d3ee";
+  const toneColor = tone === "rose" ? "#fb7185" : tone === "emerald" ? "#34d399" : "var(--erp-accent)";
   return (
-    <div className="rounded-[2rem] bg-slate-800/70 border border-white/5 p-5">
+    <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
-          <div className="text-3xl font-black text-white mt-2">{value}</div>
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+          <div className="text-3xl font-black text-[var(--erp-text)] mt-2">{value}</div>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] flex items-center justify-center">
           {icon}
         </div>
       </div>
-      <div className="h-3 rounded-full bg-slate-900 mt-4 overflow-hidden">
+      <div className="h-3 rounded-full bg-[var(--erp-bg-soft)] mt-4 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${clamp(progress)}%`, background: toneColor }} />
       </div>
     </div>
@@ -417,33 +417,33 @@ function AiMetric({ icon, title, value, progress, tone = "cyan" }) {
 
 function RfmBox({ title, score, detail, fa }) {
   return (
-    <div className="rounded-3xl bg-slate-900/70 border border-white/5 p-5">
-      <div className="text-slate-400 text-sm font-bold">{title}</div>
-      <div className="text-3xl font-black text-cyan-300 mt-2">{Math.round(score)}</div>
-      <div className="h-2 rounded-full bg-slate-800 mt-3 overflow-hidden">
+    <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
+      <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+      <div className="text-3xl font-black text-[var(--erp-accent)] mt-2">{Math.round(score)}</div>
+      <div className="h-2 rounded-full bg-[var(--erp-panel-solid)] mt-3 overflow-hidden">
         <div className="h-full bg-cyan-400" style={{ width: `${clamp(score)}%` }} />
       </div>
-      <div className="text-xs text-slate-500 mt-3">{fa ? "جزئیات" : "Detail"}: {detail}</div>
+      <div className="text-xs text-[var(--erp-muted)] mt-3">{fa ? "جزئیات" : "Detail"}: {detail}</div>
     </div>
   );
 }
 
 function SuggestionCard({ item }) {
   const toneClass = {
-    cyan: "bg-cyan-400/10 text-cyan-200 border-cyan-400/20",
+    cyan: "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]",
     emerald: "bg-emerald-400/10 text-emerald-200 border-emerald-400/20",
     rose: "bg-rose-400/10 text-rose-200 border-rose-400/20",
     amber: "bg-amber-400/10 text-amber-200 border-amber-400/20",
-  }[item.tone] || "bg-cyan-400/10 text-cyan-200 border-cyan-400/20";
+  }[item.tone] || "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]";
 
   return (
-    <div className="rounded-3xl bg-slate-900/70 border border-white/5 p-4 flex gap-3">
+    <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-4 flex gap-3">
       <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${toneClass}`}>
         {item.icon}
       </div>
       <div>
-        <div className="font-black text-white">{item.title}</div>
-        <p className="text-slate-300 text-sm leading-7 mt-1">{item.text}</p>
+        <div className="font-black text-[var(--erp-text)]">{item.title}</div>
+        <p className="text-[var(--erp-muted)] text-sm leading-7 mt-1">{item.text}</p>
       </div>
     </div>
   );
@@ -451,14 +451,14 @@ function SuggestionCard({ item }) {
 
 function ActionBox({ icon, title, value }) {
   return (
-    <div className="rounded-3xl bg-slate-900/70 border border-white/5 p-5">
+    <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20 flex items-center justify-center">
+        <div className="w-11 h-11 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] flex items-center justify-center">
           {icon}
         </div>
         <div>
-          <div className="text-slate-400 text-xs font-bold">{title}</div>
-          <div className="text-white font-black mt-1">{value}</div>
+          <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
+          <div className="text-[var(--erp-text)] font-black mt-1">{value}</div>
         </div>
       </div>
     </div>

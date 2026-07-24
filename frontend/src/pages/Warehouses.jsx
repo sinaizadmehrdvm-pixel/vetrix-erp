@@ -13,8 +13,8 @@ import {
   transferWarehouseStock,
 } from "../services/api";
 
-const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
+const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
+const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 const buttonClass = "rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
 export default function Warehouses() {
@@ -153,9 +153,9 @@ export default function Warehouses() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-white">
+    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
-        <WarehouseIcon className="text-cyan-400" />
+        <WarehouseIcon className="text-[var(--erp-accent)]" />
         {fa ? "شعبه‌ها و انبارهای متعدد" : "Multi-branch warehouses"}
       </h1>
 
@@ -186,16 +186,16 @@ export default function Warehouses() {
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{fa ? "لیست انبارها" : "Warehouses"}</h2>
         {loading ? (
-          <p className="text-slate-400">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
         ) : (
           <div className="space-y-2">
             {warehouses.map((w) => (
-              <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/20 px-4 py-3">
+              <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <div>
                   <div className="font-bold">
                     {w.name}
                     {w.is_default && (
-                      <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-200">
+                      <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-glow)] text-[var(--erp-accent)]">
                         {fa ? "پیش‌فرض" : "Default"}
                       </span>
                     )}
@@ -205,7 +205,7 @@ export default function Warehouses() {
                       </span>
                     )}
                   </div>
-                  {w.code && <div className="text-xs text-slate-400">{w.code}</div>}
+                  {w.code && <div className="text-xs text-[var(--erp-muted)]">{w.code}</div>}
                 </div>
                 {!w.is_default && w.active && (
                   <button
@@ -283,13 +283,13 @@ export default function Warehouses() {
         </select>
         {breakdown && (
           <div className="space-y-2 mt-3">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[var(--erp-muted)]">
               {fa ? "مجموع کل: " : "Total: "}{n(breakdown.total)}
             </p>
             {breakdown.by_warehouse.map((row) => (
-              <div key={row.warehouse_id} className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3">
+              <div key={row.warehouse_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <span>{row.warehouse_name}</span>
-                <span className="font-black text-cyan-300">{n(row.quantity)}</span>
+                <span className="font-black text-[var(--erp-accent)]">{n(row.quantity)}</span>
               </div>
             ))}
           </div>
@@ -310,13 +310,13 @@ export default function Warehouses() {
         </select>
         {warehouseItems && (
           warehouseItems.items.length === 0 ? (
-            <p className="text-slate-400 mt-3">{fa ? "کالایی در این انبار نیست." : "No stock in this warehouse."}</p>
+            <p className="text-[var(--erp-muted)] mt-3">{fa ? "کالایی در این انبار نیست." : "No stock in this warehouse."}</p>
           ) : (
             <div className="space-y-2 mt-3">
               {warehouseItems.items.map((item) => (
-                <div key={item.product_id} className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3">
+                <div key={item.product_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                   <span>{item.product_name}</span>
-                  <span className="font-black text-cyan-300">{n(item.quantity)}</span>
+                  <span className="font-black text-[var(--erp-accent)]">{n(item.quantity)}</span>
                 </div>
               ))}
             </div>

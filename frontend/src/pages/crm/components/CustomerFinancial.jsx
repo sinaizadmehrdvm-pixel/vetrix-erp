@@ -186,14 +186,14 @@ export default function CustomerFinancial({
   }, [invoiceRows]);
 
   return (
-    <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5 text-white">
+    <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h2 className="text-2xl font-black text-cyan-300 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <Wallet />
             {fa ? "پرونده مالی مشتری" : "Customer Financial Profile"}
           </h2>
-          <p className="text-slate-400 text-sm mt-2">
+          <p className="text-[var(--erp-muted)] text-sm mt-2">
             {fa
               ? "خلاصه مالی، فاکتورها، مانده حساب، بدهی/بستانکاری و نمودار خرید مشتری"
               : "Financial summary, invoices, balance, debit/credit and customer purchase chart"}
@@ -204,7 +204,7 @@ export default function CustomerFinancial({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -222,13 +222,13 @@ export default function CustomerFinancial({
         <FinancialCard icon={<FileText />} title={fa ? "فاکتورهای تسویه" : "Paid invoices"} value={n(financial.paidCount)} tone="emerald" />
       </div>
 
-      <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-5 mb-5">
+      <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5 mb-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <h3 className="font-black text-cyan-300 flex items-center gap-2">
+          <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <BarChart3 size={20} />
             {fa ? "نمودار آخرین فاکتورها" : "Recent invoices chart"}
           </h3>
-          <span className="text-slate-400 text-sm">{fa ? "۸ فاکتور آخر" : "Last 8 invoices"}</span>
+          <span className="text-[var(--erp-muted)] text-sm">{fa ? "۸ فاکتور آخر" : "Last 8 invoices"}</span>
         </div>
 
         <div className="h-52 flex items-end gap-3">
@@ -236,37 +236,37 @@ export default function CustomerFinancial({
             chartBars.map((bar) => (
               <div key={bar.id} className="flex-1 flex flex-col items-center gap-2">
                 <div className="w-full rounded-t-2xl bg-cyan-400/70 hover:bg-cyan-300 transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
-                <div className="text-[10px] text-slate-400">{bar.label}</div>
+                <div className="text-[10px] text-[var(--erp-muted)]">{bar.label}</div>
               </div>
             ))
           ) : (
-            <div className="w-full text-center text-slate-400">{fa ? "داده‌ای برای نمودار وجود ندارد." : "No chart data."}</div>
+            <div className="w-full text-center text-[var(--erp-muted)]">{fa ? "داده‌ای برای نمودار وجود ندارد." : "No chart data."}</div>
           )}
         </div>
       </div>
 
-      <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-5">
+      <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <h3 className="font-black text-cyan-300 flex items-center gap-2">
+          <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={20} />
             {fa ? "فاکتورهای مشتری" : "Customer invoices"}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-[240px_180px] gap-3">
             <div className="relative">
-              <Search size={17} className="absolute top-3.5 right-4 text-slate-500" />
+              <Search size={17} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={fa ? "جستجوی فاکتور..." : "Search invoices..."}
-                className="w-full bg-slate-900 text-white rounded-2xl pr-10 pl-4 py-3 outline-none border border-cyan-400/10"
+                className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-10 pl-4 py-3 outline-none border border-[var(--erp-border)]"
               />
             </div>
 
             <select
               value={invoiceFilter}
               onChange={(e) => setInvoiceFilter(e.target.value)}
-              className="w-full bg-slate-900 text-white rounded-2xl px-4 py-3 outline-none border border-cyan-400/10"
+              className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
             >
               <option value="all">{fa ? "همه" : "All"}</option>
               <option value="sale">{fa ? "فروش" : "Sale"}</option>
@@ -282,7 +282,7 @@ export default function CustomerFinancial({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-sm">
             <thead>
-              <tr className="text-cyan-300 border-b border-cyan-500/20">
+              <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
                 <th className="p-3 text-right">{fa ? "شماره" : "ID"}</th>
                 <th className="p-3 text-right">{fa ? "تاریخ" : "Date"}</th>
                 <th className="p-3 text-right">{fa ? "نوع" : "Type"}</th>
@@ -294,11 +294,11 @@ export default function CustomerFinancial({
 
             <tbody>
               {filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-slate-700/60 hover:bg-cyan-400/5">
-                  <td className="p-3 font-black text-white">#{n(inv.id)}</td>
-                  <td className="p-3 text-slate-300">{formatDate(inv.created_at, fa)}</td>
-                  <td className="p-3 text-slate-300">{invoiceTypeLabel(inv.invoice_type, fa)}</td>
-                  <td className="p-3 text-cyan-300 font-black">{money(inv.total_amount)}</td>
+                <tr key={inv.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
+                  <td className="p-3 font-black text-[var(--erp-text)]">#{n(inv.id)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{formatDate(inv.created_at, fa)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, fa)}</td>
+                  <td className="p-3 text-[var(--erp-accent)] font-black">{money(inv.total_amount)}</td>
                   <td className="p-3 text-amber-300 font-black">{money(inv.remaining_amount || 0)}</td>
                   <td className="p-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-black ${
@@ -316,7 +316,7 @@ export default function CustomerFinancial({
 
               {filteredInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                  <td colSpan={6} className="p-8 text-center text-[var(--erp-muted)]">
                     {fa ? "فاکتوری برای نمایش وجود ندارد." : "No invoices to show."}
                   </td>
                 </tr>
@@ -331,19 +331,19 @@ export default function CustomerFinancial({
 
 function FinancialCard({ icon, title, value, hint, tone = "cyan" }) {
   const toneClass = {
-    cyan: "text-cyan-300 bg-cyan-400/10 border-cyan-400/20",
+    cyan: "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]",
     emerald: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20",
     rose: "text-rose-300 bg-rose-400/10 border-rose-400/20",
     amber: "text-amber-300 bg-amber-400/10 border-amber-400/20",
-  }[tone] || "text-cyan-300 bg-cyan-400/10 border-cyan-400/20";
+  }[tone] || "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]";
 
   return (
-    <div className="rounded-3xl bg-slate-800/70 border border-white/5 p-5">
+    <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
-          <div className="text-2xl font-black text-white mt-2">{value}</div>
-          {hint && <div className="text-xs text-slate-500 mt-2">{hint}</div>}
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+          <div className="text-2xl font-black text-[var(--erp-text)] mt-2">{value}</div>
+          {hint && <div className="text-xs text-[var(--erp-muted)] mt-2">{hint}</div>}
         </div>
         <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${toneClass}`}>
           {icon}

@@ -215,14 +215,14 @@ export default function BusinessIntelligence() {
   }
 
   return (
-    <div dir={dir} className="min-h-screen p-6 text-white" style={{ direction: dir, background: "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), #071028" }}>
+    <div dir={dir} className="min-h-screen p-6 text-[var(--erp-text)]" style={{ direction: dir, background: "radial-gradient(circle at top left, var(--erp-glow), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), var(--erp-bg)" }}>
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400 flex items-center gap-3"><Brain size={40} />{fa ? "هوش تجاری و مدیریت هوشمند" : "Business Intelligence"}</h1>
-          <p className="text-slate-400 mt-2">{fa ? "تحلیل فروش، سود، نقدینگی، مشتریان، موجودی، پیش‌بینی و پیشنهادهای مدیریتی" : "Sales, profit, cashflow, customers, inventory, forecasting and management suggestions"}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3"><Brain size={40} />{fa ? "هوش تجاری و مدیریت هوشمند" : "Business Intelligence"}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{fa ? "تحلیل فروش، سود، نقدینگی، مشتریان، موجودی، پیش‌بینی و پیشنهادهای مدیریتی" : "Sales, profit, cashflow, customers, inventory, forecasting and management suggestions"}</p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={exportSnapshot} className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2"><Download size={18} />{fa ? "خروجی خلاصه" : "Export"}</button>
+          <button onClick={exportSnapshot} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"><Download size={18} />{fa ? "خروجی خلاصه" : "Export"}</button>
           <button onClick={loadBI} disabled={loading} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}</button>
         </div>
       </div>
@@ -250,11 +250,11 @@ export default function BusinessIntelligence() {
                   <div className="w-1/3 rounded-t-xl bg-amber-400/80" style={{ height: `${clamp((toNumber(row.purchases) / maxSales) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.purchases)}`} />
                   <div className={`w-1/3 rounded-t-xl ${row.profit >= 0 ? "bg-emerald-400/80" : "bg-rose-400/80"}`} style={{ height: `${clamp((Math.abs(toNumber(row.profit)) / maxProfit) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.profit)}`} />
                 </div>
-                <div className="text-[11px] text-slate-400 whitespace-nowrap">{row.label}</div>
+                <div className="text-[11px] text-[var(--erp-muted)] whitespace-nowrap">{row.label}</div>
               </div>
             ))}
           </div>
-          <div className="flex flex-wrap gap-4 mt-4 text-sm text-slate-300">
+          <div className="flex flex-wrap gap-4 mt-4 text-sm text-[var(--erp-muted)]">
             <Legend color="bg-cyan-400" label={fa ? "فروش" : "Sales"} />
             <Legend color="bg-amber-400" label={fa ? "خرید" : "Purchases"} />
             <Legend color="bg-emerald-400" label={fa ? "سود" : "Profit"} />
@@ -280,11 +280,11 @@ export default function BusinessIntelligence() {
         <Panel title={fa ? "پیشنهاد خرید و تامین موجودی" : "Purchase & replenishment suggestions"} icon={<ShoppingCart />}>
           <div className="space-y-3">
             {purchaseSuggestions.length ? purchaseSuggestions.map((item) => (
-              <div key={item.id} className="rounded-3xl bg-slate-800/70 border border-white/5 p-4 flex items-center justify-between gap-3">
-                <div><div className="font-black text-white">{item.name}</div><div className="text-slate-400 text-sm mt-1">{fa ? "موجودی" : "Stock"}: {n(item.stock)} / {fa ? "حداقل" : "Min"}: {n(item.min)}</div></div>
-                <div className="text-cyan-300 font-black">{fa ? "خرید پیشنهادی" : "Suggested"}: {n(item.suggested)}</div>
+              <div key={item.id} className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 flex items-center justify-between gap-3">
+                <div><div className="font-black text-[var(--erp-text)]">{item.name}</div><div className="text-[var(--erp-muted)] text-sm mt-1">{fa ? "موجودی" : "Stock"}: {n(item.stock)} / {fa ? "حداقل" : "Min"}: {n(item.min)}</div></div>
+                <div className="text-[var(--erp-accent)] font-black">{fa ? "خرید پیشنهادی" : "Suggested"}: {n(item.suggested)}</div>
               </div>
-            )) : <div className="rounded-3xl bg-slate-800/70 border border-white/5 p-8 text-center text-slate-400">{fa ? "فعلاً پیشنهاد خریدی ثبت نشده است." : "No purchase suggestions yet."}</div>}
+            )) : <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">{fa ? "فعلاً پیشنهاد خریدی ثبت نشده است." : "No purchase suggestions yet."}</div>}
           </div>
         </Panel>
       </section>
@@ -299,12 +299,12 @@ export default function BusinessIntelligence() {
 }
 
 function KpiCard({ icon, title, value, hint, tone = "cyan" }) {
-  const toneClass = { cyan: "text-cyan-300 bg-cyan-400/10 border-cyan-400/20", emerald: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20", rose: "text-rose-300 bg-rose-400/10 border-rose-400/20", amber: "text-amber-300 bg-amber-400/10 border-amber-400/20" }[tone];
-  return <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5"><div className="flex items-start justify-between gap-3"><div><div className="text-slate-400 text-sm font-bold">{title}</div><div className="text-2xl font-black text-white mt-2">{value}</div>{hint && <div className="text-xs text-slate-500 mt-2">{hint}</div>}</div><div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${toneClass}`}>{icon}</div></div></div>;
+  const toneClass = { cyan: "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]", emerald: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20", rose: "text-rose-300 bg-rose-400/10 border-rose-400/20", amber: "text-amber-300 bg-amber-400/10 border-amber-400/20" }[tone];
+  return <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5"><div className="flex items-start justify-between gap-3"><div><div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div><div className="text-2xl font-black text-[var(--erp-text)] mt-2">{value}</div>{hint && <div className="text-xs text-[var(--erp-muted)] mt-2">{hint}</div>}</div><div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${toneClass}`}>{icon}</div></div></div>;
 }
 
 function Panel({ title, icon, children }) {
-  return <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5"><h2 className="text-cyan-300 font-black text-xl flex items-center gap-2 mb-5">{icon}{title}</h2>{children}</section>;
+  return <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5"><h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-5">{icon}{title}</h2>{children}</section>;
 }
 
 function Legend({ color, label }) {
@@ -312,19 +312,19 @@ function Legend({ color, label }) {
 }
 
 function InsightCard({ item }) {
-  const toneClass = { cyan: "bg-cyan-400/10 text-cyan-200 border-cyan-400/20", emerald: "bg-emerald-400/10 text-emerald-200 border-emerald-400/20", rose: "bg-rose-400/10 text-rose-200 border-rose-400/20", amber: "bg-amber-400/10 text-amber-200 border-amber-400/20" }[item.tone] || "bg-cyan-400/10 text-cyan-200 border-cyan-400/20";
-  return <div className="rounded-3xl bg-slate-800/70 border border-white/5 p-4 flex gap-3"><div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${toneClass}`}>{item.icon}</div><div><div className="font-black text-white">{item.title}</div><p className="text-slate-300 text-sm leading-7 mt-1">{item.text}</p></div></div>;
+  const toneClass = { cyan: "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]", emerald: "bg-emerald-400/10 text-emerald-200 border-emerald-400/20", rose: "bg-rose-400/10 text-rose-200 border-rose-400/20", amber: "bg-amber-400/10 text-amber-200 border-amber-400/20" }[item.tone] || "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]";
+  return <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 flex gap-3"><div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${toneClass}`}>{item.icon}</div><div><div className="font-black text-[var(--erp-text)]">{item.title}</div><p className="text-[var(--erp-muted)] text-sm leading-7 mt-1">{item.text}</p></div></div>;
 }
 
 function ExecutiveRow({ label, value }) {
-  return <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-800/70 border border-white/5 p-3"><span className="text-slate-400 text-sm">{label}</span><b className="text-cyan-300">{value}</b></div>;
+  return <div className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-3"><span className="text-[var(--erp-muted)] text-sm">{label}</span><b className="text-[var(--erp-accent)]">{value}</b></div>;
 }
 
 function ScoreGauge({ value, title, n }) {
   const score = clamp(toNumber(value));
-  return <div className="text-center rounded-3xl bg-slate-800/70 border border-white/5 p-5"><div className="text-slate-400 text-sm mb-3">{title}</div><div className="w-36 h-36 mx-auto rounded-full flex items-center justify-center" style={{ background: `conic-gradient(#22d3ee ${score * 3.6}deg, rgba(51,65,85,.8) 0deg)` }}><div className="w-28 h-28 rounded-full bg-slate-950 flex flex-col items-center justify-center"><div className="text-4xl font-black text-cyan-300">{n(Math.round(score))}</div><div className="text-xs text-slate-500">/100</div></div></div></div>;
+  return <div className="text-center rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5"><div className="text-[var(--erp-muted)] text-sm mb-3">{title}</div><div className="w-36 h-36 mx-auto rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--erp-accent) ${score * 3.6}deg, var(--erp-panel-solid) 0deg)` }}><div className="w-28 h-28 rounded-full bg-[var(--erp-bg)] flex flex-col items-center justify-center"><div className="text-4xl font-black text-[var(--erp-accent)]">{n(Math.round(score))}</div><div className="text-xs text-[var(--erp-muted)]">/100</div></div></div></div>;
 }
 
 function MiniPanel({ icon, title, main, sub }) {
-  return <div className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-cyan-400/10 text-cyan-300 border border-cyan-400/20 flex items-center justify-center">{icon}</div><div><div className="text-slate-400 text-sm font-bold">{title}</div><div className="text-xl font-black text-white mt-1">{main}</div><div className="text-xs text-slate-500 mt-1">{sub}</div></div></div></div>;
+  return <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] flex items-center justify-center">{icon}</div><div><div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div><div className="text-xl font-black text-[var(--erp-text)] mt-1">{main}</div><div className="text-xs text-[var(--erp-muted)] mt-1">{sub}</div></div></div></div>;
 }

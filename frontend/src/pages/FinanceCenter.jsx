@@ -313,15 +313,15 @@ export default function FinanceCenter() {
       style={{
         direction: dir,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(16,185,129,0.14), transparent 35%), #071028",
+          "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(16,185,129,0.14), transparent 35%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {fa ? "مرکز مالی Vetrix" : "Vetrix Finance Center"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "مدیریت صندوق، بانک، کیف پول، دریافت، پرداخت، انتقال و نقدینگی لحظه‌ای"
               : "Manage cash, banks, wallets, receipts, payments, transfers and live liquidity"}
@@ -332,7 +332,7 @@ export default function FinanceCenter() {
           <button
             onClick={loadFinance}
             disabled={loading}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20 disabled:opacity-60"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
             {fa ? "به‌روزرسانی" : "Refresh"}
@@ -361,7 +361,7 @@ export default function FinanceCenter() {
           className={`rounded-2xl p-4 flex items-center gap-2 ${
             offlineMode
               ? "bg-amber-500/10 border border-amber-400/20 text-amber-200"
-              : "bg-cyan-500/10 border border-cyan-400/20 text-cyan-100"
+              : "bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-accent)]"
           }`}
         >
           {offlineMode ? <AlertTriangle size={18} /> : <ShieldCheck size={18} />}
@@ -374,7 +374,7 @@ export default function FinanceCenter() {
           title={fa ? "کل نقدینگی" : "Total liquidity"}
           value={money(totals.totalBalance)}
           icon={<Wallet />}
-          color="text-cyan-300"
+          color="text-[var(--erp-accent)]"
         />
         <FinanceCard
           title={fa ? "دریافت‌ها" : "Receipts"}
@@ -392,7 +392,7 @@ export default function FinanceCenter() {
           title={fa ? "خالص امروز" : "Net today"}
           value={money(totals.netToday)}
           icon={<Banknote />}
-          color={toNumber(totals.netToday) >= 0 ? "text-cyan-300" : "text-rose-300"}
+          color={toNumber(totals.netToday) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300"}
         />
       </div>
 
@@ -408,19 +408,19 @@ export default function FinanceCenter() {
 
         <Panel title={fa ? "تراکنش‌های مالی" : "Financial transactions"} icon={<CreditCard />}>
           <div className="flex gap-3 flex-wrap mb-4">
-            <div className="flex items-center gap-2 bg-slate-800/80 border border-cyan-500/10 rounded-2xl px-4 py-3 flex-1 min-w-[260px]">
-              <Search size={18} className="text-cyan-300" />
+            <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 flex-1 min-w-[260px]">
+              <Search size={18} className="text-[var(--erp-accent)]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={fa ? "جستجو در تراکنش‌ها..." : "Search transactions..."}
-                className="bg-transparent outline-none text-white placeholder-slate-500 w-full"
+                className="bg-transparent outline-none text-[var(--erp-text)] placeholder-slate-500 w-full"
               />
             </div>
 
             <button
               onClick={exportCsv}
-              className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20"
+              className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
             >
               <Download size={18} />
               CSV
@@ -471,7 +471,7 @@ export default function FinanceCenter() {
             <ArrowDownRight size={18} />
             {fa ? "ثبت پرداخت" : "Record payment"}
           </button>
-          <button onClick={() => { setTransactionForm((p) => ({ ...p, type: "transfer" })); setShowTransactionForm(true); }} className="quick-btn bg-cyan-500/10 text-cyan-200 border-cyan-400/20">
+          <button onClick={() => { setTransactionForm((p) => ({ ...p, type: "transfer" })); setShowTransactionForm(true); }} className="quick-btn bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]">
             <Repeat size={18} />
             {fa ? "انتقال بین حساب‌ها" : "Transfer between accounts"}
           </button>
@@ -483,7 +483,7 @@ export default function FinanceCenter() {
               ? "مرکز مالی آماده اتصال به چک‌ها، اقساط و بانکداری پیشرفته است."
               : "Finance Center is ready for checks, installments and advanced banking."}
           </div>
-          <div className="text-slate-400 text-sm leading-7 mt-3">
+          <div className="text-[var(--erp-muted)] text-sm leading-7 mt-3">
             {fa
               ? "مرحله بعدی: مدیریت چک، اقساط، سررسیدها و هشدارهای مالی."
               : "Next: checks, installments, due dates and finance alerts."}
@@ -576,9 +576,9 @@ export default function FinanceCenter() {
         }
         .form-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.16);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
@@ -591,10 +591,10 @@ export default function FinanceCenter() {
 
 function FinanceCard({ title, value, icon, color }) {
   return (
-    <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
-      <div className="flex items-center gap-3 text-cyan-300 mb-3">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-xl">
+      <div className="flex items-center gap-3 text-[var(--erp-accent)] mb-3">
         {icon}
-        <span className="text-slate-300 font-bold">{title}</span>
+        <span className="text-[var(--erp-muted)] font-bold">{title}</span>
       </div>
       <div className={`text-3xl font-black ${color}`}>{value}</div>
     </div>
@@ -603,8 +603,8 @@ function FinanceCard({ title, value, icon, color }) {
 
 function Panel({ title, icon, children }) {
   return (
-    <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
-      <h2 className="text-xl font-black text-cyan-300 mb-4 flex items-center gap-2">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-xl">
+      <h2 className="text-xl font-black text-[var(--erp-accent)] mb-4 flex items-center gap-2">
         {icon}
         {title}
       </h2>
@@ -619,15 +619,15 @@ function AccountCard({ account, fa, money }) {
   const balance = toNumber(account.balance ?? account.opening_balance);
 
   return (
-    <div className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-300 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
             {icon}
           </div>
           <div>
-            <div className="font-black text-white">{account.name}</div>
-            <div className="text-xs text-slate-400 mt-1">{accountTypeLabel(type, fa)}</div>
+            <div className="font-black text-[var(--erp-text)]">{account.name}</div>
+            <div className="text-xs text-[var(--erp-muted)] mt-1">{accountTypeLabel(type, fa)}</div>
           </div>
         </div>
         <div className={`font-black ${balance >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
@@ -645,22 +645,22 @@ function TransactionRow({ item, fa, money, date }) {
   const isExpense = type === "expense";
 
   return (
-    <div className="rounded-2xl bg-slate-800/70 border border-white/5 p-4 flex items-center justify-between gap-3">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
-          isIncome ? "bg-emerald-500/10 text-emerald-300" : isExpense ? "bg-rose-500/10 text-rose-300" : "bg-cyan-500/10 text-cyan-300"
+          isIncome ? "bg-emerald-500/10 text-emerald-300" : isExpense ? "bg-rose-500/10 text-rose-300" : "bg-[var(--erp-glow)] text-[var(--erp-accent)]"
         }`}>
           {typeIcon(type)}
         </div>
         <div>
-          <div className="font-black text-white">{item.description || transactionTypeLabel(type, fa)}</div>
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="font-black text-[var(--erp-text)]">{item.description || transactionTypeLabel(type, fa)}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1">
             {item.account_name || "-"} • {date ? date(item.created_at) : String(item.created_at || "").slice(0, 10)}
           </div>
         </div>
       </div>
 
-      <div className={`font-black ${isIncome ? "text-emerald-300" : isExpense ? "text-rose-300" : "text-cyan-300"}`}>
+      <div className={`font-black ${isIncome ? "text-emerald-300" : isExpense ? "text-rose-300" : "text-[var(--erp-accent)]"}`}>
         {money(amount)}
       </div>
     </div>
@@ -668,10 +668,10 @@ function TransactionRow({ item, fa, money, date }) {
 }
 
 function AnalysisLine({ label, value, status }) {
-  const color = status === "good" ? "text-emerald-300" : status === "bad" ? "text-rose-300" : "text-cyan-300";
+  const color = status === "good" ? "text-emerald-300" : status === "bad" ? "text-rose-300" : "text-[var(--erp-accent)]";
   return (
-    <div className="rounded-2xl bg-slate-800/70 p-4 flex items-center justify-between gap-3 mb-3">
-      <span className="text-slate-300 font-bold">{label}</span>
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3 mb-3">
+      <span className="text-[var(--erp-muted)] font-bold">{label}</span>
       <span className={`font-black ${color}`}>{value}</span>
     </div>
   );
@@ -680,7 +680,7 @@ function AnalysisLine({ label, value, status }) {
 function Field({ label, children }) {
   return (
     <div className="mb-3">
-      <label className="text-cyan-200 font-bold text-sm">{label}</label>
+      <label className="text-[var(--erp-accent)] font-bold text-sm">{label}</label>
       {children}
     </div>
   );
@@ -689,10 +689,10 @@ function Field({ label, children }) {
 function Modal({ title, children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-slate-950 border border-cyan-500/20 rounded-3xl p-6 shadow-2xl">
+      <div className="w-full max-w-lg bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-3xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-2xl font-black text-cyan-300">{title}</h2>
-          <button onClick={onClose} className="w-10 h-10 rounded-2xl bg-slate-800 text-white font-black">×</button>
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{title}</h2>
+          <button onClick={onClose} className="w-10 h-10 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black">×</button>
         </div>
         {children}
       </div>
@@ -702,7 +702,7 @@ function Modal({ title, children, onClose }) {
 
 function Empty({ fa }) {
   return (
-    <div className="rounded-2xl bg-slate-800/50 p-5 text-slate-400 text-center">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-5 text-[var(--erp-muted)] text-center">
       {fa ? "داده‌ای وجود ندارد." : "No data."}
     </div>
   );
