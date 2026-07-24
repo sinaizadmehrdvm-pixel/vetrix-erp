@@ -32,3 +32,9 @@ class InvoiceItem(Base):
     quantity = Column(Float, default=1)
     unit_price = Column(Float, default=0)
     total_price = Column(Float, default=0)
+    # Optional: which warehouse this line's stock moved through. Product.stock
+    # (the aggregate total) is always updated regardless via the existing
+    # apply_invoice_stock/reverse_invoice_stock path; this only additionally
+    # updates that one warehouse's bucket in app/warehouses.py's per-location
+    # ledger when set, so omitting it keeps every prior behavior unchanged.
+    warehouse_id = Column(Integer, nullable=True)

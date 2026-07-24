@@ -57,6 +57,10 @@ READ_RULES = (
     ("/invoices", ALL_ROLES),
     ("/transactions", ALL_ROLES),
     ("/stock-movements", ALL_ROLES),
+    # Read access is broad - any role building an invoice needs to list
+    # warehouses to pick one for a line item; management (create/transfer/
+    # deactivate) is still gated to admin/warehouse below.
+    ("/api/warehouses", ALL_ROLES),
     ("/reports", ALL_ROLES),
     ("/export", ALL_ROLES),
     ("/print", ALL_ROLES),
@@ -128,6 +132,7 @@ MUTATION_RULES = (
     ("/stock-movements", {"admin", "warehouse"}),
     ("/api/smart-inventory", {"admin", "warehouse"}),
     ("/warehouse", {"admin", "warehouse"}),
+    ("/api/warehouses", {"admin", "warehouse"}),
     ("/api/finance", {"admin", "accountant"}),
     ("/api/ai-bi", {"admin", "accountant"}),
     ("/designer", {"admin", "accountant", "sales"}),

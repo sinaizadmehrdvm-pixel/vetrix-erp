@@ -230,6 +230,24 @@ export async function sendPaymentReminderNow(invoiceId) {
   return await request(`/api/payment-reminders/send/${invoiceId}`, { method: "POST" });
 }
 
+// Multi-branch / multi-warehouse inventory
+export async function getWarehouses() { return await request("/api/warehouses"); }
+export async function createWarehouse(data) {
+  return await request("/api/warehouses", { method: "POST", body: JSON.stringify(data) });
+}
+export async function deactivateWarehouse(id) {
+  return await request(`/api/warehouses/${id}/deactivate`, { method: "POST" });
+}
+export async function getWarehouseStockBreakdown(productId) {
+  return await request(`/api/warehouses/stock?product_id=${productId}`);
+}
+export async function getWarehouseProducts(warehouseId) {
+  return await request(`/api/warehouses/${warehouseId}/products`);
+}
+export async function transferWarehouseStock(data) {
+  return await request("/api/warehouses/transfer", { method: "POST", body: JSON.stringify(data) });
+}
+
 // Digital & print product catalog
 export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
 export async function createCatalogLink(data) {

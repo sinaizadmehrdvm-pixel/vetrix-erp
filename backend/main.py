@@ -81,6 +81,7 @@ from app.supplier_portal import router as supplier_portal_router
 from app.recurring_invoices import maybe_generate_due_recurring_invoices, router as recurring_invoices_router
 from app.payment_gateway import router as payment_gateway_router
 from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
+from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
 from app.catalog import router as catalog_router
 from app.catalog_messaging import router as catalog_messaging_router
 from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
@@ -151,6 +152,12 @@ def ensure_database_schema():
 
     for name, sql in invoice_columns.items():
         ensure_sqlite_column("invoices", name, sql)
+
+    invoice_item_columns = {
+        "warehouse_id": "warehouse_id INTEGER",
+    }
+    for name, sql in invoice_item_columns.items():
+        ensure_sqlite_column("invoice_items", name, sql)
 
     settings_columns = {
         "country_code": "country_code VARCHAR DEFAULT 'IR'",
@@ -260,6 +267,7 @@ app.include_router(supplier_portal_router)
 app.include_router(recurring_invoices_router)
 app.include_router(payment_gateway_router)
 app.include_router(payment_reminders_router)
+app.include_router(warehouses_router)
 app.include_router(catalog_router)
 app.include_router(catalog_messaging_router)
 app.include_router(pricing_router)
@@ -420,6 +428,7 @@ class InvoiceItemCreate(BaseModel):
     product_id: int
     quantity: float
     unit_price: float
+    warehouse_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -1314,8 +1323,13 @@ def create_invoice(data: InvoiceCreate):
                 quantity=item.quantity,
                 unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
                 total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
+                warehouse_id=item.warehouse_id,
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
+            apply_warehouse_delta(
+                db, item.warehouse_id, item.product_id,
+                invoice_warehouse_delta(data.invoice_type, item.quantity),
+            )
         add_invoice_customer_entry(db, invoice)
         post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.commit()
@@ -1367,6 +1381,10 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
             product = db.query(Product).filter(Product.id == old_item.product_id).first()
             if product:
                 reverse_invoice_stock(invoice.invoice_type, product, old_item.quantity)
+                apply_warehouse_delta(
+                    db, old_item.warehouse_id, old_item.product_id,
+                    -invoice_warehouse_delta(invoice.invoice_type, old_item.quantity),
+                )
             db.delete(old_item)
         db.query(AccountingEntry).filter(
             AccountingEntry.source_type == "invoice",
@@ -1396,8 +1414,13 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
                 quantity=item.quantity,
                 unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
                 total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
+                warehouse_id=item.warehouse_id,
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
+            apply_warehouse_delta(
+                db, item.warehouse_id, item.product_id,
+                invoice_warehouse_delta(data.invoice_type, item.quantity),
+            )
         add_invoice_customer_entry(db, invoice)
         post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.flush()

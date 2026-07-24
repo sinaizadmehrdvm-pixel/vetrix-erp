@@ -36,6 +36,7 @@ import {
   getPriceQuote,
   lookupProductByCode,
   requestInvoicePaymentLink,
+  getWarehouses,
 } from "../services/api";
 import toast from "react-hot-toast";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
@@ -168,10 +169,12 @@ export default function Invoices() {
     product_id: "",
     quantity: "",
     unit_price: "",
+    warehouse_id: "",
   };
 
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [createdInvoice, setCreatedInvoice] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -235,6 +238,17 @@ export default function Invoices() {
     const timer = setTimeout(() => { void stableLoadData(); }, 0);
     return () => clearTimeout(timer);
   }, [language, stableLoadData]);
+
+  // Warehouses are optional - if the request fails (e.g. offline) the
+  // selector below just doesn't render, same as any pre-existing invoice.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      getWarehouses()
+        .then((data) => setWarehouses(data.items || []))
+        .catch(() => {});
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Hand-off from an approved "sale invoice draft" voice change request
   // (ChangeRequestCenter) - prefill the form once products are loaded, then
@@ -398,6 +412,7 @@ export default function Invoices() {
         product_id: Number(item.product_id),
         quantity: toNumber(item.quantity),
         unit_price: toNumber(item.unit_price),
+        warehouse_id: item.warehouse_id ? Number(item.warehouse_id) : null,
       }));
   }
 
@@ -968,6 +983,23 @@ export default function Invoices() {
                     {label.remove}
                   </button>
                 </div>
+
+                {warehouses.length > 1 && (
+                  <div className="mt-3">
+                    <Field label={fa ? "انبار/شعبه (اختیاری)" : "Warehouse (optional)"}>
+                      <select
+                        value={item.warehouse_id}
+                        onChange={(e) => updateItem(index, "warehouse_id", e.target.value)}
+                        className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+                      >
+                        <option value="">{fa ? "مشخص نشده" : "Unspecified"}</option>
+                        {warehouses.filter((w) => w.active).map((w) => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                )}
               </div>
             );
           })}

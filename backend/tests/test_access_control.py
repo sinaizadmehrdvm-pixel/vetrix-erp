@@ -3561,6 +3561,126 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(buy_blocked.status_code, 400)
 
+    def test_zzzzzzzzzzzzzzzzzzzz_multi_warehouse_inventory_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Multi-Warehouse Widget", "sell_price": 20000, "stock": 100}
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        warehouses = self.client.get("/api/warehouses", headers=headers)
+        self.assertEqual(warehouses.status_code, 200, warehouses.text)
+        default_warehouse = next(w for w in warehouses.json()["items"] if w["is_default"])
+        self.assertEqual(default_warehouse["name"], "Main")
+
+        # Before any transfer, every unit is implicitly in the default warehouse.
+        breakdown_before = self.client.get(f"/api/warehouses/stock?product_id={product_id}", headers=headers)
+        self.assertEqual(breakdown_before.status_code, 200, breakdown_before.text)
+        default_row = next(
+            row for row in breakdown_before.json()["by_warehouse"] if row["warehouse_id"] == default_warehouse["id"]
+        )
+        self.assertEqual(default_row["quantity"], 100)
+
+        # A non-warehouse/admin role must not manage warehouses.
+        viewer_login = self.client.post(
+            "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+        )
+        self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+        viewer_blocked = self.client.post("/api/warehouses", headers=viewer_headers, json={"name": "Branch"})
+        self.assertEqual(viewer_blocked.status_code, 403)
+
+        branch = self.client.post("/api/warehouses", headers=headers, json={"name": "Branch North", "code": "BR-N"})
+        self.assertEqual(branch.status_code, 200, branch.text)
+        branch_id = branch.json()["id"]
+
+        # Can't transfer more than what's available at the source.
+        over_transfer = self.client.post(
+            "/api/warehouses/transfer", headers=headers,
+            json={"product_id": product_id, "from_warehouse_id": default_warehouse["id"], "to_warehouse_id": branch_id, "quantity": 999},
+        )
+        self.assertEqual(over_transfer.status_code, 400)
+
+        transfer = self.client.post(
+            "/api/warehouses/transfer", headers=headers,
+            json={"product_id": product_id, "from_warehouse_id": default_warehouse["id"], "to_warehouse_id": branch_id, "quantity": 40, "note": "Initial stocking"},
+        )
+        self.assertEqual(transfer.status_code, 200, transfer.text)
+
+        breakdown_after = self.client.get(f"/api/warehouses/stock?product_id={product_id}", headers=headers)
+        rows_by_id = {row["warehouse_id"]: row["quantity"] for row in breakdown_after.json()["by_warehouse"]}
+        self.assertEqual(rows_by_id[branch_id], 40)
+        self.assertEqual(rows_by_id[default_warehouse["id"]], 60)
+
+        # The aggregate Product.stock never moves for a transfer.
+        product_after_transfer = self.client.get("/products", headers=headers)
+        product_row = next(p for p in product_after_transfer.json() if p["id"] == product_id)
+        self.assertEqual(product_row["stock"], 100)
+
+        branch_products = self.client.get(f"/api/warehouses/{branch_id}/products", headers=headers)
+        self.assertEqual(branch_products.status_code, 200, branch_products.text)
+        self.assertTrue(any(item["product_id"] == product_id for item in branch_products.json()["items"]))
+
+        # A sale tagged with a warehouse decrements that warehouse's bucket
+        # in addition to the (untouched-code-path) aggregate.
+        customer = self.client.post("/customers", headers=headers, json={"name": "Warehouse Sale Customer"})
+        customer_id = customer.json()["id"]
+        sale = self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 10, "unit_price": 20000, "warehouse_id": branch_id}],
+            },
+        )
+        self.assertEqual(sale.status_code, 200, sale.text)
+        sale_invoice_id = sale.json()["invoice_id"]
+
+        breakdown_after_sale = self.client.get(f"/api/warehouses/stock?product_id={product_id}", headers=headers)
+        rows_after_sale = {row["warehouse_id"]: row["quantity"] for row in breakdown_after_sale.json()["by_warehouse"]}
+        self.assertEqual(rows_after_sale[branch_id], 30)  # 40 - 10
+        self.assertEqual(rows_after_sale[default_warehouse["id"]], 60)  # untouched
+
+        product_after_sale = self.client.get("/products", headers=headers)
+        product_row_after_sale = next(p for p in product_after_sale.json() if p["id"] == product_id)
+        self.assertEqual(product_row_after_sale["stock"], 90)  # 100 - 10, via the existing untouched path
+
+        # Editing the invoice to a different quantity correctly reverses the
+        # old warehouse delta before applying the new one.
+        edit = self.client.put(
+            f"/invoices/{sale_invoice_id}", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 5, "unit_price": 20000, "warehouse_id": branch_id}],
+            },
+        )
+        self.assertEqual(edit.status_code, 200, edit.text)
+
+        breakdown_after_edit = self.client.get(f"/api/warehouses/stock?product_id={product_id}", headers=headers)
+        rows_after_edit = {row["warehouse_id"]: row["quantity"] for row in breakdown_after_edit.json()["by_warehouse"]}
+        self.assertEqual(rows_after_edit[branch_id], 35)  # 40 - 5
+
+        # Deactivating a warehouse blocks new transfers into it.
+        deactivate = self.client.post(f"/api/warehouses/{branch_id}/deactivate", headers=headers)
+        self.assertEqual(deactivate.status_code, 200, deactivate.text)
+        transfer_into_inactive = self.client.post(
+            "/api/warehouses/transfer", headers=headers,
+            json={"product_id": product_id, "from_warehouse_id": default_warehouse["id"], "to_warehouse_id": branch_id, "quantity": 1},
+        )
+        self.assertEqual(transfer_into_inactive.status_code, 400)
+
+        # The default warehouse can never be deactivated.
+        default_deactivate_blocked = self.client.post(
+            f"/api/warehouses/{default_warehouse['id']}/deactivate", headers=headers
+        )
+        self.assertEqual(default_deactivate_blocked.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,6 +31,7 @@ const groups = [
     items: [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
+      { key: "multiWarehouse", fa: "شعبه‌ها و انبارهای متعدد", en: "Multi-branch warehouses", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
       { key: "pricingTiers", fa: "قیمت‌گذاری پلکانی", en: "Tiered pricing", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
     ],
   },
