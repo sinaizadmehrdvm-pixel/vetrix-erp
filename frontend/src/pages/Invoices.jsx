@@ -31,6 +31,7 @@ import {
   updateInvoice as apiUpdateInvoice,
   deleteInvoice as apiDeleteInvoice,
   getCustomerLedger,
+  getPriceQuote,
 } from "../services/api";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -276,6 +277,29 @@ export default function Invoices() {
     }
 
     setItems(updated);
+
+    if ((field === "product_id" || field === "quantity") && form.invoice_type === "sale") {
+      const productId = field === "product_id" ? value : updated[index].product_id;
+      const quantity = toNumber(field === "quantity" ? value : updated[index].quantity);
+      if (productId && quantity > 0) {
+        void applyPriceQuote(index, productId, quantity);
+      }
+    }
+  }
+
+  async function applyPriceQuote(index, productId, quantity) {
+    try {
+      const quote = await getPriceQuote(productId, quantity, form.customer_id || undefined);
+      if (!quote?.tier_applied) return;
+      setItems((current) => {
+        if (!current[index] || String(current[index].product_id) !== String(productId)) return current;
+        const next = [...current];
+        next[index] = { ...next[index], unit_price: faText(quote.unit_price, fa) };
+        return next;
+      });
+    } catch {
+      // Keep whatever price is already shown; this is a suggestion, not a requirement.
+    }
   }
 
   function addItem() {

@@ -25,3 +25,6 @@ class Customer(Base):
     # before the bump (no way to enumerate/guess a live link back to valid).
     portal_access_enabled = Column(Boolean, default=False, nullable=False)
     portal_token_generation = Column(Integer, default=0, nullable=False)
+    # "retail" or "wholesale" - selects which quantity price tiers apply
+    # when quoting a unit price (see app/pricing.py).
+    pricing_group = Column(String, default="retail", nullable=False)

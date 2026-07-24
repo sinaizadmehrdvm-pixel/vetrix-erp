@@ -78,6 +78,7 @@ from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
 from app.catalog import router as catalog_router
+from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -123,6 +124,7 @@ def ensure_database_schema():
         "notes": "notes VARCHAR",
         "portal_access_enabled": "portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
         "portal_token_generation": "portal_token_generation INTEGER DEFAULT 0 NOT NULL",
+        "pricing_group": "pricing_group VARCHAR DEFAULT 'retail' NOT NULL",
     }
 
     invoice_columns = {
@@ -248,6 +250,7 @@ app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
 app.include_router(customer_portal_router)
 app.include_router(catalog_router)
+app.include_router(pricing_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -385,6 +388,7 @@ class CustomerCreate(BaseModel):
     opening_balance: float = 0
     credit_limit: float = 0
     notes: str = ""
+    pricing_group: str = "retail"
 
 
 class ProductCreate(BaseModel):
@@ -613,6 +617,7 @@ def customer_to_dict(db: Session, c: Customer):
         "opening_balance": getattr(c, "opening_balance", 0) or 0,
         "credit_limit": getattr(c, "credit_limit", 0) or 0,
         "notes": getattr(c, "notes", "") or "",
+        "pricing_group": getattr(c, "pricing_group", "retail") or "retail",
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -688,6 +693,8 @@ def list_customers():
 
 @app.post("/customers")
 def create_customer(data: CustomerCreate):
+    if data.pricing_group not in VALID_CUSTOMER_GROUPS:
+        return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
         customer = Customer(
@@ -703,6 +710,7 @@ def create_customer(data: CustomerCreate):
             opening_balance=data.opening_balance,
             credit_limit=data.credit_limit,
             notes=data.notes,
+            pricing_group=data.pricing_group,
         )
         db.add(customer)
         db.flush()
@@ -790,6 +798,8 @@ def customer_ledger(customer_id: int):
 
 @app.put("/customers/{customer_id}")
 def update_customer(customer_id: int, data: CustomerCreate):
+    if data.pricing_group not in VALID_CUSTOMER_GROUPS:
+        return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
         customer = db.query(Customer).filter(Customer.id == customer_id).first()
@@ -811,6 +821,7 @@ def update_customer(customer_id: int, data: CustomerCreate):
         customer.opening_balance = data.opening_balance
         customer.credit_limit = data.credit_limit
         customer.notes = data.notes
+        customer.pricing_group = data.pricing_group
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (

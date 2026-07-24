@@ -84,6 +84,9 @@ READ_RULES = (
     # Same reasoning: /api/catalog/view(/order) are public and self-verify
     # their own token, so this only governs the staff management endpoints.
     ("/api/catalog", {"admin", "accountant", "sales"}),
+    # Any role that can build an invoice needs to be able to fetch a price
+    # quote; tier management itself is still mutation-gated below.
+    ("/api/pricing", ALL_ROLES),
 )
 
 MUTATION_RULES = (
@@ -106,6 +109,7 @@ MUTATION_RULES = (
     ("/customers", {"admin", "accountant", "sales"}),
     ("/api/customer-portal", {"admin", "accountant", "sales"}),
     ("/api/catalog", {"admin", "accountant", "sales"}),
+    ("/api/pricing", {"admin", "accountant", "warehouse"}),
     ("/api/crm", {"admin", "sales"}),
     ("/products", {"admin", "warehouse"}),
     ("/product-categories", {"admin", "warehouse"}),

@@ -2909,6 +2909,81 @@ class ApiAccessControlTests(unittest.TestCase):
         revoked_view = self.client.get("/api/catalog/view", headers=catalog_headers)
         self.assertEqual(revoked_view.status_code, 401)
 
+    def test_zzzzzzzzzzzzz_tiered_wholesale_pricing_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Pricing Flow Product", "price": 1000, "stock": 500}
+        )
+        product_id = product.json()["id"]
+
+        wholesale_customer = self.client.post(
+            "/customers",
+            headers=headers,
+            json={"name": "Wholesale Buyer", "pricing_group": "wholesale"},
+        )
+        self.assertEqual(wholesale_customer.status_code, 200, wholesale_customer.text)
+        self.assertEqual(wholesale_customer.json()["balance"], 0)
+        wholesale_customer_id = wholesale_customer.json()["id"]
+
+        invalid_group = self.client.post(
+            "/customers", headers=headers, json={"name": "Bad Group", "pricing_group": "not-a-group"}
+        )
+        self.assertEqual(invalid_group.json()["status"], "error")
+
+        base_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=1", headers=headers
+        )
+        self.assertEqual(base_quote.status_code, 200, base_quote.text)
+        self.assertEqual(base_quote.json()["unit_price"], 1000)
+        self.assertFalse(base_quote.json()["tier_applied"])
+
+        tier = self.client.post(
+            "/api/pricing/tiers",
+            headers=headers,
+            json={"product_id": product_id, "min_quantity": 20, "unit_price": 850, "customer_group": None},
+        )
+        self.assertEqual(tier.status_code, 200, tier.text)
+        wholesale_tier = self.client.post(
+            "/api/pricing/tiers",
+            headers=headers,
+            json={"product_id": product_id, "min_quantity": 1, "unit_price": 700, "customer_group": "wholesale"},
+        )
+        self.assertEqual(wholesale_tier.status_code, 200, wholesale_tier.text)
+
+        quantity_break_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=25", headers=headers
+        )
+        self.assertEqual(quantity_break_quote.json()["unit_price"], 850)
+
+        wholesale_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=1&customer_id={wholesale_customer_id}",
+            headers=headers,
+        )
+        self.assertEqual(wholesale_quote.json()["unit_price"], 700)
+
+        retail_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=1", headers=headers
+        )
+        self.assertEqual(retail_quote.json()["unit_price"], 1000)
+
+        tiers_for_product = self.client.get(
+            f"/api/pricing/tiers?product_id={product_id}", headers=headers
+        )
+        self.assertEqual(len(tiers_for_product.json()["items"]), 2)
+
+        deleted = self.client.delete(f"/api/pricing/tiers/{tier.json()['id']}", headers=headers)
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        after_delete = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=25", headers=headers
+        )
+        self.assertEqual(after_delete.json()["unit_price"], 1000)
+
 
 if __name__ == "__main__":
     unittest.main()

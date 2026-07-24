@@ -54,6 +54,7 @@ const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
 const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
+const PricingTiers = lazy(() => import("./pages/PricingTiers"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -167,6 +168,7 @@ function AppContent() {
           <Route path="data-import" element={<DataImportCenter />} />
           <Route path="account-security" element={<AccountSecurity />} />
           <Route path="catalog-manager" element={<CatalogManager />} />
+          <Route path="pricing-tiers" element={<PricingTiers />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

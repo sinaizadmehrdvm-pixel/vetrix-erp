@@ -5,7 +5,7 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen,
+  BookOpen, Layers,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -29,6 +29,7 @@ const groups = [
     items: [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
+      { key: "pricingTiers", fa: "قیمت‌گذاری پلکانی", en: "Tiered pricing", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
     ],
   },
   {

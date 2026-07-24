@@ -49,6 +49,7 @@ const emptyForm = {
   opening_balance: "",
   credit_limit: "",
   notes: "",
+  pricing_group: "retail",
 };
 
 const inputClass =
@@ -338,6 +339,7 @@ export default function Customers() {
       opening_balance: toNumber(form.opening_balance),
       credit_limit: toNumber(form.credit_limit),
       notes: form.notes || "",
+      pricing_group: form.pricing_group || "retail",
     };
   }
 
@@ -651,6 +653,15 @@ export default function Customers() {
             <option value="company">{t("companyParty")}</option>
             <option value="doctor">{t("doctorParty")}</option>
             <option value="other">{t("otherParty")}</option>
+          </select>
+
+          <select
+            value={form.pricing_group}
+            onChange={(e) => setForm({ ...form, pricing_group: e.target.value })}
+            className={inputClass}
+          >
+            <option value="retail">{fa ? "خرده‌فروشی" : "Retail"}</option>
+            <option value="wholesale">{fa ? "عمده‌فروشی" : "Wholesale"}</option>
           </select>
 
           <input

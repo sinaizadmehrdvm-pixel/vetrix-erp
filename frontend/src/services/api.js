@@ -202,6 +202,23 @@ export async function markCatalogOrderConverted(id) {
   return await request(`/api/catalog/orders/${id}/mark-converted`, { method: "POST" });
 }
 
+// Tiered / wholesale pricing
+export async function getPriceTiers(productId) {
+  const q = productId ? `?product_id=${productId}` : "";
+  return await request(`/api/pricing/tiers${q}`);
+}
+export async function createPriceTier(data) {
+  return await request(`/api/pricing/tiers`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function deletePriceTier(id) {
+  return await request(`/api/pricing/tiers/${id}`, { method: "DELETE" });
+}
+export async function getPriceQuote(productId, quantity, customerId) {
+  const params = new URLSearchParams({ product_id: productId, quantity: quantity || 1 });
+  if (customerId) params.set("customer_id", customerId);
+  return await request(`/api/pricing/quote?${params.toString()}`);
+}
+
 // Vetrix Smart Inventory API - Enterprise Phase 2
 export async function getSmartInventoryOverview(params = {}) {
   const q = new URLSearchParams(params).toString();
