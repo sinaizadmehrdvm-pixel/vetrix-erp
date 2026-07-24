@@ -12,6 +12,7 @@ import ExportButtons from "../export/ExportButtons";
 import LiveClock from "../widgets/LiveClock";
 import SmartSearch from "../search/SmartSearch";
 import LiveNotification from "../components/LiveNotification";
+import { useLiveNotifications } from "../hooks/useLiveNotifications";
 
 import {
   DollarSign,
@@ -86,6 +87,37 @@ function normalizeInsight(insight, t) {
     status_fa: insight.status_fa || t("goodFinancialCondition"),
     recommendation_fa: insight.recommendation_fa || t("improveSalesStrategy"),
   };
+}
+
+function mapLiveEventToNotification(event, fa, money) {
+  if (event.type === "low_stock") {
+    return {
+      type: "warning",
+      title: "Low stock alert",
+      title_fa: "هشدار موجودی کم",
+      message: `${event.product_name} stock is low (${event.stock}).`,
+      message_fa: `موجودی «${event.product_name}» کم است (${event.stock}).`,
+    };
+  }
+  if (event.type === "new_invoice") {
+    return {
+      type: "success",
+      title: "New sale invoice",
+      title_fa: "فاکتور فروش جدید",
+      message: `Invoice #${event.invoice_id} for ${money(event.total_amount)}.`,
+      message_fa: `فاکتور شماره ${event.invoice_id} به مبلغ ${money(event.total_amount)}.`,
+    };
+  }
+  if (event.type === "payment_received") {
+    return {
+      type: "success",
+      title: "Payment received",
+      title_fa: "دریافت وجه",
+      message: `Received ${money(event.amount)}.`,
+      message_fa: `مبلغ ${money(event.amount)} دریافت شد.`,
+    };
+  }
+  return null;
 }
 
 function normalizeNotifications(items, t) {
@@ -263,15 +295,23 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
+  const liveEvents = useLiveNotifications();
+
   const dashboardData = useMemo(() => {
     if (!stats) return null;
+    const pushedNotifications = liveEvents
+      .map((event) => mapLiveEventToNotification(event, language === "fa", money))
+      .filter(Boolean);
     return {
       ...stats,
       alerts: normalizeAlerts(stats.alerts, t),
       ai_insight: normalizeInsight(stats.ai_insight, t),
-      live_notifications: normalizeNotifications(stats.live_notifications, t),
+      live_notifications: [
+        ...pushedNotifications,
+        ...normalizeNotifications(stats.live_notifications, t),
+      ],
     };
-  }, [stats, t]);
+  }, [stats, t, liveEvents, language, money]);
 
   const activityData = useMemo(() => {
     return normalizeActivity(activity, t);

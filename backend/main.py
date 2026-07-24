@@ -24,6 +24,8 @@ from jwt import PyJWTError
 
 from app.notifications.alerts import get_low_stock_alerts
 from app.notifications.live import build_live_notifications
+from app.notifications.broadcaster import broadcaster
+from app.notifications.ws_routes import router as notifications_ws_router
 from app.ai.finance_ai import generate_financial_insight
 from app.analytics.profit_engine import build_profit_analysis
 from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
@@ -239,6 +241,7 @@ app.include_router(data_import_router)
 app.include_router(settings_router)
 app.include_router(users_router)
 app.include_router(mfa_router)
+app.include_router(notifications_ws_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -643,6 +646,20 @@ def product_to_dict(product):
         "stock_value_sell": stock * sell_price,
         "value": stock * sell_price,
     }
+
+
+def publish_low_stock_if_needed(product: Product):
+    min_stock = float(getattr(product, "min_stock", 0) or 0)
+    stock = float(getattr(product, "stock", 0) or 0)
+    if min_stock > 0 and stock <= min_stock:
+        broadcaster.publish(
+            "low_stock",
+            product_id=product.id,
+            product_name=product.name,
+            stock=stock,
+            min_stock=min_stock,
+        )
+
 
 @app.get("/")
 def root():
@@ -1252,6 +1269,15 @@ def create_invoice(data: InvoiceCreate):
         post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.commit()
         db.refresh(invoice)
+        if invoice.invoice_type == "sale":
+            broadcaster.publish(
+                "new_invoice",
+                invoice_id=invoice.id,
+                customer_id=invoice.customer_id,
+                total_amount=invoice.total_amount,
+            )
+        for item in data.items:
+            publish_low_stock_if_needed(products[item.product_id])
         return {
             "status": "created", "invoice_id": invoice.id,
             "invoice_type": invoice.invoice_type, "customer_id": invoice.customer_id,
@@ -1504,6 +1530,13 @@ def create_payment_or_receipt(data: PaymentCreate):
         )
         post_transaction_to_general_ledger(db, entry, data.method, invoice, policy)
         db.commit()
+        if data.transaction_type == "receipt":
+            broadcaster.publish(
+                "payment_received",
+                customer_id=data.customer_id,
+                amount=amount,
+                invoice_id=invoice_id,
+            )
         return {
             "status": "created",
             "entry_id": entry.id,
@@ -1683,6 +1716,7 @@ def create_stock_movement(data: StockMovementCreate):
         )
         updated_stock = float(product.stock or 0)
         db.commit()
+        publish_low_stock_if_needed(product)
         return {
             "status": "created",
             "id": movement_id,

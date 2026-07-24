@@ -2694,6 +2694,32 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(final_login.status_code, 200, final_login.text)
         self.assertEqual(final_login.json()["status"], "success")
 
+    def test_zzzzzzzzz_live_notifications_websocket_rejects_and_broadcasts(self):
+        from app.notifications.broadcaster import broadcaster
+
+        with self.assertRaises(Exception):
+            with self.client.websocket_connect("/ws/notifications"):
+                pass
+
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        token = admin_login.json()["access_token"]
+
+        with self.client.websocket_connect(f"/ws/notifications?token={token}") as websocket:
+            broadcaster.publish(
+                "low_stock", product_id=999, product_name="Websocket Test Product", stock=1, min_stock=5
+            )
+            message = websocket.receive_json()
+            self.assertEqual(message["type"], "low_stock")
+            self.assertEqual(message["product_id"], 999)
+
+        with self.assertRaises(Exception):
+            with self.client.websocket_connect("/ws/notifications?token=not-a-real-token"):
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()
