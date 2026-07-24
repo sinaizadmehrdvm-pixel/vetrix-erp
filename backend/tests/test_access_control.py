@@ -3189,6 +3189,102 @@ class ApiAccessControlTests(unittest.TestCase):
         revoked_link_rejected = self.client.get("/api/supplier-portal/me", headers=portal_headers)
         self.assertEqual(revoked_link_rejected.status_code, 401)
 
+    def test_zzzzzzzzzzzzzzzzz_recurring_invoice_generation_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Recurring Invoice Customer"}
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=headers,
+            json={"name": "Subscription Fee", "sell_price": 500000, "stock": 1000},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        invoices_before = self.client.get("/invoices", headers=headers)
+        invoice_count_before = len(invoices_before.json())
+
+        # Rejected: frequency=custom without an interval.
+        bad_template = self.client.post(
+            "/api/recurring-invoices", headers=headers,
+            json={
+                "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 500000}],
+                "frequency": "custom",
+            },
+        )
+        self.assertEqual(bad_template.status_code, 400)
+
+        # A weekly template starting today is immediately due - creating it
+        # triggers generation via the same post-response hook auto-backup
+        # uses, so the very first invoice appears without a second call.
+        template = self.client.post(
+            "/api/recurring-invoices", headers=headers,
+            json={
+                "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 500000}],
+                "frequency": "weekly",
+            },
+        )
+        self.assertEqual(template.status_code, 200, template.text)
+        template_id = template.json()["id"]
+        original_next_run = template.json()["next_run_date"]
+
+        listing = self.client.get("/api/recurring-invoices", headers=headers)
+        self.assertEqual(listing.status_code, 200, listing.text)
+        entry = next(item for item in listing.json()["items"] if item["id"] == template_id)
+        self.assertIsNotNone(entry["last_generated_invoice_id"])
+        self.assertIsNone(entry["last_generation_error"])
+        self.assertGreater(entry["next_run_date"], original_next_run)
+
+        invoices_after = self.client.get("/invoices", headers=headers)
+        self.assertEqual(len(invoices_after.json()), invoice_count_before + 1)
+        generated = next(
+            inv for inv in invoices_after.json() if inv["id"] == entry["last_generated_invoice_id"]
+        )
+        self.assertEqual(generated["customer_id"], customer_id)
+        self.assertEqual(generated["total_amount"], 500000)
+
+        # Pausing stops further generation even though next_run_date is now
+        # in the past relative to "today" for a template checked again later.
+        pause = self.client.post(f"/api/recurring-invoices/{template_id}/pause", headers=headers)
+        self.assertEqual(pause.status_code, 200, pause.text)
+        after_pause = self.client.get("/invoices", headers=headers)
+        self.assertEqual(len(after_pause.json()), invoice_count_before + 1)
+
+        resume = self.client.post(f"/api/recurring-invoices/{template_id}/resume", headers=headers)
+        self.assertEqual(resume.status_code, 200, resume.text)
+
+        # A non-management role must not create recurring templates.
+        viewer_login = self.client.post(
+            "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+        )
+        self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+        viewer_blocked = self.client.post(
+            "/api/recurring-invoices", headers=viewer_headers,
+            json={
+                "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 500000}],
+                "frequency": "weekly",
+            },
+        )
+        self.assertEqual(viewer_blocked.status_code, 403)
+
+        delete = self.client.delete(f"/api/recurring-invoices/{template_id}", headers=headers)
+        self.assertEqual(delete.status_code, 200, delete.text)
+        listing_after_delete = self.client.get("/api/recurring-invoices", headers=headers)
+        self.assertFalse(any(item["id"] == template_id for item in listing_after_delete.json()["items"]))
+
 
 if __name__ == "__main__":
     unittest.main()

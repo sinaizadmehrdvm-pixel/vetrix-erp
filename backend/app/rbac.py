@@ -84,6 +84,7 @@ READ_RULES = (
     # Same reasoning as the customer portal above: /me, /invoices, /ledger
     # are public and self-verify their own supplier portal token.
     ("/api/supplier-portal", {"admin", "accountant", "warehouse"}),
+    ("/api/recurring-invoices", {"admin", "accountant", "sales"}),
     # Same reasoning: /api/catalog/view(/order) are public and self-verify
     # their own token, so this only governs the staff management endpoints.
     ("/api/catalog", {"admin", "accountant", "sales"}),
@@ -112,6 +113,7 @@ MUTATION_RULES = (
     ("/customers", {"admin", "accountant", "sales"}),
     ("/api/customer-portal", {"admin", "accountant", "sales"}),
     ("/api/supplier-portal", {"admin", "accountant", "warehouse"}),
+    ("/api/recurring-invoices", {"admin", "accountant", "sales"}),
     ("/api/catalog", {"admin", "accountant", "sales"}),
     ("/api/pricing", {"admin", "accountant", "warehouse"}),
     ("/api/crm", {"admin", "sales"}),

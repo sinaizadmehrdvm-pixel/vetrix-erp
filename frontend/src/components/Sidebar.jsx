@@ -20,6 +20,7 @@ const groups = [
       { key: "parties", fallbackKey: "customers", icon: UsersRound, path: "/customers" },
       { key: "products", icon: Package, path: "/products" },
       { key: "invoices", icon: Receipt, path: "/invoices" },
+      { key: "recurringInvoices", fa: "فاکتور تکرارشونده", en: "Recurring invoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
       { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
       { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
     ],

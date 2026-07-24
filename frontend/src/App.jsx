@@ -56,6 +56,7 @@ const SupplierPortalView = lazy(() => import("./pages/SupplierPortalView"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
 const PricingTiers = lazy(() => import("./pages/PricingTiers"));
+const RecurringInvoices = lazy(() => import("./pages/RecurringInvoices"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -171,6 +172,7 @@ function AppContent() {
           <Route path="account-security" element={<AccountSecurity />} />
           <Route path="catalog-manager" element={<CatalogManager />} />
           <Route path="pricing-tiers" element={<PricingTiers />} />
+          <Route path="recurring-invoices" element={<RecurringInvoices />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

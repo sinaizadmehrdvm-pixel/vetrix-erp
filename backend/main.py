@@ -78,6 +78,7 @@ from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
 from app.supplier_portal import router as supplier_portal_router
+from app.recurring_invoices import maybe_generate_due_recurring_invoices, router as recurring_invoices_router
 from app.catalog import router as catalog_router
 from app.catalog_messaging import router as catalog_messaging_router
 from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
@@ -254,6 +255,7 @@ app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
 app.include_router(customer_portal_router)
 app.include_router(supplier_portal_router)
+app.include_router(recurring_invoices_router)
 app.include_router(catalog_router)
 app.include_router(catalog_messaging_router)
 app.include_router(pricing_router)
@@ -283,6 +285,7 @@ async def require_authenticated_api(request: Request, call_next):
                 await run_in_threadpool(record_audit_event, request, status_code)
                 if status_code < 400:
                     await run_in_threadpool(maybe_create_automatic_backup)
+                    await run_in_threadpool(maybe_generate_due_recurring_invoices)
             except Exception:
                 # Audit storage must never turn a completed business operation
                 # into a client-visible failure.

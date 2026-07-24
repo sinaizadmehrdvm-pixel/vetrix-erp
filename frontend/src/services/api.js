@@ -200,6 +200,21 @@ export async function revokeSupplierPortalAccess(customerId) {
   return await request(`/api/supplier-portal/${customerId}/revoke`, { method: "POST" });
 }
 
+// Recurring / subscription invoices
+export async function getRecurringInvoices() { return await request("/api/recurring-invoices"); }
+export async function createRecurringInvoice(data) {
+  return await request("/api/recurring-invoices", { method: "POST", body: JSON.stringify(data) });
+}
+export async function pauseRecurringInvoice(id) {
+  return await request(`/api/recurring-invoices/${id}/pause`, { method: "POST" });
+}
+export async function resumeRecurringInvoice(id) {
+  return await request(`/api/recurring-invoices/${id}/resume`, { method: "POST" });
+}
+export async function deleteRecurringInvoice(id) {
+  return await request(`/api/recurring-invoices/${id}`, { method: "DELETE" });
+}
+
 // Digital & print product catalog
 export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
 export async function createCatalogLink(data) {
