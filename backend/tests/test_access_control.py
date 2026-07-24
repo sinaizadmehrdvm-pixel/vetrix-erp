@@ -3101,6 +3101,94 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(bad_approve.status_code, 200, bad_approve.text)
         self.assertEqual(bad_approve.json()["status"], "failed")
 
+    def test_zzzzzzzzzzzzzzzz_supplier_self_service_portal_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        # A plain customer_type cannot get a supplier portal link.
+        plain_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Not A Supplier", "customer_type": "customer"}
+        )
+        self.assertEqual(plain_customer.status_code, 200, plain_customer.text)
+        plain_customer_id = plain_customer.json()["id"]
+        rejected_link = self.client.post(
+            f"/api/supplier-portal/{plain_customer_id}/access-link", headers=headers
+        )
+        self.assertEqual(rejected_link.status_code, 400)
+
+        supplier = self.client.post(
+            "/customers", headers=headers, json={"name": "Portal Test Supplier", "customer_type": "supplier"}
+        )
+        self.assertEqual(supplier.status_code, 200, supplier.text)
+        supplier_id = supplier.json()["id"]
+
+        status_before = self.client.get(
+            f"/api/supplier-portal/{supplier_id}/status", headers=headers
+        )
+        self.assertEqual(status_before.status_code, 200, status_before.text)
+        self.assertFalse(status_before.json()["enabled"])
+
+        blocked_before_link = self.client.get("/api/supplier-portal/me")
+        self.assertEqual(blocked_before_link.status_code, 401)
+
+        access_link = self.client.post(
+            f"/api/supplier-portal/{supplier_id}/access-link", headers=headers
+        )
+        self.assertEqual(access_link.status_code, 200, access_link.text)
+        portal_token = access_link.json()["token"]
+        portal_headers = {"Authorization": f"Bearer {portal_token}"}
+
+        status_after = self.client.get(
+            f"/api/supplier-portal/{supplier_id}/status", headers=headers
+        )
+        self.assertTrue(status_after.json()["enabled"])
+
+        # A staff bearer token must never work against the supplier-facing paths.
+        staff_token_rejected = self.client.get("/api/supplier-portal/me", headers=headers)
+        self.assertEqual(staff_token_rejected.status_code, 401)
+
+        # A customer-portal link must not be accepted on supplier-portal paths.
+        customer_access_link = self.client.post(
+            f"/api/customer-portal/{supplier_id}/access-link", headers=headers
+        )
+        self.assertEqual(customer_access_link.status_code, 200, customer_access_link.text)
+        cross_audience_headers = {"Authorization": f"Bearer {customer_access_link.json()['token']}"}
+        cross_audience_rejected = self.client.get("/api/supplier-portal/me", headers=cross_audience_headers)
+        self.assertEqual(cross_audience_rejected.status_code, 401)
+
+        portal_me = self.client.get("/api/supplier-portal/me", headers=portal_headers)
+        self.assertEqual(portal_me.status_code, 200, portal_me.text)
+        self.assertEqual(portal_me.json()["supplier"]["id"], supplier_id)
+
+        portal_invoices = self.client.get("/api/supplier-portal/invoices", headers=portal_headers)
+        self.assertEqual(portal_invoices.status_code, 200, portal_invoices.text)
+        self.assertEqual(portal_invoices.json()["items"], [])
+
+        portal_ledger = self.client.get("/api/supplier-portal/ledger", headers=portal_headers)
+        self.assertEqual(portal_ledger.status_code, 200, portal_ledger.text)
+        self.assertEqual(portal_ledger.json()["balance"], 0)
+
+        # A non-management role must not manage other suppliers' portal links.
+        viewer_login = self.client.post(
+            "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+        )
+        self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+        viewer_blocked = self.client.post(
+            f"/api/supplier-portal/{supplier_id}/access-link", headers=viewer_headers
+        )
+        self.assertEqual(viewer_blocked.status_code, 403)
+
+        revoke = self.client.post(f"/api/supplier-portal/{supplier_id}/revoke", headers=headers)
+        self.assertEqual(revoke.status_code, 200, revoke.text)
+
+        revoked_link_rejected = self.client.get("/api/supplier-portal/me", headers=portal_headers)
+        self.assertEqual(revoked_link_rejected.status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main()

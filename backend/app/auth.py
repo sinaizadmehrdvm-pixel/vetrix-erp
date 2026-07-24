@@ -183,6 +183,38 @@ def decode_customer_portal_token(token: str) -> dict:
     )
 
 
+SUPPLIER_PORTAL_AUDIENCE = "vetrix-erp-supplier-portal"
+SUPPLIER_PORTAL_LINK_DAYS = 90
+
+
+def create_supplier_portal_token(customer_id: int, token_generation: int = 0) -> str:
+    """Same shape as the customer portal token but its own audience, so a
+    party marked both customer and supplier can have either link revoked
+    independently of the other."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "customer_id": customer_id,
+        "gen": int(token_generation or 0),
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(days=SUPPLIER_PORTAL_LINK_DAYS),
+        "iss": TOKEN_ISSUER,
+        "aud": SUPPLIER_PORTAL_AUDIENCE,
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+
+def decode_supplier_portal_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _jwt_secret(),
+        algorithms=[TOKEN_ALGORITHM],
+        issuer=TOKEN_ISSUER,
+        audience=SUPPLIER_PORTAL_AUDIENCE,
+        options={"require": ["exp", "iat", "customer_id", "iss", "aud"]},
+    )
+
+
 CATALOG_AUDIENCE = "vetrix-erp-catalog"
 CATALOG_LINK_DAYS = 60
 
@@ -233,6 +265,9 @@ PUBLIC_PATHS = {
     "/api/customer-portal/me",
     "/api/customer-portal/invoices",
     "/api/customer-portal/ledger",
+    "/api/supplier-portal/me",
+    "/api/supplier-portal/invoices",
+    "/api/supplier-portal/ledger",
     "/api/catalog/view",
     "/api/catalog/view/order",
 }

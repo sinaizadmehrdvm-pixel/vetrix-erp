@@ -26,9 +26,12 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import {
   createCustomerPortalLink,
+  createSupplierPortalLink,
   getCustomerLedger,
   getCustomerPortalStatus,
+  getSupplierPortalStatus,
   revokeCustomerPortalAccess,
+  revokeSupplierPortalAccess,
 } from "../services/api";
 
 function toNumber(value) {
@@ -119,6 +122,9 @@ export default function CustomerDetails() {
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalLink, setPortalLink] = useState("");
   const [portalBusy, setPortalBusy] = useState(false);
+  const [supplierPortalEnabled, setSupplierPortalEnabled] = useState(false);
+  const [supplierPortalLink, setSupplierPortalLink] = useState("");
+  const [supplierPortalBusy, setSupplierPortalBusy] = useState(false);
 
   const isFa = language === "fa";
 
@@ -156,6 +162,14 @@ export default function CustomerDetails() {
     return () => { active = false; };
   }, [id]);
 
+  useEffect(() => {
+    let active = true;
+    getSupplierPortalStatus(id)
+      .then((data) => { if (active) setSupplierPortalEnabled(Boolean(data?.enabled)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+
   async function generatePortalLink() {
     setPortalBusy(true);
     try {
@@ -187,6 +201,43 @@ export default function CustomerDetails() {
   async function copyPortalLink() {
     try {
       await navigator.clipboard.writeText(portalLink);
+      toast.success(isFa ? "لینک کپی شد." : "Link copied.");
+    } catch {
+      toast.error(isFa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
+    }
+  }
+
+  async function generateSupplierPortalLink() {
+    setSupplierPortalBusy(true);
+    try {
+      const data = await createSupplierPortalLink(id);
+      setSupplierPortalLink(`${window.location.origin}/supplier-portal/${data.token}`);
+      setSupplierPortalEnabled(true);
+      toast.success(isFa ? "لینک پورتال تأمین‌کننده ساخته شد." : "Supplier portal link created.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSupplierPortalBusy(false);
+    }
+  }
+
+  async function revokeSupplierPortalLink() {
+    setSupplierPortalBusy(true);
+    try {
+      await revokeSupplierPortalAccess(id);
+      setSupplierPortalEnabled(false);
+      setSupplierPortalLink("");
+      toast.success(isFa ? "دسترسی پورتال تأمین‌کننده لغو شد." : "Supplier portal access revoked.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSupplierPortalBusy(false);
+    }
+  }
+
+  async function copySupplierPortalLink() {
+    try {
+      await navigator.clipboard.writeText(supplierPortalLink);
       toast.success(isFa ? "لینک کپی شد." : "Link copied.");
     } catch {
       toast.error(isFa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
@@ -457,6 +508,28 @@ export default function CustomerDetails() {
               {isFa ? "ساخت لینک پورتال مشتری" : "Create customer portal link"}
             </button>
           )}
+
+          {(party.customer_type === "supplier" || party.customer_type === "both") && (
+            supplierPortalEnabled ? (
+              <button
+                onClick={revokeSupplierPortalLink}
+                disabled={supplierPortalBusy}
+                className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
+              >
+                <ShieldOff size={18} />
+                {isFa ? "لغو پورتال تأمین‌کننده" : "Revoke supplier portal"}
+              </button>
+            ) : (
+              <button
+                onClick={generateSupplierPortalLink}
+                disabled={supplierPortalBusy}
+                className="px-4 py-3 rounded-2xl bg-teal-500/15 text-teal-200 font-black flex items-center gap-2 border border-teal-400/20 disabled:opacity-60"
+              >
+                <Link2 size={18} />
+                {isFa ? "ساخت لینک پورتال تأمین‌کننده" : "Create supplier portal link"}
+              </button>
+            )
+          )}
         </div>
 
         <div className="text-right">
@@ -475,6 +548,18 @@ export default function CustomerDetails() {
           <button
             onClick={copyPortalLink}
             className="px-4 py-2 rounded-xl bg-indigo-400 text-slate-950 font-black flex-shrink-0"
+          >
+            {isFa ? "کپی لینک" : "Copy link"}
+          </button>
+        </div>
+      )}
+
+      {supplierPortalLink && (
+        <div className="bg-teal-500/10 border border-teal-400/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px] font-mono text-sm text-teal-200 break-all">{supplierPortalLink}</div>
+          <button
+            onClick={copySupplierPortalLink}
+            className="px-4 py-2 rounded-xl bg-teal-400 text-slate-950 font-black flex-shrink-0"
           >
             {isFa ? "کپی لینک" : "Copy link"}
           </button>

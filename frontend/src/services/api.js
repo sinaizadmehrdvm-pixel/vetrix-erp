@@ -189,6 +189,17 @@ export async function revokeCustomerPortalAccess(customerId) {
   return await request(`/api/customer-portal/${customerId}/revoke`, { method: "POST" });
 }
 
+// Supplier self-service portal (staff-side management)
+export async function getSupplierPortalStatus(customerId) {
+  return await request(`/api/supplier-portal/${customerId}/status`);
+}
+export async function createSupplierPortalLink(customerId) {
+  return await request(`/api/supplier-portal/${customerId}/access-link`, { method: "POST" });
+}
+export async function revokeSupplierPortalAccess(customerId) {
+  return await request(`/api/supplier-portal/${customerId}/revoke`, { method: "POST" });
+}
+
 // Digital & print product catalog
 export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
 export async function createCatalogLink(data) {

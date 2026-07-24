@@ -77,6 +77,7 @@ from app.settings_routes import get_or_create_settings, router as settings_route
 from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
+from app.supplier_portal import router as supplier_portal_router
 from app.catalog import router as catalog_router
 from app.catalog_messaging import router as catalog_messaging_router
 from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
@@ -126,6 +127,8 @@ def ensure_database_schema():
         "portal_access_enabled": "portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
         "portal_token_generation": "portal_token_generation INTEGER DEFAULT 0 NOT NULL",
         "pricing_group": "pricing_group VARCHAR DEFAULT 'retail' NOT NULL",
+        "supplier_portal_access_enabled": "supplier_portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "supplier_portal_token_generation": "supplier_portal_token_generation INTEGER DEFAULT 0 NOT NULL",
     }
 
     invoice_columns = {
@@ -250,6 +253,7 @@ app.include_router(users_router)
 app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
 app.include_router(customer_portal_router)
+app.include_router(supplier_portal_router)
 app.include_router(catalog_router)
 app.include_router(catalog_messaging_router)
 app.include_router(pricing_router)
