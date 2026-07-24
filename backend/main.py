@@ -908,6 +908,26 @@ def list_products():
         db.close()
 
 
+@app.get("/products/lookup")
+def lookup_product_by_code(code: str):
+    """Barcode/code scan lookup - used by the camera barcode scanner."""
+    normalized = str(code or "").strip()
+    if not normalized:
+        return {"status": "error", "message": "code is required"}
+    db: Session = SessionLocal()
+    try:
+        product = (
+            db.query(Product)
+            .filter((Product.barcode == normalized) | (Product.code == normalized))
+            .first()
+        )
+        if not product:
+            return {"status": "not_found"}
+        return {"status": "found", "product": product_to_dict(product)}
+    finally:
+        db.close()
+
+
 @app.post("/products")
 def create_product(data: ProductCreate):
     db: Session = SessionLocal()

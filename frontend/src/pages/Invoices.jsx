@@ -20,6 +20,7 @@ import {
   Edit3,
   Save,
   X,
+  ScanBarcode,
 } from "lucide-react";
 
 import {
@@ -32,7 +33,10 @@ import {
   deleteInvoice as apiDeleteInvoice,
   getCustomerLedger,
   getPriceQuote,
+  lookupProductByCode,
 } from "../services/api";
+import toast from "react-hot-toast";
+import BarcodeScannerModal from "../components/BarcodeScannerModal";
 
 import { useLanguage } from "../localization/useLanguage";
 import InvoiceSummary from "../invoice/InvoiceSummary";
@@ -171,6 +175,7 @@ export default function Invoices() {
   const [selectedCustomerLedger, setSelectedCustomerLedger] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState([{ ...emptyItem }]);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   async function saveAllCache(payload) {
@@ -304,6 +309,31 @@ export default function Invoices() {
 
   function addItem() {
     setItems([...items, { ...emptyItem }]);
+  }
+
+  async function handleBarcodeDetected(code) {
+    setScannerOpen(false);
+    try {
+      const result = await lookupProductByCode(code);
+      if (result.status !== "found") {
+        toast.error(fa ? "کالایی با این بارکد پیدا نشد." : "No product found for that barcode.");
+        return;
+      }
+      const product = result.product;
+      const newItem = {
+        product_id: String(product.id),
+        quantity: faText(1, fa),
+        unit_price: faText(product.sell_price || product.price || 0, fa),
+      };
+      const nextIndex = items.length;
+      setItems([...items, newItem]);
+      toast.success(fa ? `${product.name} اضافه شد.` : `${product.name} added.`);
+      if (form.invoice_type === "sale") {
+        void applyPriceQuote(nextIndex, product.id, 1);
+      }
+    } catch (err) {
+      toast.error(err.message || (fa ? "خطا در جستجوی بارکد" : "Barcode lookup failed"));
+    }
   }
 
   function removeItem(index) {
@@ -808,19 +838,36 @@ export default function Invoices() {
         />
 
         <div className="flex items-center justify-between mt-5 gap-4 flex-wrap">
-          <button
-            type="button"
-            onClick={addItem}
-            className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-300 font-bold flex items-center gap-2 border border-cyan-500/20"
-          >
-            <Plus size={18} />
-            {label.addItem}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={addItem}
+              className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-300 font-bold flex items-center gap-2 border border-cyan-500/20"
+            >
+              <Plus size={18} />
+              {label.addItem}
+            </button>
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="px-5 py-3 rounded-2xl bg-indigo-500/20 text-indigo-200 font-bold flex items-center gap-2 border border-indigo-400/20"
+            >
+              <ScanBarcode size={18} />
+              {fa ? "اسکن بارکد" : "Scan barcode"}
+            </button>
+          </div>
 
           <div className="text-2xl font-black text-cyan-300">
             {label.grandTotal}: {money(calc.grandTotal)}
           </div>
         </div>
+
+        <BarcodeScannerModal
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onDetected={handleBarcodeDetected}
+          fa={fa}
+        />
 
         <div className="flex gap-3 flex-wrap">
           <button

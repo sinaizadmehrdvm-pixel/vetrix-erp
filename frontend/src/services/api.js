@@ -86,6 +86,9 @@ export async function updateCustomer(id, data) { return await request(`/customer
 export async function deleteCustomer(id) { return await request(`/customers/${id}`, { method: "DELETE" }); }
 
 export async function getProducts() { return await request("/products"); }
+export async function lookupProductByCode(code) {
+  return await request(`/products/lookup?code=${encodeURIComponent(code)}`);
+}
 export async function createProduct(data) { return await request("/products", { method: "POST", body: JSON.stringify(data) }); }
 export async function updateProduct(id, data) { return await request(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteProduct(id) { return await request(`/products/${id}`, { method: "DELETE" }); }

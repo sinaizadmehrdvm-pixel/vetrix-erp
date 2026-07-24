@@ -2984,6 +2984,34 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(after_delete.json()["unit_price"], 1000)
 
+    def test_zzzzzzzzzzzzzz_barcode_lookup_endpoint(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={"name": "Scan Test Product", "barcode": "SCAN12345", "price": 999, "stock": 1},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        found = self.client.get("/products/lookup?code=SCAN12345", headers=headers)
+        self.assertEqual(found.status_code, 200, found.text)
+        self.assertEqual(found.json()["status"], "found")
+        self.assertEqual(found.json()["product"]["id"], product_id)
+
+        not_found = self.client.get("/products/lookup?code=does-not-exist", headers=headers)
+        self.assertEqual(not_found.status_code, 200, not_found.text)
+        self.assertEqual(not_found.json()["status"], "not_found")
+
+        unauthenticated = self.client.get("/products/lookup?code=SCAN12345")
+        self.assertEqual(unauthenticated.status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main()
