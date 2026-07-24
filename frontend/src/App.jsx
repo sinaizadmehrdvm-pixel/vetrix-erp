@@ -54,6 +54,7 @@ const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
 const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
 const SupplierPortalView = lazy(() => import("./pages/SupplierPortalView"));
 const PaymentGatewayView = lazy(() => import("./pages/PaymentGatewayView"));
+const PaymentReminders = lazy(() => import("./pages/PaymentReminders"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
 const PricingTiers = lazy(() => import("./pages/PricingTiers"));
@@ -175,6 +176,7 @@ function AppContent() {
           <Route path="catalog-manager" element={<CatalogManager />} />
           <Route path="pricing-tiers" element={<PricingTiers />} />
           <Route path="recurring-invoices" element={<RecurringInvoices />} />
+          <Route path="payment-reminders" element={<PaymentReminders />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

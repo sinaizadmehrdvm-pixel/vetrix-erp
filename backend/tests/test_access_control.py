@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -3435,6 +3436,130 @@ class ApiAccessControlTests(unittest.TestCase):
                 json={"invoice_id": other_invoice.json()["invoice_id"]},
             )
             self.assertEqual(cross_customer_blocked.status_code, 404)
+
+    def test_zzzzzzzzzzzzzzzzzzz_automated_payment_reminder_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        status = self.client.get("/api/payment-reminders/status", headers=headers)
+        self.assertEqual(status.status_code, 200, status.text)
+        self.assertFalse(status.json()["smtp_configured"])
+
+        customer = self.client.post(
+            "/customers", headers=headers,
+            json={"name": "Overdue Reminder Customer", "email": "overdue@example.com"},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Overdue Widget", "sell_price": 400000, "stock": 50}
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        invoice = self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 400000}],
+            },
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        # Freshly created - not overdue yet under the default threshold.
+        overdue_before = self.client.get("/api/payment-reminders/overdue", headers=headers)
+        self.assertFalse(any(item["invoice_id"] == invoice_id for item in overdue_before.json()["items"]))
+
+        # Backdate it past the default 7-day threshold.
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE invoices SET created_at=:d WHERE id=:id"),
+                {"d": (datetime.utcnow() - timedelta(days=10)).isoformat(), "id": invoice_id},
+            )
+
+        overdue_after = self.client.get("/api/payment-reminders/overdue", headers=headers)
+        self.assertEqual(overdue_after.status_code, 200, overdue_after.text)
+        overdue_entry = next(
+            item for item in overdue_after.json()["items"] if item["invoice_id"] == invoice_id
+        )
+        self.assertEqual(overdue_entry["remaining_amount"], 400000)
+
+        # That GET was itself a successful authenticated request, so the
+        # automatic sweep piggybacked on its post-response hook already
+        # found this now-overdue invoice and logged one attempt for it.
+        log_after_overdue_check = self.client.get("/api/payment-reminders/log", headers=headers)
+        entries_so_far = [
+            row for row in log_after_overdue_check.json()["items"] if row["invoice_id"] == invoice_id
+        ]
+        self.assertEqual(len(entries_so_far), 1)
+        self.assertEqual(entries_so_far[0]["status"], "skipped_not_configured")
+
+        # A non-management role must not trigger a manual reminder.
+        viewer_login = self.client.post(
+            "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+        )
+        self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+        viewer_blocked = self.client.post(f"/api/payment-reminders/send/{invoice_id}", headers=viewer_headers)
+        self.assertEqual(viewer_blocked.status_code, 403)
+
+        # SMTP is not configured in this test environment, so sending fails
+        # closed and is honestly logged rather than silently doing nothing.
+        # A manual send always bypasses the cooldown (force=True) - staff
+        # intent is never silently dropped, even though an automatic attempt
+        # was just logged above.
+        send_now = self.client.post(f"/api/payment-reminders/send/{invoice_id}", headers=headers)
+        self.assertEqual(send_now.status_code, 200, send_now.text)
+        self.assertEqual(send_now.json()["status"], "skipped_not_configured")
+
+        send_again = self.client.post(f"/api/payment-reminders/send/{invoice_id}", headers=headers)
+        self.assertEqual(send_again.status_code, 200, send_again.text)
+
+        log = self.client.get("/api/payment-reminders/log", headers=headers)
+        self.assertEqual(log.status_code, 200, log.text)
+        entries_for_invoice = [row for row in log.json()["items"] if row["invoice_id"] == invoice_id]
+        self.assertEqual(len(entries_for_invoice), 3)
+
+        # The automatic background sweep (piggybacked on every request,
+        # including the ones above) must respect the cooldown and not add a
+        # fourth entry right away just because another request came in.
+        self.client.get("/invoices", headers=headers)
+        log_after_sweep = self.client.get("/api/payment-reminders/log", headers=headers)
+        entries_after_sweep = [
+            row for row in log_after_sweep.json()["items"] if row["invoice_id"] == invoice_id
+        ]
+        self.assertEqual(len(entries_after_sweep), 3)
+
+        # A fully paid invoice cannot receive a reminder.
+        pay = self.client.post(
+            "/transactions", headers=headers,
+            json={"customer_id": customer_id, "amount": 400000, "transaction_type": "receipt", "invoice_id": invoice_id},
+        )
+        self.assertEqual(pay.status_code, 200, pay.text)
+        paid_blocked = self.client.post(f"/api/payment-reminders/send/{invoice_id}", headers=headers)
+        self.assertEqual(paid_blocked.status_code, 400)
+
+        # A purchase invoice cannot receive a (customer-facing) reminder.
+        supplier = self.client.post(
+            "/customers", headers=headers, json={"name": "Reminder Test Supplier", "customer_type": "supplier"}
+        )
+        buy_invoice = self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "buy", "customer_id": supplier.json()["id"],
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 400000}],
+            },
+        )
+        buy_blocked = self.client.post(
+            f"/api/payment-reminders/send/{buy_invoice.json()['invoice_id']}", headers=headers
+        )
+        self.assertEqual(buy_blocked.status_code, 400)
 
 
 if __name__ == "__main__":

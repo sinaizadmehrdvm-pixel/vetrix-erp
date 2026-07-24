@@ -222,6 +222,14 @@ export async function requestInvoicePaymentLink(invoiceId) {
   return await request(`/api/payments/invoices/${invoiceId}/request`, { method: "POST" });
 }
 
+// Automated overdue payment reminders
+export async function getPaymentReminderStatus() { return await request("/api/payment-reminders/status"); }
+export async function getOverdueInvoices() { return await request("/api/payment-reminders/overdue"); }
+export async function getPaymentReminderLog() { return await request("/api/payment-reminders/log"); }
+export async function sendPaymentReminderNow(invoiceId) {
+  return await request(`/api/payment-reminders/send/${invoiceId}`, { method: "POST" });
+}
+
 // Digital & print product catalog
 export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
 export async function createCatalogLink(data) {

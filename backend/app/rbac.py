@@ -85,6 +85,7 @@ READ_RULES = (
     # are public and self-verify their own supplier portal token.
     ("/api/supplier-portal", {"admin", "accountant", "warehouse"}),
     ("/api/recurring-invoices", {"admin", "accountant", "sales"}),
+    ("/api/payment-reminders", {"admin", "accountant", "sales"}),
     # Same reasoning: /api/catalog/view(/order) are public and self-verify
     # their own token, so this only governs the staff management endpoints.
     ("/api/catalog", {"admin", "accountant", "sales"}),
@@ -118,6 +119,7 @@ MUTATION_RULES = (
     # self-verify by session authority, so this only governs the
     # staff-triggered "generate a payment link" endpoint below.
     ("/api/payments", {"admin", "accountant", "sales"}),
+    ("/api/payment-reminders", {"admin", "accountant", "sales"}),
     ("/api/catalog", {"admin", "accountant", "sales"}),
     ("/api/pricing", {"admin", "accountant", "warehouse"}),
     ("/api/crm", {"admin", "sales"}),
