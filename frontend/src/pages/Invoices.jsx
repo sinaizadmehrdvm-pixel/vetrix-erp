@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useStableCallback } from "../hooks/useStableCallback";
 import {
   FileText,
@@ -86,6 +87,8 @@ function Field({ label, hint, icon, children }) {
 export default function Invoices() {
   const { language, dir, n, money } = useLanguage();
   const fa = language === "fa";
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const label = {
     invoiceSystem: fa ? "سیستم فاکتور حرفه‌ای" : "Professional Invoice System",
@@ -230,6 +233,30 @@ export default function Invoices() {
     const timer = setTimeout(() => { void stableLoadData(); }, 0);
     return () => clearTimeout(timer);
   }, [language, stableLoadData]);
+
+  // Hand-off from an approved "sale invoice draft" voice change request
+  // (ChangeRequestCenter) - prefill the form once products are loaded, then
+  // clear the navigation state so a refresh/back doesn't reapply it.
+  useEffect(() => {
+    const prefill = location.state;
+    if (!prefill?.prefillItems?.length || products.length === 0) return;
+    const timer = setTimeout(() => {
+      setForm((current) => ({ ...current, customer_id: String(prefill.prefillCustomerId || "") }));
+      setItems(
+        prefill.prefillItems.map((entry) => {
+          const product = products.find((p) => String(p.id) === String(entry.product_id));
+          return {
+            product_id: String(entry.product_id),
+            quantity: faText(entry.quantity, fa),
+            unit_price: faText(product?.sell_price || product?.price || 0, fa),
+          };
+        })
+      );
+      navigate(location.pathname, { replace: true, state: null });
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
 
   useEffect(() => {
     async function loadCustomerLedger() {

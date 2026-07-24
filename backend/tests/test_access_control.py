@@ -3012,6 +3012,95 @@ class ApiAccessControlTests(unittest.TestCase):
         unauthenticated = self.client.get("/products/lookup?code=SCAN12345")
         self.assertEqual(unauthenticated.status_code, 401)
 
+    def test_zzzzzzzzzzzzzzz_voice_to_invoice_change_request_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        user_login = self.client.post(
+            "/login", json={"username": "ci-user", "password": "StrongUserPassword!42"}
+        )
+        self.assertEqual(user_login.status_code, 200, user_login.text)
+        user_headers = {"Authorization": f"Bearer {user_login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers", headers=admin_headers, json={"name": "Voice Invoice Customer"}
+        )
+        customer_id = customer.json()["id"]
+        product = self.client.post(
+            "/products", headers=admin_headers, json={"name": "Voice Invoice Product", "price": 250, "stock": 20}
+        )
+        product_id = product.json()["id"]
+
+        missing_items = self.client.post(
+            "/api/change-requests",
+            headers=user_headers,
+            json={
+                "source": "in_app",
+                "transcript": "Sold 2 units to this customer over the phone.",
+                "action_type": "sale_invoice_draft",
+                "proposed_changes": {"customer_id": customer_id, "items": []},
+            },
+        )
+        self.assertEqual(missing_items.status_code, 400)
+
+        voice_request = self.client.post(
+            "/api/change-requests",
+            headers=user_headers,
+            json={
+                "source": "in_app",
+                "transcript": "Sold 2 units to this customer over the phone.",
+                "action_type": "sale_invoice_draft",
+                "proposed_changes": {
+                    "customer_id": customer_id,
+                    "items": [{"product_id": product_id, "quantity": 2}],
+                },
+            },
+        )
+        self.assertEqual(voice_request.status_code, 200, voice_request.text)
+        request_id = voice_request.json()["request_id"]
+
+        submit = self.client.post(f"/api/change-requests/{request_id}/submit", headers=user_headers)
+        self.assertEqual(submit.status_code, 200, submit.text)
+
+        approve = self.client.post(
+            f"/api/change-requests/{request_id}/approve",
+            headers=admin_headers,
+            json={"note": "Reviewed"},
+        )
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.assertEqual(approve.json()["status"], "applied")
+        self.assertIn("Voice Invoice Customer", approve.json()["result"])
+        self.assertIn("Voice Invoice Product", approve.json()["result"])
+
+        # A request referencing a since-deleted/nonexistent product must fail
+        # cleanly at approval rather than silently posting bad data.
+        bad_request = self.client.post(
+            "/api/change-requests",
+            headers=user_headers,
+            json={
+                "source": "in_app",
+                "transcript": "Sold a product that no longer exists.",
+                "action_type": "sale_invoice_draft",
+                "proposed_changes": {
+                    "customer_id": customer_id,
+                    "items": [{"product_id": 999999, "quantity": 1}],
+                },
+            },
+        )
+        bad_request_id = bad_request.json()["request_id"]
+        self.client.post(f"/api/change-requests/{bad_request_id}/submit", headers=user_headers)
+        bad_approve = self.client.post(
+            f"/api/change-requests/{bad_request_id}/approve",
+            headers=admin_headers,
+            json={"note": "Reviewed"},
+        )
+        self.assertEqual(bad_approve.status_code, 200, bad_approve.text)
+        self.assertEqual(bad_approve.json()["status"], "failed")
+
 
 if __name__ == "__main__":
     unittest.main()

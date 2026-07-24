@@ -16,7 +16,7 @@ from app.database import engine
 router = APIRouter(prefix="/api/change-requests", tags=["Managed Change Requests"])
 
 ALLOWED_SOURCES = {"in_app", "telegram", "whatsapp", "other"}
-ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only"}
+ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"}
 ALLOWED_PRODUCT_FIELDS = {"is_published", "sync_stock", "online_price", "discount_percent", "sale_start", "sale_end", "website_slug"}
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".opus"}
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
@@ -154,6 +154,22 @@ def _validate(action_type, target_id, changes):
             raise HTTPException(status_code=400, detail="Unsupported campaign channel")
     if action_type == "note_only" and changes:
         raise HTTPException(status_code=400, detail="Note-only requests cannot contain executable changes")
+    if action_type == "sale_invoice_draft":
+        customer_id = changes.get("customer_id")
+        if not isinstance(customer_id, int) or customer_id <= 0:
+            raise HTTPException(status_code=400, detail="A valid customer_id is required")
+        items = changes.get("items")
+        if not isinstance(items, list) or not items:
+            raise HTTPException(status_code=400, detail="At least one item is required")
+        for entry in items:
+            if not isinstance(entry, dict):
+                raise HTTPException(status_code=400, detail="Each item must be an object")
+            product_id = entry.get("product_id")
+            quantity = entry.get("quantity")
+            if not isinstance(product_id, int) or product_id <= 0:
+                raise HTTPException(status_code=400, detail="Each item needs a valid product_id")
+            if not isinstance(quantity, (int, float)) or quantity <= 0:
+                raise HTTPException(status_code=400, detail="Each item needs a quantity greater than zero")
 
 
 class ChangeRequestPayload(BaseModel):
@@ -161,7 +177,7 @@ class ChangeRequestPayload(BaseModel):
     source_reference: str = Field(default="", max_length=500)
     audio_reference: str = Field(default="", max_length=2000)
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -172,7 +188,7 @@ class DecisionPayload(BaseModel):
 
 class TranscriptReviewPayload(BaseModel):
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -431,6 +447,30 @@ def _apply(conn, item, actor):
             "now": _now(),
         })
         return f"Approved campaign draft created: {result.lastrowid}"
+    if item["action_type"] == "sale_invoice_draft":
+        customer_id = changes["customer_id"]
+        customer = conn.execute(
+            text("SELECT name FROM customers WHERE id=:id"), {"id": customer_id}
+        ).mappings().first()
+        if not customer:
+            raise ValueError(f"Customer {customer_id} no longer exists")
+        item_descriptions = []
+        for entry in changes["items"]:
+            product = conn.execute(
+                text("SELECT name FROM products WHERE id=:id"), {"id": entry["product_id"]}
+            ).mappings().first()
+            if not product:
+                raise ValueError(f"Product {entry['product_id']} no longer exists")
+            item_descriptions.append(f"{product['name']} x{entry['quantity']}")
+        # Deliberately does not create a live Invoice/GL entry here - approval
+        # only confirms the request is well-formed. A staff member still
+        # builds and reviews the real invoice through the normal Invoices
+        # page (pre-filled from this request), the same "human does the
+        # final step" pattern used for catalog orders and tiered pricing.
+        return (
+            f"Sale invoice draft ready for {customer['name']}: "
+            + ", ".join(item_descriptions)
+        )
     raise HTTPException(status_code=400, detail="Unsupported action")
 
 

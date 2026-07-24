@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, FileAudio, Mic, MicOff, PencilLine, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, FileAudio, FileText, Mic, MicOff, PencilLine, Plus, RefreshCw, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
@@ -15,12 +16,16 @@ async function api(path, options = {}) {
   return data;
 }
 
+const emptyInvoiceItem = { product_id: "", quantity: "1" };
+
 export default function ChangeRequestCenter() {
   const { language, dir } = useLanguage();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const fa = language === "fa";
   const [requests, setRequests] = useState([]);
   const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [audioName, setAudioName] = useState("");
@@ -31,17 +36,20 @@ export default function ChangeRequestCenter() {
   const [form, setForm] = useState({
     source: "in_app", source_reference: "", transcript: "",
     action_type: "note_only", target_id: "", field: "online_price", value: "",
+    invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
   });
 
   async function load() {
     setLoading(true);
     try {
-      const [requestData, productResponse] = await Promise.all([
+      const [requestData, productResponse, customerResponse] = await Promise.all([
         api(""),
         fetch(`${API_URL}/products`, { headers: getAuthHeaders() }).then((res) => res.ok ? res.json() : []),
+        fetch(`${API_URL}/customers`, { headers: getAuthHeaders() }).then((res) => res.ok ? res.json() : []),
       ]);
       setRequests(requestData);
       setProducts(Array.isArray(productResponse) ? productResponse : []);
+      setCustomers(Array.isArray(customerResponse) ? customerResponse : []);
     } catch (error) { toast.error(error.message); }
     finally { setLoading(false); }
   }
@@ -91,6 +99,14 @@ export default function ChangeRequestCenter() {
     if (form.action_type === "campaign_draft") {
       return { title: form.value || (fa ? "کمپین پیشنهادی" : "Proposed campaign"), channel: "instagram", body: form.transcript };
     }
+    if (form.action_type === "sale_invoice_draft") {
+      return {
+        customer_id: Number(form.invoice_customer_id),
+        items: form.invoice_items
+          .filter((item) => item.product_id && Number(item.quantity) > 0)
+          .map((item) => ({ product_id: Number(item.product_id), quantity: Number(item.quantity) })),
+      };
+    }
     let value = form.value;
     if (["online_price", "discount_percent"].includes(form.field)) value = Number(value);
     if (["is_published", "sync_stock"].includes(form.field)) value = value === "true";
@@ -122,7 +138,10 @@ export default function ChangeRequestCenter() {
       });
       await api(`/${created.request_id}/submit`, { method: "POST" });
       toast.success(fa ? "درخواست برای تأیید مدیر ارسال شد." : "Request submitted for administrator approval.");
-      setForm({ source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "" });
+      setForm({
+        source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "",
+        invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
+      });
       setAudioName("");
       setAudioFile(null);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -214,6 +233,7 @@ export default function ChangeRequestCenter() {
               <option value="note_only">{fa ? "فقط یادداشت؛ بدون اجرا" : "Note only; no execution"}</option>
               <option value="online_product_update">{fa ? "تغییر مشخصات کالای سایت" : "Online product update"}</option>
               <option value="campaign_draft">{fa ? "ساخت پیش‌نویس تبلیغ" : "Create campaign draft"}</option>
+              <option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option>
             </select>
           </Field>
 
@@ -225,23 +245,89 @@ export default function ChangeRequestCenter() {
 
           {form.action_type === "campaign_draft" && <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></Field>}
 
+          {form.action_type === "sale_invoice_draft" && (
+            <InvoiceItemsBuilder
+              fa={fa}
+              customers={customers}
+              products={products}
+              customerId={form.invoice_customer_id}
+              items={form.invoice_items}
+              onCustomerChange={(value) => setForm({ ...form, invoice_customer_id: value })}
+              onItemsChange={(items) => setForm({ ...form, invoice_items: items })}
+            />
+          )}
+
           <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><Send size={18} />{fa ? "ارسال برای تأیید مدیر" : "Submit for administrator approval"}</button>
         </form>
 
         <section className="space-y-3">
           <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{fa ? "امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است." : "Security: requesters cannot approve their own request and arbitrary commands are forbidden."}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} products={products} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} />)}
+          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} products={products} customers={customers} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
           {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{fa ? "درخواستی وجود ندارد." : "No requests yet."}</div>}
         </section>
       </div>
     </div>
   );
+
+  function createInvoiceFromRequest(item) {
+    navigate("/invoices", {
+      state: {
+        prefillCustomerId: item.proposed_changes?.customer_id,
+        prefillItems: (item.proposed_changes?.items || []).map((entry) => ({
+          product_id: entry.product_id,
+          quantity: entry.quantity,
+        })),
+      },
+    });
+  }
 }
 
 const inputStyle = { width: "100%", padding: 12, borderRadius: 12, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" };
 function Field({ label, children }) { return <label className="block text-sm font-bold space-y-1"><span>{label}</span>{children}</label>; }
 
-function RequestCard({ item, fa, products, canReview, canApprove, onReview, onApprove, onReject, onAudio }) {
+function InvoiceItemsBuilder({ fa, customers, products, customerId, items, onCustomerChange, onItemsChange }) {
+  function updateRow(index, field, value) {
+    const next = [...items];
+    next[index] = { ...next[index], [field]: value };
+    onItemsChange(next);
+  }
+  function addRow() {
+    onItemsChange([...items, { product_id: "", quantity: "1" }]);
+  }
+  function removeRow(index) {
+    const next = items.filter((_, i) => i !== index);
+    onItemsChange(next.length ? next : [{ product_id: "", quantity: "1" }]);
+  }
+  return (
+    <>
+      <Field label={fa ? "طرف‌حساب" : "Customer"}>
+        <select required style={inputStyle} value={customerId} onChange={(e) => onCustomerChange(e.target.value)}>
+          <option value="">{fa ? "انتخاب طرف‌حساب" : "Choose customer"}</option>
+          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </Field>
+      {items.map((row, index) => (
+        <div key={index} className="grid grid-cols-[1fr_90px_40px] gap-2 items-end">
+          <Field label={index === 0 ? (fa ? "کالا" : "Product") : ""}>
+            <select required style={inputStyle} value={row.product_id} onChange={(e) => updateRow(index, "product_id", e.target.value)}>
+              <option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+          <Field label={index === 0 ? (fa ? "تعداد" : "Qty") : ""}>
+            <input required type="number" min="0.01" step="any" style={inputStyle} value={row.quantity} onChange={(e) => updateRow(index, "quantity", e.target.value)} />
+          </Field>
+          <button type="button" onClick={() => removeRow(index)} className="rounded-xl p-3 bg-red-500/20 text-red-300"><Trash2 size={16} /></button>
+        </div>
+      ))}
+      <button type="button" onClick={addRow} className="rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent">
+        <Plus size={16} /> {fa ? "افزودن ردیف" : "Add row"}
+      </button>
+    </>
+  );
+}
+
+function RequestCard({ item, fa, products, customers, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
   const status = {
     draft: fa ? "پیش‌نویس" : "Draft",
     needs_transcript_review: fa ? "نیازمند بازبینی متن" : "Transcript review required",
@@ -259,12 +345,23 @@ function RequestCard({ item, fa, products, canReview, canApprove, onReview, onAp
     {item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{fa ? "دریافت فایل صوتی امن" : "Download secured audio"}</button>}
     <pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>
     {item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}
-    {canReview && <TranscriptReviewer item={item} products={products} fa={fa} onReview={onReview} />}
+    {item.action_type === "sale_invoice_draft" && item.status === "applied" && (
+      <button
+        type="button"
+        onClick={onCreateInvoice}
+        className="mt-3 rounded-xl px-4 py-2 font-black flex items-center gap-2"
+        style={{ background: "#22c55e", color: "#052e16" }}
+      >
+        <FileText size={17} />
+        {fa ? "ساخت فاکتور از این درخواست" : "Create invoice from this"}
+      </button>
+    )}
+    {canReview && <TranscriptReviewer item={item} products={products} customers={customers} fa={fa} onReview={onReview} />}
     {canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}
   </article>;
 }
 
-function TranscriptReviewer({ item, products, fa, onReview }) {
+function TranscriptReviewer({ item, products, customers, fa, onReview }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [review, setReview] = useState({
@@ -275,6 +372,8 @@ function TranscriptReviewer({ item, products, fa, onReview }) {
     value: "",
     campaign_title: "",
     campaign_channel: "instagram",
+    invoice_customer_id: "",
+    invoice_items: [{ product_id: "", quantity: "1" }],
   });
 
   async function submitReview() {
@@ -292,6 +391,14 @@ function TranscriptReviewer({ item, products, fa, onReview }) {
         title: review.campaign_title,
         channel: review.campaign_channel,
         body: review.transcript,
+      };
+    }
+    if (review.action_type === "sale_invoice_draft") {
+      proposed_changes = {
+        customer_id: Number(review.invoice_customer_id),
+        items: review.invoice_items
+          .filter((row) => row.product_id && Number(row.quantity) > 0)
+          .map((row) => ({ product_id: Number(row.product_id), quantity: Number(row.quantity) })),
       };
     }
     setSaving(true);
@@ -312,7 +419,18 @@ function TranscriptReviewer({ item, products, fa, onReview }) {
 
   return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
     <Field label={fa ? "متن نهایی تأییدشده توسط مدیر" : "Manager-reviewed final transcript"}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: e.target.value })} /></Field>
-    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option></select></Field>
+    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option><option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option></select></Field>
+    {review.action_type === "sale_invoice_draft" && (
+      <InvoiceItemsBuilder
+        fa={fa}
+        customers={customers}
+        products={products}
+        customerId={review.invoice_customer_id}
+        items={review.invoice_items}
+        onCustomerChange={(value) => setReview({ ...review, invoice_customer_id: value })}
+        onItemsChange={(items) => setReview({ ...review, invoice_items: items })}
+      />
+    )}
     {review.action_type === "online_product_update" && <>
       <Field label={fa ? "کالا" : "Product"}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
       <Field label={fa ? "فیلد مجاز" : "Allowed field"}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{fa ? "قیمت سایت" : "Online price"}</option><option value="discount_percent">{fa ? "درصد تخفیف" : "Discount percent"}</option><option value="is_published">{fa ? "انتشار" : "Published"}</option><option value="sync_stock">{fa ? "همگام‌سازی موجودی" : "Stock sync"}</option></select></Field>
@@ -322,6 +440,6 @@ function TranscriptReviewer({ item, products, fa, onReview }) {
       <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
       <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel}>{channel}</option>)}</select></Field>
     </>}
-    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-slate-600 text-white">{fa ? "انصراف" : "Cancel"}</button></div>
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0)))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-slate-600 text-white">{fa ? "انصراف" : "Cancel"}</button></div>
   </div>;
 }
