@@ -43,6 +43,7 @@ import { useLanguage } from "../localization/useLanguage";
 import InvoiceSummary from "../invoice/InvoiceSummary";
 import InvoicePrint from "../invoice/InvoicePrint";
 import { getCache, setCache } from "../storage/db";
+import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
 
@@ -432,6 +433,91 @@ export default function Invoices() {
     };
   }
 
+  function computeInvoiceTotals(cleanItems, { discount_percent, tax_percent, shipping_cost }) {
+    const subtotal = cleanItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const discountAmount = subtotal * (toNumber(discount_percent) / 100);
+    const afterDiscount = Math.max(subtotal - discountAmount, 0);
+    const taxAmount = afterDiscount * (toNumber(tax_percent) / 100);
+    const shippingAmount = toNumber(shipping_cost);
+    return { subtotal, discountAmount, taxAmount, grandTotal: afterDiscount + taxAmount + shippingAmount };
+  }
+
+  function extractInvoicePayload(item) {
+    return {
+      invoice_type: item.invoice_type,
+      customer_id: Number(item.customer_id),
+      items: (item.items || []).map((line) => ({
+        product_id: Number(line.product_id),
+        quantity: toNumber(line.quantity),
+        unit_price: toNumber(line.unit_price),
+      })),
+      discount_percent: toNumber(item.discount_percent),
+      tax_percent: toNumber(item.tax_percent),
+      shipping_cost: toNumber(item.shipping_cost),
+      payment_status: item.payment_status,
+      invoice_note: item.invoice_note,
+      qr_enabled: item.qr_enabled,
+    };
+  }
+
+  function buildSyncedInvoice(item, serverResult, payload) {
+    const customer = customers.find((c) => String(c.id) === String(payload.customer_id));
+    const totals = computeInvoiceTotals(payload.items, payload);
+    const enrichedItems = payload.items.map((line) => {
+      const product = products.find((p) => Number(p.id) === Number(line.product_id));
+      return { ...line, product_name: product?.name || product?.title || "-", total: line.quantity * line.unit_price };
+    });
+    return {
+      ...item,
+      ...payload,
+      id: item.offline_created ? serverResult.invoice_id : item.id,
+      invoice_type_label: invoiceTypeLabel(payload.invoice_type),
+      customerName: customer?.name || customer?.full_name || "",
+      customer_name: customer?.name || customer?.full_name || "",
+      payment_status_label: paymentStatusLabel(payload.payment_status),
+      total: totals.grandTotal,
+      total_amount: totals.grandTotal,
+      subtotal: totals.subtotal,
+      discount: totals.discountAmount,
+      tax: totals.taxAmount,
+      items: enrichedItems,
+      pending_sync: false,
+      offline_created: false,
+    };
+  }
+
+  async function createInvoiceForSync(payload) {
+    const res = await apiCreateInvoice(payload);
+    if (res?.status !== "created") throw new Error(res?.message || "sync failed");
+    return res;
+  }
+
+  async function updateInvoiceForSync(id, payload) {
+    const res = await apiUpdateInvoice(id, payload);
+    if (res?.status === "error") throw new Error(res.message);
+    return res;
+  }
+
+  async function syncPendingInvoices() {
+    if (countPending(invoices) === 0) return;
+    const { items: updated, syncedCount } = await syncPendingRecords(invoices, {
+      extractPayload: extractInvoicePayload,
+      create: createInvoiceForSync,
+      update: updateInvoiceForSync,
+      mergeResult: buildSyncedInvoice,
+    });
+    setInvoices(updated);
+    await setCache(INVOICES_CACHE_KEY, updated);
+    if (syncedCount > 0) {
+      toast.success(
+        fa ? `${toPersianDigits(syncedCount)} فاکتور آفلاین همگام‌سازی شد.` : `${syncedCount} offline invoice(s) synced.`
+      );
+      if (countPending(updated) === 0) setLoadError("");
+    }
+  }
+
+  useOnlineSync(syncPendingInvoices);
+
   async function createInvoice() {
     if (!form.customer_id) {
       alert(label.chooseCustomerAlert);
@@ -658,6 +744,24 @@ export default function Invoices() {
         >
           <AlertTriangle size={20} />
           {loadError}
+        </div>
+      ) : null}
+
+      {countPending(invoices) > 0 ? (
+        <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
+          <span>
+            {fa
+              ? `${toPersianDigits(countPending(invoices))} فاکتور آفلاین در انتظار همگام‌سازی است.`
+              : `${countPending(invoices)} offline invoice(s) waiting to sync.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => void syncPendingInvoices()}
+            className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm flex items-center gap-1"
+          >
+            <RefreshCw size={14} />
+            {fa ? "همگام‌سازی الان" : "Sync now"}
+          </button>
         </div>
       ) : null}
 

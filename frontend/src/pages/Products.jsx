@@ -23,6 +23,7 @@ import {
 } from "../services/api";
 
 import { getCache, setCache } from "../storage/db";
+import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
 const PRODUCTS_CACHE_KEY = "products";
@@ -387,6 +388,67 @@ export default function Products() {
     }
   }
 
+  function extractProductPayload(item) {
+    return {
+      name: item.name || "",
+      code: toEnglishDigits(item.code || ""),
+      barcode: toEnglishDigits(item.barcode || item.code || item.sku || ""),
+      sku: toEnglishDigits(item.sku || ""),
+      brand: item.brand || "",
+      unit: item.unit || (fa ? "عدد" : "pcs"),
+      buy_price: toNumber(item.buy_price),
+      purchase_price: toNumber(item.buy_price),
+      sell_price: toNumber(item.sell_price),
+      price: toNumber(item.sell_price),
+      stock: toNumber(item.stock),
+      min_stock: toNumber(item.min_stock),
+      minimum_stock: toNumber(item.min_stock),
+      main_category: item.main_category || "",
+      sub_category: item.sub_category || "",
+      image: item.image || "",
+    };
+  }
+
+  function mergeProductResult(item, serverResult, payload) {
+    return normalizeProduct({
+      ...item,
+      ...payload,
+      id: item.offline_created ? serverResult?.id || item.id : item.id,
+      pending_sync: false,
+      offline_created: false,
+    });
+  }
+
+  async function createProductForSync(payload) {
+    const result = await createProduct(payload);
+    if (result?.status === "error") throw new Error(result.message || "sync failed");
+    return result;
+  }
+
+  async function updateProductForSync(id, payload) {
+    const result = await updateProduct(id, payload);
+    if (result?.status === "error") throw new Error(result.message || "sync failed");
+    return result;
+  }
+
+  async function syncPendingProducts() {
+    if (countPending(products) === 0) return;
+    const { items: updated, syncedCount } = await syncPendingRecords(products, {
+      extractPayload: extractProductPayload,
+      create: createProductForSync,
+      update: updateProductForSync,
+      mergeResult: mergeProductResult,
+    });
+    await saveCache(updated);
+    if (syncedCount > 0) {
+      setMessage(
+        fa ? `${toPersianDigits(syncedCount)} کالای آفلاین همگام‌سازی شد.` : `${syncedCount} offline product(s) synced.`
+      );
+    }
+  }
+
+  useOnlineSync(syncPendingProducts);
+
   async function handleDeleteProduct(product) {
     const ok = window.confirm(
       fa
@@ -515,6 +577,23 @@ export default function Products() {
         >
           <AlertTriangle size={20} />
           {message}
+        </div>
+      )}
+
+      {countPending(products) > 0 && (
+        <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
+          <span>
+            {fa
+              ? `${toPersianDigits(countPending(products))} کالای آفلاین در انتظار همگام‌سازی است.`
+              : `${countPending(products)} offline product(s) waiting to sync.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => void syncPendingProducts()}
+            className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm"
+          >
+            {fa ? "همگام‌سازی الان" : "Sync now"}
+          </button>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import OfflineStatusBanner from "../components/OfflineStatusBanner";
 import { useLanguage } from "../localization/useLanguage";
 
 export default function MainLayout() {
@@ -57,6 +58,7 @@ export default function MainLayout() {
       <Sidebar mobileOpen={navigationOpen} onNavigate={() => closeNavigation()} />
 
       <main id="main-content" className="erp-main" tabIndex={-1}>
+        <OfflineStatusBanner />
         <Outlet />
       </main>
     </div>

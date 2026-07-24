@@ -31,6 +31,7 @@ import {
 } from "../services/api";
 
 import { getCache, setCache } from "../storage/db";
+import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
 const CUSTOMERS_CACHE_KEY = "customers";
@@ -405,6 +406,66 @@ export default function Customers() {
     }
   }
 
+  function extractCustomerPayload(item) {
+    return {
+      name: item.name || "",
+      phone: toEnglishDigits(item.phone || item.mobile || ""),
+      mobile: toEnglishDigits(item.mobile || ""),
+      email: item.email || "",
+      address: item.address || "",
+      city: item.city || "",
+      national_id: toEnglishDigits(item.national_id || ""),
+      economic_code: toEnglishDigits(item.economic_code || ""),
+      contact_person: item.contact_person || "",
+      customer_type: item.party_type || item.customer_type || "customer",
+      party_type: item.party_type || item.customer_type || "customer",
+      opening_balance: toNumber(item.opening_balance),
+      credit_limit: toNumber(item.credit_limit),
+      notes: item.notes || "",
+      pricing_group: item.pricing_group || "retail",
+    };
+  }
+
+  function mergeCustomerResult(item, serverResult, payload) {
+    return normalizeParty({
+      ...item,
+      ...payload,
+      id: item.offline_created ? serverResult.id : item.id,
+      pending_sync: false,
+      offline_created: false,
+    });
+  }
+
+  async function createCustomerForSync(payload) {
+    const result = await createCustomer(payload);
+    if (result?.status !== "created") throw new Error(result?.message || "sync failed");
+    return result;
+  }
+
+  async function updateCustomerForSync(id, payload) {
+    const result = await updateCustomer(id, payload);
+    if (result?.status === "error") throw new Error(result.message);
+    return result;
+  }
+
+  async function syncPendingParties() {
+    if (countPending(parties) === 0) return;
+    const { items: updated, syncedCount } = await syncPendingRecords(parties, {
+      extractPayload: extractCustomerPayload,
+      create: createCustomerForSync,
+      update: updateCustomerForSync,
+      mergeResult: mergeCustomerResult,
+    });
+    await saveCache(updated);
+    if (syncedCount > 0) {
+      setMessage(
+        fa ? `${toPersianDigits(syncedCount)} طرف‌حساب آفلاین همگام‌سازی شد.` : `${syncedCount} offline customer record(s) synced.`
+      );
+    }
+  }
+
+  useOnlineSync(syncPendingParties);
+
   function edit(item) {
     setEditingId(item.id);
     setForm({
@@ -579,6 +640,23 @@ export default function Customers() {
           }`}
         >
           {message}
+        </div>
+      )}
+
+      {countPending(parties) > 0 && (
+        <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
+          <span>
+            {fa
+              ? `${toPersianDigits(countPending(parties))} طرف‌حساب آفلاین در انتظار همگام‌سازی است.`
+              : `${countPending(parties)} offline customer record(s) waiting to sync.`}
+          </span>
+          <button
+            type="button"
+            onClick={() => void syncPendingParties()}
+            className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm"
+          >
+            {fa ? "همگام‌سازی الان" : "Sync now"}
+          </button>
         </div>
       )}
 
