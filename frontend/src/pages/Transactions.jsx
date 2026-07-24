@@ -43,7 +43,7 @@ const emptyForm = {
 };
 
 const inputClass =
-  "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all min-h-[58px]";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all min-h-[58px]";
 
 const faReasons = {
   invoice_payment: "بابت فاکتور",
@@ -246,7 +246,7 @@ export default function Transactions() {
   function transactionColor(item) {
     if (item.type === "income" || item.source_type === "receipt") return "#22c55e";
     if (item.type === "outcome" || item.source_type === "payment") return "#ef4444";
-    if (item.source_type === "invoice") return "#22d3ee";
+    if (item.source_type === "invoice") return "var(--erp-accent)";
     return "#f59e0b";
   }
 
@@ -413,8 +413,8 @@ export default function Transactions() {
     <div dir={dir} className="space-y-6" style={{ direction: dir }}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">{t("transactions")}</h1>
-          <p className="text-slate-400 mt-2">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{t("transactions")}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "ثبت دریافت و پرداخت، مشاهده گردش حساب و چاپ رسید"
               : "Create receipts/payments, review cashflow and print receipts"}
@@ -424,7 +424,7 @@ export default function Transactions() {
         <button
           type="button"
           onClick={load}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 border border-cyan-500/20"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -461,14 +461,14 @@ export default function Transactions() {
           title={fa ? "خالص نقدی" : "Net cash"}
           value={money(balance)}
           icon={<Wallet size={28} />}
-          color="#22d3ee"
+          color="var(--erp-accent)"
         />
       </div>
 
       <div
         style={{
-          background: "rgba(15,23,42,0.65)",
-          border: "1px solid rgba(34,211,238,0.18)",
+          background: "var(--erp-bg-soft)",
+          border: "1px solid var(--erp-border)",
           borderRadius: 28,
           padding: 20,
         }}
@@ -607,7 +607,7 @@ export default function Transactions() {
             <button
               type="button"
               onClick={resetForm}
-              className="px-5 py-3 rounded-2xl bg-slate-700 text-white font-black flex items-center gap-2"
+              className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
               <X size={18} />
               {fa ? "لغو ویرایش" : "Cancel Edit"}
@@ -618,31 +618,31 @@ export default function Transactions() {
 
       <div
         style={{
-          background: "rgba(15,23,42,0.65)",
-          border: "1px solid rgba(34,211,238,0.18)",
+          background: "var(--erp-bg-soft)",
+          border: "1px solid var(--erp-border)",
           borderRadius: 28,
           padding: 20,
         }}
       >
-        <div className="flex items-center gap-2 bg-slate-800 rounded-2xl px-4 py-3 mb-5">
+        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
           <Search size={18} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("searchTransaction")}
-            className="bg-transparent outline-none w-full text-white placeholder-slate-400"
+            className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
         </div>
 
         {loading ? (
-          <p style={{ color: "#94a3b8" }}>{fa ? "در حال دریافت..." : "Loading..."}</p>
+          <p style={{ color: "var(--erp-muted)" }}>{fa ? "در حال دریافت..." : "Loading..."}</p>
         ) : filteredTransactions.length === 0 ? (
-          <p style={{ color: "#94a3b8" }}>{t("noData")}</p>
+          <p style={{ color: "var(--erp-muted)" }}>{t("noData")}</p>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", color: "white" }}>
+            <table style={{ width: "100%", color: "var(--erp-text)" }}>
               <thead>
-                <tr style={{ color: "#22d3ee" }}>
+                <tr style={{ color: "var(--erp-accent)" }}>
                   <th className="p-3 text-start">{t("transactionType")}</th>
                   <th className="p-3 text-start">{fa ? "بابت" : "Reason"}</th>
                   <th className="p-3 text-start">{t("party")}</th>
@@ -656,7 +656,7 @@ export default function Transactions() {
 
               <tbody>
                 {filteredTransactions.map((item) => (
-                  <tr key={item.id} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                  <tr key={item.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
                     <td className="p-3">
                       <span style={{ color: transactionColor(item), fontWeight: 900 }}>
                         {transactionTypeLabel(item)}
@@ -669,7 +669,7 @@ export default function Transactions() {
                       {item.party_id || item.customer_id ? (
                         <Link
                           to={`/customers/${item.party_id || item.customer_id}`}
-                          className="text-cyan-300 font-bold inline-flex items-center gap-2"
+                          className="text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
                         >
                           <UserRound size={16} />
                           {partyName(item.party_id || item.customer_id)}
@@ -681,7 +681,7 @@ export default function Transactions() {
 
                     <td className="p-3">{methodLabel(item.method)}</td>
                     <td className="p-3 font-black">{money(item.amount)}</td>
-                    <td className="p-3 font-bold text-cyan-200">
+                    <td className="p-3 font-bold text-[var(--erp-accent)]">
                       {item.balance_after ? money(item.balance_after) : "-"}
                     </td>
                     <td className="p-3">{displayDate(item.created_at || item.date)}</td>
@@ -697,8 +697,8 @@ export default function Transactions() {
                             height: 38,
                             borderRadius: 12,
                             border: "none",
-                            background: "rgba(34,211,238,0.18)",
-                            color: "#67e8f9",
+                            background: "var(--erp-glow)",
+                            color: "var(--erp-accent)",
                             cursor: "pointer",
                           }}
                         >
@@ -714,8 +714,8 @@ export default function Transactions() {
                             height: 38,
                             borderRadius: 12,
                             border: "none",
-                            background: "rgba(34,211,238,0.18)",
-                            color: "#67e8f9",
+                            background: "var(--erp-glow)",
+                            color: "var(--erp-accent)",
                             cursor: "pointer",
                           }}
                         >
@@ -755,11 +755,11 @@ function SummaryCard({ title, value, icon, color }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.75)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "var(--erp-bg-soft)",
+        border: "1px solid var(--erp-border)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -767,7 +767,7 @@ function SummaryCard({ title, value, icon, color }) {
       }}
     >
       <div>
-        <div style={{ color: "#94a3b8", marginBottom: 8 }}>{title}</div>
+        <div style={{ color: "var(--erp-muted)", marginBottom: 8 }}>{title}</div>
         <div style={{ fontSize: 26, fontWeight: 900 }}>{value}</div>
       </div>
 

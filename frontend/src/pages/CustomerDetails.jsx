@@ -428,7 +428,7 @@ export default function CustomerDetails() {
 
   if (loading && !party) {
     return (
-      <div dir={dir} className="text-cyan-300 p-8">
+      <div dir={dir} className="text-[var(--erp-accent)] p-8">
         {isFa ? "در حال بارگذاری..." : "Loading..."}
       </div>
     );
@@ -466,7 +466,7 @@ export default function CustomerDetails() {
 
           <button
             onClick={printPage}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"
           >
             <Printer size={18} />
             {isFa ? "چاپ پرونده" : "Print"}
@@ -483,7 +483,7 @@ export default function CustomerDetails() {
           <button
             onClick={load}
             disabled={loading}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
           >
             <RefreshCcw size={18} />
             {isFa ? "به‌روزرسانی" : "Refresh"}
@@ -533,10 +533,10 @@ export default function CustomerDetails() {
         </div>
 
         <div className="text-right">
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {isFa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Profile"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {isFa ? `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}` : `Complete finance and CRM profile #${party.id}`}
           </p>
         </div>
@@ -566,13 +566,13 @@ export default function CustomerDetails() {
         </div>
       )}
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-3xl font-black text-white">{party.name}</h2>
-            <div className="text-cyan-300 font-bold mt-1">{party.customer_type || "customer"}</div>
+            <h2 className="text-3xl font-black text-[var(--erp-text)]">{party.name}</h2>
+            <div className="text-[var(--erp-accent)] font-bold mt-1">{party.customer_type || "customer"}</div>
           </div>
-          <div className="w-16 h-16 rounded-3xl bg-cyan-400/10 text-cyan-300 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-3xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
             <UserRound size={34} />
           </div>
         </div>
@@ -607,9 +607,9 @@ export default function CustomerDetails() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5">
-        <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
-            <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2">
+            <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
               <Sparkles size={24} />
               {isFa ? "هوش ارتباط با مشتری" : "Customer Intelligence"}
             </h2>
@@ -624,7 +624,7 @@ export default function CustomerDetails() {
             <Info icon={<MessageCircle size={17} />} label={isFa ? "یادداشت‌ها" : "Notes"} value={n(crmNotes.length)} />
           </div>
 
-          <div className="rounded-2xl bg-cyan-500/10 border border-cyan-400/20 p-4 text-cyan-100 font-bold mb-5">
+          <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] p-4 text-[var(--erp-accent)] font-bold mb-5">
             {customerIntelligence.suggestion}
           </div>
 
@@ -633,7 +633,7 @@ export default function CustomerDetails() {
               value={followupDate}
               onChange={(e) => saveFollowupDate(e.target.value)}
               type="text"
-              className="bg-slate-800 text-white rounded-2xl p-4 outline-none border border-cyan-500/10"
+              className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
               placeholder={isFa ? "مثال: ۱۴۰۵/۰۴/۲۵" : "Example: 2026/07/16"}
             />
             <button
@@ -656,7 +656,7 @@ export default function CustomerDetails() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               rows={3}
-              className="bg-slate-800 text-white rounded-2xl p-4 outline-none border border-cyan-500/10"
+              className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
               placeholder={isFa ? "یادداشت تماس، مذاکره، قول پرداخت یا درخواست مشتری..." : "Call note, negotiation, payment promise or customer request..."}
             />
             <button
@@ -669,37 +669,37 @@ export default function CustomerDetails() {
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-          <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2 mb-5">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2 mb-5">
             <Clock size={24} />
             {isFa ? "تایم‌لاین مشتری" : "Customer timeline"}
           </h2>
           <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
             {crmTimeline.map((event) => (
-              <div key={event.id} className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
+              <div key={event.id} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="text-white font-black text-sm">{event.title}</div>
+                  <div className="text-[var(--erp-text)] font-black text-sm">{event.title}</div>
                   <span className={`text-xs px-2 py-1 rounded-full ${event.type === "crm" ? "bg-cyan-400/10 text-cyan-300" : "bg-emerald-400/10 text-emerald-300"}`}>
                     {event.type === "crm" ? (isFa ? "CRM" : "CRM") : (isFa ? "مالی" : "Finance")}
                   </span>
                 </div>
-                <div className="text-xs text-slate-400 flex items-center justify-between gap-2">
+                <div className="text-xs text-[var(--erp-muted)] flex items-center justify-between gap-2">
                   <span>{formatDate(event.date)}</span>
-                  {event.amount ? <b className="text-cyan-300">{money(event.amount)}</b> : null}
+                  {event.amount ? <b className="text-[var(--erp-accent)]">{money(event.amount)}</b> : null}
                 </div>
               </div>
             ))}
 
             {crmTimeline.length === 0 && (
-              <div className="text-slate-400">{isFa ? "هنوز رویدادی ثبت نشده است." : "No timeline events yet."}</div>
+              <div className="text-[var(--erp-muted)]">{isFa ? "هنوز رویدادی ثبت نشده است." : "No timeline events yet."}</div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex flex-wrap justify-between gap-3 mb-5">
-          <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={24} />
             {isFa ? "صورت‌حساب" : "Ledger"}
           </h2>
@@ -708,7 +708,7 @@ export default function CustomerDetails() {
             <button
               onClick={() => setViewMode("all")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "all" ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-white"
+                viewMode === "all" ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
               {isFa ? "دفتر کل" : "All"}
@@ -717,7 +717,7 @@ export default function CustomerDetails() {
             <button
               onClick={() => setViewMode("bank")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "bank" ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-white"
+                viewMode === "bank" ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
               {isFa ? "ریزگردش بانکی" : "Bank"}
@@ -729,7 +729,7 @@ export default function CustomerDetails() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
-                <tr className="text-cyan-300 border-b border-cyan-500/20">
+                <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
                   <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
                   <th className="p-3 text-right">{isFa ? "شرح" : "Description"}</th>
                   <th className="p-3 text-right">{isFa ? "بدهکار" : "Debit"}</th>
@@ -744,13 +744,13 @@ export default function CustomerDetails() {
                   const bal = toNumber(row.computedBalance ?? getRowBalance(row));
 
                   return (
-                    <tr key={`${row.id}-${index}`} className="border-b border-slate-800 hover:bg-cyan-500/5">
-                      <td className="p-3 text-slate-200">{formatDate(row.date || row.created_at)}</td>
+                    <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
+                      <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
                       <td className="p-3">
-                        <div className="font-black text-white">
+                        <div className="font-black text-[var(--erp-text)]">
                           {row.description || sourceLabel(row.source_type, language)}
                         </div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-[var(--erp-muted)]">
                           {sourceLabel(row.source_type, language)} {row.source_id ? `#${n(row.source_id)}` : ""}
                         </div>
                       </td>
@@ -760,15 +760,15 @@ export default function CustomerDetails() {
                       <td className="p-3 text-emerald-300 font-black">
                         {toNumber(row.credit) ? money(row.credit) : "-"}
                       </td>
-                      <td className="p-3 text-cyan-300 font-black">{money(Math.abs(bal))}</td>
-                      <td className="p-3 text-white font-black">{balanceLabel(bal, language)}</td>
+                      <td className="p-3 text-[var(--erp-accent)] font-black">{money(Math.abs(bal))}</td>
+                      <td className="p-3 text-[var(--erp-text)] font-black">{balanceLabel(bal, language)}</td>
                     </tr>
                   );
                 })}
 
                 {visibleRows.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
+                    <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
                       {isFa ? "هنوز گردش حسابی ثبت نشده است" : "No ledger rows"}
                     </td>
                   </tr>
@@ -780,7 +780,7 @@ export default function CustomerDetails() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
-                <tr className="text-cyan-300 border-b border-cyan-500/20">
+                <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
                   <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
                   <th className="p-3 text-right">{isFa ? "شرح عملیات بانکی" : "Bank transaction"}</th>
                   <th className="p-3 text-right">{isFa ? "ورود وجه" : "Inflow"}</th>
@@ -792,24 +792,24 @@ export default function CustomerDetails() {
 
               <tbody>
                 {bankRows.map((row, index) => (
-                  <tr key={`${row.id}-${index}`} className="border-b border-slate-800 hover:bg-cyan-500/5">
-                    <td className="p-3 text-slate-200">{formatDate(row.date || row.created_at)}</td>
+                  <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
+                    <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
                     <td className="p-3">
-                      <div className="font-black text-white">
+                      <div className="font-black text-[var(--erp-text)]">
                         {row.description || sourceLabel(row.source_type, language)}
                       </div>
-                      <div className="text-xs text-slate-500">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
+                      <div className="text-xs text-[var(--erp-muted)]">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
                     </td>
                     <td className="p-3 text-emerald-300 font-black">{row.inflow ? money(row.inflow) : "-"}</td>
                     <td className="p-3 text-rose-300 font-black">{row.outflow ? money(row.outflow) : "-"}</td>
-                    <td className="p-3 text-cyan-300 font-black">{money(Math.abs(row.cashBalance))}</td>
-                    <td className="p-3 text-white font-black">{sourceLabel(row.source_type, language)}</td>
+                    <td className="p-3 text-[var(--erp-accent)] font-black">{money(Math.abs(row.cashBalance))}</td>
+                    <td className="p-3 text-[var(--erp-text)] font-black">{sourceLabel(row.source_type, language)}</td>
                   </tr>
                 ))}
 
                 {bankRows.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
+                    <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
                       {isFa ? "هنوز دریافت یا پرداخت بانکی ثبت نشده است" : "No bank transaction has been registered yet"}
                     </td>
                   </tr>
@@ -825,22 +825,22 @@ export default function CustomerDetails() {
 
 function Info({ icon, label, value }) {
   return (
-    <div className="bg-slate-800/80 border border-white/5 rounded-2xl p-4">
-      <div className="text-slate-400 text-xs flex items-center gap-2 mb-2">
+    <div className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-4">
+      <div className="text-[var(--erp-muted)] text-xs flex items-center gap-2 mb-2">
         {icon}
         {label}
       </div>
-      <div className="text-white font-black">{value}</div>
+      <div className="text-[var(--erp-text)] font-black">{value}</div>
     </div>
   );
 }
 
 function Kpi({ title, value, hint, color = "#22d3ee", icon }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
       <div className="flex justify-between items-start">
         <div>
-          <div className="text-slate-300 font-bold mb-3">{title}</div>
+          <div className="text-[var(--erp-muted)] font-bold mb-3">{title}</div>
           <div className="text-3xl font-black" style={{ color }}>
             {value}
           </div>
@@ -850,7 +850,7 @@ function Kpi({ title, value, hint, color = "#22d3ee", icon }) {
             </div>
           )}
         </div>
-        <div className="text-cyan-300 bg-cyan-400/10 w-10 h-10 rounded-2xl flex items-center justify-center">
+        <div className="text-[var(--erp-accent)] bg-[var(--erp-glow)] w-10 h-10 rounded-2xl flex items-center justify-center">
           {icon}
         </div>
       </div>

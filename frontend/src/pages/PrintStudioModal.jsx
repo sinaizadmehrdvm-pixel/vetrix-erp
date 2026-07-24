@@ -195,13 +195,13 @@ export default function PrintStudioModal({ invoice, onClose }) {
       dir={dir}
       className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-sm p-3 md:p-6 overflow-auto"
     >
-      <div className="max-w-7xl mx-auto bg-slate-950 border border-cyan-500/20 rounded-[2rem] shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-l from-cyan-500/20 via-slate-900 to-blue-900/30 border-b border-cyan-500/20 p-5 flex items-start justify-between gap-4 flex-wrap">
+      <div className="max-w-7xl mx-auto bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[2rem] shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-l from-cyan-500/20 via-slate-900 to-blue-900/30 border-b border-[var(--erp-border)] p-5 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-3xl font-black text-cyan-300 flex items-center gap-2">
+            <h2 className="text-3xl font-black text-[var(--erp-accent)] flex items-center gap-2">
               <Printer /> Vetrix Print Studio
             </h2>
-            <p className="text-slate-400 mt-2">
+            <p className="text-[var(--erp-muted)] mt-2">
               {fa
                 ? `چاپ و پیش‌نمایش فاکتور شماره ${invoiceId} با انتخاب قالب طراحی‌شده`
                 : `Preview and print invoice #${invoiceId} with saved templates`}
@@ -267,7 +267,7 @@ export default function PrintStudioModal({ invoice, onClose }) {
               </div>
 
               {selectedTemplate && (
-                <div className="rounded-2xl bg-slate-900/80 border border-cyan-500/10 p-3 text-xs text-slate-300 leading-7">
+                <div className="rounded-2xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-3 text-xs text-[var(--erp-muted)] leading-7">
                   <div>
                     {fa ? "نام قالب" : "Template"}: <b>{selectedTemplate.name}</b>
                   </div>
@@ -331,8 +331,8 @@ export default function PrintStudioModal({ invoice, onClose }) {
                 </select>
               </Field>
 
-              <label className="bg-slate-900/80 border border-cyan-500/10 rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer">
-                <span className="text-slate-200 font-bold">
+              <label className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer">
+                <span className="text-[var(--erp-text)] font-bold">
                   {fa ? "ویرایش موقت قبل چاپ" : "Temporary edit before print"}
                 </span>
                 <input
@@ -364,13 +364,13 @@ export default function PrintStudioModal({ invoice, onClose }) {
             </Panel>
           </div>
 
-          <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl overflow-hidden min-h-[780px]">
-            <div className="p-4 border-b border-cyan-500/20 flex items-center justify-between gap-3 flex-wrap">
-              <div className="font-black text-cyan-300">
+          <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl overflow-hidden min-h-[780px]">
+            <div className="p-4 border-b border-[var(--erp-border)] flex items-center justify-between gap-3 flex-wrap">
+              <div className="font-black text-[var(--erp-accent)]">
                 {fa ? "پیش‌نمایش زنده چاپ" : "Live print preview"}
               </div>
 
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-[var(--erp-muted)]">
                 {fa
                   ? "اگر قالب را در Designer تغییر دادی، بروزرسانی را بزن."
                   : "After editing a template in Designer, refresh the preview."}
@@ -390,9 +390,9 @@ export default function PrintStudioModal({ invoice, onClose }) {
       <style>{`
         .print-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.16);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
@@ -404,10 +404,10 @@ export default function PrintStudioModal({ invoice, onClose }) {
           gap: 8px;
           padding: 12px 14px;
           border-radius: 16px;
-          background: #1e293b;
-          color: #cffafe;
+          background: var(--erp-panel-solid);
+          color: var(--erp-accent);
           font-weight: 900;
-          border: 1px solid rgba(34,211,238,.16);
+          border: 1px solid var(--erp-border);
         }
         .btn-cyan {
           display: inline-flex;
@@ -427,8 +427,8 @@ export default function PrintStudioModal({ invoice, onClose }) {
 
 function Panel({ title, icon, children }) {
   return (
-    <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-      <h3 className="text-cyan-300 font-black flex items-center gap-2">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+      <h3 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
         {icon}
         {title}
       </h3>
@@ -440,7 +440,7 @@ function Panel({ title, icon, children }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm text-cyan-200 font-bold block">{label}</label>
+      <label className="text-sm text-[var(--erp-accent)] font-bold block">{label}</label>
       {children}
     </div>
   );

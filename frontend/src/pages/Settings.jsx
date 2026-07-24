@@ -58,7 +58,7 @@ const emptySettings = {
 };
 
 const inputClass =
-  "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 
 function toPersianDigits(value) {
   return String(value ?? "").replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
@@ -244,8 +244,8 @@ export default function Settings() {
     <div dir={dir || (fa ? "rtl" : "ltr")} className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">{label.title}</h1>
-          <p className="text-slate-400 mt-2">{label.subtitle}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
@@ -253,7 +253,7 @@ export default function Settings() {
             type="button"
             onClick={loadSettings}
             disabled={loading}
-            className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20 disabled:opacity-60"
+            className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
           >
             <RefreshCw size={18} />
             {loading ? label.loading : label.refresh}
@@ -272,7 +272,7 @@ export default function Settings() {
       </div>
 
       {message && (
-        <div className="rounded-2xl p-4 bg-cyan-500/10 border border-cyan-400/20 text-cyan-100 font-bold">
+        <div className="rounded-2xl p-4 bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-accent)] font-bold">
           {message}
         </div>
       )}
@@ -496,7 +496,7 @@ export default function Settings() {
         </div>
       </Section>
 
-      <div className="bg-slate-900/60 border border-emerald-500/20 rounded-3xl p-5 flex items-center gap-3 text-emerald-300">
+      <div className="bg-[var(--erp-bg-soft)] border border-emerald-500/20 rounded-3xl p-5 flex items-center gap-3 text-emerald-300">
         <ShieldCheck />
         <span className="font-black">
           {fa ? "تنظیمات در دیتابیس ذخیره می‌شود و بعد از بستن برنامه باقی می‌ماند." : "Settings are saved in the database and persist after closing the app."}
@@ -523,7 +523,7 @@ function Section({ icon, title, children }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-cyan-200 block">{label}</label>
+      <label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>
       {children}
     </div>
   );
@@ -531,8 +531,8 @@ function Field({ label, children }) {
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label className="bg-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer border border-cyan-500/10">
-      <span className="text-white font-bold">{label}</span>
+    <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer border border-[var(--erp-border)]">
+      <span className="text-[var(--erp-text)] font-bold">{label}</span>
       <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
@@ -540,18 +540,18 @@ function Toggle({ label, checked, onChange }) {
 
 function InfoCard({ title, value }) {
   return (
-    <div className="bg-slate-800 rounded-2xl p-4">
-      <p className="text-slate-400 text-sm">{title}</p>
-      <h3 className="font-black text-white mt-2">{value}</h3>
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
+      <p className="text-[var(--erp-muted)] text-sm">{title}</p>
+      <h3 className="font-black text-[var(--erp-text)] mt-2">{value}</h3>
     </div>
   );
 }
 
 function UploadBox({ label, value, buttonText, onChange }) {
   return (
-    <div className="bg-slate-800 rounded-2xl p-4 border border-cyan-500/10">
-      <label className="text-sm font-bold text-cyan-200 block mb-3">{label}</label>
-      <label className="cursor-pointer bg-slate-900/70 rounded-2xl border border-dashed border-cyan-500/30 p-4 min-h-[130px] flex items-center justify-center text-slate-300">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 border border-[var(--erp-border)]">
+      <label className="text-sm font-bold text-[var(--erp-accent)] block mb-3">{label}</label>
+      <label className="cursor-pointer bg-[var(--erp-bg-soft)] rounded-2xl border border-dashed border-[var(--erp-border)] p-4 min-h-[130px] flex items-center justify-center text-[var(--erp-muted)]">
         {value ? <img src={value} alt="" className="max-h-28 object-contain rounded-xl" /> : <span>{buttonText}</span>}
         <input type="file" accept="image/*" className="hidden" onChange={(e) => onChange(e.target.files?.[0])} />
       </label>

@@ -15,7 +15,7 @@ import { createExpense, deleteExpense, getExpenses } from "../services/api";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 
 const inputClass =
-  "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 
 function toNumber(value) {
   const cleaned = toEnglishDigits(String(value || ""))
@@ -66,7 +66,7 @@ function showDate(value, fa, fallbackDateFn) {
 function Field({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-cyan-200 block">{label}</label>
+      <label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>
       {children}
     </div>
   );
@@ -188,13 +188,13 @@ export default function Expenses() {
     <div className="space-y-6" dir={dir} style={{ direction: dir }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">{label.title}</h1>
-          <p className="text-slate-400 mt-2">{label.subtitle}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
         <button
           onClick={load}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
           {label.refresh}
@@ -216,7 +216,7 @@ export default function Expenses() {
         />
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           <Field label={label.expenseTitle}>
             <input
@@ -302,31 +302,31 @@ export default function Expenses() {
         </button>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-slate-800 rounded-2xl px-4 py-3 mb-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
           <Search size={18} />
           <input
             value={faText(search, fa)}
             onChange={(e) => setSearch(faText(e.target.value, fa))}
             placeholder={label.search}
-            className="bg-transparent outline-none w-full text-white placeholder-slate-400"
+            className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
         </div>
 
         {loading ? (
-          <p className="text-slate-400">{label.loading}</p>
+          <p className="text-[var(--erp-muted)]">{label.loading}</p>
         ) : filtered.length === 0 ? (
-          <p className="text-slate-400">{label.noData}</p>
+          <p className="text-[var(--erp-muted)]">{label.noData}</p>
         ) : (
           <div className="space-y-4">
             {filtered.map((expense) => (
               <div
                 key={expense.id}
-                className="bg-slate-800/60 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+                className="bg-[var(--erp-panel-solid)] rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 flex items-center justify-center">
-                    <Wallet className="text-cyan-300" />
+                  <div className="w-14 h-14 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">
+                    <Wallet className="text-[var(--erp-accent)]" />
                   </div>
 
                   <div>
@@ -334,11 +334,11 @@ export default function Expenses() {
                       {faText(expense.title, fa)}
                     </h3>
 
-                    <div className="text-slate-400 text-sm">
+                    <div className="text-[var(--erp-muted)] text-sm">
                       {expense.category ? faText(expense.category, fa) : "-"}
                     </div>
 
-                    <div className="text-slate-500 text-xs mt-1 flex items-center gap-1">
+                    <div className="text-[var(--erp-muted)] text-xs mt-1 flex items-center gap-1">
                       <CalendarDays size={14} />
                       {showDate(
                         expense.expense_date || expense.created_at,
@@ -348,7 +348,7 @@ export default function Expenses() {
                     </div>
 
                     {expense.note && (
-                      <div className="text-slate-500 text-xs mt-1">
+                      <div className="text-[var(--erp-muted)] text-xs mt-1">
                         {faText(expense.note, fa)}
                       </div>
                     )}
@@ -356,7 +356,7 @@ export default function Expenses() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="text-2xl font-black text-cyan-300">
+                  <div className="text-2xl font-black text-[var(--erp-accent)]">
                     {money(expense.amount)}
                   </div>
 
@@ -378,13 +378,13 @@ export default function Expenses() {
 
 function Summary({ title, value }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-      <div className="flex items-center gap-3 text-cyan-300 mb-3">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="flex items-center gap-3 text-[var(--erp-accent)] mb-3">
         <Wallet />
-        <span className="text-slate-300 font-bold">{title}</span>
+        <span className="text-[var(--erp-muted)] font-bold">{title}</span>
       </div>
 
-      <div className="text-3xl font-black text-cyan-300">{value}</div>
+      <div className="text-3xl font-black text-[var(--erp-accent)]">{value}</div>
     </div>
   );
 }

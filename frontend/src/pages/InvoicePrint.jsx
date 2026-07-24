@@ -382,11 +382,11 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
   if (!invoice) {
     return (
-      <section className="p-6 text-white bg-slate-950 min-h-screen">
-        <Link to="/invoices" className="text-cyan-300 font-bold">
+      <section className="p-6 text-[var(--erp-text)] bg-[var(--erp-bg)] min-h-screen">
+        <Link to="/invoices" className="text-[var(--erp-accent)] font-bold">
           {fa ? "بازگشت به فاکتورها" : "Back to invoices"}
         </Link>
-        <div className="mt-6 text-slate-300">
+        <div className="mt-6 text-[var(--erp-muted)]">
           {fa ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود." : "Invoice not found."}
         </div>
       </section>
@@ -394,19 +394,19 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   return (
-    <section dir={dir} className="print-studio-page min-h-screen bg-slate-950 text-white p-5">
+    <section dir={dir} className="print-studio-page min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] p-5">
       <div className="no-print flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h1 className="text-3xl font-black text-cyan-400">
+          <h1 className="text-3xl font-black text-[var(--erp-accent)]">
             {fa ? "استودیوی چاپ فاکتور" : "Invoice Print Studio"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.` : `Print invoice #${invoice.id} with a saved template.`}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <Link to="/invoices" className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2">
+          <Link to="/invoices" className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2">
             <ArrowLeft size={18} />
             {fa ? "بازگشت" : "Back"}
           </Link>
@@ -430,8 +430,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       )}
 
       <div className="no-print grid grid-cols-1 xl:grid-cols-[310px_1fr_320px] gap-5">
-        <aside className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-          <h2 className="text-cyan-300 font-black flex items-center gap-2">
+        <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+          <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <FileText size={20} />
             {fa ? "قالب چاپ" : "Print Template"}
           </h2>
@@ -485,28 +485,28 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         </aside>
 
         <main
-          className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 overflow-auto"
+          className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 overflow-auto"
           onMouseMove={onCanvasMouseMove}
           onMouseUp={stopPointerActions}
           onMouseLeave={stopPointerActions}
         >
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-cyan-300 font-black">{fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}</div>
-            <div className="text-slate-400 text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
+            <div className="text-[var(--erp-accent)] font-black">{fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}</div>
+            <div className="text-[var(--erp-muted)] text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
           </div>
 
           <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} fa={fa} />
         </main>
 
-        <aside className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-          <h2 className="text-cyan-300 font-black flex items-center gap-2">
+        <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+          <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <Settings2 size={20} />
             {fa ? "تنظیمات بخش" : "Selected element"}
           </h2>
 
           {selectedElement ? (
             <>
-              <div className="font-black text-white">{selectedElement.label || selectedElement.type}</div>
+              <div className="font-black text-[var(--erp-text)]">{selectedElement.label || selectedElement.type}</div>
 
               <div className="grid grid-cols-2 gap-2">
                 <NumberProp label="X" value={selectedElement.x} onChange={(v) => updateElement(selectedElement.id, { x: Number(v) })} />
@@ -530,7 +530,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
               <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
             </>
           ) : (
-            <div className="text-slate-400">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
+            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
           )}
         </aside>
       </div>
@@ -542,16 +542,16 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       <style>{`
         .studio-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.18);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
         }
         .studio-tool-button {
-          background: #1e293b;
-          color: white;
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
           border-radius: 16px;
           padding: 12px;
           font-weight: 800;
@@ -560,7 +560,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           justify-content: center;
           gap: 8px;
         }
-        .studio-tool-button:hover { background: #334155; }
+        .studio-tool-button:hover { background: var(--erp-glow); }
         .print-only { display: none; }
         @media print {
           body * { visibility: hidden !important; }
@@ -701,7 +701,7 @@ function TotalsBox({ totals, fa, money }) {
 function Field({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="text-cyan-200 text-sm font-bold block">{label}</label>
+      <label className="text-[var(--erp-accent)] text-sm font-bold block">{label}</label>
       {children}
     </div>
   );
@@ -718,7 +718,7 @@ function NumberProp({ label, value, onChange }) {
 function ColorProp({ label, value, onChange }) {
   return (
     <Field label={label}>
-      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-slate-800 rounded-2xl p-1" />
+      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-[var(--erp-panel-solid)] rounded-2xl p-1" />
     </Field>
   );
 }

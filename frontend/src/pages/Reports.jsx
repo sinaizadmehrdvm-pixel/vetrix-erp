@@ -506,10 +506,10 @@ export default function Reports() {
     <div dir={dir} style={{ direction: dir }} className="space-y-6 reports-page">
       <div className="flex items-start justify-between gap-4 flex-wrap no-print">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {fa ? "گزارش‌های حرفه‌ای مدیریتی و حسابداری" : "Professional Management & Accounting Reports"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی"
               : "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"}
@@ -522,12 +522,12 @@ export default function Reports() {
             {fa ? "خروجی CSV" : "CSV Export"}
           </button>
 
-          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20">
+          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]">
             <Printer size={18} />
             {fa ? "چاپ" : "Print"}
           </button>
 
-          <button type="button" onClick={load} disabled={loading} className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20 disabled:opacity-60">
+          <button type="button" onClick={load} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60">
             <RefreshCw size={18} />
             {loading ? (fa ? "در حال دریافت..." : "Loading...") : fa ? "به‌روزرسانی" : "Refresh"}
           </button>
@@ -545,35 +545,35 @@ export default function Reports() {
         <ReportCard icon={<TrendingUp />} title={fa ? "فروش خالص" : "Net sales"} value={money(profit.net_sales ?? stats?.total_revenue ?? 0)} color="text-green-300" />
         <ReportCard icon={<TrendingDown />} title={fa ? "خرید خالص" : "Net purchases"} value={money(profit.net_purchases ?? stats?.total_purchases ?? 0)} color="text-red-300" />
         <ReportCard icon={<Wallet />} title={fa ? "هزینه‌ها" : "Expenses"} value={money(profit.expenses ?? stats?.total_expenses ?? fallbackTotals.expensesTotal)} color="text-amber-300" />
-        <ReportCard icon={<BarChart3 />} title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? stats?.net_profit ?? 0)} color={toNumber(profit.net_profit ?? stats?.net_profit) >= 0 ? "text-cyan-300" : "text-red-300"} />
+        <ReportCard icon={<BarChart3 />} title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? stats?.net_profit ?? 0)} color={toNumber(profit.net_profit ?? stats?.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <ReportCard icon={<Users />} title={fa ? "جمع بدهکاران" : "Total debtors"} value={money(fallbackTotals.debtors)} color="text-red-300" />
         <ReportCard icon={<Users />} title={fa ? "جمع بستانکاران" : "Total creditors"} value={money(fallbackTotals.creditors)} color="text-green-300" />
-        <ReportCard icon={<Package />} title={fa ? "ارزش موجودی فروش" : "Inventory sale value"} value={money(inventory.inventory_value ?? fallbackTotals.stockValue)} hint={fa ? `ارزش خرید: ${money(fallbackTotals.buyStockValue)}` : `Buy value: ${money(fallbackTotals.buyStockValue)}`} color="text-cyan-300" />
+        <ReportCard icon={<Package />} title={fa ? "ارزش موجودی فروش" : "Inventory sale value"} value={money(inventory.inventory_value ?? fallbackTotals.stockValue)} hint={fa ? `ارزش خرید: ${money(fallbackTotals.buyStockValue)}` : `Buy value: ${money(fallbackTotals.buyStockValue)}`} color="text-[var(--erp-accent)]" />
         <ReportCard icon={<Receipt />} title={fa ? "فاکتورهای باز" : "Open invoices"} value={n(invoiceSummary.open_count || openInvoices.length || 0)} hint={money(invoiceSummary.open_amount || 0)} color="text-amber-300" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <ReportCard icon={<Trophy />} title={fa ? "سود کالاها" : "Product profit"} value={money(productProfitRows.reduce((s, p) => s + toNumber(p.profit), 0))} hint={fa ? `${n(productProfitRows.length)} کالا` : `${n(productProfitRows.length)} products`} color="text-cyan-300" />
+        <ReportCard icon={<Trophy />} title={fa ? "سود کالاها" : "Product profit"} value={money(productProfitRows.reduce((s, p) => s + toNumber(p.profit), 0))} hint={fa ? `${n(productProfitRows.length)} کالا` : `${n(productProfitRows.length)} products`} color="text-[var(--erp-accent)]" />
         <ReportCard icon={<Boxes />} title={fa ? "کالاهای کم‌موجودی" : "Low stock"} value={n(lowStockProducts.length)} color={lowStockProducts.length ? "text-amber-300" : "text-green-300"} />
-        <ReportCard icon={<Banknote />} title={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} color={toNumber(cashflow.net_cashflow) >= 0 ? "text-cyan-300" : "text-red-300"} />
-        <ReportCard icon={<Activity />} title={fa ? "تراکنش‌ها" : "Transactions"} value={n(transactions.length)} hint={fa ? "دریافت و پرداخت" : "Receipts & payments"} color="text-cyan-300" />
+        <ReportCard icon={<Banknote />} title={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
+        <ReportCard icon={<Activity />} title={fa ? "تراکنش‌ها" : "Transactions"} value={n(transactions.length)} hint={fa ? "دریافت و پرداخت" : "Receipts & payments"} color="text-[var(--erp-accent)]" />
       </div>
 
-      <div className="flex gap-2 flex-wrap bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-3 no-print">
+      <div className="flex gap-2 flex-wrap bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-3 no-print">
         {tabs.map(([key, tabLabel]) => (
-          <button type="button" key={key} onClick={() => setActive(key)} className={`px-4 py-3 rounded-2xl font-black ${active === key ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-cyan-100"}`}>
+          <button type="button" key={key} onClick={() => setActive(key)} className={`px-4 py-3 rounded-2xl font-black ${active === key ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"}`}>
             {tabLabel}
           </button>
         ))}
       </div>
 
       {(active === "cash" || active === "transactions" || active === "customers") && (
-        <div className="flex items-center gap-2 bg-slate-900/60 border border-cyan-500/20 rounded-2xl px-4 py-3 no-print">
-          <Search size={18} className="text-cyan-300" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={fa ? "جستجو..." : "Search..."} className="bg-transparent outline-none w-full text-white placeholder-slate-400" />
+        <div className="flex items-center gap-2 bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 no-print">
+          <Search size={18} className="text-[var(--erp-accent)]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={fa ? "جستجو..." : "Search..."} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
         </div>
       )}
 
@@ -691,7 +691,7 @@ export default function Reports() {
           <ReportLine label={fa ? "خرید خالص" : "Net purchases"} value={money(profit.net_purchases || 0)} strong />
           <ReportLine label={fa ? "سود ناخالص" : "Gross profit"} value={money(profit.gross_profit || 0)} strong />
           <ReportLine label={fa ? "هزینه‌ها" : "Expenses"} value={money(profit.expenses ?? fallbackTotals.expensesTotal)} negative />
-          <ReportLine label={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit || 0)} strong color={toNumber(profit.net_profit) >= 0 ? "text-cyan-300" : "text-red-300"} />
+          <ReportLine label={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit || 0)} strong color={toNumber(profit.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
         </Panel>
       )}
 
@@ -700,7 +700,7 @@ export default function Reports() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ReportCard icon={<Scale />} title={fa ? "جمع بدهکار" : "Total debit"} value={money(trial.total_debit || 0)} color="text-red-300" />
             <ReportCard icon={<Scale />} title={fa ? "جمع بستانکار" : "Total credit"} value={money(trial.total_credit || 0)} color="text-green-300" />
-            <ReportCard icon={<Scale />} title={fa ? "اختلاف" : "Difference"} value={money(Math.abs(toNumber(trial.difference)))} color={trial.is_balanced ? "text-cyan-300" : "text-amber-300"} />
+            <ReportCard icon={<Scale />} title={fa ? "اختلاف" : "Difference"} value={money(Math.abs(toNumber(trial.difference)))} color={trial.is_balanced ? "text-[var(--erp-accent)]" : "text-amber-300"} />
           </div>
           <div className={`mt-4 p-4 rounded-2xl ${trial.is_balanced ? "bg-emerald-500/10 text-emerald-200" : "bg-amber-500/10 text-amber-200"}`}>
             {trial.is_balanced ? (fa ? "تراز آزمایشی برابر است." : "Trial balance is balanced.") : (fa ? "تراز آزمایشی اختلاف دارد." : "Trial balance has a difference.")}
@@ -755,7 +755,7 @@ export default function Reports() {
           <Panel title={fa ? "جریان نقدی" : "Cashflow"}>
             <ReportLine label={fa ? "کل دریافت" : "Total receipts"} value={money(cashflow.receipt_total || 0)} strong />
             <ReportLine label={fa ? "کل پرداخت" : "Total payments"} value={money(cashflow.payment_total || 0)} negative />
-            <ReportLine label={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} strong color={toNumber(cashflow.net_cashflow) >= 0 ? "text-cyan-300" : "text-red-300"} />
+            <ReportLine label={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} strong color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
             <ReportLine label={fa ? "دریافت امروز" : "Receipts today"} value={money(cashflow.receipt_today || 0)} />
             <ReportLine label={fa ? "پرداخت امروز" : "Payments today"} value={money(cashflow.payment_today || 0)} />
             <ReportLine label={fa ? "دریافت ماه" : "Receipts this month"} value={money(cashflow.receipt_month || 0)} />
@@ -783,12 +783,12 @@ export default function Reports() {
         </Panel>
       )}
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-6 no-print">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-6 no-print">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center">
-            <BarChart3 className="text-cyan-300" />
+          <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">
+            <BarChart3 className="text-[var(--erp-accent)]" />
           </div>
-          <h2 className="text-2xl font-black text-cyan-300">{fa ? "خروجی فاکتورها" : "Invoice Exports"}</h2>
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "خروجی فاکتورها" : "Invoice Exports"}</h2>
         </div>
 
         <div className="flex flex-wrap gap-4">
@@ -820,30 +820,30 @@ export default function Reports() {
 
 function ReportCard({ icon, title, value, hint, color }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
-      <div className="flex items-center gap-3 text-cyan-300 mb-3">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-xl">
+      <div className="flex items-center gap-3 text-[var(--erp-accent)] mb-3">
         {icon}
-        <span className="text-slate-300 font-bold">{title}</span>
+        <span className="text-[var(--erp-muted)] font-bold">{title}</span>
       </div>
       <div className={`text-3xl font-black ${color}`}>{value}</div>
-      {hint && <div className="text-xs text-slate-400 mt-2">{hint}</div>}
+      {hint && <div className="text-xs text-[var(--erp-muted)] mt-2">{hint}</div>}
     </div>
   );
 }
 
 function ChartPanel({ title, children }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
-      <h2 className="text-xl font-black text-cyan-300 mb-4">{title}</h2>
-      <div className="bg-slate-950/30 rounded-2xl p-3">{children}</div>
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-xl">
+      <h2 className="text-xl font-black text-[var(--erp-accent)] mb-4">{title}</h2>
+      <div className="bg-[var(--erp-panel)] rounded-2xl p-3">{children}</div>
     </div>
   );
 }
 
 function Panel({ title, children }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5 shadow-xl">
-      <h2 className="text-xl font-black text-cyan-300 mb-4">{title}</h2>
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-xl">
+      <h2 className="text-xl font-black text-[var(--erp-accent)] mb-4">{title}</h2>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -851,10 +851,10 @@ function Panel({ title, children }) {
 
 function Row({ title, subtitle, value, color }) {
   return (
-    <div className="bg-slate-800/60 rounded-2xl p-4 flex items-center justify-between gap-3">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3">
       <div>
-        <div className="font-black text-white">{title}</div>
-        <div className="text-xs text-slate-400 mt-1">{subtitle}</div>
+        <div className="font-black text-[var(--erp-text)]">{title}</div>
+        <div className="text-xs text-[var(--erp-muted)] mt-1">{subtitle}</div>
       </div>
       <div className={`font-black text-end ${color}`}>{value}</div>
     </div>
@@ -863,9 +863,9 @@ function Row({ title, subtitle, value, color }) {
 
 function ReportLine({ label, value, strong, negative, color }) {
   return (
-    <div className={`bg-slate-800/60 rounded-2xl p-4 flex justify-between gap-3 ${strong ? "border border-cyan-400/20" : ""}`}>
-      <span className="text-slate-300 font-bold">{label}</span>
-      <span className={`font-black ${color || (negative ? "text-red-300" : "text-white")}`}>{value}</span>
+    <div className={`bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex justify-between gap-3 ${strong ? "border border-[var(--erp-border)]" : ""}`}>
+      <span className="text-[var(--erp-muted)] font-bold">{label}</span>
+      <span className={`font-black ${color || (negative ? "text-red-300" : "text-[var(--erp-text)]")}`}>{value}</span>
     </div>
   );
 }
@@ -873,17 +873,17 @@ function ReportLine({ label, value, strong, negative, color }) {
 function CustomerRow({ item, money, n, fa, type }) {
   const amount = type === "debtor" ? getDebtor(item) : getCreditor(item);
   return (
-    <div className="bg-slate-800/60 rounded-2xl p-4">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="font-black text-white">{item.name || "-"}</div>
-          <div className="text-xs text-slate-400 mt-1">{item.phone || "-"}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.phone || "-"}</div>
         </div>
         <div className={`font-black ${type === "debtor" ? "text-red-300" : "text-green-300"}`}>{money(amount)}</div>
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-3 text-xs text-slate-300">
-        <div className="bg-slate-900/70 rounded-xl p-2">{fa ? "تعداد فاکتور" : "Invoices"}: {n(item.invoice_count || 0)}</div>
-        <div className="bg-slate-900/70 rounded-xl p-2">{fa ? "آخرین تراکنش" : "Last"}: {item.last_transaction_date ? String(item.last_transaction_date).slice(0, 10) : "-"}</div>
+      <div className="grid grid-cols-2 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
+        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{fa ? "تعداد فاکتور" : "Invoices"}: {n(item.invoice_count || 0)}</div>
+        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{fa ? "آخرین تراکنش" : "Last"}: {item.last_transaction_date ? String(item.last_transaction_date).slice(0, 10) : "-"}</div>
       </div>
     </div>
   );
@@ -892,15 +892,15 @@ function CustomerRow({ item, money, n, fa, type }) {
 function ProductProfitRow({ item, money, n, fa }) {
   const profitPositive = toNumber(item.profit) >= 0;
   return (
-    <div className="bg-slate-800/60 rounded-2xl p-4">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="font-black text-white">{item.name || "-"}</div>
-          <div className="text-xs text-slate-400 mt-1">{item.barcode || "-"} • {item.brand || "-"}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.barcode || "-"} • {item.brand || "-"}</div>
         </div>
-        <div className={`font-black ${profitPositive ? "text-cyan-300" : "text-red-300"}`}>{money(item.profit)}</div>
+        <div className={`font-black ${profitPositive ? "text-[var(--erp-accent)]" : "text-red-300"}`}>{money(item.profit)}</div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-slate-300">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
         <MiniStat label={fa ? "فروش" : "Sold"} value={n(item.sold_qty || 0)} />
         <MiniStat label={fa ? "مرجوعی" : "Return"} value={n(item.returned_qty || 0)} />
         <MiniStat label={fa ? "درآمد" : "Revenue"} value={money(item.revenue || 0)} />
@@ -917,15 +917,15 @@ function InventoryRow({ item, money, n, fa }) {
   const statusClass = status === "critical" ? "text-red-300 bg-red-500/10" : status === "warning" ? "text-amber-300 bg-amber-500/10" : "text-green-300 bg-green-500/10";
 
   return (
-    <div className="bg-slate-800/60 rounded-2xl p-4">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="font-black text-white">{item.name || "-"}</div>
-          <div className="text-xs text-slate-400 mt-1">{item.barcode || item.code || "-"}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.barcode || item.code || "-"}</div>
         </div>
         <div className={`px-3 py-1 rounded-xl font-black ${statusClass}`}>{statusLabel}</div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-slate-300">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
         <MiniStat label={fa ? "موجودی" : "Stock"} value={n(item.stock || 0)} />
         <MiniStat label={fa ? "حداقل" : "Min"} value={n(item.min_stock || 0)} />
         <MiniStat label={fa ? "ارزش فروش" : "Sale value"} value={money(item.value || 0)} />
@@ -941,14 +941,14 @@ function TransactionRow({ item, money, date }) {
   const credit = toNumber(item.credit);
   const isDebit = debit > 0;
   return (
-    <div className="bg-slate-800/60 rounded-2xl p-4 flex items-center justify-between gap-3">
+    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isDebit ? "bg-red-500/10 text-red-300" : "bg-green-500/10 text-green-300"}`}>
           {isDebit ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
         </div>
         <div>
-          <div className="font-black text-white">{item.description || item.source_type || "-"}</div>
-          <div className="text-xs text-slate-400 mt-1 flex items-center gap-1"><CalendarClock size={13} />{date(item.created_at)} • {item.source_type || "-"}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.description || item.source_type || "-"}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1 flex items-center gap-1"><CalendarClock size={13} />{date(item.created_at)} • {item.source_type || "-"}</div>
         </div>
       </div>
       <div className={`font-black ${isDebit ? "text-red-300" : "text-green-300"}`}>{money(isDebit ? debit : credit)}</div>
@@ -958,9 +958,9 @@ function TransactionRow({ item, money, date }) {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="bg-slate-900/70 rounded-xl p-2">
-      <div className="text-slate-500">{label}</div>
-      <div className="font-black text-slate-100 mt-1">{value}</div>
+    <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">
+      <div className="text-[var(--erp-muted)]">{label}</div>
+      <div className="font-black text-[var(--erp-text)] mt-1">{value}</div>
     </div>
   );
 }
@@ -968,10 +968,10 @@ function MiniStat({ label, value }) {
 function ChartTooltip({ active, payload, label, money }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-950 border border-cyan-500/30 rounded-2xl p-3 text-sm shadow-2xl">
-      <div className="text-cyan-300 font-black mb-2">{label}</div>
+    <div className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 text-sm shadow-2xl">
+      <div className="text-[var(--erp-accent)] font-black mb-2">{label}</div>
       {payload.map((item, index) => (
-        <div key={index} className="text-slate-200 flex items-center justify-between gap-4">
+        <div key={index} className="text-[var(--erp-text)] flex items-center justify-between gap-4">
           <span>{item.name}</span>
           <b>{typeof item.value === "number" ? money(item.value) : item.value}</b>
         </div>
@@ -981,5 +981,5 @@ function ChartTooltip({ active, payload, label, money }) {
 }
 
 function Empty({ fa }) {
-  return <div className="text-slate-400">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>;
+  return <div className="text-[var(--erp-muted)]">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>;
 }

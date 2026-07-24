@@ -79,7 +79,7 @@ const unitOptionsEn = [
 ];
 
 const inputClass =
-  "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 
 function toNumber(value) {
   const cleaned = toEnglishDigits(String(value ?? ""))
@@ -164,9 +164,9 @@ function mergeServerWithCache(serverItems = [], cachedItems = []) {
 function Field({ label, children, hint }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-cyan-200 block">{label}</label>
+      <label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>
       {children}
-      {hint ? <div className="text-xs text-slate-400">{hint}</div> : null}
+      {hint ? <div className="text-xs text-[var(--erp-muted)]">{hint}</div> : null}
     </div>
   );
 }
@@ -553,14 +553,14 @@ export default function Products() {
     <div className="space-y-6" dir={dir} style={{ direction: dir }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-300">{label.title}</h1>
-          <p className="text-slate-400 mt-2">{label.subtitle}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
         <button
           type="button"
           onClick={load}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -615,7 +615,7 @@ export default function Products() {
         />
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={label.name}>
             <input className={inputClass} value={faText(form.name, fa)} onChange={(e) => setField("name", faText(e.target.value, fa))} placeholder={label.name} />
@@ -675,7 +675,7 @@ export default function Products() {
             <input className={inputClass} value={faText(form.sub_category, fa)} onChange={(e) => setField("sub_category", faText(e.target.value, fa))} placeholder={label.subCategory} />
           </Field>
 
-          <label className="bg-slate-800 rounded-2xl p-4 outline-none flex items-center gap-2 cursor-pointer border border-cyan-500/10">
+          <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none flex items-center gap-2 cursor-pointer border border-[var(--erp-border)]">
             <ImagePlus size={18} />
             {label.uploadImage}
             <input type="file" accept="image/*" onChange={imageChange} className="hidden" />
@@ -683,7 +683,7 @@ export default function Products() {
         </div>
 
         {form.image && (
-          <img src={form.image} alt="product" className="mt-4 w-24 h-24 object-cover rounded-2xl border border-cyan-500/30" />
+          <img src={form.image} alt="product" className="mt-4 w-24 h-24 object-cover rounded-2xl border border-[var(--erp-border)]" />
         )}
 
         <div className="flex gap-3 flex-wrap mt-5">
@@ -693,7 +693,7 @@ export default function Products() {
           </button>
 
           {editingId && (
-            <button type="button" onClick={reset} className="px-5 py-3 rounded-2xl bg-slate-700 text-white font-black flex items-center gap-2">
+            <button type="button" onClick={reset} className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2">
               <X size={18} />
               {label.cancel}
             </button>
@@ -701,16 +701,16 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-slate-800 rounded-2xl px-4 py-3 mb-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
           <Search size={18} />
-          <input value={faText(search, fa)} onChange={(e) => setSearch(faText(e.target.value, fa))} placeholder={label.search} className="bg-transparent outline-none w-full text-white placeholder-slate-400" />
+          <input value={faText(search, fa)} onChange={(e) => setSearch(faText(e.target.value, fa))} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px]">
             <thead>
-              <tr className="text-cyan-300 text-sm border-b border-cyan-500/20">
+              <tr className="text-[var(--erp-accent)] text-sm border-b border-[var(--erp-border)]">
                 <th className="py-3 text-start">{fa ? "کالا" : "Product"}</th>
                 <th className="py-3 text-start">{label.barcode}</th>
                 <th className="py-3 text-start">{label.buy}</th>
@@ -724,13 +724,13 @@ export default function Products() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-slate-400 text-center">
+                  <td colSpan={7} className="py-6 text-[var(--erp-muted)] text-center">
                     {fa ? "در حال دریافت..." : "Loading..."}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-6 text-slate-400 text-center">
+                  <td colSpan={7} className="py-6 text-[var(--erp-muted)] text-center">
                     {label.noData}
                   </td>
                 </tr>
@@ -740,9 +740,9 @@ export default function Products() {
                   const isLow = toNumber(item.min_stock) > 0 && toNumber(item.stock) <= toNumber(item.min_stock);
 
                   return (
-                    <tr key={item.id} className="border-t border-slate-800 hover:bg-cyan-500/5">
+                    <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-cyan-500/5">
                       <td className="py-4 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--erp-glow)] flex items-center justify-center overflow-hidden">
                           {item.image ? <img src={item.image} className="w-full h-full object-cover" alt="" /> : <Package size={18} />}
                         </div>
 
@@ -751,7 +751,7 @@ export default function Products() {
                             {faText(item.name, fa)}
                             {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{fa ? "آفلاین" : "Offline"}</span>}
                           </b>
-                          <div className="text-slate-400 text-xs">
+                          <div className="text-[var(--erp-muted)] text-xs">
                             {faText(item.brand || "-", fa)} • {faText(item.unit || "-", fa)}
                           </div>
                         </div>
@@ -761,7 +761,7 @@ export default function Products() {
                       <td>{money(item.buy_price || 0)}</td>
                       <td>{money(item.sell_price ?? item.price ?? 0)}</td>
 
-                      <td className={isLow ? "text-red-300 font-black" : "text-cyan-200 font-bold"}>
+                      <td className={isLow ? "text-red-300 font-black" : "text-[var(--erp-accent)] font-bold"}>
                         {n(item.stock || 0)}
                       </td>
 
@@ -769,7 +769,7 @@ export default function Products() {
 
                       <td>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <button type="button" onClick={() => edit(item)} className="px-3 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 inline-flex items-center gap-2">
+                          <button type="button" onClick={() => edit(item)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center gap-2">
                             <Edit3 size={16} />
                             {fa ? "ویرایش" : "Edit"}
                           </button>
@@ -794,13 +794,13 @@ export default function Products() {
 
 function Summary({ icon, title, value, subtitle, danger }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-      <div className="flex items-center gap-3 text-cyan-300 mb-3">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="flex items-center gap-3 text-[var(--erp-accent)] mb-3">
         {icon}
-        <span className="text-slate-300 font-bold">{title}</span>
+        <span className="text-[var(--erp-muted)] font-bold">{title}</span>
       </div>
 
-      <div className={`text-3xl font-black ${danger ? "text-red-300" : "text-cyan-300"}`}>
+      <div className={`text-3xl font-black ${danger ? "text-red-300" : "text-[var(--erp-accent)]"}`}>
         {value}
       </div>
 

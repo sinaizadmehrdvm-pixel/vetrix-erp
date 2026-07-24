@@ -77,12 +77,12 @@ function normalizeNumberInput(value, fa) {
 function Field({ label, hint, icon, children }) {
   return (
     <div className="space-y-2">
-      <label className="flex items-center gap-2 text-sm font-bold text-cyan-200">
+      <label className="flex items-center gap-2 text-sm font-bold text-[var(--erp-accent)]">
         {icon}
         <span>{label}</span>
       </label>
       {children}
-      {hint ? <p className="text-xs text-slate-400">{hint}</p> : null}
+      {hint ? <p className="text-xs text-[var(--erp-muted)]">{hint}</p> : null}
     </div>
   );
 }
@@ -748,14 +748,14 @@ export default function Invoices() {
     <div dir={dir} className="space-y-6" style={{ direction: dir }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-300">{label.invoiceSystem}</h1>
-          <p className="text-slate-400 mt-2">{label.subtitle}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.invoiceSystem}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
         <button
           type="button"
           onClick={loadData}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2 border border-cyan-500/20"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
           {label.refresh}
@@ -794,15 +794,15 @@ export default function Invoices() {
       ) : null}
 
       {loading ? (
-        <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-4 text-cyan-200">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-4 text-[var(--erp-accent)]">
           {label.loading}
         </div>
       ) : null}
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex items-center gap-2 mb-5">
-          <ReceiptText className="text-cyan-300" size={24} />
-          <h2 className="text-2xl font-black text-cyan-300">
+          <ReceiptText className="text-[var(--erp-accent)]" size={24} />
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">
             {editingId ? label.saveInvoice : label.invoiceInfo}
           </h2>
         </div>
@@ -812,7 +812,7 @@ export default function Invoices() {
             <select
               value={form.invoice_type}
               onChange={(e) => setForm({ ...form, invoice_type: e.target.value })}
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="sale">{label.saleInvoice}</option>
               <option value="buy">{label.buyInvoice}</option>
@@ -826,7 +826,7 @@ export default function Invoices() {
             <select
               value={form.customer_id}
               onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="">{label.selectCustomer}</option>
               {customers.map((c) => (
@@ -844,7 +844,7 @@ export default function Invoices() {
             <select
               value={form.payment_status}
               onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="unpaid">{label.unpaid}</option>
               <option value="partial">{label.partial}</option>
@@ -863,7 +863,7 @@ export default function Invoices() {
                   shipping_cost: normalizeNumberInput(e.target.value, fa),
                 })
               }
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰" : "0"}
             />
           </Field>
@@ -879,7 +879,7 @@ export default function Invoices() {
                   discount_percent: normalizeNumberInput(e.target.value, fa),
                 })
               }
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰٪" : "0%"}
             />
           </Field>
@@ -895,13 +895,13 @@ export default function Invoices() {
                   tax_percent: normalizeNumberInput(e.target.value, fa),
                 })
               }
-              className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰٪" : "0%"}
             />
           </Field>
 
           <Field label={label.invoiceQR} hint={label.qrHint} icon={<QrCode size={16} />}>
-            <label className="bg-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2 cursor-pointer border border-slate-700">
+            <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex items-center justify-between gap-2 cursor-pointer border border-[var(--erp-border)]">
               <span className="flex items-center gap-2">
                 <QrCode size={18} />
                 {label.invoiceQR}
@@ -916,8 +916,8 @@ export default function Invoices() {
         </div>
 
         <div className="flex items-center gap-2 mb-4 mt-4">
-          <Package className="text-cyan-300" size={24} />
-          <h2 className="text-2xl font-black text-cyan-300">{label.itemsTitle}</h2>
+          <Package className="text-[var(--erp-accent)]" size={24} />
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{label.itemsTitle}</h2>
         </div>
 
         <div className="space-y-4">
@@ -925,13 +925,13 @@ export default function Invoices() {
             const rowTotal = toNumber(item.quantity) * toNumber(item.unit_price);
 
             return (
-              <div key={index} className="bg-slate-950/40 rounded-3xl p-4 border border-slate-800">
+              <div key={index} className="bg-[var(--erp-panel)] rounded-3xl p-4 border border-[var(--erp-border)]">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                   <Field label={`${label.item} ${n(index + 1)}`} icon={<Package size={16} />}>
                     <select
                       value={item.product_id}
                       onChange={(e) => updateItem(index, "product_id", e.target.value)}
-                      className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                     >
                       <option value="">{label.selectProduct}</option>
                       {products.map((p) => (
@@ -952,7 +952,7 @@ export default function Invoices() {
                       inputMode="numeric"
                       value={item.quantity}
                       onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                      className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       placeholder={label.quantity}
                     />
                   </Field>
@@ -963,13 +963,13 @@ export default function Invoices() {
                       inputMode="numeric"
                       value={item.unit_price}
                       onChange={(e) => updateItem(index, "unit_price", e.target.value)}
-                      className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       placeholder={label.unitPrice}
                     />
                   </Field>
 
                   <Field label={label.rowTotal}>
-                    <div className="bg-slate-800 rounded-2xl p-3 min-h-[48px] border border-slate-700 text-cyan-200 font-black">
+                    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 min-h-[48px] border border-[var(--erp-border)] text-[var(--erp-accent)] font-black">
                       {money(rowTotal)}
                     </div>
                   </Field>
@@ -1008,7 +1008,7 @@ export default function Invoices() {
         <textarea
           value={form.invoice_note}
           onChange={(e) => setForm({ ...form, invoice_note: e.target.value })}
-          className="bg-slate-800 rounded-2xl p-3 outline-none w-full mt-5 border border-slate-700 focus:border-cyan-400"
+          className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full mt-5 border border-[var(--erp-border)] focus:border-cyan-400"
           rows={3}
           placeholder={label.notesPlaceholder}
         />
@@ -1018,7 +1018,7 @@ export default function Invoices() {
             <button
               type="button"
               onClick={addItem}
-              className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-300 font-bold flex items-center gap-2 border border-cyan-500/20"
+              className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
             >
               <Plus size={18} />
               {label.addItem}
@@ -1033,7 +1033,7 @@ export default function Invoices() {
             </button>
           </div>
 
-          <div className="text-2xl font-black text-cyan-300">
+          <div className="text-2xl font-black text-[var(--erp-accent)]">
             {label.grandTotal}: {money(calc.grandTotal)}
           </div>
         </div>
@@ -1063,7 +1063,7 @@ export default function Invoices() {
                 setForm(emptyForm);
                 setItems([{ ...emptyItem }]);
               }}
-              className="mt-5 px-6 py-4 rounded-2xl bg-slate-700 text-white font-black flex items-center gap-2"
+              className="mt-5 px-6 py-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
               <X size={20} />
               {label.cancelEdit}
@@ -1072,10 +1072,10 @@ export default function Invoices() {
         </div>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Calculator className="text-cyan-300" size={24} />
-          <h2 className="text-2xl font-black text-cyan-300">{label.summaryTitle}</h2>
+          <Calculator className="text-[var(--erp-accent)]" size={24} />
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{label.summaryTitle}</h2>
         </div>
 
         <InvoiceSummary
@@ -1092,13 +1092,13 @@ export default function Invoices() {
 
       <InvoicePrint invoice={createdInvoice} />
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-        <h2 className="text-2xl font-black text-cyan-300 mb-4">{label.invoicesList}</h2>
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+        <h2 className="text-2xl font-black text-[var(--erp-accent)] mb-4">{label.invoicesList}</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead>
-              <tr className="text-cyan-300 text-sm border-b border-slate-800">
+              <tr className="text-[var(--erp-accent)] text-sm border-b border-[var(--erp-border)]">
                 <th className="text-start py-3">{label.id}</th>
                 <th className="text-start py-3">{label.invoiceType}</th>
                 <th className="text-start py-3">{label.customer}</th>
@@ -1111,13 +1111,13 @@ export default function Invoices() {
             <tbody>
               {invoices.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-slate-400 text-center" colSpan={6}>
+                  <td className="py-6 text-[var(--erp-muted)] text-center" colSpan={6}>
                     {label.noInvoices}
                   </td>
                 </tr>
               ) : (
                 invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-t border-slate-800">
+                  <tr key={invoice.id} className="border-t border-[var(--erp-border)]">
                     <td className="py-4">
                       #{n(invoice.id)}
                       {invoice.pending_sync && (
