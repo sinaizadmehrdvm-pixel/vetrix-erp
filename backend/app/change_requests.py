@@ -16,7 +16,7 @@ from app.database import engine
 router = APIRouter(prefix="/api/change-requests", tags=["Managed Change Requests"])
 
 ALLOWED_SOURCES = {"in_app", "telegram", "whatsapp", "other"}
-ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"}
+ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"}
 ALLOWED_PRODUCT_FIELDS = {"is_published", "sync_stock", "online_price", "discount_percent", "sale_start", "sale_end", "website_slug"}
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".opus"}
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
@@ -170,6 +170,20 @@ def _validate(action_type, target_id, changes):
                 raise HTTPException(status_code=400, detail="Each item needs a valid product_id")
             if not isinstance(quantity, (int, float)) or quantity <= 0:
                 raise HTTPException(status_code=400, detail="Each item needs a quantity greater than zero")
+    if action_type == "report_delivery":
+        from app.report_delivery import FORMATS, REPORT_REGISTRY
+
+        report_type = changes.get("report_type")
+        if report_type not in REPORT_REGISTRY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"report_type must be one of: {', '.join(sorted(REPORT_REGISTRY))}",
+            )
+        if changes.get("format") not in FORMATS:
+            raise HTTPException(status_code=400, detail=f"format must be one of: {', '.join(sorted(FORMATS))}")
+        destination_email = str(changes.get("destination_email") or "").strip()
+        if "@" not in destination_email or "." not in destination_email.split("@")[-1]:
+            raise HTTPException(status_code=400, detail="A valid destination_email is required")
 
 
 class ChangeRequestPayload(BaseModel):
@@ -177,7 +191,7 @@ class ChangeRequestPayload(BaseModel):
     source_reference: str = Field(default="", max_length=500)
     audio_reference: str = Field(default="", max_length=2000)
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -188,7 +202,7 @@ class DecisionPayload(BaseModel):
 
 class TranscriptReviewPayload(BaseModel):
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -470,6 +484,16 @@ def _apply(conn, item, actor):
         return (
             f"Sale invoice draft ready for {customer['name']}: "
             + ", ".join(item_descriptions)
+        )
+    if item["action_type"] == "report_delivery":
+        from app.report_delivery import generate_and_send_report
+
+        result = generate_and_send_report(
+            changes["report_type"], changes["format"], changes["destination_email"],
+        )
+        return (
+            f"Report '{changes['report_type']}' ({changes['format'].upper()}) "
+            f"to {changes['destination_email']}: {result['status']} - {result['detail']}"
         )
     raise HTTPException(status_code=400, detail="Unsupported action")
 

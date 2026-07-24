@@ -3681,6 +3681,106 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(default_deactivate_blocked.status_code, 400)
 
+    def test_zzzzzzzzzzzzzzzzzzzzz_voice_driven_report_delivery_flow(self):
+        from app.report_delivery import generate_csv, generate_pdf
+
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        user_login = self.client.post(
+            "/login", json={"username": "ci-user", "password": "StrongUserPassword!42"}
+        )
+        self.assertEqual(user_login.status_code, 200, user_login.text)
+        user_headers = {"Authorization": f"Bearer {user_login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Report Delivery Customer"}
+        )
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Report Delivery Widget", "sell_price": 123000, "stock": 20}
+        )
+        self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer.json()["id"],
+                "items": [{"product_id": product.json()["id"], "quantity": 1, "unit_price": 123000}],
+            },
+        )
+
+        # Report data generation reuses the real /reports/* endpoints directly.
+        csv_bytes = generate_csv("sales")
+        self.assertIn(b"Report Delivery Customer", csv_bytes)
+        pdf_bytes = generate_pdf("sales")
+        self.assertTrue(pdf_bytes.startswith(b"%PDF"))
+
+        with self.assertRaises(ValueError):
+            generate_csv("not_a_real_report_type")
+
+        # Rejected: unknown report_type.
+        bad_report_type = self.client.post(
+            "/api/change-requests", headers=user_headers,
+            json={
+                "transcript": "Send me the sales report by email",
+                "action_type": "report_delivery",
+                "proposed_changes": {"report_type": "not_real", "format": "pdf", "destination_email": "a@b.com"},
+            },
+        )
+        self.assertEqual(bad_report_type.status_code, 400)
+
+        # Rejected: unknown format.
+        bad_format = self.client.post(
+            "/api/change-requests", headers=user_headers,
+            json={
+                "transcript": "Send me the sales report by email",
+                "action_type": "report_delivery",
+                "proposed_changes": {"report_type": "sales", "format": "docx", "destination_email": "a@b.com"},
+            },
+        )
+        self.assertEqual(bad_format.status_code, 400)
+
+        # Rejected: invalid destination email.
+        bad_email = self.client.post(
+            "/api/change-requests", headers=user_headers,
+            json={
+                "transcript": "Send me the sales report by email",
+                "action_type": "report_delivery",
+                "proposed_changes": {"report_type": "sales", "format": "pdf", "destination_email": "not-an-email"},
+            },
+        )
+        self.assertEqual(bad_email.status_code, 400)
+
+        created = self.client.post(
+            "/api/change-requests", headers=user_headers,
+            json={
+                "transcript": "Send me this month's sales report as a PDF to accounting@example.com",
+                "action_type": "report_delivery",
+                "proposed_changes": {"report_type": "sales", "format": "pdf", "destination_email": "accounting@example.com"},
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        request_id = created.json()["request_id"]
+
+        self.client.post(f"/api/change-requests/{request_id}/submit", headers=user_headers)
+
+        # A non-admin (even the requester) cannot approve at all.
+        non_admin_approve_blocked = self.client.post(
+            f"/api/change-requests/{request_id}/approve", headers=user_headers, json={"note": ""}
+        )
+        self.assertEqual(non_admin_approve_blocked.status_code, 403)
+
+        approve = self.client.post(
+            f"/api/change-requests/{request_id}/approve", headers=headers, json={"note": "Reviewed"}
+        )
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.assertEqual(approve.json()["status"], "applied")
+        # SMTP is not configured in this test environment, so the honest
+        # outcome is reported rather than a false "sent".
+        self.assertIn("skipped_not_configured", approve.json()["result"])
+
 
 if __name__ == "__main__":
     unittest.main()

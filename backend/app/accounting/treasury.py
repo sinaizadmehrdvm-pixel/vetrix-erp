@@ -111,7 +111,11 @@ def _add_customer_entry(conn, cheque, source_type, description, debit=0, credit=
         "debit": _money(debit),
         "credit": _money(credit),
         "balance_after": after,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        # Naive, matching every other writer of the shared accounting_entries
+        # table (e.g. app/database default=datetime.utcnow) - an aware
+        # timestamp here breaks any later comparison against those naive
+        # values (main.py's report builders sort/filter entries by created_at).
+        "created_at": datetime.utcnow().isoformat(),
     })
     return result.lastrowid
 

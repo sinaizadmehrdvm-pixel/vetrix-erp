@@ -18,6 +18,16 @@ async function api(path, options = {}) {
 
 const emptyInvoiceItem = { product_id: "", quantity: "1" };
 
+const REPORT_TYPES = [
+  { value: "sales", fa: "فاکتورهای فروش", en: "Sales invoices" },
+  { value: "purchases", fa: "فاکتورهای خرید", en: "Purchase invoices" },
+  { value: "inventory", fa: "موجودی انبار", en: "Inventory" },
+  { value: "customer_balances", fa: "مانده حساب مشتریان", en: "Customer balances" },
+  { value: "product_profit", fa: "سودآوری کالاها", en: "Product profitability" },
+  { value: "open_invoices", fa: "فاکتورهای تسویه‌نشده", en: "Open invoices" },
+  { value: "inventory_movements", fa: "گردش انبار", en: "Stock movements" },
+];
+
 export default function ChangeRequestCenter() {
   const { language, dir } = useLanguage();
   const { user } = useAuth();
@@ -37,6 +47,7 @@ export default function ChangeRequestCenter() {
     source: "in_app", source_reference: "", transcript: "",
     action_type: "note_only", target_id: "", field: "online_price", value: "",
     invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
+    report_type: "sales", report_format: "pdf", destination_email: "",
   });
 
   async function load() {
@@ -107,6 +118,13 @@ export default function ChangeRequestCenter() {
           .map((item) => ({ product_id: Number(item.product_id), quantity: Number(item.quantity) })),
       };
     }
+    if (form.action_type === "report_delivery") {
+      return {
+        report_type: form.report_type,
+        format: form.report_format,
+        destination_email: form.destination_email.trim(),
+      };
+    }
     let value = form.value;
     if (["online_price", "discount_percent"].includes(form.field)) value = Number(value);
     if (["is_published", "sync_stock"].includes(form.field)) value = value === "true";
@@ -141,6 +159,7 @@ export default function ChangeRequestCenter() {
       setForm({
         source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "",
         invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
+        report_type: "sales", report_format: "pdf", destination_email: "",
       });
       setAudioName("");
       setAudioFile(null);
@@ -234,6 +253,7 @@ export default function ChangeRequestCenter() {
               <option value="online_product_update">{fa ? "تغییر مشخصات کالای سایت" : "Online product update"}</option>
               <option value="campaign_draft">{fa ? "ساخت پیش‌نویس تبلیغ" : "Create campaign draft"}</option>
               <option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option>
+              <option value="report_delivery">{fa ? "ارسال گزارش" : "Send a report"}</option>
             </select>
           </Field>
 
@@ -254,6 +274,18 @@ export default function ChangeRequestCenter() {
               items={form.invoice_items}
               onCustomerChange={(value) => setForm({ ...form, invoice_customer_id: value })}
               onItemsChange={(items) => setForm({ ...form, invoice_items: items })}
+            />
+          )}
+
+          {form.action_type === "report_delivery" && (
+            <ReportDeliveryFields
+              fa={fa}
+              reportType={form.report_type}
+              reportFormat={form.report_format}
+              destinationEmail={form.destination_email}
+              onReportTypeChange={(value) => setForm({ ...form, report_type: value })}
+              onReportFormatChange={(value) => setForm({ ...form, report_format: value })}
+              onDestinationEmailChange={(value) => setForm({ ...form, destination_email: value })}
             />
           )}
 
@@ -327,6 +359,34 @@ function InvoiceItemsBuilder({ fa, customers, products, customerId, items, onCus
   );
 }
 
+function ReportDeliveryFields({ fa, reportType, reportFormat, destinationEmail, onReportTypeChange, onReportFormatChange, onDestinationEmailChange }) {
+  return (
+    <>
+      <Field label={fa ? "نوع گزارش" : "Report type"}>
+        <select style={inputStyle} value={reportType} onChange={(e) => onReportTypeChange(e.target.value)}>
+          {REPORT_TYPES.map((rt) => <option key={rt.value} value={rt.value}>{fa ? rt.fa : rt.en}</option>)}
+        </select>
+      </Field>
+      <Field label={fa ? "فرمت" : "Format"}>
+        <select style={inputStyle} value={reportFormat} onChange={(e) => onReportFormatChange(e.target.value)}>
+          <option value="pdf">PDF</option>
+          <option value="csv">CSV / Excel</option>
+        </select>
+      </Field>
+      <Field label={fa ? "ارسال به ایمیل" : "Send to email"}>
+        <input
+          required
+          type="email"
+          style={inputStyle}
+          value={destinationEmail}
+          onChange={(e) => onDestinationEmailChange(e.target.value)}
+          placeholder="name@example.com"
+        />
+      </Field>
+    </>
+  );
+}
+
 function RequestCard({ item, fa, products, customers, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
   const status = {
     draft: fa ? "پیش‌نویس" : "Draft",
@@ -374,6 +434,9 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
     campaign_channel: "instagram",
     invoice_customer_id: "",
     invoice_items: [{ product_id: "", quantity: "1" }],
+    report_type: "sales",
+    report_format: "pdf",
+    destination_email: "",
   });
 
   async function submitReview() {
@@ -401,6 +464,13 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
           .map((row) => ({ product_id: Number(row.product_id), quantity: Number(row.quantity) })),
       };
     }
+    if (review.action_type === "report_delivery") {
+      proposed_changes = {
+        report_type: review.report_type,
+        format: review.report_format,
+        destination_email: review.destination_email.trim(),
+      };
+    }
     setSaving(true);
     try {
       await onReview({
@@ -419,7 +489,7 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
 
   return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
     <Field label={fa ? "متن نهایی تأییدشده توسط مدیر" : "Manager-reviewed final transcript"}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: e.target.value })} /></Field>
-    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option><option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option></select></Field>
+    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option><option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option><option value="report_delivery">{fa ? "ارسال گزارش" : "Send a report"}</option></select></Field>
     {review.action_type === "sale_invoice_draft" && (
       <InvoiceItemsBuilder
         fa={fa}
@@ -431,6 +501,17 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
         onItemsChange={(items) => setReview({ ...review, invoice_items: items })}
       />
     )}
+    {review.action_type === "report_delivery" && (
+      <ReportDeliveryFields
+        fa={fa}
+        reportType={review.report_type}
+        reportFormat={review.report_format}
+        destinationEmail={review.destination_email}
+        onReportTypeChange={(value) => setReview({ ...review, report_type: value })}
+        onReportFormatChange={(value) => setReview({ ...review, report_format: value })}
+        onDestinationEmailChange={(value) => setReview({ ...review, destination_email: value })}
+      />
+    )}
     {review.action_type === "online_product_update" && <>
       <Field label={fa ? "کالا" : "Product"}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
       <Field label={fa ? "فیلد مجاز" : "Allowed field"}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{fa ? "قیمت سایت" : "Online price"}</option><option value="discount_percent">{fa ? "درصد تخفیف" : "Discount percent"}</option><option value="is_published">{fa ? "انتشار" : "Published"}</option><option value="sync_stock">{fa ? "همگام‌سازی موجودی" : "Stock sync"}</option></select></Field>
@@ -440,6 +521,6 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
       <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
       <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel}>{channel}</option>)}</select></Field>
     </>}
-    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0)))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-slate-600 text-white">{fa ? "انصراف" : "Cancel"}</button></div>
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-slate-600 text-white">{fa ? "انصراف" : "Cancel"}</button></div>
   </div>;
 }
