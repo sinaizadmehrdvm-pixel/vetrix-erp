@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Copy, FileDown, Plus, ShieldOff, Sparkles } from "lucide-react";
+import { BookOpen, Copy, FileDown, MessageCircle, Plus, Send, ShieldOff, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -7,6 +7,7 @@ import {
   createCatalogLink,
   downloadAuthenticatedFile,
   getCatalogLinks,
+  getCatalogMessages,
   getCatalogOrders,
   getProducts,
   markCatalogOrderConverted,
@@ -19,6 +20,28 @@ const cardClass = "rounded-2xl border border-white/10 bg-white/5 p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none focus:ring-2 focus:ring-cyan-400";
 const buttonClass = "rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
+const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || "").replace(/\D/g, "");
+const TELEGRAM_BOT = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
+
+function orderMessageTemplate(catalog, fa) {
+  const url = `${window.location.origin}/catalog/${catalog.token}`;
+  return fa
+    ? `کاتالوگ «${catalog.title}» را ببینید: ${url}\n\nبرای سفارش از طریق همین گفتگو، این پیام را با کد کالا و تعداد ویرایش کرده و ارسال کنید:\nORDER ${catalog.id}\n2x <کد کالا>\n1x <کد کالا>`
+    : `Browse the "${catalog.title}" catalog: ${url}\n\nTo order right from this chat, edit this message with product codes and quantities and send it:\nORDER ${catalog.id}\n2x <product code>\n1x <product code>`;
+}
+
+function whatsappShareUrl(catalog, fa) {
+  const text = encodeURIComponent(orderMessageTemplate(catalog, fa));
+  return WHATSAPP_NUMBER ? `https://wa.me/${WHATSAPP_NUMBER}?text=${text}` : `https://wa.me/?text=${text}`;
+}
+
+function telegramShareUrl(catalog, fa) {
+  const text = encodeURIComponent(orderMessageTemplate(catalog, fa));
+  if (TELEGRAM_BOT) return `https://t.me/${TELEGRAM_BOT}?text=${text}`;
+  const url = encodeURIComponent(`${window.location.origin}/catalog/${catalog.token}`);
+  return `https://t.me/share/url?url=${url}&text=${text}`;
+}
+
 export default function CatalogManager() {
   const { dir, language, money } = useLanguage();
   const fa = language === "fa";
@@ -26,6 +49,7 @@ export default function CatalogManager() {
   const [products, setProducts] = useState([]);
   const [catalogs, setCatalogs] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -50,14 +74,16 @@ export default function CatalogManager() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [productsData, catalogsData, ordersData] = await Promise.all([
+      const [productsData, catalogsData, ordersData, messagesData] = await Promise.all([
         getProducts(),
         getCatalogLinks(),
         getCatalogOrders(),
+        getCatalogMessages(),
       ]);
       setProducts(Array.isArray(productsData) ? productsData : []);
       setCatalogs(catalogsData.items || []);
       setOrders(ordersData.items || []);
+      setMessages(messagesData.items || []);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -268,6 +294,26 @@ export default function CatalogManager() {
                       <Copy size={14} /> {fa ? "کپی لینک" : "Copy link"}
                     </button>
                   )}
+                  {catalog.enabled && (
+                    <a
+                      href={whatsappShareUrl(catalog, fa)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-200 text-sm font-bold flex items-center gap-1"
+                    >
+                      <MessageCircle size={14} /> WhatsApp
+                    </a>
+                  )}
+                  {catalog.enabled && (
+                    <a
+                      href={telegramShareUrl(catalog, fa)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-xl bg-sky-500/20 text-sky-200 text-sm font-bold flex items-center gap-1"
+                    >
+                      <Send size={14} /> Telegram
+                    </a>
+                  )}
                   <button onClick={() => downloadPdf(catalog.id, catalog.title)} className="px-3 py-2 rounded-xl bg-cyan-500/20 text-cyan-200 text-sm font-bold flex items-center gap-1">
                     <FileDown size={14} /> PDF
                   </button>
@@ -317,6 +363,42 @@ export default function CatalogManager() {
                     </button>
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="text-lg font-bold mb-2">{fa ? "گزارش سفارش‌های چت (واتساپ/تلگرام)" : "Chat order log (WhatsApp/Telegram)"}</h2>
+        <p className="text-sm text-slate-400 mb-4">
+          {fa
+            ? "مشتریان می‌توانند با ارسال پیام «ORDER» به شماره واتساپ یا ربات تلگرام کسب‌وکار شما، مستقیماً سفارش ثبت کنند. هر پیام دریافتی این‌جا ثبت می‌شود، چه سفارش ساخته شود چه نه."
+            : "Customers can place an order by texting an \"ORDER\" message to your business WhatsApp number or Telegram bot. Every inbound message is logged here, whether or not it turned into an order."}
+        </p>
+        {messages.length === 0 ? (
+          <p className="text-slate-400">{fa ? "هنوز پیامی دریافت نشده است." : "No chat messages received yet."}</p>
+        ) : (
+          <div className="space-y-2">
+            {messages.map((m) => (
+              <div key={m.id} className="rounded-xl bg-black/20 p-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <div>
+                  <span className="font-bold uppercase text-xs px-2 py-1 rounded-lg bg-white/10 me-2">{m.source}</span>
+                  <span className="text-slate-300">{m.sender_reference}</span>
+                  {m.detail && <span className="text-slate-500 ms-2">— {m.detail}</span>}
+                </div>
+                <span
+                  className={`text-xs font-bold px-2 py-1 rounded-lg ${
+                    m.status === "created"
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : m.status === "rejected"
+                      ? "bg-red-500/15 text-red-200"
+                      : "bg-white/10 text-slate-300"
+                  }`}
+                >
+                  {m.status}
+                  {m.catalog_order_id ? ` #${m.catalog_order_id}` : ""}
+                </span>
               </div>
             ))}
           </div>

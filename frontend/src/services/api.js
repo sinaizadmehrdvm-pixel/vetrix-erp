@@ -207,6 +207,7 @@ export async function rejectCatalogOrder(id) {
 export async function markCatalogOrderConverted(id) {
   return await request(`/api/catalog/orders/${id}/mark-converted`, { method: "POST" });
 }
+export async function getCatalogMessages() { return await request(`/api/catalog/messages`); }
 
 // Tiered / wholesale pricing
 export async function getPriceTiers(productId) {

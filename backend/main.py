@@ -78,6 +78,7 @@ from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
 from app.catalog import router as catalog_router
+from app.catalog_messaging import router as catalog_messaging_router
 from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
@@ -250,6 +251,7 @@ app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
 app.include_router(customer_portal_router)
 app.include_router(catalog_router)
+app.include_router(catalog_messaging_router)
 app.include_router(pricing_router)
 
 default_origins = ",".join([

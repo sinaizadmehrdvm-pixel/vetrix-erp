@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 
+from app.catalog_messaging import ingest_catalog_order_message, is_catalog_order_message
 from app.change_requests import _ensure_schema, _event
 from app.database import engine
 
@@ -287,6 +288,20 @@ async def telegram_webhook(request: Request):
         request.headers.get("X-Telegram-Bot-Api-Secret-Token")
     )
     payload = await request.json()
+    message = payload.get("message") or payload.get("channel_post") or {}
+    text_body = message.get("text") or message.get("caption") or ""
+    if is_catalog_order_message(text_body):
+        chat = message.get("chat") or {}
+        sender = str(chat.get("id") or "")
+        sender_name = chat.get("first_name") or chat.get("username") or ""
+        return ingest_catalog_order_message(
+            source="telegram",
+            event_id=payload.get("update_id"),
+            sender=sender,
+            sender_name=sender_name,
+            message_text=text_body,
+            message_reference=f"{sender}:{message.get('message_id')}",
+        )
     return _ingest("telegram", **_telegram_voice(payload))
 
 
@@ -311,4 +326,26 @@ async def whatsapp_webhook(request: Request):
         payload = json.loads(body)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    try:
+        value = payload["entry"][0]["changes"][0]["value"]
+        message = value["messages"][0]
+    except (KeyError, IndexError, TypeError):
+        message = None
+
+    if message is not None:
+        text_body = message.get("text", {}).get("body", "")
+        if is_catalog_order_message(text_body):
+            sender = str(message.get("from") or "")
+            contacts = value.get("contacts") or [{}]
+            sender_name = (contacts[0].get("profile") or {}).get("name", "")
+            return ingest_catalog_order_message(
+                source="whatsapp",
+                event_id=message.get("id"),
+                sender=sender,
+                sender_name=sender_name,
+                message_text=text_body,
+                message_reference=message.get("id") or "",
+            )
+
     return _ingest("whatsapp", **_whatsapp_voice(payload))
