@@ -174,6 +174,9 @@ export async function getAiBiSummary() { return await request(`/api/ai-bi/summar
 export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`); }
 export async function getAiBiRecommendations() { return await request(`/api/ai-bi/recommendations`); }
 export async function getAiBiAnomalies() { return await request(`/api/ai-bi/anomalies`); }
+export async function getAiBiCashflowForecast(days = 30) {
+  return await request(`/api/ai-bi/cashflow-forecast?days=${days}`);
+}
 
 // Customer self-service portal (staff-side management)
 export async function getCustomerPortalStatus(customerId) {

@@ -15,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
-import { getAiBiAnomalies, getAiBiSummary } from "../services/api";
+import { getAiBiAnomalies, getAiBiCashflowForecast, getAiBiSummary } from "../services/api";
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -38,6 +38,7 @@ export default function AiBusinessIntelligence() {
   const fa = language === "fa";
   const [data, setData] = useState(null);
   const [anomalies, setAnomalies] = useState(null);
+  const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,6 +59,11 @@ export default function AiBusinessIntelligence() {
       setAnomalies(await getAiBiAnomalies());
     } catch (err) {
       console.error("AI BI anomaly loading error:", err);
+    }
+    try {
+      setForecast(await getAiBiCashflowForecast(30));
+    } catch (err) {
+      console.error("AI BI cashflow forecast loading error:", err);
     }
   }
 
@@ -174,7 +180,73 @@ export default function AiBusinessIntelligence() {
             </Panel>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 mb-5">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
+            <Panel
+              title={fa ? "پیش‌بینی جریان نقدی (۳۰ روز آینده)" : "Cash flow forecast (next 30 days)"}
+              icon={<Wallet />}
+            >
+              {!forecast ? (
+                <div className="text-slate-400">{fa ? "در حال محاسبه..." : "Calculating..."}</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-slate-800/80 p-4">
+                      <div className="text-xs text-slate-400 mb-1">{fa ? "وضعیت نقدی فعلی" : "Current net cash"}</div>
+                      <div className="text-xl font-black" style={{ color: forecast.current_net_cash >= 0 ? "#10b981" : "#ef4444" }}>
+                        {money(forecast.current_net_cash)}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-800/80 p-4">
+                      <div className="text-xs text-slate-400 mb-1">
+                        {fa ? "پیش‌بینی روند (۳۰ روز)" : "Trend projection (30d)"}
+                      </div>
+                      <div className="text-xl font-black" style={{ color: forecast.trend_projected_net_cash >= 0 ? "#10b981" : "#ef4444" }}>
+                        {money(forecast.trend_projected_net_cash)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-800/80 p-4">
+                    <div className="text-sm font-bold text-cyan-300 mb-2">
+                      {fa ? "رویدادهای زمان‌بندی‌شده (چک‌ها)" : "Scheduled events (cheques)"}
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-300 mb-1">
+                      <span>{fa ? "ورودی مورد انتظار" : "Expected inflow"}</span>
+                      <span className="text-emerald-300 font-bold">{money(forecast.scheduled_inflow)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-300">
+                      <span>{fa ? "خروجی مورد انتظار" : "Expected outflow"}</span>
+                      <span className="text-rose-300 font-bold">{money(forecast.scheduled_outflow)}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-800/80 p-4">
+                    <div className="flex justify-between text-sm text-slate-300 mb-1">
+                      <span>{fa ? "مطالبات باز (بدون تاریخ مشخص)" : "Open receivables (undated)"}</span>
+                      <span className="text-emerald-300 font-bold">{money(forecast.open_receivables)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-300">
+                      <span>{fa ? "بدهی‌های باز (بدون تاریخ مشخص)" : "Open payables (undated)"}</span>
+                      <span className="text-rose-300 font-bold">{money(forecast.open_payables)}</span>
+                    </div>
+                  </div>
+
+                  {forecast.scheduled_events.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-auto pr-1">
+                      {forecast.scheduled_events.map((event, index) => (
+                        <div key={index} className="flex justify-between rounded-xl bg-slate-800/60 px-3 py-2 text-xs">
+                          <span>{event.cheque_number} ({event.due_date})</span>
+                          <span className={event.type === "cheque_received" ? "text-emerald-300" : "text-rose-300"}>
+                            {money(event.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Panel>
+
             <Panel
               title={fa ? "تشخیص ناهنجاری در تراکنش‌ها" : "Transaction anomaly detection"}
               icon={<ShieldAlert />}

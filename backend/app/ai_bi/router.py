@@ -8,6 +8,7 @@ from app.models.product import Product
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
 from app.ai_bi.anomaly_detection import detect_anomalies
+from app.ai_bi.cashflow_forecast import build_cashflow_forecast
 from app.settings_routes import get_or_create_settings
 
 router = APIRouter(prefix="/api/ai-bi", tags=["AI Business Intelligence"])
@@ -314,5 +315,15 @@ def ai_bi_anomalies():
                 "low": sum(1 for item in anomalies if item["severity"] == "low"),
             },
         }
+    finally:
+        db.close()
+
+
+@router.get("/cashflow-forecast")
+def ai_bi_cashflow_forecast(days: int = 30):
+    days = max(1, min(days, 180))
+    db = SessionLocal()
+    try:
+        return build_cashflow_forecast(db, horizon_days=days)
     finally:
         db.close()
