@@ -183,6 +183,25 @@ export async function revokeCustomerPortalAccess(customerId) {
   return await request(`/api/customer-portal/${customerId}/revoke`, { method: "POST" });
 }
 
+// Digital & print product catalog
+export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
+export async function createCatalogLink(data) {
+  return await request(`/api/catalog/links`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function revokeCatalogLink(id) {
+  return await request(`/api/catalog/links/${id}/revoke`, { method: "POST" });
+}
+export async function reactivateCatalogLink(id) {
+  return await request(`/api/catalog/links/${id}/reactivate`, { method: "POST" });
+}
+export async function getCatalogOrders() { return await request(`/api/catalog/orders`); }
+export async function rejectCatalogOrder(id) {
+  return await request(`/api/catalog/orders/${id}/reject`, { method: "POST" });
+}
+export async function markCatalogOrderConverted(id) {
+  return await request(`/api/catalog/orders/${id}/mark-converted`, { method: "POST" });
+}
+
 // Vetrix Smart Inventory API - Enterprise Phase 2
 export async function getSmartInventoryOverview(params = {}) {
   const q = new URLSearchParams(params).toString();

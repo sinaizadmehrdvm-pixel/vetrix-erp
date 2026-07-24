@@ -77,6 +77,7 @@ from app.settings_routes import get_or_create_settings, router as settings_route
 from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
+from app.catalog import router as catalog_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -246,6 +247,7 @@ app.include_router(users_router)
 app.include_router(mfa_router)
 app.include_router(notifications_ws_router)
 app.include_router(customer_portal_router)
+app.include_router(catalog_router)
 
 default_origins = ",".join([
     "http://localhost:5173",

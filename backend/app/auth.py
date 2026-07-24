@@ -183,6 +183,37 @@ def decode_customer_portal_token(token: str) -> dict:
     )
 
 
+CATALOG_AUDIENCE = "vetrix-erp-catalog"
+CATALOG_LINK_DAYS = 60
+
+
+def create_catalog_token(catalog_id: int, token_generation: int = 0) -> str:
+    """Shareable link for a curated product catalog; same revoke-by-generation
+    pattern as the customer portal token, scoped to its own audience."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "catalog_id": catalog_id,
+        "gen": int(token_generation or 0),
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(days=CATALOG_LINK_DAYS),
+        "iss": TOKEN_ISSUER,
+        "aud": CATALOG_AUDIENCE,
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+
+def decode_catalog_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _jwt_secret(),
+        algorithms=[TOKEN_ALGORITHM],
+        issuer=TOKEN_ISSUER,
+        audience=CATALOG_AUDIENCE,
+        options={"require": ["exp", "iat", "catalog_id", "iss", "aud"]},
+    )
+
+
 PUBLIC_PATHS = {
     "/",
     "/health",
@@ -202,6 +233,8 @@ PUBLIC_PATHS = {
     "/api/customer-portal/me",
     "/api/customer-portal/invoices",
     "/api/customer-portal/ledger",
+    "/api/catalog/view",
+    "/api/catalog/view/order",
 }
 
 

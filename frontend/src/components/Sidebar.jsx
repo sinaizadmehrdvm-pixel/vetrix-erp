@@ -5,6 +5,7 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
+  BookOpen,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -46,6 +47,7 @@ const groups = [
     items: [
       { key: "reports", icon: BarChart3, path: "/reports" },
       { key: "onlineCommerce", fa: "فروش آنلاین و تبلیغات", en: "Online sales & ads", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
+      { key: "catalogManager", fa: "کاتالوگ دیجیتال و چاپی", en: "Digital & print catalog", icon: BookOpen, path: "/catalog-manager", roles: ["admin", "accountant", "sales"] },
       { key: "changeRequests", fa: "درخواست تغییر با ویس", en: "Voice change requests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },

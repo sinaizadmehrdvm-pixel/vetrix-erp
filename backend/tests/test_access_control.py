@@ -2816,6 +2816,99 @@ class ApiAccessControlTests(unittest.TestCase):
         revoked_link_rejected = self.client.get("/api/customer-portal/me", headers=portal_headers)
         self.assertEqual(revoked_link_rejected.status_code, 401)
 
+    def test_zzzzzzzzzzzz_digital_catalog_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        in_stock = self.client.post(
+            "/products",
+            headers=headers,
+            json={"name": "Catalog In Stock Widget", "price": 500, "stock": 10},
+        )
+        out_of_stock = self.client.post(
+            "/products",
+            headers=headers,
+            json={"name": "Catalog Out Of Stock Widget", "price": 700, "stock": 0},
+        )
+        excluded = self.client.post(
+            "/products",
+            headers=headers,
+            json={"name": "Excluded Widget", "price": 300, "stock": 10},
+        )
+        in_stock_id = in_stock.json()["id"]
+        out_of_stock_id = out_of_stock.json()["id"]
+        excluded_id = excluded.json()["id"]
+        self.assertIsNotNone(excluded_id)
+
+        create = self.client.post(
+            "/api/catalog/links",
+            headers=headers,
+            json={
+                "title": "Smoke Catalog",
+                "in_stock_only": False,
+                "product_ids": [in_stock_id, out_of_stock_id],
+            },
+        )
+        self.assertEqual(create.status_code, 200, create.text)
+        catalog_id = create.json()["id"]
+        catalog_token = create.json()["token"]
+        catalog_headers = {"Authorization": f"Bearer {catalog_token}"}
+
+        blocked = self.client.get("/api/catalog/view")
+        self.assertEqual(blocked.status_code, 401)
+
+        view = self.client.get("/api/catalog/view", headers=catalog_headers)
+        self.assertEqual(view.status_code, 200, view.text)
+        self.assertEqual(view.json()["title"], "Smoke Catalog")
+        item_ids = {item["id"] for item in view.json()["items"]}
+        self.assertEqual(item_ids, {in_stock_id, out_of_stock_id})
+
+        pdf = self.client.get(f"/api/catalog/links/{catalog_id}/pdf", headers=headers)
+        self.assertEqual(pdf.status_code, 200, pdf.text)
+        self.assertEqual(pdf.headers["content-type"], "application/pdf")
+        self.assertGreater(len(pdf.content), 100)
+
+        order = self.client.post(
+            "/api/catalog/view/order",
+            headers=catalog_headers,
+            json={
+                "customer_name": "Catalog Buyer",
+                "customer_phone": "09120000000",
+                "items": [{"product_id": in_stock_id, "quantity": 2}],
+            },
+        )
+        self.assertEqual(order.status_code, 200, order.text)
+        order_id = order.json()["order_id"]
+
+        rejected_out_of_scope = self.client.post(
+            "/api/catalog/view/order",
+            headers=catalog_headers,
+            json={
+                "customer_name": "Catalog Buyer",
+                "items": [{"product_id": excluded_id, "quantity": 1}],
+            },
+        )
+        self.assertEqual(rejected_out_of_scope.status_code, 400)
+
+        orders = self.client.get("/api/catalog/orders", headers=headers)
+        self.assertEqual(orders.status_code, 200, orders.text)
+        order_ids = {item["id"] for item in orders.json()["items"]}
+        self.assertIn(order_id, order_ids)
+
+        converted = self.client.post(
+            f"/api/catalog/orders/{order_id}/mark-converted", headers=headers
+        )
+        self.assertEqual(converted.status_code, 200, converted.text)
+
+        revoke = self.client.post(f"/api/catalog/links/{catalog_id}/revoke", headers=headers)
+        self.assertEqual(revoke.status_code, 200, revoke.text)
+        revoked_view = self.client.get("/api/catalog/view", headers=catalog_headers)
+        self.assertEqual(revoked_view.status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main()

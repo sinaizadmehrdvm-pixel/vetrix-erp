@@ -81,6 +81,9 @@ READ_RULES = (
     # this check - they're public and verify their own portal token - so
     # this only ever governs the staff-only status/manage endpoints below.
     ("/api/customer-portal", {"admin", "accountant", "sales"}),
+    # Same reasoning: /api/catalog/view(/order) are public and self-verify
+    # their own token, so this only governs the staff management endpoints.
+    ("/api/catalog", {"admin", "accountant", "sales"}),
 )
 
 MUTATION_RULES = (
@@ -102,6 +105,7 @@ MUTATION_RULES = (
     ("/invoices", {"admin", "accountant", "sales"}),
     ("/customers", {"admin", "accountant", "sales"}),
     ("/api/customer-portal", {"admin", "accountant", "sales"}),
+    ("/api/catalog", {"admin", "accountant", "sales"}),
     ("/api/crm", {"admin", "sales"}),
     ("/products", {"admin", "warehouse"}),
     ("/product-categories", {"admin", "warehouse"}),

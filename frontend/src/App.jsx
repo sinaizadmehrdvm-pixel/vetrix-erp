@@ -52,6 +52,8 @@ const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
 const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
 const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
 const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
+const CatalogManager = lazy(() => import("./pages/CatalogManager"));
+const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -104,6 +106,7 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/portal/:token" element={<CustomerPortalView />} />
+          <Route path="/catalog/:token" element={<CatalogPublicView />} />
         <Route
           path="/invoice-designer"
           element={
@@ -163,6 +166,7 @@ function AppContent() {
           <Route path="financial-policy" element={<FinancialPolicy />} />
           <Route path="data-import" element={<DataImportCenter />} />
           <Route path="account-security" element={<AccountSecurity />} />
+          <Route path="catalog-manager" element={<CatalogManager />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
