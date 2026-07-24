@@ -96,6 +96,8 @@ READ_RULES = (
     # Any role that can build an invoice needs to be able to fetch a price
     # quote; tier management itself is still mutation-gated below.
     ("/api/pricing", ALL_ROLES),
+    ("/api/einvoice", {"admin", "accountant"}),
+    ("/api/document-ocr", ALL_ROLES),
 )
 
 MUTATION_RULES = (
@@ -133,6 +135,8 @@ MUTATION_RULES = (
     ("/api/smart-inventory", {"admin", "warehouse"}),
     ("/warehouse", {"admin", "warehouse"}),
     ("/api/warehouses", {"admin", "warehouse"}),
+    ("/api/einvoice", {"admin", "accountant"}),
+    ("/api/document-ocr", {"admin", "accountant", "sales", "warehouse"}),
     ("/api/finance", {"admin", "accountant"}),
     ("/api/ai-bi", {"admin", "accountant"}),
     ("/designer", {"admin", "accountant", "sales"}),

@@ -82,6 +82,8 @@ from app.recurring_invoices import maybe_generate_due_recurring_invoices, router
 from app.payment_gateway import router as payment_gateway_router
 from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
 from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
+from app.einvoice import router as einvoice_router
+from app.document_ocr import router as document_ocr_router
 from app.catalog import router as catalog_router
 from app.catalog_messaging import router as catalog_messaging_router
 from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
@@ -268,6 +270,8 @@ app.include_router(recurring_invoices_router)
 app.include_router(payment_gateway_router)
 app.include_router(payment_reminders_router)
 app.include_router(warehouses_router)
+app.include_router(einvoice_router)
+app.include_router(document_ocr_router)
 app.include_router(catalog_router)
 app.include_router(catalog_messaging_router)
 app.include_router(pricing_router)

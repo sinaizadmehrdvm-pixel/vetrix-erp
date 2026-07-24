@@ -3781,6 +3781,120 @@ class ApiAccessControlTests(unittest.TestCase):
         # outcome is reported rather than a false "sent".
         self.assertIn("skipped_not_configured", approve.json()["result"])
 
+    def test_zzzzzzzzzzzzzzzzzzzzzz_iran_einvoice_sandbox_flow(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        viewer_login = self.client.post(
+            "/login", json={"username": "portal-viewer", "password": "StrongViewerPassword!42"}
+        )
+        self.assertEqual(viewer_login.status_code, 200, viewer_login.text)
+        viewer_headers = {"Authorization": f"Bearer {viewer_login.json()['access_token']}"}
+
+        customer = self.client.post(
+            "/customers", headers=headers,
+            json={"name": "E-Invoice Customer", "national_id": "1111111111", "economic_code": "411111111111"},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "E-Invoice Widget", "sell_price": 500000, "stock": 10}
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        invoice = self.client.post(
+            "/invoices", headers=headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer_id,
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 500000}],
+            },
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        # Fails closed when no provider is configured.
+        unconfigured = self.client.post(
+            f"/api/einvoice/invoices/{invoice_id}/submit", headers=headers
+        )
+        self.assertEqual(unconfigured.status_code, 503)
+
+        with patch.dict(os.environ, {"VETRIX_EINVOICE_PROVIDER": "sandbox"}):
+            # A non-management role cannot submit for e-invoicing.
+            viewer_blocked = self.client.post(
+                f"/api/einvoice/invoices/{invoice_id}/submit", headers=viewer_headers
+            )
+            self.assertEqual(viewer_blocked.status_code, 403)
+
+            submitted = self.client.post(
+                f"/api/einvoice/invoices/{invoice_id}/submit", headers=headers
+            )
+            self.assertEqual(submitted.status_code, 200, submitted.text)
+            self.assertEqual(submitted.json()["status"], "accepted")
+            self.assertTrue(submitted.json()["tax_reference"].startswith("SANDBOX-"))
+
+            status = self.client.get(
+                f"/api/einvoice/invoices/{invoice_id}/status", headers=headers
+            )
+            self.assertEqual(status.status_code, 200, status.text)
+            submissions = status.json()["submissions"]
+            self.assertEqual(len(submissions), 1)
+            self.assertEqual(submissions[0]["status"], "accepted")
+
+            # Already-accepted invoices cannot be resubmitted.
+            resubmit = self.client.post(
+                f"/api/einvoice/invoices/{invoice_id}/submit", headers=headers
+            )
+            self.assertEqual(resubmit.status_code, 400)
+
+        with patch.dict(os.environ, {"VETRIX_EINVOICE_PROVIDER": "modian"}):
+            # The real provider is an intentional 501 - see app/einvoice.py's
+            # module docstring for why it isn't (and shouldn't be) faked.
+            unimplemented_customer = self.client.post(
+                "/customers", headers=headers, json={"name": "E-Invoice Customer Two"}
+            )
+            unimplemented_product = self.client.post(
+                "/products", headers=headers, json={"name": "E-Invoice Widget Two", "sell_price": 250000, "stock": 5}
+            )
+            unimplemented_invoice = self.client.post(
+                "/invoices", headers=headers,
+                json={
+                    "invoice_type": "sale", "customer_id": unimplemented_customer.json()["id"],
+                    "items": [{"product_id": unimplemented_product.json()["id"], "quantity": 1, "unit_price": 250000}],
+                },
+            )
+            modian_attempt = self.client.post(
+                f"/api/einvoice/invoices/{unimplemented_invoice.json()['invoice_id']}/submit", headers=headers
+            )
+            self.assertEqual(modian_attempt.status_code, 501)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzz_document_ocr_fails_closed_without_engine(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        status = self.client.get("/api/document-ocr/status", headers=headers)
+        self.assertEqual(status.status_code, 200, status.text)
+        # This CI/dev environment has no Tesseract binary installed, so the
+        # honest answer is "unavailable" - the point of this test is that
+        # the endpoint says so plainly instead of pretending otherwise.
+        self.assertFalse(status.json()["available"])
+
+        extract = self.client.post(
+            "/api/document-ocr/extract", headers=headers,
+            files={"file": ("receipt.png", b"not-a-real-image", "image/png")},
+        )
+        self.assertEqual(extract.status_code, 503)
+        self.assertIn("Tesseract", extract.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()
