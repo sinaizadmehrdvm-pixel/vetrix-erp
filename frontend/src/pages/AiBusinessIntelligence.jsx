@@ -7,6 +7,7 @@ import {
   Gauge,
   PackageSearch,
   RefreshCw,
+  ShieldAlert,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -14,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
-import { getAiBiSummary } from "../services/api";
+import { getAiBiAnomalies, getAiBiSummary } from "../services/api";
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -36,6 +37,7 @@ export default function AiBusinessIntelligence() {
   const { language, dir, n, money } = useLanguage();
   const fa = language === "fa";
   const [data, setData] = useState(null);
+  const [anomalies, setAnomalies] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -51,6 +53,11 @@ export default function AiBusinessIntelligence() {
       setError(fa ? "خطا در دریافت تحلیل هوشمند" : "AI BI loading error");
     } finally {
       setLoading(false);
+    }
+    try {
+      setAnomalies(await getAiBiAnomalies());
+    } catch (err) {
+      console.error("AI BI anomaly loading error:", err);
     }
   }
 
@@ -167,6 +174,27 @@ export default function AiBusinessIntelligence() {
             </Panel>
           </div>
 
+          <div className="grid grid-cols-1 gap-5 mb-5">
+            <Panel
+              title={fa ? "تشخیص ناهنجاری در تراکنش‌ها" : "Transaction anomaly detection"}
+              icon={<ShieldAlert />}
+            >
+              {!anomalies ? (
+                <div className="text-slate-400">{fa ? "در حال بررسی..." : "Scanning..."}</div>
+              ) : anomalies.items.length === 0 ? (
+                <div className="text-slate-400 rounded-2xl bg-slate-800/60 p-4 flex items-center gap-2">
+                  <CheckCircle2 size={18} /> {fa ? "ناهنجاری‌ای شناسایی نشد." : "No anomalies detected."}
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+                  {anomalies.items.map((item, index) => (
+                    <AnomalyRow key={index} item={item} fa={fa} />
+                  ))}
+                </div>
+              )}
+            </Panel>
+          </div>
+
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <DataPanel title={fa ? "مشتریان ارزشمند" : "Top customers"} icon={<UsersRound />} items={topCustomers} money={money} n={n} type="customer" fa={fa} />
             <DataPanel title={fa ? "مشتریان پرریسک" : "Risky customers"} icon={<AlertTriangle />} items={riskyCustomers} money={money} n={n} type="risk" fa={fa} />
@@ -217,6 +245,27 @@ function AlertRow({ item }) {
       <div className="font-black">{item.title}</div>
       <div className="text-sm mt-2 leading-7 text-slate-200">{item.message}</div>
       <div className="text-xs mt-3 font-bold">{item.action}</div>
+    </div>
+  );
+}
+
+const ANOMALY_TYPE_LABELS = {
+  unusual_invoice_amount: { fa: "مبلغ غیرعادی فاکتور", en: "Unusual invoice amount" },
+  duplicate_payment: { fa: "پرداخت تکراری احتمالی", en: "Possible duplicate payment" },
+  off_hours_activity: { fa: "فعالیت در ساعت غیرمعمول", en: "Off-hours activity" },
+};
+
+function AnomalyRow({ item, fa }) {
+  const cls = {
+    high: "bg-rose-500/10 border-rose-400/20 text-rose-200",
+    medium: "bg-amber-500/10 border-amber-400/20 text-amber-200",
+    low: "bg-cyan-500/10 border-cyan-400/20 text-cyan-200",
+  }[item.severity] || "bg-slate-800/70 border-white/5 text-slate-200";
+  const label = ANOMALY_TYPE_LABELS[item.type];
+  return (
+    <div className={`rounded-2xl border p-4 ${cls}`}>
+      <div className="font-black">{label ? (fa ? label.fa : label.en) : item.type}</div>
+      <div className="text-sm mt-2 leading-7 text-slate-200">{item.message}</div>
     </div>
   );
 }

@@ -2720,6 +2720,24 @@ class ApiAccessControlTests(unittest.TestCase):
             with self.client.websocket_connect("/ws/notifications?token=not-a-real-token"):
                 pass
 
+    def test_zzzzzzzzzz_ai_bi_anomaly_detection_endpoint(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        unauthenticated = self.client.get("/api/ai-bi/anomalies")
+        self.assertEqual(unauthenticated.status_code, 401)
+
+        response = self.client.get("/api/ai-bi/anomalies", headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertIn("items", body)
+        self.assertIn("counts", body)
+        self.assertEqual(set(body["counts"].keys()), {"high", "medium", "low"})
+
 
 if __name__ == "__main__":
     unittest.main()

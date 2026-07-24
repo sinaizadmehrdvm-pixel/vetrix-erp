@@ -7,6 +7,8 @@ from app.models.customer import Customer
 from app.models.product import Product
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
+from app.ai_bi.anomaly_detection import detect_anomalies
+from app.settings_routes import get_or_create_settings
 
 router = APIRouter(prefix="/api/ai-bi", tags=["AI Business Intelligence"])
 
@@ -296,3 +298,21 @@ def ai_bi_alerts():
 def ai_bi_recommendations():
     payload = _build_payload()
     return {"items": payload.get("recommendations", [])}
+
+
+@router.get("/anomalies")
+def ai_bi_anomalies():
+    db = SessionLocal()
+    try:
+        settings = get_or_create_settings(db)
+        anomalies = detect_anomalies(db, time_zone_name=settings.time_zone or "UTC")
+        return {
+            "items": anomalies,
+            "counts": {
+                "high": sum(1 for item in anomalies if item["severity"] == "high"),
+                "medium": sum(1 for item in anomalies if item["severity"] == "medium"),
+                "low": sum(1 for item in anomalies if item["severity"] == "low"),
+            },
+        }
+    finally:
+        db.close()

@@ -170,6 +170,7 @@ export async function createCrmInteraction(customerId, data) { return await requ
 export async function getAiBiSummary() { return await request(`/api/ai-bi/summary`); }
 export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`); }
 export async function getAiBiRecommendations() { return await request(`/api/ai-bi/recommendations`); }
+export async function getAiBiAnomalies() { return await request(`/api/ai-bi/anomalies`); }
 
 // Vetrix Smart Inventory API - Enterprise Phase 2
 export async function getSmartInventoryOverview(params = {}) {
