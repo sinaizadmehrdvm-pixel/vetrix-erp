@@ -87,7 +87,7 @@ export default function CatalogPublicView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
         Loading...
       </div>
     );
@@ -95,7 +95,7 @@ export default function CatalogPublicView() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-center px-4">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
         <div className="text-rose-300">
           <AlertTriangle className="mx-auto mb-3" size={36} />
           <p className="font-bold">{error}</p>
@@ -105,14 +105,14 @@ export default function CatalogPublicView() {
   }
 
   return (
-    <div className="min-h-screen bg-[#071028] text-white px-4 py-8">
+    <div className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <BookOpen className="text-cyan-400" size={28} />
-          <h1 className="text-2xl font-black text-cyan-400">{title}</h1>
+          <BookOpen className="text-[var(--erp-accent)]" size={28} />
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{title}</h1>
         </div>
 
-        <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
+        <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="space-y-2">
             {items.map((item) => (
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-4 py-3">
@@ -142,7 +142,7 @@ export default function CatalogPublicView() {
             Your order was submitted. We'll contact you shortly to confirm.
           </section>
         ) : (
-          <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
+          <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
             <h2 className="font-black mb-3 flex items-center gap-2"><ShoppingCart size={18} /> Place an order</h2>
             <form onSubmit={submitOrder}>
               <input
@@ -167,7 +167,7 @@ export default function CatalogPublicView() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-cyan-400 text-black font-black py-3 disabled:opacity-60"
+                className="w-full rounded-xl bg-[var(--erp-accent)] text-black font-black py-3 disabled:opacity-60"
               >
                 {submitting ? "Submitting..." : "Submit order"}
               </button>

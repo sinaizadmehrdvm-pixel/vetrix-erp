@@ -5,11 +5,12 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen, Layers, BellRing,
+  BookOpen, Layers, BellRing, Sun, Moon,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { useTheme } from "../theme/useTheme";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 
 const groups = [
@@ -86,7 +87,9 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { t, dir, language } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const fa = language === "fa";
+  const isLight = theme === "light";
   const [compact, setCompact] = useState(() => localStorage.getItem("vetrix_sidebar_compact") === "true");
   const [expanded, setExpanded] = useState(() => ({ daily: true }));
   const [query, setQuery] = useState("");
@@ -149,15 +152,26 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
     >
       <div className="flex items-center justify-between gap-2 mb-4">
         {!compact && <h1 className="erp-accent text-2xl font-black whitespace-nowrap">{t("appName")}</h1>}
-        <button
-          type="button"
-          onClick={() => setCompact((value) => !value)}
-          className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
-          title={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
-          aria-label={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
-        >
-          {compact ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTheme(isLight ? "midnight" : "light")}
+            className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
+            title={fa ? (isLight ? "حالت شب" : "حالت روز") : (isLight ? "Switch to dark mode" : "Switch to light mode")}
+            aria-label={fa ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز") : (isLight ? "Switch to dark mode" : "Switch to light mode")}
+          >
+            {isLight ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCompact((value) => !value)}
+            className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
+            title={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
+            aria-label={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
+          >
+            {compact ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </button>
+        </div>
       </div>
 
       {!compact && <div className="mb-4"><LanguageSwitcher /></div>}

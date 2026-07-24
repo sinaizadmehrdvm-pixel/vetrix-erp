@@ -55,7 +55,7 @@ export default function PaymentGatewayView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
         Loading...
       </div>
     );
@@ -63,7 +63,7 @@ export default function PaymentGatewayView() {
 
   if (error || !session) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-center px-4">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
         <div className="text-rose-300">
           <AlertTriangle className="mx-auto mb-3" size={36} />
           <p className="font-bold">{error || "This payment link is no longer valid."}</p>
@@ -73,14 +73,14 @@ export default function PaymentGatewayView() {
   }
 
   return (
-    <div className="min-h-screen bg-[#071028] text-white px-4 py-8 flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8 flex items-center justify-center">
       <div className="max-w-md w-full space-y-6">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="text-cyan-400" size={28} />
-          <h1 className="text-2xl font-black text-cyan-400">Vetrix ERP — Payment</h1>
+          <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">Vetrix ERP — Payment</h1>
         </div>
 
-        <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6 text-center">
+        <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 text-center">
           <p className="text-slate-400 text-sm">Invoice #{session.invoice_id}</p>
           <p className="text-slate-400 text-sm mb-3">{session.customer_name}</p>
           <div className="text-4xl font-black mb-4">{money(session.amount)}</div>

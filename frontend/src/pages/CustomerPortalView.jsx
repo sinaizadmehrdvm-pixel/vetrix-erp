@@ -71,7 +71,7 @@ export default function CustomerPortalView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
         Loading...
       </div>
     );
@@ -79,7 +79,7 @@ export default function CustomerPortalView() {
 
   if (error || !customer) {
     return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-center px-4">
+      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
         <div className="text-rose-300">
           <AlertTriangle className="mx-auto mb-3" size={36} />
           <p className="font-bold">{error || "This link is no longer valid."}</p>
@@ -89,29 +89,29 @@ export default function CustomerPortalView() {
   }
 
   return (
-    <div className="min-h-screen bg-[#071028] text-white px-4 py-8">
+    <div className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="text-cyan-400" size={28} />
-          <h1 className="text-2xl font-black text-cyan-400">Vetrix ERP — Customer Portal</h1>
+          <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">Vetrix ERP — Customer Portal</h1>
         </div>
 
-        <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
+        <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <h2 className="text-xl font-black mb-1">{customer.name}</h2>
           <p className="text-slate-400 text-sm">
             {[customer.phone, customer.email, customer.city].filter(Boolean).join(" • ") || "—"}
           </p>
         </section>
 
-        <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
-          <div className="flex items-center gap-2 text-cyan-300 font-black mb-3">
+        <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
+          <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
             <Wallet size={18} /> Account balance
           </div>
           <div className="text-3xl font-black">{money(customer.balance)}</div>
         </section>
 
-        <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
-          <div className="flex items-center gap-2 text-cyan-300 font-black mb-4">
+        <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
+          <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
             <FileText size={18} /> Invoices
           </div>
           {payError && (
@@ -131,7 +131,7 @@ export default function CustomerPortalView() {
                     <div className="text-xs text-slate-400">{invoice.payment_status}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="font-black text-cyan-300">{money(invoice.total_amount)}</div>
+                    <div className="font-black text-[var(--erp-accent)]">{money(invoice.total_amount)}</div>
                     {invoice.invoice_type === "sale" && invoice.payment_status !== "paid" && (
                       <button
                         onClick={() => payInvoice(invoice.id)}
@@ -150,8 +150,8 @@ export default function CustomerPortalView() {
         </section>
 
         {ledger && (
-          <section className="rounded-2xl border border-cyan-500/20 bg-[#0b1736] p-6">
-            <div className="flex items-center gap-2 text-cyan-300 font-black mb-4">
+          <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
+            <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
               <Wallet size={18} /> Statement
             </div>
             {ledger.entries.length === 0 ? (

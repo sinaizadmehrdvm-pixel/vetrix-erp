@@ -158,16 +158,16 @@ export default function Login() {
   }
 
   const inputClass =
-    "w-full mb-4 p-4 rounded-2xl bg-[#132347] outline-none focus:ring-2 focus:ring-cyan-400";
+    "w-full mb-4 p-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none focus:ring-2 focus:ring-[var(--erp-accent)]";
 
   return (
-    <div dir={dir} className="min-h-screen bg-[#071028] flex items-center justify-center text-white px-4 py-8">
-      <section className="w-full max-w-lg bg-[#0b1736] border border-cyan-500/20 rounded-3xl p-8 shadow-2xl">
+    <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-text)] px-4 py-8">
+      <section className="w-full max-w-lg bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-8 shadow-2xl">
         <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-4xl font-black text-cyan-400">Vetrix ERP</h1>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">Vetrix ERP</h1>
           <span className="rounded-full bg-cyan-950 px-3 py-1 text-xs text-cyan-200">v{version}</span>
         </div>
-        <p className="text-gray-400 mb-7">
+        <p className="text-[var(--erp-muted)] mb-7">
           {mode === "setup"
             ? fa
               ? "راه‌اندازی امن و ساخت مدیر اولیه"
@@ -178,7 +178,7 @@ export default function Login() {
         </p>
 
         {mode === "checking" && (
-          <div className="py-12 text-center text-cyan-200">
+          <div className="py-12 text-center text-[var(--erp-accent)]">
             <ShieldCheck className="mx-auto mb-4 animate-pulse" size={42} />
             {fa ? "در حال بررسی نصب..." : "Checking installation..."}
           </div>
@@ -192,22 +192,22 @@ export default function Login() {
                 ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
                 : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
             </div>
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="full-name">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
               {fa ? "نام و نام خانوادگی مدیر" : "Administrator full name"}
             </label>
             <input id="full-name" autoComplete="name" value={setup.full_name} onChange={(event) => setSetup({ ...setup, full_name: event.target.value })} className={inputClass} required />
 
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="setup-username">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-username">
               {fa ? "نام کاربری مدیر" : "Administrator username"}
             </label>
             <input id="setup-username" autoComplete="username" value={setup.username} onChange={(event) => setSetup({ ...setup, username: event.target.value })} className={inputClass} required />
 
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="setup-password">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-password">
               {fa ? "رمز عبور قوی (حداقل ۱۰ کاراکتر)" : "Strong password (minimum 10 characters)"}
             </label>
             <input id="setup-password" autoComplete="new-password" type="password" value={setup.password} onChange={(event) => setSetup({ ...setup, password: event.target.value })} className={inputClass} minLength={10} required />
 
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="confirm-password">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-password">
               {fa ? "تکرار رمز عبور" : "Confirm password"}
             </label>
             <input id="confirm-password" autoComplete="new-password" type="password" value={setup.confirm_password} onChange={(event) => setSetup({ ...setup, confirm_password: event.target.value })} className={inputClass} minLength={10} required />
@@ -230,12 +230,12 @@ export default function Login() {
                 ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
                 : "To continue, your administrator requires you to change your password."}
             </div>
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="new-password">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="new-password">
               {fa ? "رمز عبور جدید" : "New password"}
             </label>
             <input id="new-password" autoComplete="new-password" type="password" value={passwordChange.new_password} onChange={(event) => setPasswordChange({ ...passwordChange, new_password: event.target.value })} className={inputClass} minLength={12} required />
 
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="confirm-new-password">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-new-password">
               {fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
             </label>
             <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
@@ -255,7 +255,7 @@ export default function Login() {
                 ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
                 : "Enter the 6-digit code from your authenticator app, or a recovery code."}
             </div>
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="totp-code">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="totp-code">
               {fa ? "کد تأیید" : "Verification code"}
             </label>
             <input
@@ -270,13 +270,13 @@ export default function Login() {
             />
 
             {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-cyan-400 text-black font-black py-4 rounded-2xl disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="w-full bg-[var(--erp-accent)] text-black font-black py-4 rounded-2xl disabled:opacity-60">
               {submitting ? (fa ? "در حال بررسی..." : "Verifying...") : (fa ? "تأیید و ورود" : "Verify & sign in")}
             </button>
             <button
               type="button"
               onClick={() => { setMode("login"); setMfa({ token: "", code: "" }); setError(""); }}
-              className="w-full mt-3 text-sm text-gray-400 hover:text-gray-200"
+              className="w-full mt-3 text-sm text-[var(--erp-muted)] hover:text-[var(--erp-text)]"
             >
               {fa ? "بازگشت به ورود" : "Back to login"}
             </button>
@@ -286,18 +286,18 @@ export default function Login() {
         {mode === "login" && (
           <form onSubmit={handleLogin}>
             <KeyRound className="mb-4 text-cyan-300" size={28} />
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="username">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="username">
               {fa ? "نام کاربری" : "Username"}
             </label>
             <input id="username" autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} className={inputClass} required />
 
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="password">
+            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="password">
               {fa ? "رمز عبور" : "Password"}
             </label>
             <input id="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className={inputClass} required />
 
             {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-cyan-400 text-black font-black py-4 rounded-2xl disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="w-full bg-[var(--erp-accent)] text-black font-black py-4 rounded-2xl disabled:opacity-60">
               {submitting ? (fa ? "در حال ورود..." : "Signing in...") : (fa ? "ورود" : "Login")}
             </button>
           </form>
