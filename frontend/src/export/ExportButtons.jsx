@@ -1,9 +1,28 @@
-import { FileSpreadsheet, FileText } from "lucide-react";
+import { useState } from "react";
+import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
-import { API_URL } from "../services/api";
+import { downloadAuthenticatedFile } from "../services/api";
 
 export default function ExportButtons() {
   const { t, language } = useLanguage();
+  const fa = language === "fa";
+  const [busy, setBusy] = useState("");
+
+  async function handleDownload(kind) {
+    setBusy(kind);
+    try {
+      if (kind === "excel") {
+        await downloadAuthenticatedFile(`/export/invoices-excel?language=${language}`, "vetrix_invoices.xlsx");
+      } else {
+        await downloadAuthenticatedFile(`/export/invoices-pdf?language=${language}`, "vetrix_invoices.pdf");
+      }
+    } catch (error) {
+      toast.error(error.message || (fa ? "دانلود انجام نشد." : "Download failed."));
+    } finally {
+      setBusy("");
+    }
+  }
 
   return (
     <div
@@ -14,23 +33,15 @@ export default function ExportButtons() {
         direction: language === "fa" ? "rtl" : "ltr",
       }}
     >
-      <a
-        href={`${API_URL}/export/invoices-excel`}
-        target="_blank"
-        style={btn}
-      >
-        <FileSpreadsheet size={18} />
+      <button type="button" onClick={() => handleDownload("excel")} disabled={busy !== ""} style={{ ...btn, opacity: busy && busy !== "excel" ? 0.6 : 1 }}>
+        {busy === "excel" ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
         {t.exportExcel}
-      </a>
+      </button>
 
-      <a
-        href={`${API_URL}/export/invoices-pdf`}
-        target="_blank"
-        style={btn}
-      >
-        <FileText size={18} />
+      <button type="button" onClick={() => handleDownload("pdf")} disabled={busy !== ""} style={{ ...btn, opacity: busy && busy !== "pdf" ? 0.6 : 1 }}>
+        {busy === "pdf" ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
         {t.exportPdf}
-      </a>
+      </button>
     </div>
   );
 }
@@ -40,10 +51,12 @@ const btn = {
   color: "#071028",
   padding: "12px 18px",
   borderRadius: 16,
+  border: "none",
   textDecoration: "none",
   fontWeight: 900,
   display: "flex",
   alignItems: "center",
   gap: 10,
   boxShadow: "0 10px 30px var(--erp-glow)",
+  cursor: "pointer",
 };

@@ -1,5 +1,7 @@
 import { Download, FileArchive, FileImage, FileText, FolderOpen, Plus, RefreshCw, Search, Trash2, UploadCloud } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { openAuthenticatedDocument } from "../../../services/api";
 
 function formatDate(value, fa) {
   if (!value) return "-";
@@ -168,7 +170,17 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
             {file.description && <p className="text-[var(--erp-muted)] text-sm leading-7 mt-3 line-clamp-3">{file.description}</p>}
 
             <div className="mt-4">
-              {file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-accent)] font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "باز کردن / دانلود" : "Open / Download"}</a> : <button type="button" disabled className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-muted)] font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "فایل هنوز آپلود نشده" : "No uploaded file"}</button>}
+              {file.url ? (
+                <button
+                  type="button"
+                  onClick={() => openAuthenticatedDocument(file.url).catch((error) => toast.error(error.message || (fa ? "باز کردن فایل ممکن نشد." : "Couldn't open the file.")))}
+                  className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-accent)] font-black flex items-center justify-center gap-2"
+                >
+                  <Download size={17} />{fa ? "باز کردن / دانلود" : "Open / Download"}
+                </button>
+              ) : (
+                <button type="button" disabled className="w-full px-4 py-3 rounded-2xl bg-[var(--erp-bg-soft)] text-[var(--erp-muted)] font-black flex items-center justify-center gap-2"><Download size={17} />{fa ? "فایل هنوز آپلود نشده" : "No uploaded file"}</button>
+              )}
             </div>
           </div>
         ))}
