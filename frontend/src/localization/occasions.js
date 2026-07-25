@@ -34,19 +34,18 @@
 //    government holiday calendar so these line up with the dates
 //    users actually see marked as holidays elsewhere.
 export const FIXED_JALALI_OCCASIONS = {
-  // --- Official public holidays ---
-  "1-1": { fa: "جشن نوروز", en: "Nowruz (Persian New Year)" },
-  "1-2": { fa: "تعطیلات نوروز", en: "Nowruz holiday" },
-  "1-3": { fa: "تعطیلات نوروز", en: "Nowruz holiday" },
-  "1-4": { fa: "تعطیلات نوروز", en: "Nowruz holiday" },
-  "1-12": { fa: "روز جمهوری اسلامی", en: "Islamic Republic Day" },
-  "1-13": { fa: "روز طبیعت (سیزده‌به‌در)", en: "Nature Day (Sizdah Bedar)" },
-  "2-11": { fa: "روز جهانی کارگر", en: "International Workers' Day" },
-  "3-14": { fa: "سالگرد رحلت امام خمینی", en: "Anniversary of Imam Khomeini's passing" },
-  "3-15": { fa: "قیام پانزده خرداد", en: "15 Khordad Uprising" },
-  "9-16": { fa: "روز دانشجو و روز جهانی هواپیمایی", en: "Student Day & World Aviation Day" },
-  "11-22": { fa: "پیروزی انقلاب اسلامی", en: "Islamic Revolution Victory Day" },
-  "12-29": { fa: "روز ملی شدن صنعت نفت", en: "Oil Industry Nationalization Day" },
+  // --- Official public holidays (holiday: true -> shown in red) ---
+  "1-1": { fa: "جشن نوروز", en: "Nowruz (Persian New Year)", holiday: true },
+  "1-2": { fa: "تعطیلات نوروز", en: "Nowruz holiday", holiday: true },
+  "1-3": { fa: "تعطیلات نوروز", en: "Nowruz holiday", holiday: true },
+  "1-4": { fa: "تعطیلات نوروز", en: "Nowruz holiday", holiday: true },
+  "1-12": { fa: "روز جمهوری اسلامی", en: "Islamic Republic Day", holiday: true },
+  "1-13": { fa: "روز طبیعت (سیزده‌به‌در)", en: "Nature Day (Sizdah Bedar)", holiday: true },
+  "2-11": { fa: "روز جهانی کارگر", en: "International Workers' Day", holiday: true },
+  "3-14": { fa: "سالگرد رحلت امام خمینی", en: "Anniversary of Imam Khomeini's passing", holiday: true },
+  "3-15": { fa: "قیام پانزده خرداد", en: "15 Khordad Uprising", holiday: true },
+  "11-22": { fa: "پیروزی انقلاب اسلامی", en: "Islamic Revolution Victory Day", holiday: true },
+  "12-29": { fa: "روز ملی شدن صنعت نفت", en: "Oil Industry Nationalization Day", holiday: true },
 
   // --- Named non-holiday days (مناسبت‌های غیرتعطیل) ---
   "1-6": { fa: "زادروز زرتشت پیامبر", en: "Birthday of the Prophet Zoroaster" },
@@ -170,6 +169,7 @@ export const FIXED_JALALI_OCCASIONS = {
   "9-12": { fa: "روز قانون اساسی و روز جهانی معلولین", en: "Constitution Day & International Day of Disabled Persons" },
   "9-13": { fa: "روز بیمه", en: "Insurance Day" },
   "9-15": { fa: "روز حسابدار", en: "Accountant Day" },
+  "9-16": { fa: "روز دانشجو و روز جهانی هواپیمایی", en: "Student Day & World Aviation Day" },
   "9-18": { fa: "روز سد و نیروگاه برق‌آبی", en: "Dam & Hydroelectric Power Day" },
   "9-22": { fa: "روز صنعت مس", en: "Copper Industry Day" },
   "9-25": { fa: "روز پژوهش", en: "Research Day" },
@@ -219,23 +219,29 @@ export const FIXED_JALALI_OCCASIONS = {
 };
 
 // Keyed "hijriMonth-hijriDay" (1-based month, 1 = Muharram).
+// holiday: true where confirmed against Iran's official public holiday
+// list (26 days for 1405) - notably 1 Muharram (Islamic New Year) and
+// 9 Dhu al-Hijjah (Day of Arafah) are widely-observed occasions but
+// NOT official days off, confirmed via search, so they're left
+// unflagged even though they're religiously significant.
 export const FIXED_HIJRI_OCCASIONS = {
   "1-1": { fa: "آغاز سال نو قمری", en: "Islamic New Year" },
-  "1-9": { fa: "تاسوعای حسینی", en: "Tasua" },
-  "1-10": { fa: "عاشورای حسینی", en: "Ashura" },
-  "2-20": { fa: "اربعین حسینی", en: "Arbaeen" },
-  "2-28": { fa: "رحلت پیامبر اکرم (ص) و شهادت امام حسن مجتبی (ع)", en: "Passing of the Prophet & martyrdom of Imam Hasan" },
-  "2-29": { fa: "شهادت امام رضا (ع)", en: "Martyrdom of Imam Reza" },
-  "3-8": { fa: "شهادت امام حسن عسکری (ع)", en: "Martyrdom of Imam Hassan Askari" },
-  "3-17": { fa: "میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)", en: "Birth of the Prophet & Imam Ja'far al-Sadiq" },
-  "7-13": { fa: "میلاد امام علی (ع)", en: "Birth of Imam Ali" },
-  "7-27": { fa: "مبعث پیامبر اکرم (ص)", en: "Mab'ath of the Prophet" },
-  "8-15": { fa: "میلاد امام زمان (عج)", en: "Birth of Imam Mahdi" },
-  "9-21": { fa: "شهادت امام علی (ع)", en: "Martyrdom of Imam Ali" },
-  "10-1": { fa: "عید فطر", en: "Eid al-Fitr" },
+  "1-9": { fa: "تاسوعای حسینی", en: "Tasua", holiday: true },
+  "1-10": { fa: "عاشورای حسینی", en: "Ashura", holiday: true },
+  "2-20": { fa: "اربعین حسینی", en: "Arbaeen", holiday: true },
+  "2-28": { fa: "رحلت پیامبر اکرم (ص) و شهادت امام حسن مجتبی (ع)", en: "Passing of the Prophet & martyrdom of Imam Hasan", holiday: true },
+  "2-29": { fa: "شهادت امام رضا (ع)", en: "Martyrdom of Imam Reza", holiday: true },
+  "3-8": { fa: "شهادت امام حسن عسکری (ع)", en: "Martyrdom of Imam Hassan Askari", holiday: true },
+  "3-17": { fa: "میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)", en: "Birth of the Prophet & Imam Ja'far al-Sadiq", holiday: true },
+  "7-13": { fa: "میلاد امام علی (ع)", en: "Birth of Imam Ali", holiday: true },
+  "7-27": { fa: "مبعث پیامبر اکرم (ص)", en: "Mab'ath of the Prophet", holiday: true },
+  "8-15": { fa: "میلاد امام زمان (عج)", en: "Birth of Imam Mahdi", holiday: true },
+  "9-21": { fa: "شهادت امام علی (ع)", en: "Martyrdom of Imam Ali", holiday: true },
+  "10-1": { fa: "عید فطر", en: "Eid al-Fitr", holiday: true },
+  "10-2": { fa: "تعطیلات عید فطر", en: "Eid al-Fitr holiday", holiday: true },
   "12-9": { fa: "روز عرفه", en: "Day of Arafah" },
-  "12-10": { fa: "عید قربان", en: "Eid al-Adha" },
-  "12-18": { fa: "عید غدیر خم", en: "Eid al-Ghadir" },
+  "12-10": { fa: "عید قربان", en: "Eid al-Adha", holiday: true },
+  "12-18": { fa: "عید غدیر خم", en: "Eid al-Ghadir", holiday: true },
 };
 
 export function fixedJalaliOccasionFor(jMonth1Based, jDay) {

@@ -58,7 +58,9 @@ export default function DayDetailsCard({ dateInfo }) {
       </div>
 
       <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, color: "var(--erp-accent)" }}>{n(bigDay)}</div>
+        <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, color: dateInfo.isHoliday ? "#fb7185" : "var(--erp-accent)" }}>
+          {n(bigDay)}
+        </div>
         <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6 }}>{bigMonth} {n(bigYear)}</div>
         <div style={{ fontSize: 13, color: "var(--erp-muted)", marginTop: 2 }}>{weekdayLabel}</div>
       </div>
@@ -92,14 +94,21 @@ export default function DayDetailsCard({ dateInfo }) {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 8,
-                background: "var(--erp-glow)",
-                border: "1px solid var(--erp-border)",
+                background: occasion.holiday ? "rgba(251,113,133,0.12)" : "var(--erp-glow)",
+                border: occasion.holiday ? "1px solid rgba(251,113,133,0.4)" : "1px solid var(--erp-border)",
                 borderRadius: 14,
                 padding: 12,
               }}
             >
-              <PartyPopper size={16} color="var(--erp-accent)" style={{ flexShrink: 0, marginTop: 1 }} />
-              <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{fa ? occasion.fa : occasion.en}</div>
+              <PartyPopper size={16} color={occasion.holiday ? "#fb7185" : "var(--erp-accent)"} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {occasion.holiday && (
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#fb7185" }}>
+                    {fa ? "تعطیل رسمی" : "Official holiday"}
+                  </span>
+                )}
+                <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{fa ? occasion.fa : occasion.en}</div>
+              </div>
             </div>
           ))}
         </div>

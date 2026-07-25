@@ -31,7 +31,9 @@ export default function DateBadge() {
   }, [open]);
 
   const now = moment();
-  const weekdayIndex = (now.day() + 1) % 7; // Saturday-first
+  // Saturday-first for Jalali, Sunday-first for Gregorian - matches
+  // WEEKDAY_NAMES_FA/WEEKDAY_NAMES_EN's own indexing conventions below.
+  const weekdayIndex = fa ? (now.day() + 1) % 7 : now.day();
   const day = fa ? n(now.jDate()) : now.toDate().getDate();
   const month = fa ? JALALI_MONTHS_FA[now.jMonth()] : GREGORIAN_MONTHS_EN[now.toDate().getMonth()];
   const weekday = fa ? WEEKDAY_NAMES_FA[weekdayIndex] : WEEKDAY_NAMES_EN[weekdayIndex];

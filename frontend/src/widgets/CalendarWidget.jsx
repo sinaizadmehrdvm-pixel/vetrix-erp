@@ -45,11 +45,14 @@ function buildJalaliMonth(cursor) {
     const gMonth = gDate.getMonth() + 1;
     const gDay = gDate.getDate();
     const { list: occasions, hijri } = occasionsFor(month + 1, day, gYear, gMonth, gDay);
+    const isWeekend = (offset + day - 1) % 7 === 6; // Friday column
+    const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
     cells.push({
       key: `${year}-${month}-${day}`,
       day,
       isToday: isCurrentMonth && today.jDate() === day,
-      isWeekend: (offset + day - 1) % 7 === 6, // Friday column
+      isWeekend,
+      isHoliday,
       occasions,
       dateInfo: {
         jYear: year, jMonth: month + 1, jDay: day,
@@ -57,6 +60,7 @@ function buildJalaliMonth(cursor) {
         hYear: hijri.year, hMonth: hijri.month, hDay: hijri.day,
         weekdayIndex: (offset + day - 1) % 7,
         isToday: isCurrentMonth && today.jDate() === day,
+        isHoliday,
         occasions,
       },
     });
@@ -77,11 +81,14 @@ function buildGregorianMonth(cursor) {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const jm = moment(new Date(year, month, day));
     const { list: occasions, hijri } = occasionsFor(jm.jMonth() + 1, jm.jDate(), year, month + 1, day);
+    const isWeekend = (offset + day - 1) % 7 === 0 || (offset + day - 1) % 7 === 6;
+    const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
     cells.push({
       key: `${year}-${month}-${day}`,
       day,
       isToday: isCurrentMonth && today.getDate() === day,
-      isWeekend: (offset + day - 1) % 7 === 0 || (offset + day - 1) % 7 === 6,
+      isWeekend,
+      isHoliday,
       occasions,
       dateInfo: {
         jYear: jm.jYear(), jMonth: jm.jMonth() + 1, jDay: jm.jDate(),
@@ -89,6 +96,7 @@ function buildGregorianMonth(cursor) {
         hYear: hijri.year, hMonth: hijri.month, hDay: hijri.day,
         weekdayIndex: (offset + day - 1) % 7,
         isToday: isCurrentMonth && today.getDate() === day,
+        isHoliday,
         occasions,
       },
     });
@@ -188,7 +196,7 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
                 color: cell
                   ? cell.isToday
                     ? "#071028"
-                    : cell.isWeekend
+                    : cell.isHoliday
                       ? "#fb7185"
                       : "var(--erp-text)"
                   : "transparent",
@@ -214,7 +222,7 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
                     width: 4,
                     height: 4,
                     borderRadius: "50%",
-                    background: cell.isToday ? "#071028" : "var(--erp-accent)",
+                    background: cell.isToday ? "#071028" : cell.isHoliday ? "#fb7185" : "var(--erp-accent)",
                   }}
                 />
               )}
