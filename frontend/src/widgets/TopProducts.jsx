@@ -42,7 +42,7 @@ export default function TopProducts({ products = [], to = "/products" }) {
           <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noProducts")}</p>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {products.map((p, index) => {
             const name = p.name || "-";
             const stock = n(p.stock || 0);

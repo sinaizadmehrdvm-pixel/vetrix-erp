@@ -78,8 +78,8 @@ export default function SalesChart({ data = [] }) {
             data={chartData}
             margin={{
               top: 10,
-              right: dir === "rtl" ? 40 : 20,
-              left: dir === "rtl" ? 20 : 40,
+              right: 20,
+              left: 10,
               bottom: 10,
             }}
           >
@@ -91,7 +91,7 @@ export default function SalesChart({ data = [] }) {
             />
 
             <YAxis
-              orientation={dir === "rtl" ? "right" : "left"}
+              orientation="left"
               stroke="var(--erp-muted)"
               tickFormatter={(value) => n(value)}
               tick={{ fill: "var(--erp-muted)", fontSize: 13 }}

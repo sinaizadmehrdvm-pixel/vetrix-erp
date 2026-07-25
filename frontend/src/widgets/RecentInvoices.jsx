@@ -52,7 +52,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
           <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noInvoices")}</p>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {invoices.map((invoice) => {
             const customer = invoice.customer || invoice.customer_name || "-";
             const total = money(invoice.total || invoice.total_amount || 0);
