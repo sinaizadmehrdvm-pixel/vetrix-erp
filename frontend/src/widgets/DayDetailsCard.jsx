@@ -78,7 +78,7 @@ export default function DayDetailsCard({ dateInfo }) {
         {otherCalendars.map((entry) => (
           <div key={entry.label} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
             <span style={{ fontWeight: 700 }}>{entry.label}</span>
-            <span>{entry.value}</span>
+            <bdi>{entry.value}</bdi>
           </div>
         ))}
       </div>

@@ -117,7 +117,7 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
       className="erp-surface"
       style={{
         borderRadius: 20,
-        padding: 14,
+        padding: 16,
         color: "var(--erp-text)",
         direction: dir,
         height: "100%",
@@ -149,13 +149,13 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
           separate grid instances per week row can round column widths
           a pixel or two differently from each other, drifting the last
           column visibly out of alignment over several rows. */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {weekdays.map((wd, index) => (
           <div
             key={`h-${index}`}
             style={{
               textAlign: "center",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 800,
               color: index === weekdays.length - 1 ? "#fb7185" : "var(--erp-muted)",
               padding: "2px 0 6px",
@@ -174,15 +174,15 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
               disabled={!cell}
               onClick={() => cell && onSelectDay(cell.key, cell.dateInfo)}
               style={{
+                position: "relative",
                 aspectRatio: "1 / 1",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 8,
                 border: isSelected && !cell?.isToday ? "1.5px solid var(--erp-accent)" : "1.5px solid transparent",
                 boxSizing: "border-box",
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: cell?.isToday ? 900 : 600,
                 background: cell?.isToday ? "var(--erp-accent)" : "transparent",
                 color: cell
@@ -195,16 +195,25 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
                 cursor: cell ? "pointer" : "default",
                 padding: 0,
                 fontFamily: "inherit",
+                lineHeight: 1,
               }}
             >
-              {cell ? n(cell.day) : ""}
+              {/* The occasion dot is positioned absolutely so its presence
+                  never shifts the number away from dead-center - previously
+                  it sat below the number in a flex column, so cells with an
+                  occasion pushed their number upward relative to neighbors
+                  without one, making the whole row look misaligned. */}
+              <span>{cell ? n(cell.day) : ""}</span>
               {cell?.occasions.length > 0 && (
                 <span
                   style={{
-                    width: 3,
-                    height: 3,
+                    position: "absolute",
+                    bottom: 5,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 4,
+                    height: 4,
                     borderRadius: "50%",
-                    marginTop: 1,
                     background: cell.isToday ? "#071028" : "var(--erp-accent)",
                   }}
                 />

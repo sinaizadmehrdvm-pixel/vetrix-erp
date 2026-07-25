@@ -51,7 +51,7 @@ export default function CalendarSection() {
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 16, direction: dir }}>
-      <div style={{ width: 300, flexShrink: 0 }}>
+      <div style={{ width: 340, flexShrink: 0 }}>
         <CalendarWidget
           cursor={cursor}
           onCursorChange={handleCursorChange}
@@ -59,7 +59,7 @@ export default function CalendarSection() {
           onSelectDay={handleSelectDay}
         />
       </div>
-      <div style={{ width: 240, flexShrink: 0 }}>
+      <div style={{ width: 260, flexShrink: 0 }}>
         <DayDetailsCard dateInfo={selectedDateInfo} />
       </div>
     </div>
