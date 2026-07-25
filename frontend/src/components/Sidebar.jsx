@@ -15,30 +15,30 @@ import LanguageSwitcher from "./language/LanguageSwitcher";
 
 const groups = [
   {
-    id: "daily", fa: "عملیات روزانه", en: "Daily operations", open: true,
+    id: "daily", labelKey: "groupDaily", open: true,
     items: [
       { key: "dashboard", icon: LayoutDashboard, path: "/" },
       { key: "parties", fallbackKey: "customers", icon: UsersRound, path: "/customers" },
       { key: "products", icon: Package, path: "/products" },
       { key: "invoices", icon: Receipt, path: "/invoices" },
-      { key: "invoiceDesigner", fa: "طراح قالب فاکتور", en: "Invoice designer", icon: LayoutTemplate, path: "/invoice-designer", roles: ["admin", "accountant", "sales"] },
-      { key: "recurringInvoices", fa: "فاکتور تکرارشونده", en: "Recurring invoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
-      { key: "paymentReminders", fa: "یادآوری پرداخت", en: "Payment reminders", icon: BellRing, path: "/payment-reminders", roles: ["admin", "accountant", "sales"] },
+      { key: "invoiceDesigner", icon: LayoutTemplate, path: "/invoice-designer", roles: ["admin", "accountant", "sales"] },
+      { key: "recurringInvoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
+      { key: "paymentReminders", icon: BellRing, path: "/payment-reminders", roles: ["admin", "accountant", "sales"] },
       { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
       { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
     ],
   },
   {
-    id: "inventory", fa: "کالا و انبار", en: "Products & inventory",
+    id: "inventory", labelKey: "groupInventory",
     items: [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
-      { key: "multiWarehouse", fa: "شعبه‌ها و انبارهای متعدد", en: "Multi-branch warehouses", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
-      { key: "pricingTiers", fa: "قیمت‌گذاری پلکانی", en: "Tiered pricing", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
+      { key: "multiWarehouse", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
+      { key: "pricingTiers", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
     ],
   },
   {
-    id: "accounting", fa: "حسابداری و خزانه", en: "Accounting & treasury",
+    id: "accounting", labelKey: "groupAccounting",
     items: [
       { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods", roles: ["admin", "accountant", "viewer", "user"] },
@@ -49,12 +49,12 @@ const groups = [
     ],
   },
   {
-    id: "analysis", fa: "گزارش و تحلیل", en: "Reports & analysis",
+    id: "analysis", labelKey: "groupAnalysis",
     items: [
       { key: "reports", icon: BarChart3, path: "/reports" },
-      { key: "onlineCommerce", fa: "فروش آنلاین و تبلیغات", en: "Online sales & ads", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
-      { key: "catalogManager", fa: "کاتالوگ دیجیتال و چاپی", en: "Digital & print catalog", icon: BookOpen, path: "/catalog-manager", roles: ["admin", "accountant", "sales"] },
-      { key: "changeRequests", fa: "درخواست تغییر با ویس", en: "Voice change requests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
+      { key: "onlineCommerce", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
+      { key: "catalogManager", icon: BookOpen, path: "/catalog-manager", roles: ["admin", "accountant", "sales"] },
+      { key: "changeRequests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },
@@ -62,23 +62,23 @@ const groups = [
     ],
   },
   {
-    id: "assets", fa: "دارایی و کنترل", en: "Assets & control",
+    id: "assets", labelKey: "groupAssets",
     items: [
       { key: "fixedAssets", icon: Factory, path: "/fixed-assets", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "approvalCenter", icon: ShieldCheck, path: "/approval-center", roles: ["admin", "accountant"] },
     ],
   },
   {
-    id: "system", fa: "مدیریت سیستم", en: "System administration",
+    id: "system", labelKey: "groupSystem",
     items: [
       { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
       { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
       { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
       { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
-      { key: "financialPolicy", fa: "سیاست مالی تأییدشده", en: "Verified financial policy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
+      { key: "financialPolicy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
       { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
-      { key: "accountSecurity", fa: "امنیت حساب کاربری", en: "Account security", icon: ShieldCheck, path: "/account-security" },
+      { key: "accountSecurity", icon: ShieldCheck, path: "/account-security" },
     ],
   },
 ];
@@ -111,9 +111,10 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
   }, [location.pathname]);
 
   const label = useCallback((item) => {
-    if (item.fa || item.en) return fa ? item.fa : item.en;
     return t(item.key) || t(item.fallbackKey) || item.key;
-  }, [fa, t]);
+  }, [t]);
+
+  const groupLabel = useCallback((group) => t(group.labelKey) || group.id, [t]);
 
   const visibleGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(language);
@@ -121,11 +122,11 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
       ...group,
       items: group.items.filter((item) => {
         const permitted = !item.roles || item.roles.includes(user?.role || "viewer");
-        const searchable = `${label(item)} ${item.key} ${group.fa} ${group.en}`.toLocaleLowerCase(language);
+        const searchable = `${label(item)} ${item.key} ${groupLabel(group)}`.toLocaleLowerCase(language);
         return permitted && (!normalizedQuery || searchable.includes(normalizedQuery));
       }),
     })).filter((group) => group.items.length);
-  }, [user?.role, query, language, label]);
+  }, [user?.role, query, language, label, groupLabel]);
 
   function toggleGroup(id) {
     if (compact) setCompact(false);
@@ -207,7 +208,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                 style={{ color: "var(--erp-muted)", background: expanded[group.id] ? "var(--erp-glow)" : "transparent" }}
                 aria-expanded={Boolean(expanded[group.id])}
               >
-                <span>{fa ? group.fa : group.en}</span>
+                <span>{groupLabel(group)}</span>
                 <ChevronDown size={16} style={{ transform: expanded[group.id] ? "rotate(180deg)" : "none" }} />
               </button>
             )}

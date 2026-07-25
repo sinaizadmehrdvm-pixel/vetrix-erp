@@ -17,9 +17,19 @@ describe('localeFor', () => {
     expect(localeFor(profile, 'en')).toBe('de-DE');
   });
 
-  it('falls back to the English locale when the language is missing', () => {
+  it('falls back to the language\'s own standard locale when the profile has no entry for it', () => {
+    // A country profile that only defines en/fa locales (most do) should
+    // still format Arabic/Turkish correctly instead of silently reverting
+    // to English - otherwise switching the UI language would leave number
+    // and date formatting stuck in English.
+    const profile = { locale: { en: 'en-US', fa: 'fa-IR' } };
+    expect(localeFor(profile, 'ar')).toBe('ar-AE');
+    expect(localeFor(profile, 'tr')).toBe('tr-TR');
+  });
+
+  it('falls back to the English locale only for a language with no known fallback', () => {
     const profile = { locale: { en: 'en-US' } };
-    expect(localeFor(profile, 'fa')).toBe('en-US');
+    expect(localeFor(profile, 'xx')).toBe('en-US');
   });
 });
 

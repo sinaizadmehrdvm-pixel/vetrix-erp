@@ -91,6 +91,8 @@ export function LanguageProvider({ children }) {
 
     if (language === "fa") {
       document.body.style.fontFamily = "'Vazirmatn','IRANSans',Tahoma,sans-serif";
+    } else if (language === "ar") {
+      document.body.style.fontFamily = "'Vazirmatn','Tahoma','Segoe UI',Arial,sans-serif";
     } else {
       document.body.style.fontFamily = "'Inter','Segoe UI',Arial,sans-serif";
     }

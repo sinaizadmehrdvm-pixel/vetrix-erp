@@ -10,21 +10,21 @@ export default function LanguageSwitcher() {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        background: "rgba(15,23,42,0.85)",
-        border: "1px solid rgba(255,255,255,0.12)",
+        background: "var(--erp-panel-solid)",
+        border: "1px solid var(--erp-border)",
         borderRadius: 18,
         padding: "10px 14px",
-        color: "white",
+        color: "var(--erp-text)",
       }}
     >
-      <Globe2 size={18} color="#22d3ee" />
+      <Globe2 size={18} color="var(--erp-accent)" />
 
       <select
         value={language}
         onChange={(e) => setLanguage(e.target.value)}
         style={{
           background: "transparent",
-          color: "white",
+          color: "var(--erp-text)",
           border: "none",
           outline: "none",
           fontWeight: 800,

@@ -116,8 +116,25 @@ export function getCountryProfile(countryCode) {
   return COUNTRY_PROFILES[countryCode] || COUNTRY_PROFILES[DEFAULT_COUNTRY];
 }
 
+// Per-language fallback locales, used when a country profile doesn't
+// carry an explicit entry for the selected language (most profiles
+// above only define en/fa). Without this, picking Arabic or Turkish
+// while the country profile is e.g. Iran would silently fall back to
+// English number/date formatting instead of actually switching.
+const LANGUAGE_LOCALE_FALLBACK = {
+  en: "en-US",
+  fa: "fa-IR",
+  ar: "ar-AE",
+  tr: "tr-TR",
+};
+
 export function localeFor(profile, language) {
-  return profile.locale?.[language] || profile.locale?.en || "en-US";
+  return (
+    profile.locale?.[language] ||
+    LANGUAGE_LOCALE_FALLBACK[language] ||
+    profile.locale?.en ||
+    "en-US"
+  );
 }
 
 export function formatCountryNumber(value, profile, language, options = {}) {
@@ -138,7 +155,13 @@ export function formatCountryDate(value, profile, language, options = {}) {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  const calendar = options.calendar || profile.calendar;
+  // Calendar system follows the selected UI language first (Persian ->
+  // Jalali, everything else -> Gregorian) rather than the company's
+  // country profile alone - otherwise switching the language away from
+  // Persian while the country profile stayed Iran (the app default)
+  // would keep showing Jalali dates in an English/Arabic/Turkish UI.
+  const languageCalendar = language === "fa" ? "persian" : "gregory";
+  const calendar = options.calendar || languageCalendar;
   const locale = `${localeFor(profile, language)}-u-ca-${calendar}`;
   return new Intl.DateTimeFormat(locale, {
     timeZone: profile.timeZone,
