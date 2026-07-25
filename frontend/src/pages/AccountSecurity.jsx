@@ -8,7 +8,7 @@ import { disableTotp, getTotpStatus, setupTotp, verifyTotp } from "../services/m
 
 const card = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-6";
 const input = "w-full mb-4 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
-const primaryButton = "rounded-xl bg-cyan-400 text-black font-black px-5 py-3 disabled:opacity-60";
+const primaryButton = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-5 py-3 disabled:opacity-60";
 
 export default function AccountSecurity() {
   const { changePassword } = useAuth();

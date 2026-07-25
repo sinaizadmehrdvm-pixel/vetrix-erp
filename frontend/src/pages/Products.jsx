@@ -687,7 +687,7 @@ export default function Products() {
         )}
 
         <div className="flex gap-3 flex-wrap mt-5">
-          <button type="button" onClick={save} className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={save} className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             {editingId ? <Save size={18} /> : <Plus size={18} />}
             {editingId ? label.save : label.add}
           </button>

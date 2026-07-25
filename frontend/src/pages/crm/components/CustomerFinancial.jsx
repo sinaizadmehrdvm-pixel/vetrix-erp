@@ -235,7 +235,7 @@ export default function CustomerFinancial({
           {chartBars.length ? (
             chartBars.map((bar) => (
               <div key={bar.id} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full rounded-t-2xl bg-cyan-400/70 hover:bg-cyan-300 transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
+                <div className="w-full rounded-t-2xl bg-[var(--erp-accent)]/70 hover:bg-[var(--erp-accent-2)] transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
                 <div className="text-[10px] text-[var(--erp-muted)]">{bar.label}</div>
               </div>
             ))

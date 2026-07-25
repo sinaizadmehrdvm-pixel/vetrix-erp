@@ -847,7 +847,7 @@ export default function Customers() {
         <div className="flex gap-3 flex-wrap mt-5">
           <button
             onClick={save}
-            className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+            className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             {editingId ? <Save size={18} /> : <Plus size={18} />}
             {editingId ? t("saveCustomer") : t("addCustomer")}

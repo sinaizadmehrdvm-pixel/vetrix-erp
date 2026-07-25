@@ -118,7 +118,7 @@ export default function SmartInventory() {
           type="button"
           onClick={load}
           disabled={loading}
-          className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           {fa ? "به‌روزرسانی" : "Refresh"}
@@ -263,7 +263,7 @@ function TabButton({ active, onClick, label }) {
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 rounded-2xl font-black ${active ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
+      className={`px-4 py-2 rounded-2xl font-black ${active ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
     >
       {label}
     </button>

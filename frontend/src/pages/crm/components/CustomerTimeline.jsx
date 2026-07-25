@@ -259,7 +259,7 @@ export default function CustomerTimeline({
           <button
             type="button"
             onClick={submitQuickNote}
-            className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center justify-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center justify-center gap-2"
           >
             <Plus size={18} />
             {fa ? "ثبت" : "Add"}

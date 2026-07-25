@@ -340,7 +340,7 @@ export default function FinanceCenter() {
 
           <button
             onClick={() => setShowAccountForm(true)}
-            className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             <Plus size={18} />
             {fa ? "حساب جدید" : "New account"}
@@ -511,7 +511,7 @@ export default function FinanceCenter() {
             <input className="form-input" value={accountForm.opening_balance} onChange={(e) => setAccountForm((p) => ({ ...p, opening_balance: e.target.value }))} />
           </Field>
 
-          <button onClick={createAccount} className="w-full mt-4 px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black">
+          <button onClick={createAccount} className="w-full mt-4 px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black">
             {fa ? "ثبت حساب" : "Create account"}
           </button>
         </Modal>

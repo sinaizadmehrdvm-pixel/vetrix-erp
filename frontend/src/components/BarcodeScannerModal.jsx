@@ -107,7 +107,7 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
           />
-          <button type="submit" className="w-full rounded-xl bg-cyan-400 text-black font-black py-3">
+          <button type="submit" className="w-full rounded-xl bg-[var(--erp-accent)] text-black font-black py-3">
             {fa ? "جستجو" : "Look up"}
           </button>
         </form>

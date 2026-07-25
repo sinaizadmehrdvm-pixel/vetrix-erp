@@ -413,7 +413,7 @@ function NextBestActions({ fa, money, items }) {
                   <b className={item.risk.color}>{money(Math.abs(getBalance(item)))}</b>
                 </div>
               </div>
-              <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs">
+              <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-black text-xs">
                 {fa ? "پرونده" : "Profile"}
               </Link>
             </div>

@@ -434,7 +434,7 @@ async function fetchCustomerFiles(customerId) {
             onClick={() => setActiveTab(tab.id)}
             className={`px-5 py-3 rounded-2xl font-black whitespace-nowrap transition ${
               activeTab === tab.id
-                ? "bg-cyan-400 text-slate-950"
+                ? "bg-[var(--erp-accent)] text-slate-950"
                 : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)] hover:text-[var(--erp-accent)]"
             }`}
           >

@@ -1064,7 +1064,7 @@ export default function Invoices() {
           <button
             type="button"
             onClick={createInvoice}
-            className="mt-5 px-6 py-4 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+            className="mt-5 px-6 py-4 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             {editingId ? <Save size={20} /> : <FileText size={20} />}
             {editingId ? label.saveInvoice : label.createInvoice}
@@ -1159,7 +1159,7 @@ export default function Invoices() {
                         <button
                           type="button"
                           onClick={() => openPrint(invoice)}
-                          className="px-3 py-2 rounded-xl bg-cyan-400 text-slate-950 font-bold inline-flex items-center gap-2"
+                          className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-bold inline-flex items-center gap-2"
                         >
                           <Printer size={16} />
                           {label.printInvoice}

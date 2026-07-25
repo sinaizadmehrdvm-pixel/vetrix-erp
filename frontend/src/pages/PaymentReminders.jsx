@@ -127,7 +127,7 @@ export default function PaymentReminders() {
                 <button
                   onClick={() => handleSendNow(item.invoice_id)}
                   disabled={sendingId === item.invoice_id}
-                  className="px-3 py-2 rounded-xl bg-cyan-400 text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                  className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
                 >
                   <Send size={14} />
                   {sendingId === item.invoice_id ? (fa ? "..." : "...") : (fa ? "ارسال یادآوری" : "Send reminder")}

@@ -154,7 +154,7 @@ export default function CustomerTasks({
           </div>
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={fa ? "توضیحات وظیفه" : "Task description"} rows={3} className="crm-input lg:col-span-2" />
         </div>
-        <button type="button" onClick={submitTask} className="mt-4 px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"><Plus size={18} />{fa ? "ثبت وظیفه" : "Save task"}</button>
+        <button type="button" onClick={submitTask} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18} />{fa ? "ثبت وظیفه" : "Save task"}</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_190px_190px] gap-3 mb-4">

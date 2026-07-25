@@ -223,7 +223,7 @@ export default function BusinessIntelligence() {
         </div>
         <div className="flex gap-3 flex-wrap">
           <button onClick={exportSnapshot} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"><Download size={18} />{fa ? "خروجی خلاصه" : "Export"}</button>
-          <button onClick={loadBI} disabled={loading} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}</button>
+          <button onClick={loadBI} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}</button>
         </div>
       </div>
 
@@ -246,7 +246,7 @@ export default function BusinessIntelligence() {
             {monthly.map((row, index) => (
               <div key={`${row.label}-${index}`} className="flex-1 flex flex-col items-center gap-2 min-w-[42px]">
                 <div className="w-full h-64 flex items-end justify-center gap-1">
-                  <div className="w-1/3 rounded-t-xl bg-cyan-400/80" style={{ height: `${clamp((toNumber(row.sales) / maxSales) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.sales)}`} />
+                  <div className="w-1/3 rounded-t-xl bg-[var(--erp-accent)]/80" style={{ height: `${clamp((toNumber(row.sales) / maxSales) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.sales)}`} />
                   <div className="w-1/3 rounded-t-xl bg-amber-400/80" style={{ height: `${clamp((toNumber(row.purchases) / maxSales) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.purchases)}`} />
                   <div className={`w-1/3 rounded-t-xl ${row.profit >= 0 ? "bg-emerald-400/80" : "bg-rose-400/80"}`} style={{ height: `${clamp((Math.abs(toNumber(row.profit)) / maxProfit) * 100, 3, 100)}%` }} title={`${row.label} - ${money(row.profit)}`} />
                 </div>

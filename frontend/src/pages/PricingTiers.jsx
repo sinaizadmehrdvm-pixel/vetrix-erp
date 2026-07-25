@@ -160,7 +160,7 @@ export default function PricingTiers() {
               <button
                 type="submit"
                 disabled={creating}
-                className="rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center justify-center gap-2"
+                className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 <Plus size={16} />
                 {fa ? "افزودن پله" : "Add tier"}

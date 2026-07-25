@@ -565,7 +565,7 @@ export default function Transactions() {
             <button
               type="button"
               onClick={() => setForm({ ...form, date: todayByLanguage(language) })}
-              className="px-4 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+              className="px-4 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
               style={{ minWidth: 105 }}
             >
               <CalendarDays size={17} />

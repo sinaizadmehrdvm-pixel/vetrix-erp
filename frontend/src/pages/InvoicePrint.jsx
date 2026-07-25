@@ -416,7 +416,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
             {fa ? "ذخیره به عنوان قالب" : "Save as template"}
           </button>
 
-          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             <Printer size={18} />
             {fa ? "چاپ / ذخیره PDF" : "Print / PDF"}
           </button>

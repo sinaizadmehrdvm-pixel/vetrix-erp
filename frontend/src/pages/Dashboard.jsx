@@ -351,7 +351,7 @@ export default function Dashboard() {
     >
       <div className="flex items-start justify-between gap-4 flex-wrap mb-7">
         <div>
-          <h1 className="text-[var(--erp-text)] text-4xl font-black mb-2 text-right">
+          <h1 className="text-[var(--erp-accent)] text-4xl font-black mb-2 text-right">
             {t("dashboard")}
           </h1>
           <p className="text-[var(--erp-muted)]">

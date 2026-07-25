@@ -126,7 +126,7 @@ export default function CustomerFiles({ files = [], fa = true, n = (v) => String
           <textarea value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })} placeholder={fa ? "توضیحات فایل" : "File description"} rows={3} className="crm-input lg:col-span-2" />
         </div>
 
-        <button type="button" onClick={submitUpload} disabled={!selectedFile} className="mt-4 px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2 disabled:opacity-50">
+        <button type="button" onClick={submitUpload} disabled={!selectedFile} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-50">
           <Plus size={18} />{fa ? "ثبت فایل" : "Save file"}
         </button>
       </div>

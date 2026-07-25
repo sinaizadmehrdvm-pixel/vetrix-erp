@@ -92,7 +92,7 @@ export default function FinancialIntelligence() {
             {fa ? "پیش‌بینی جریان نقدی، سود واقعی، KPI مدیرعامل و شبیه‌ساز مالی" : "Cashflow forecast, profitability, CEO KPIs and financial simulator"}
           </p>
         </div>
-        <button onClick={load} className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+        <button onClick={load} className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
           <RefreshCw size={18} /> {fa ? "به‌روزرسانی" : "Refresh"}
         </button>
       </div>

@@ -564,7 +564,7 @@ export default function Reports() {
 
       <div className="flex gap-2 flex-wrap bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-3 no-print">
         {tabs.map(([key, tabLabel]) => (
-          <button type="button" key={key} onClick={() => setActive(key)} className={`px-4 py-3 rounded-2xl font-black ${active === key ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"}`}>
+          <button type="button" key={key} onClick={() => setActive(key)} className={`px-4 py-3 rounded-2xl font-black ${active === key ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"}`}>
             {tabLabel}
           </button>
         ))}
@@ -792,7 +792,7 @@ export default function Reports() {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          <button type="button" onClick={() => downloadInvoiceExport("pdf")} className="px-5 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => downloadInvoiceExport("pdf")} className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             <FileText size={18} />
             {fa ? "دانلود PDF" : "Download PDF"}
           </button>

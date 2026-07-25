@@ -18,7 +18,7 @@ import {
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
-const buttonClass = "rounded-xl bg-cyan-400 text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
+const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
 const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || "").replace(/\D/g, "");
 const TELEGRAM_BOT = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
@@ -209,14 +209,14 @@ export default function CatalogManager() {
             <button
               type="button"
               onClick={() => setMode("category")}
-              className={`flex-1 rounded-xl py-2 font-bold ${mode === "category" ? "bg-cyan-400 text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
+              className={`flex-1 rounded-xl py-2 font-bold ${mode === "category" ? "bg-[var(--erp-accent)] text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
               {fa ? "بر اساس گروه کالایی" : "By category"}
             </button>
             <button
               type="button"
               onClick={() => setMode("custom")}
-              className={`flex-1 rounded-xl py-2 font-bold ${mode === "custom" ? "bg-cyan-400 text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
+              className={`flex-1 rounded-xl py-2 font-bold ${mode === "custom" ? "bg-[var(--erp-accent)] text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
               {fa ? "انتخاب دلخواه کالا" : "Custom selection"}
             </button>

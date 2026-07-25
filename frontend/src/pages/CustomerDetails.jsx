@@ -442,7 +442,7 @@ export default function CustomerDetails() {
         </div>
         <Link
           to="/customers"
-          className="inline-flex mt-4 px-4 py-3 rounded-xl bg-cyan-400 text-slate-950 font-black"
+          className="inline-flex mt-4 px-4 py-3 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-black"
         >
           {isFa ? "بازگشت" : "Back"}
         </Link>
@@ -458,7 +458,7 @@ export default function CustomerDetails() {
         <div className="flex gap-2 flex-wrap">
           <Link
             to="/customers"
-            className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             <ArrowLeft size={18} />
             {isFa ? "بازگشت" : "Back"}
@@ -661,7 +661,7 @@ export default function CustomerDetails() {
             />
             <button
               onClick={addCrmNote}
-              className="bg-cyan-400 text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2"
+              className="bg-[var(--erp-accent)] text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2"
             >
               <Plus size={18} />
               {isFa ? "ثبت" : "Add"}
@@ -708,7 +708,7 @@ export default function CustomerDetails() {
             <button
               onClick={() => setViewMode("all")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "all" ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
+                viewMode === "all" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
               {isFa ? "دفتر کل" : "All"}
@@ -717,7 +717,7 @@ export default function CustomerDetails() {
             <button
               onClick={() => setViewMode("bank")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "bank" ? "bg-cyan-400 text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
+                viewMode === "bank" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
               {isFa ? "ریزگردش بانکی" : "Bank"}

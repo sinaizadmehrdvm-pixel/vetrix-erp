@@ -323,7 +323,7 @@ export default function CustomerAI({
           </div>
 
           <div className="grid grid-cols-1 gap-3 mt-5">
-            <button type="button" onClick={createFollowupTask} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center justify-center gap-2">
+            <button type="button" onClick={createFollowupTask} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center justify-center gap-2">
               <CalendarClock size={18} />
               {fa ? "ساخت وظیفه پیشنهادی" : "Create suggested task"}
             </button>
