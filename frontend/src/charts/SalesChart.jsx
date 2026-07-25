@@ -13,9 +13,17 @@ import { useLanguage } from "../localization/useLanguage";
 // moment-jalaali's jMMMM token returns the Latin transliteration
 // ("Farvardin"), not the Persian-script name, regardless of
 // loadPersian() - so the Persian month name is looked up explicitly.
+// loadPersian() also silently switches moment's *global* default
+// locale to Persian, which means even plain Gregorian tokens like
+// "MMM"/"MMMM" return Persian month names too - so the English label
+// is built from the native Date object instead, never through moment.
 const JALALI_MONTHS_FA = [
   "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
   "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+];
+const GREGORIAN_MONTHS_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 // The backend buckets this chart by Gregorian year-month (index 0 =
@@ -27,9 +35,15 @@ const JALALI_MONTHS_FA = [
 // array index keeps the mapping correct regardless of that boundary
 // mismatch: each of the 12 points gets exactly one (Jalali month,
 // Jalali month-index) pair, with no duplicates and no gaps.
-function jalaliMonthMeta(index) {
-  const anchor = moment().subtract(index, "jMonth");
-  return { jMonthIndex: anchor.jMonth(), label: { fa: JALALI_MONTHS_FA[anchor.jMonth()], en: anchor.format("MMM") } };
+function monthMeta(index, fa) {
+  if (fa) {
+    const anchor = moment().subtract(index, "jMonth");
+    return { order: anchor.jMonth(), label: JALALI_MONTHS_FA[anchor.jMonth()] };
+  }
+  const anchor = new Date();
+  anchor.setDate(1); // avoid month-end rollover (e.g. Mar 31 - 1 month != Feb)
+  anchor.setMonth(anchor.getMonth() - index);
+  return { order: anchor.getMonth(), label: GREGORIAN_MONTHS_EN[anchor.getMonth()] };
 }
 
 export default function SalesChart({ data = [] }) {
@@ -39,14 +53,14 @@ export default function SalesChart({ data = [] }) {
   // Always laid out left-to-right in fixed calendar order (Farvardin/Jan
   // first through Esfand/Dec last), not by recency - a rolling 12-month
   // window contains each calendar month exactly once, so sorting by
-  // Jalali month index is unambiguous.
+  // calendar month index is unambiguous.
   const chartData = data
     .map((item, index) => {
-      const meta = jalaliMonthMeta(index);
+      const meta = monthMeta(index, fa);
       return {
         ...item,
-        monthLabel: fa ? meta.label.fa : meta.label.en,
-        monthOrder: meta.jMonthIndex,
+        monthLabel: meta.label,
+        monthOrder: meta.order,
         sales: Number(item.sales || 0),
       };
     })
