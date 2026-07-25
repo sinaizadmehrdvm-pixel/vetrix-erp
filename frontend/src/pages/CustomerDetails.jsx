@@ -397,7 +397,14 @@ export default function CustomerDetails() {
         ? (isFa ? "برای این مشتری هنوز گردش مالی ثبت نشده است؛ اولین تعامل را ثبت کن." : "No financial activity yet; register the first interaction.")
         : (isFa ? "ارتباط با مشتری حفظ شود و پیشنهاد خرید مجدد ارسال گردد." : "Maintain relationship and send a reorder proposal.");
 
-    return { score, level, suggestion };
+    const levelLabels = {
+      vip: isFa ? "ویژه" : "VIP",
+      active: isFa ? "فعال" : "Active",
+      followup: isFa ? "نیازمند پیگیری" : "Needs follow-up",
+      normal: isFa ? "عادی" : "Normal",
+    };
+
+    return { score, level, levelLabel: levelLabels[level] || level, suggestion };
   }, [party, normalizedLedger, finance, isFa]);
 
   const crmTimeline = useMemo(() => {
@@ -570,7 +577,15 @@ export default function CustomerDetails() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-3xl font-black text-[var(--erp-text)]">{party.name}</h2>
-            <div className="text-[var(--erp-accent)] font-bold mt-1">{party.customer_type || "customer"}</div>
+            <div className="text-[var(--erp-accent)] font-bold mt-1">
+              {
+                {
+                  customer: isFa ? "مشتری" : "Customer",
+                  supplier: isFa ? "تامین‌کننده" : "Supplier",
+                  both: isFa ? "مشتری و تامین‌کننده" : "Customer & supplier",
+                }[party.customer_type || "customer"] || (isFa ? "مشتری" : "Customer")
+              }
+            </div>
           </div>
           <div className="w-16 h-16 rounded-3xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
             <UserRound size={34} />
@@ -620,7 +635,7 @@ export default function CustomerDetails() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <Info icon={<BellRing size={17} />} label={isFa ? "پیگیری بعدی" : "Next follow-up"} value={followupDate || (isFa ? "ثبت نشده" : "Not set")} />
-            <Info icon={<CheckCircle2 size={17} />} label={isFa ? "وضعیت CRM" : "CRM Status"} value={customerIntelligence.level} />
+            <Info icon={<CheckCircle2 size={17} />} label={isFa ? "وضعیت CRM" : "CRM Status"} value={customerIntelligence.levelLabel} />
             <Info icon={<MessageCircle size={17} />} label={isFa ? "یادداشت‌ها" : "Notes"} value={n(crmNotes.length)} />
           </div>
 

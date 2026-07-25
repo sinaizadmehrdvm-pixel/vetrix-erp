@@ -43,7 +43,7 @@ function telegramShareUrl(catalog, fa) {
 }
 
 export default function CatalogManager() {
-  const { dir, language, money } = useLanguage();
+  const { dir, language, money, n } = useLanguage();
   const fa = language === "fa";
 
   const [products, setProducts] = useState([]);
@@ -284,7 +284,7 @@ export default function CatalogManager() {
                 <div>
                   <div className="font-bold">{catalog.title}</div>
                   <div className="text-xs text-[var(--erp-muted)]">
-                    {catalog.product_count} {fa ? "کالا" : "products"} •{" "}
+                    {n(catalog.product_count)} {fa ? "کالا" : "products"} •{" "}
                     {catalog.enabled ? (fa ? "فعال" : "Active") : (fa ? "غیرفعال" : "Disabled")}
                   </div>
                 </div>
@@ -346,7 +346,15 @@ export default function CatalogManager() {
                     <div className="font-bold">{order.customer_name}</div>
                     <div className="text-xs text-[var(--erp-muted)]">{order.customer_phone}</div>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">{order.status}</span>
+                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">
+                    {
+                      {
+                        pending: fa ? "در انتظار" : "Pending",
+                        converted: fa ? "تبدیل شده" : "Converted",
+                        rejected: fa ? "رد شده" : "Rejected",
+                      }[order.status] || order.status
+                    }
+                  </span>
                 </div>
                 <ul className="text-sm text-[var(--erp-muted)] mt-2 list-disc ps-5">
                   {order.items.map((item, index) => (
@@ -396,8 +404,13 @@ export default function CatalogManager() {
                       : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"
                   }`}
                 >
-                  {m.status}
-                  {m.catalog_order_id ? ` #${m.catalog_order_id}` : ""}
+                  {
+                    {
+                      created: fa ? "ثبت شد" : "Created",
+                      rejected: fa ? "رد شد" : "Rejected",
+                    }[m.status] || (fa ? "در انتظار" : "Pending")
+                  }
+                  {m.catalog_order_id ? ` #${n(m.catalog_order_id)}` : ""}
                 </span>
               </div>
             ))}

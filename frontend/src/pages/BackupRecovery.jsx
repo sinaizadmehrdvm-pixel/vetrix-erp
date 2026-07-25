@@ -61,6 +61,7 @@ export default function BackupRecovery() {
     restoreLocked: fa ? "ابتدا آزمایش بازیابی موفق را اجرا کنید" : "Run a successful restore test first",
     remove: fa ? "حذف" : "Delete",
     valid: fa ? "سالم" : "Valid",
+    invalid: fa ? "نامعتبر" : "Invalid",
     notChecked: fa ? "بررسی‌نشده" : "Not checked",
     restoreWarning: fa
       ? "بازیابی، دیتابیس فعلی را جایگزین می‌کند. قبل از آن یک بکاپ اضطراری خودکار ساخته می‌شود."
@@ -291,7 +292,7 @@ export default function BackupRecovery() {
                   <td style={{ padding: 13 }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: item.valid === true ? "#86efac" : item.valid === false ? "#fca5a5" : "#fde68a" }}>
                       {item.valid === true ? <CheckCircle2 size={16} /> : item.valid === false ? <AlertTriangle size={16} /> : <FileCheck2 size={16} />}
-                      {item.valid === true ? copy.valid : item.valid === false ? "Invalid" : copy.notChecked}
+                      {item.valid === true ? copy.valid : item.valid === false ? copy.invalid : copy.notChecked}
                     </span>
                   </td>
                   <td title={item.sha256} style={{ padding: 13, color: "#64748b", direction: "ltr", fontFamily: "monospace" }}>{item.sha256.slice(0, 12)}…</td>

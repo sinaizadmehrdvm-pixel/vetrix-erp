@@ -19,8 +19,22 @@ const STATUS_STYLES = {
   skipped_no_email: "bg-amber-500/15 text-amber-200",
 };
 
+const STATUS_LABELS_FA = {
+  sent: "ارسال شد",
+  failed: "ناموفق",
+  skipped_not_configured: "پیکربندی نشده",
+  skipped_no_email: "بدون ایمیل",
+};
+
+const STATUS_LABELS_EN = {
+  sent: "Sent",
+  failed: "Failed",
+  skipped_not_configured: "Not configured",
+  skipped_no_email: "No email",
+};
+
 export default function PaymentReminders() {
-  const { dir, language, money } = useLanguage();
+  const { dir, language, money, n } = useLanguage();
   const fa = language === "fa";
 
   const [status, setStatus] = useState(null);
@@ -121,7 +135,7 @@ export default function PaymentReminders() {
             {overdue.map((item) => (
               <div key={item.invoice_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <div>
-                  <div className="font-bold">#{item.invoice_id} — {item.customer_name}</div>
+                  <div className="font-bold">#{n(item.invoice_id)} — {item.customer_name}</div>
                   <div className="text-xs text-[var(--erp-muted)]">{money(item.remaining_amount)}</div>
                 </div>
                 <button
@@ -130,7 +144,7 @@ export default function PaymentReminders() {
                   className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
                 >
                   <Send size={14} />
-                  {sendingId === item.invoice_id ? (fa ? "..." : "...") : (fa ? "ارسال یادآوری" : "Send reminder")}
+                  {sendingId === item.invoice_id ? (fa ? "در حال ارسال..." : "Sending...") : (fa ? "ارسال یادآوری" : "Send reminder")}
                 </button>
               </div>
             ))}
@@ -147,12 +161,12 @@ export default function PaymentReminders() {
             {log.map((entry) => (
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3 text-sm">
                 <div>
-                  <span className="font-bold">#{entry.invoice_id}</span>{" "}
+                  <span className="font-bold">#{n(entry.invoice_id)}</span>{" "}
                   <span className="text-[var(--erp-muted)]">{entry.customer_name}</span>
                   {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {entry.detail}</span>}
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-[var(--erp-muted)]"}`}>
-                  {entry.status}
+                  {(fa ? STATUS_LABELS_FA : STATUS_LABELS_EN)[entry.status] || entry.status}
                 </span>
               </div>
             ))}

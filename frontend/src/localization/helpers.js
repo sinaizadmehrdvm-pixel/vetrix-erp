@@ -76,6 +76,37 @@ export function formatDate(date, language = "en") {
   }
 }
 
+const INVOICE_TYPE_LABELS = {
+  sale: { fa: "فاکتور فروش", en: "Sales invoice" },
+  buy: { fa: "فاکتور خرید", en: "Purchase invoice" },
+  proforma: { fa: "پیش‌فاکتور", en: "Proforma invoice" },
+  return_sale: { fa: "مرجوعی فروش", en: "Sales return" },
+  return_buy: { fa: "مرجوعی خرید", en: "Purchase return" },
+};
+
+const PAYMENT_STATUS_LABELS = {
+  unpaid: { fa: "پرداخت نشده", en: "Unpaid" },
+  partial: { fa: "پرداخت جزئی", en: "Partial" },
+  paid: { fa: "تسویه شده", en: "Paid" },
+  final: { fa: "نهایی", en: "Final" },
+};
+
+// Shared enum-to-label lookups - every page that shows an invoice's raw
+// invoice_type/payment_status backend value needs the same translation,
+// and duplicating it ad hoc per page is how several pages ended up
+// leaking the untranslated English enum value into Persian mode.
+export function invoiceTypeLabel(type, fa = true) {
+  const entry = INVOICE_TYPE_LABELS[type];
+  if (!entry) return type || "-";
+  return fa ? entry.fa : entry.en;
+}
+
+export function paymentStatusLabel(status, fa = true) {
+  const entry = PAYMENT_STATUS_LABELS[status];
+  if (!entry) return status || "-";
+  return fa ? entry.fa : entry.en;
+}
+
 export function formatTime(date, language = "en") {
   try {
     const value = date ? new Date(date) : new Date();

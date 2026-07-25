@@ -1531,6 +1531,96 @@ def list_invoices():
         return {"status": "error", "message": str(e)}
 
 
+@app.get("/invoices/{invoice_id}")
+def get_invoice(invoice_id: int):
+    db: Session = SessionLocal()
+    try:
+        inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        if not inv:
+            return {"status": "error", "message": "Invoice not found"}
+
+        total_amount = float(inv.total_amount or 0)
+
+        receipt_sum = (
+            db.query(AccountingEntry)
+            .filter(AccountingEntry.source_type == "receipt", AccountingEntry.source_id == inv.id)
+            .all()
+        )
+        payment_sum = (
+            db.query(AccountingEntry)
+            .filter(AccountingEntry.source_type == "payment", AccountingEntry.source_id == inv.id)
+            .all()
+        )
+        received_amount = sum(float(e.credit or 0) for e in receipt_sum)
+        paid_amount = sum(float(e.debit or 0) for e in payment_sum)
+
+        if inv.invoice_type in ["sale", "return_buy"]:
+            settled_amount = received_amount
+        elif inv.invoice_type in ["buy", "return_sale"]:
+            settled_amount = paid_amount
+        else:
+            settled_amount = 0
+
+        remaining_amount = max(total_amount - settled_amount, 0)
+
+        if total_amount <= 0:
+            settlement_status = "paid"
+        elif settled_amount <= 0:
+            settlement_status = "unpaid"
+        elif settled_amount < total_amount:
+            settlement_status = "partial"
+        else:
+            settlement_status = "paid"
+
+        customer = db.query(Customer).filter(Customer.id == inv.customer_id).first() if inv.customer_id else None
+
+        items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
+        items_payload = []
+        for item in items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            items_payload.append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": product.name if product else "",
+                "quantity": float(item.quantity or 0),
+                "unit_price": float(item.unit_price or 0),
+                "total_price": float(item.total_price or 0),
+                "warehouse_id": item.warehouse_id,
+            })
+
+        result = {
+            "id": inv.id,
+            "invoice_type": inv.invoice_type,
+            "customer_id": inv.customer_id,
+            "customer_name": customer.name if customer else "",
+            "subtotal": float(getattr(inv, "subtotal", 0) or 0),
+            "discount_percent": float(getattr(inv, "discount_percent", 0) or 0),
+            "discount_amount": float(getattr(inv, "discount_amount", 0) or 0),
+            "tax_percent": float(getattr(inv, "tax_percent", 0) or 0),
+            "tax_amount": float(getattr(inv, "tax_amount", 0) or 0),
+            "shipping_cost": float(getattr(inv, "shipping_cost", 0) or 0),
+            "total_amount": total_amount,
+            "received_amount": received_amount,
+            "paid_amount": paid_amount,
+            "settled_amount": settled_amount,
+            "remaining_amount": remaining_amount,
+            "payment_status": settlement_status,
+            "settlement_status": settlement_status,
+            "status": getattr(inv, "status", "final"),
+            "invoice_note": getattr(inv, "invoice_note", "") or "",
+            "qr_enabled": bool(getattr(inv, "qr_enabled", True)),
+            "created_at": inv.created_at,
+            "items": items_payload,
+        }
+        db.close()
+        return result
+
+    except Exception as e:
+        db.rollback()
+        db.close()
+        return {"status": "error", "message": str(e)}
+
+
 @app.post("/transactions")
 def create_payment_or_receipt(data: PaymentCreate):
     db: Session = SessionLocal()
@@ -1618,6 +1708,127 @@ def create_payment_or_receipt(data: PaymentCreate):
         return {
             "status": "created",
             "entry_id": entry.id,
+            "customer_id": data.customer_id,
+            "invoice_id": invoice_id,
+            "balance": customer_balance(db, data.customer_id),
+            "invoice_payment_status": invoice.payment_status if invoice else None,
+            "invoice_remaining": remaining,
+        }
+    except ValueError as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    except Exception as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    finally:
+        db.close()
+
+
+@app.put("/transactions/{transaction_id}")
+def update_transaction(transaction_id: int, data: PaymentCreate):
+    # Reverses the old entry's side effects and applies the new one inside
+    # a single DB session/transaction, so a failure applying the new entry
+    # rolls back the reversal too - the frontend previously did this as two
+    # separate HTTP calls (delete, then create), which could permanently
+    # lose the original transaction if the create failed after the delete
+    # had already succeeded.
+    db: Session = SessionLocal()
+    try:
+        entry = db.query(AccountingEntry).filter(AccountingEntry.id == transaction_id).first()
+        if not entry:
+            raise ValueError("Transaction not found")
+        if entry.source_type not in {"receipt", "payment"}:
+            raise ValueError("Only manual receipts/payments can be edited")
+
+        old_customer_id = entry.customer_id
+        old_source_type = entry.source_type
+        old_source_id = entry.source_id
+        old_linked_invoice = (
+            db.query(Invoice).filter(Invoice.id == old_source_id).first()
+            if old_source_id else None
+        )
+
+        delete_source_voucher(old_source_type, entry.id, connection=db.connection())
+        db.delete(entry)
+        db.flush()
+        if old_linked_invoice:
+            sync_invoice_payment_status(db, old_linked_invoice)
+
+        policy = financial_policy_values(db.connection())
+        if data.transaction_type not in {"receipt", "payment"}:
+            raise ValueError("transaction_type must be receipt or payment")
+        amount = float(accounting_money(data.amount, policy["decimal_places"], policy["rounding_mode"]))
+        if amount <= 0:
+            raise ValueError("Amount must be greater than zero")
+        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        if not customer:
+            raise ValueError("Customer not found")
+
+        invoice = None
+        invoice_id = data.invoice_id if data.invoice_id else None
+        if invoice_id:
+            invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+            if not invoice:
+                raise ValueError("Invoice not found")
+            if invoice.customer_id != data.customer_id:
+                raise ValueError("این فاکتور متعلق به این طرف‌حساب نیست")
+            expected_type = expected_settlement_type(invoice.invoice_type)
+            if not expected_type:
+                raise ValueError("Proforma invoices cannot receive settlement transactions")
+            if data.transaction_type != expected_type:
+                raise ValueError(
+                    f"{invoice.invoice_type} invoices require a {expected_type} transaction"
+                )
+            settled_before = invoice_settled_amount(db, invoice, policy)
+            remaining_before = float(accounting_money(
+                invoice.total_amount - settled_before,
+                policy["decimal_places"],
+                policy["rounding_mode"],
+            ))
+            if amount > remaining_before:
+                raise ValueError(
+                    f"Transaction exceeds invoice remaining amount: {remaining_before}"
+                )
+
+        if data.transaction_type == "receipt":
+            description = "دریافت از طرف حساب"
+            if invoice_id:
+                description = f"دریافت از طرف حساب - فاکتور شماره {invoice_id}"
+            if data.note:
+                description += f" - {data.note}"
+            new_entry = add_customer_entry(
+                db, data.customer_id, "receipt", invoice_id,
+                description, credit=amount,
+            )
+        else:
+            description = "پرداخت به طرف حساب"
+            if invoice_id:
+                description = f"پرداخت به طرف حساب - فاکتور شماره {invoice_id}"
+            if data.note:
+                description += f" - {data.note}"
+            new_entry = add_customer_entry(
+                db, data.customer_id, "payment", invoice_id,
+                description, debit=amount,
+            )
+
+        db.flush()
+        settled = sync_invoice_payment_status(db, invoice, policy) if invoice else 0.0
+        remaining = (
+            float(accounting_money(
+                invoice.total_amount - settled,
+                policy["decimal_places"],
+                policy["rounding_mode"],
+            ))
+            if invoice else None
+        )
+        post_transaction_to_general_ledger(db, new_entry, data.method, invoice, policy)
+        rebuild_customer_balances(db, old_customer_id)
+        if data.customer_id != old_customer_id:
+            rebuild_customer_balances(db, data.customer_id)
+        db.commit()
+        return {
+            "status": "updated",
+            "entry_id": new_entry.id,
             "customer_id": data.customer_id,
             "invoice_id": invoice_id,
             "balance": customer_balance(db, data.customer_id),

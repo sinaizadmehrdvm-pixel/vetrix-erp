@@ -14,7 +14,7 @@ const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-p
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 
 export default function PricingTiers() {
-  const { dir, language, money } = useLanguage();
+  const { dir, language, money, n } = useLanguage();
   const fa = language === "fa";
 
   const [products, setProducts] = useState([]);
@@ -174,7 +174,7 @@ export default function PricingTiers() {
                 tiers.map((tier) => (
                   <div key={tier.id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                     <div className="text-sm">
-                      {fa ? "از " : "From "} {tier.min_quantity} {fa ? "عدد به بعد: " : "units: "}
+                      {fa ? "از " : "From "} {n(tier.min_quantity)} {fa ? "عدد به بعد: " : "units: "}
                       <span className="font-black text-[var(--erp-accent)]">{money(tier.unit_price)}</span>
                       {tier.customer_group && (
                         <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">

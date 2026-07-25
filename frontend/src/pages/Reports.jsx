@@ -607,22 +607,22 @@ export default function Reports() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Panel title={fa ? "بدهکاران برتر" : "Top debtors"}>
               {topDebtors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getDebtor(c))} color="text-red-300" />)}
-              {topDebtors.length === 0 && <Empty />}
+              {topDebtors.length === 0 && <Empty fa={fa} />}
             </Panel>
 
             <Panel title={fa ? "بستانکاران برتر" : "Top creditors"}>
               {topCreditors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getCreditor(c))} color="text-green-300" />)}
-              {topCreditors.length === 0 && <Empty />}
+              {topCreditors.length === 0 && <Empty fa={fa} />}
             </Panel>
 
             <Panel title={fa ? "هشدار فاکتورهای باز" : "Open invoice alerts"}>
               {openInvoices.slice(0, 10).map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={date(inv.created_at)} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-              {openInvoices.length === 0 && <Empty />}
+              {openInvoices.length === 0 && <Empty fa={fa} />}
             </Panel>
 
             <Panel title={fa ? "کالاهای کم‌موجودی" : "Low stock products"}>
               {lowStockProducts.slice(0, 10).map((p) => <Row key={p.id} title={p.name} subtitle={`${p.barcode || p.code || "-"} • ${fa ? "حداقل" : "Min"}: ${n(p.min_stock || 0)}`} value={n(p.stock || 0)} color="text-amber-300" />)}
-              {lowStockProducts.length === 0 && <Empty />}
+              {lowStockProducts.length === 0 && <Empty fa={fa} />}
             </Panel>
           </div>
         </div>
@@ -711,12 +711,12 @@ export default function Reports() {
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Panel title={fa ? "مطالبات از مشتریان" : "Receivables from customers"}>
-            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} type="debtor" />)}
-            {topDebtors.length === 0 && <Empty />}
+            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="debtor" />)}
+            {topDebtors.length === 0 && <Empty fa={fa} />}
           </Panel>
           <Panel title={fa ? "بدهی به تامین‌کنندگان / بستانکاران" : "Payables / Creditors"}>
-            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} type="creditor" />)}
-            {topCreditors.length === 0 && <Empty />}
+            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="creditor" />)}
+            {topCreditors.length === 0 && <Empty fa={fa} />}
           </Panel>
         </div>
       )}
@@ -737,8 +737,8 @@ export default function Reports() {
           </ChartPanel>
 
           <Panel title={fa ? "گزارش سود هر کالا" : "Product profit report"}>
-            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} />)}
-            {productProfitRows.length === 0 && <Empty />}
+            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
+            {productProfitRows.length === 0 && <Empty fa={fa} />}
           </Panel>
         </div>
       )}
@@ -746,7 +746,7 @@ export default function Reports() {
       {active === "invoices" && (
         <Panel title={fa ? "فاکتورهای باز و تسویه نشده" : "Open and unsettled invoices"}>
           {openInvoices.map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${inv.settlement_status || inv.payment_status || "-"}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-          {openInvoices.length === 0 && <Empty />}
+          {openInvoices.length === 0 && <Empty fa={fa} />}
         </Panel>
       )}
 
@@ -763,23 +763,23 @@ export default function Reports() {
           </Panel>
 
           <Panel title={fa ? "تراکنش‌های اخیر" : "Recent transactions"}>
-            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
-            {filteredTransactions.length === 0 && <Empty />}
+            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
+            {filteredTransactions.length === 0 && <Empty fa={fa} />}
           </Panel>
         </div>
       )}
 
       {active === "inventory" && (
         <Panel title={fa ? "گزارش پیشرفته موجودی کالا" : "Advanced inventory report"}>
-          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} />)}
-          {inventoryProducts.length === 0 && <Empty />}
+          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
+          {inventoryProducts.length === 0 && <Empty fa={fa} />}
         </Panel>
       )}
 
       {active === "transactions" && (
         <Panel title={fa ? "گزارش کامل تراکنش‌ها" : "Full transactions report"}>
-          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
-          {filteredTransactions.length === 0 && <Empty />}
+          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
+          {filteredTransactions.length === 0 && <Empty fa={fa} />}
         </Panel>
       )}
 

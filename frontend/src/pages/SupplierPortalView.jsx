@@ -4,10 +4,11 @@ import { AlertTriangle, FileText, ShieldCheck, Wallet } from "lucide-react";
 
 import { API_URL } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { invoiceTypeLabel, paymentStatusLabel } from "../localization/helpers";
 
 export default function SupplierPortalView() {
   const { token } = useParams();
-  const { language, dir, money } = useLanguage();
+  const { language, dir, money, n } = useLanguage();
   const fa = language === "fa";
   const [supplier, setSupplier] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -105,8 +106,8 @@ export default function SupplierPortalView() {
                   className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3"
                 >
                   <div>
-                    <div className="font-bold">#{invoice.id} — {invoice.invoice_type}</div>
-                    <div className="text-xs text-[var(--erp-muted)]">{invoice.payment_status}</div>
+                    <div className="font-bold">#{n(invoice.id)} — {invoiceTypeLabel(invoice.invoice_type, fa)}</div>
+                    <div className="text-xs text-[var(--erp-muted)]">{paymentStatusLabel(invoice.payment_status, fa)}</div>
                   </div>
                   <div className="font-black text-[var(--erp-accent)]">{money(invoice.total_amount)}</div>
                 </div>

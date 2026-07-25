@@ -1,5 +1,7 @@
 import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, Plus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import JalaliDateField from "../../../components/forms/JalaliDateField";
+import { toJalali } from "../../../utils/date";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -142,7 +144,7 @@ export default function CustomerTasks({
         <h3 className="text-[var(--erp-accent)] font-black mb-4 flex items-center gap-2"><Plus size={20} />{fa ? "ثبت وظیفه جدید" : "Add new task"}</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={fa ? "عنوان وظیفه؛ مثال: تماس برای پیگیری پرداخت" : "Task title"} className="crm-input" />
-          <input value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} placeholder={fa ? "تاریخ شمسی؛ مثال ۱۴۰۵/۰۴/۲۵" : "Date; example 2026/07/16"} className="crm-input" />
+          <JalaliDateField value={form.due_date} onChange={(isoDate) => setForm({ ...form, due_date: isoDate })} fa={fa} className="crm-input" style={{ gap: 8 }} />
           <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder={fa ? "مسئول انجام" : "Assignee"} className="crm-input" />
           <div className="grid grid-cols-2 gap-3">
             <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="crm-input">
@@ -170,7 +172,7 @@ export default function CustomerTasks({
               <div className="flex-1 min-w-[220px]">
                 <div className="flex items-center gap-2 flex-wrap"><h3 className="font-black text-[var(--erp-text)]">{task.title || "-"}</h3>{isOverdue(task) && <span className="px-3 py-1 rounded-full text-xs font-black bg-red-500/20 text-red-200 border border-red-400/20">{fa ? "عقب‌افتاده" : "Overdue"}</span>}{isToday(task) && <span className="px-3 py-1 rounded-full text-xs font-black bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)]">{fa ? "امروز" : "Today"}</span>}</div>
                 {task.description && <p className="text-[var(--erp-muted)] text-sm leading-7 mt-2 whitespace-pre-line">{task.description}</p>}
-                <div className="flex flex-wrap gap-2 mt-3"><span className={`px-3 py-1 rounded-full border text-xs font-black ${statusTone(task.status)}`}>{statusLabel(task.status, fa)}</span><span className={`px-3 py-1 rounded-full border text-xs font-black ${priorityTone(task.priority)}`}>{priorityLabel(task.priority, fa)}</span>{task.due_date && <span className="px-3 py-1 rounded-full border text-xs font-black bg-slate-500/10 text-[var(--erp-muted)] border-slate-400/20 flex items-center gap-1"><CalendarClock size={13} />{task.due_date}</span>}{task.assignee && <span className="px-3 py-1 rounded-full border text-xs font-black bg-blue-500/10 text-blue-200 border-blue-400/20">{task.assignee}</span>}</div>
+                <div className="flex flex-wrap gap-2 mt-3"><span className={`px-3 py-1 rounded-full border text-xs font-black ${statusTone(task.status)}`}>{statusLabel(task.status, fa)}</span><span className={`px-3 py-1 rounded-full border text-xs font-black ${priorityTone(task.priority)}`}>{priorityLabel(task.priority, fa)}</span>{task.due_date && <span className="px-3 py-1 rounded-full border text-xs font-black bg-slate-500/10 text-[var(--erp-muted)] border-slate-400/20 flex items-center gap-1"><CalendarClock size={13} />{fa ? toJalali(task.due_date) : task.due_date}</span>}{task.assignee && <span className="px-3 py-1 rounded-full border text-xs font-black bg-blue-500/10 text-blue-200 border-blue-400/20">{task.assignee}</span>}</div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">{task.status !== "done" && <button type="button" onClick={() => changeStatus(task, "done")} className="px-3 py-2 rounded-2xl bg-emerald-500/15 text-emerald-200 font-black flex items-center gap-1"><CheckCircle2 size={16} />{fa ? "انجام شد" : "Done"}</button>}{task.status !== "doing" && task.status !== "done" && <button type="button" onClick={() => changeStatus(task, "doing")} className="px-3 py-2 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">{fa ? "در حال انجام" : "Doing"}</button>}{onDeleteTask && <button type="button" onClick={() => onDeleteTask(task.id)} className="w-10 h-10 rounded-2xl bg-red-500/10 text-red-200 flex items-center justify-center"><Trash2 size={17} /></button>}</div>
             </div>

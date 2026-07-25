@@ -752,7 +752,7 @@ export default function Products() {
                             {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{fa ? "آفلاین" : "Offline"}</span>}
                           </b>
                           <div className="text-[var(--erp-muted)] text-xs">
-                            {faText(item.brand || "-", fa)} • {faText(item.unit || "-", fa)}
+                            {faText(item.brand || "-", fa)} • {!fa && item.unit === "عدد" ? "pcs" : faText(item.unit || "-", fa)}
                           </div>
                         </div>
                       </td>

@@ -18,7 +18,7 @@ export default function ApprovalCenter(){
  },[language, stableLoad]);
  async function changeStatus(v){setStatus(v);await load(v)}
  async function submit(id){try{await submitVoucherForApproval(id);toast.success(c.submit);await load()}catch(e){toast.error(e.message)}}
- async function decide(id,kind){try{const note=notes[id, stableLoad]||"";if(kind==="approve")await approveVoucher(id,note);else await rejectVoucher(id,note);setNotes({...notes,[id]:""});await load()}catch(e){toast.error(e.message)}}
+ async function decide(id,kind){try{const note=notes[id]||"";if(kind==="approve")await approveVoucher(id,note);else await rejectVoucher(id,note);setNotes({...notes,[id]:""});await load()}catch(e){toast.error(e.message)}}
  async function withdraw(id){try{await withdrawApproval(id);await load()}catch(e){toast.error(e.message)}}
  const card={background:"linear-gradient(145deg,rgba(15,23,42,.96),rgba(15,23,42,.74))",border:"1px solid rgba(34,211,238,.2)",borderRadius:22,boxShadow:"0 18px 55px rgba(2,6,23,.3)"},button={border:0,borderRadius:11,padding:"10px 13px",fontWeight:900,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6},input={background:"#1e293b",color:"white",border:"1px solid #334155",borderRadius:11,padding:"9px 11px"};
  return <div dir={dir} style={{color:"#f8fafc",maxWidth:1500,margin:"0 auto"}}>

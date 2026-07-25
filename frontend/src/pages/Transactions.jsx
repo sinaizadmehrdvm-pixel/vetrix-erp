@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { Link } from "react-router-dom";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -9,7 +10,6 @@ import {
   Trash2,
   Wallet,
   UserRound,
-  CalendarDays,
   Edit3,
   Save,
   X,
@@ -24,6 +24,7 @@ import {
   openAuthenticatedDocument,
   getTransactions,
   createTransaction,
+  updateTransaction,
   deleteTransaction,
 } from "../services/api";
 import { getCache, setCache } from "../storage/db";
@@ -322,11 +323,9 @@ export default function Transactions() {
     const payload = buildPayload();
 
     try {
-      if (editingId) {
-        await deleteTransaction(editingId);
-      }
-
-      const result = await createTransaction(payload);
+      const result = editingId
+        ? await updateTransaction(editingId, payload)
+        : await createTransaction(payload);
 
       if (result?.status === "error") {
         throw new Error(result.message || (fa ? "خطا در ثبت تراکنش" : "Transaction error"));
@@ -552,26 +551,12 @@ export default function Transactions() {
             className={inputClass}
           />
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              value={fa ? toPersianDigits(form.date) : form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              placeholder={fa ? "تاریخ شمسی مثل ۱۴۰۵/۰۳/۰۹" : "Date like 2026-05-30"}
-              className={inputClass}
-              style={{ width: "100%" }}
-            />
-
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, date: todayByLanguage(language) })}
-              className="px-4 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
-              style={{ minWidth: 105 }}
-            >
-              <CalendarDays size={17} />
-              {fa ? "امروز" : "Today"}
-            </button>
-          </div>
+          <JalaliDateField
+            value={form.date}
+            onChange={(isoDate) => setForm({ ...form, date: isoDate })}
+            fa={fa}
+            className={inputClass}
+          />
         </div>
 
         <textarea

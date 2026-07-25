@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  Banknote,
   BarChart3,
   Brain,
   Calculator,
-  Cash,
   CircleDollarSign,
   LineChart,
   RefreshCw,
@@ -107,7 +107,7 @@ export default function FinancialIntelligence() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_.9fr] gap-5 mb-6">
-        <Panel title={fa ? "پیش‌بینی جریان نقدی" : "Cash Flow Forecast"} icon={<Cash />}>
+        <Panel title={fa ? "پیش‌بینی جریان نقدی" : "Cash Flow Forecast"} icon={<Banknote />}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(cashflow.periods || []).map((p) => (
               <div key={p.days} className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
@@ -161,6 +161,7 @@ export default function FinancialIntelligence() {
             <SimInput label={fa ? "تغییر قیمت خرید ٪" : "Purchase cost %"} value={scenario.purchase_cost_change_percent} onChange={(v) => setScenario({ ...scenario, purchase_cost_change_percent: Number(v) })} />
             <SimInput label={fa ? "تغییر قیمت فروش ٪" : "Selling price %"} value={scenario.selling_price_change_percent} onChange={(v) => setScenario({ ...scenario, selling_price_change_percent: Number(v) })} />
             <SimInput label={fa ? "تغییر هزینه‌ها ٪" : "Expense change %"} value={scenario.expense_change_percent} onChange={(v) => setScenario({ ...scenario, expense_change_percent: Number(v) })} />
+            <SimInput label={fa ? "بهبود وصول مطالبات ٪" : "Collection improvement %"} value={scenario.collection_improvement_percent} onChange={(v) => setScenario({ ...scenario, collection_improvement_percent: Number(v) })} />
           </div>
           <button onClick={runSimulation} className="mt-4 w-full rounded-2xl bg-emerald-400 text-slate-950 font-black py-3">
             {fa ? "اجرای سناریو" : "Run Scenario"}
@@ -252,7 +253,7 @@ function Table({ headers, rows, empty }) {
     <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
       <table className="w-full text-sm">
         <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
-          <tr>{headers.map((h) => <th key={h} className="p-3 text-right">{h}</th>)}</tr>
+          <tr>{headers.map((h) => <th key={h} className="p-3 text-start">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.length ? rows.map((row, i) => (

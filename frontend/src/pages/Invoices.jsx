@@ -17,6 +17,7 @@ import {
   ReceiptText,
   CheckCircle2,
   AlertTriangle,
+  Clock,
   RefreshCw,
   Edit3,
   Save,
@@ -407,6 +408,16 @@ export default function Invoices() {
     return map[status] || status || "-";
   }
 
+  function paymentStatusStyle(status) {
+    if (status === "paid" || status === "final") {
+      return { className: "bg-emerald-500/15 text-emerald-300", Icon: CheckCircle2 };
+    }
+    if (status === "partial") {
+      return { className: "bg-amber-500/15 text-amber-300", Icon: Clock };
+    }
+    return { className: "bg-rose-500/15 text-rose-300", Icon: AlertTriangle };
+  }
+
   function buildCleanItems() {
     return items
       .filter((item) => item.product_id && toNumber(item.quantity) > 0)
@@ -665,6 +676,7 @@ export default function Invoices() {
       product_id: String(it.product_id || it.product?.id || ""),
       quantity: faText(it.quantity || 0, fa),
       unit_price: faText(it.unit_price || it.price || 0, fa),
+      warehouse_id: it.warehouse_id ? String(it.warehouse_id) : "",
     }))
   );
 
@@ -1149,10 +1161,15 @@ export default function Invoices() {
                     </td>
                     <td>{money(invoice.total_amount || invoice.total || 0)}</td>
                     <td>
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/15 text-emerald-300">
-                        <CheckCircle2 size={15} />
-                        {paymentStatusLabel(invoice.payment_status || invoice.status)}
-                      </span>
+                      {(() => {
+                        const { className, Icon } = paymentStatusStyle(invoice.payment_status || invoice.status);
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl ${className}`}>
+                            <Icon size={15} />
+                            {paymentStatusLabel(invoice.payment_status || invoice.status)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>
                       <div className="flex gap-2 flex-wrap">

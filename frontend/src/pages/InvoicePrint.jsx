@@ -16,7 +16,7 @@ import {
 
 import { useLanguage } from "../localization/useLanguage";
 import { getCache } from "../storage/db";
-import { getPdfTemplates, savePdfTemplate } from "../services/api";
+import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
 
 const INVOICES_CACHE_KEY = "invoices";
 
@@ -152,8 +152,18 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }, [invoice, items]);
 
   useEffect(() => {
-    async function loadCachedInvoice() {
+    async function loadInvoiceDetails() {
       if (propInvoice || !id) return;
+      // Prefer the backend (has line items); the local list cache only ever
+      // held list-summary rows with no items, which made every invoice
+      // printed from the invoice list show an empty items table.
+      try {
+        const full = await getInvoice(id);
+        setCachedInvoice(full);
+        return;
+      } catch (e) {
+        console.error("Invoice fetch error:", e);
+      }
       try {
         const cached = await getCache(INVOICES_CACHE_KEY);
         if (Array.isArray(cached)) {
@@ -164,7 +174,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         console.error("Invoice cache error:", e);
       }
     }
-    loadCachedInvoice();
+    loadInvoiceDetails();
   }, [id, propInvoice]);
 
   useEffect(() => {

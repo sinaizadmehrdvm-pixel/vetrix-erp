@@ -242,8 +242,8 @@ export default function AuditTrail() {
         <footer style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, borderTop: "1px solid rgba(148,163,184,.12)" }}>
           <span style={{ color: "#94a3b8" }}>{copy.showing} {n(firstShown)}–{n(lastShown)} {copy.of} {n(total)}</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button disabled={page === 0 || loading} onClick={() => move(page - 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}><ChevronLeft /></button>
-            <button disabled={lastShown >= total || loading} onClick={() => move(page + 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}><ChevronRight /></button>
+            <button disabled={page === 0 || loading} onClick={() => move(page - 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}>{dir === "rtl" ? <ChevronRight /> : <ChevronLeft />}</button>
+            <button disabled={lastShown >= total || loading} onClick={() => move(page + 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}>{dir === "rtl" ? <ChevronLeft /> : <ChevronRight />}</button>
           </div>
         </footer>
       </section>
