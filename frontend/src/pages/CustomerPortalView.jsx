@@ -3,14 +3,12 @@ import { useParams } from "react-router-dom";
 import { AlertTriangle, CreditCard, FileText, ShieldCheck, Wallet } from "lucide-react";
 
 import { API_URL } from "../services/api";
-
-function money(value) {
-  const amount = Number(value || 0);
-  return `${amount.toLocaleString()} IRR`;
-}
+import { useLanguage } from "../localization/useLanguage";
 
 export default function CustomerPortalView() {
   const { token } = useParams();
+  const { language, dir, money } = useLanguage();
+  const fa = language === "fa";
   const [customer, setCustomer] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [ledger, setLedger] = useState(null);
@@ -18,6 +16,8 @@ export default function CustomerPortalView() {
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState(null);
   const [payError, setPayError] = useState("");
+
+  const invalidLinkMessage = fa ? "این لینک دیگر معتبر نیست." : "This link is no longer valid.";
 
   useEffect(() => {
     let active = true;
@@ -31,7 +31,7 @@ export default function CustomerPortalView() {
           fetch(`${API_URL}/api/customer-portal/ledger`, { headers }),
         ]);
         if (!meResponse.ok) {
-          throw new Error("This link is no longer valid.");
+          throw new Error(invalidLinkMessage);
         }
         const me = await meResponse.json();
         const invoicesData = await invoicesResponse.json();
@@ -41,7 +41,7 @@ export default function CustomerPortalView() {
         setInvoices(invoicesData.items || []);
         setLedger(ledgerData);
       } catch (err) {
-        if (active) setError(err.message || "This link is no longer valid.");
+        if (active) setError(err.message || invalidLinkMessage);
       } finally {
         if (active) setLoading(false);
       }
@@ -49,6 +49,7 @@ export default function CustomerPortalView() {
 
     load();
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function payInvoice(invoiceId) {
@@ -61,7 +62,7 @@ export default function CustomerPortalView() {
         body: JSON.stringify({ invoice_id: invoiceId }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.detail || "Could not start the payment.");
+      if (!res.ok) throw new Error(data?.detail || (fa ? "شروع پرداخت ممکن نشد." : "Could not start the payment."));
       window.location.assign(data.redirect_url);
     } catch (err) {
       setPayError(err.message);
@@ -71,29 +72,29 @@ export default function CustomerPortalView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
-        Loading...
+      <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
+        {fa ? "در حال بارگذاری..." : "Loading..."}
       </div>
     );
   }
 
   if (error || !customer) {
     return (
-      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
+      <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
         <div className="text-rose-300">
           <AlertTriangle className="mx-auto mb-3" size={36} />
-          <p className="font-bold">{error || "This link is no longer valid."}</p>
+          <p className="font-bold">{error || invalidLinkMessage}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
+    <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">Vetrix ERP — Customer Portal</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "Vetrix ERP — پرتال مشتری" : "Vetrix ERP — Customer Portal"}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
@@ -105,20 +106,20 @@ export default function CustomerPortalView() {
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
-            <Wallet size={18} /> Account balance
+            <Wallet size={18} /> {fa ? "مانده حساب" : "Account balance"}
           </div>
           <div className="text-3xl font-black">{money(customer.balance)}</div>
         </section>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-            <FileText size={18} /> Invoices
+            <FileText size={18} /> {fa ? "فاکتورها" : "Invoices"}
           </div>
           {payError && (
             <p className="text-rose-300 text-sm mb-3">{payError}</p>
           )}
           {invoices.length === 0 ? (
-            <p className="text-[var(--erp-muted)]">No invoices yet.</p>
+            <p className="text-[var(--erp-muted)]">{fa ? "هنوز فاکتوری ثبت نشده است." : "No invoices yet."}</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice) => (
@@ -139,7 +140,7 @@ export default function CustomerPortalView() {
                         className="px-3 py-2 rounded-xl bg-emerald-400 text-slate-950 font-black text-sm flex items-center gap-1 disabled:opacity-60"
                       >
                         <CreditCard size={14} />
-                        {payingId === invoice.id ? "..." : "Pay now"}
+                        {payingId === invoice.id ? "..." : (fa ? "پرداخت" : "Pay now")}
                       </button>
                     )}
                   </div>
@@ -152,10 +153,10 @@ export default function CustomerPortalView() {
         {ledger && (
           <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
             <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-              <Wallet size={18} /> Statement
+              <Wallet size={18} /> {fa ? "صورت‌حساب" : "Statement"}
             </div>
             {ledger.entries.length === 0 ? (
-              <p className="text-[var(--erp-muted)]">No transactions yet.</p>
+              <p className="text-[var(--erp-muted)]">{fa ? "هنوز تراکنشی ثبت نشده است." : "No transactions yet."}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-auto pr-1">
                 {ledger.entries.map((entry, index) => (

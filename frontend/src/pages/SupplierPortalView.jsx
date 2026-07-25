@@ -3,19 +3,19 @@ import { useParams } from "react-router-dom";
 import { AlertTriangle, FileText, ShieldCheck, Wallet } from "lucide-react";
 
 import { API_URL } from "../services/api";
-
-function money(value) {
-  const amount = Number(value || 0);
-  return `${amount.toLocaleString()} IRR`;
-}
+import { useLanguage } from "../localization/useLanguage";
 
 export default function SupplierPortalView() {
   const { token } = useParams();
+  const { language, dir, money } = useLanguage();
+  const fa = language === "fa";
   const [supplier, setSupplier] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [ledger, setLedger] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const invalidLinkMessage = fa ? "این لینک دیگر معتبر نیست." : "This link is no longer valid.";
 
   useEffect(() => {
     let active = true;
@@ -29,7 +29,7 @@ export default function SupplierPortalView() {
           fetch(`${API_URL}/api/supplier-portal/ledger`, { headers }),
         ]);
         if (!meResponse.ok) {
-          throw new Error("This link is no longer valid.");
+          throw new Error(invalidLinkMessage);
         }
         const me = await meResponse.json();
         const invoicesData = await invoicesResponse.json();
@@ -39,7 +39,7 @@ export default function SupplierPortalView() {
         setInvoices(invoicesData.items || []);
         setLedger(ledgerData);
       } catch (err) {
-        if (active) setError(err.message || "This link is no longer valid.");
+        if (active) setError(err.message || invalidLinkMessage);
       } finally {
         if (active) setLoading(false);
       }
@@ -47,33 +47,34 @@ export default function SupplierPortalView() {
 
     load();
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
-        Loading...
+      <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
+        {fa ? "در حال بارگذاری..." : "Loading..."}
       </div>
     );
   }
 
   if (error || !supplier) {
     return (
-      <div className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
+      <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-center px-4">
         <div className="text-rose-300">
           <AlertTriangle className="mx-auto mb-3" size={36} />
-          <p className="font-bold">{error || "This link is no longer valid."}</p>
+          <p className="font-bold">{error || invalidLinkMessage}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
+    <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">Vetrix ERP — Supplier Portal</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "Vetrix ERP — پرتال تأمین‌کننده" : "Vetrix ERP — Supplier Portal"}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
@@ -85,17 +86,17 @@ export default function SupplierPortalView() {
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
-            <Wallet size={18} /> Account balance
+            <Wallet size={18} /> {fa ? "مانده حساب" : "Account balance"}
           </div>
           <div className="text-3xl font-black">{money(supplier.balance)}</div>
         </section>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-            <FileText size={18} /> Purchase invoices
+            <FileText size={18} /> {fa ? "فاکتورهای خرید" : "Purchase invoices"}
           </div>
           {invoices.length === 0 ? (
-            <p className="text-[var(--erp-muted)]">No invoices yet.</p>
+            <p className="text-[var(--erp-muted)]">{fa ? "هنوز فاکتوری ثبت نشده است." : "No invoices yet."}</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice) => (
@@ -117,10 +118,10 @@ export default function SupplierPortalView() {
         {ledger && (
           <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
             <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-              <Wallet size={18} /> Statement
+              <Wallet size={18} /> {fa ? "صورت‌حساب" : "Statement"}
             </div>
             {ledger.entries.length === 0 ? (
-              <p className="text-[var(--erp-muted)]">No transactions yet.</p>
+              <p className="text-[var(--erp-muted)]">{fa ? "هنوز تراکنشی ثبت نشده است." : "No transactions yet."}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-auto pr-1">
                 {ledger.entries.map((entry, index) => (
