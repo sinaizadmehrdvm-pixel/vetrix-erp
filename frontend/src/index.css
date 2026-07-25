@@ -20,6 +20,34 @@
 :root[data-theme="gold"] { --erp-bg:#201706; --erp-bg-soft:#34250a; --erp-panel:#46320de6; --erp-panel-solid:#513b12; --erp-accent:#fbbf24; --erp-accent-2:#fde68a; --erp-border:#fbbf2433; --erp-glow:#fbbf2438; }
 :root[data-theme="light"] { --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8; --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669; --erp-border:#0284c733; --erp-glow:#0284c726; }
 
+/* Status pills/badges across the app pair a light pastel Tailwind text
+   shade (e.g. text-emerald-300) with a translucent tinted background
+   (e.g. bg-emerald-500/10) - readable on this app's dark panels, but
+   nearly invisible on the light theme's near-white background. Rather
+   than hand-edit every badge in ~20 files, override the text color for
+   these specific utility classes only in light mode, using a strong
+   same-hue shade per color family so the semantic meaning (green =
+   success, red/rose = danger, amber/yellow = warning, blue/cyan/indigo/
+   violet = info) is unchanged. Background/border tints are left as-is -
+   only the text contrast was broken. */
+:root[data-theme="light"] :is(.text-red-50, .text-red-100, .text-red-200, .text-red-300) { color: #b91c1c; }
+:root[data-theme="light"] :is(.text-rose-50, .text-rose-100, .text-rose-200, .text-rose-300) { color: #be123c; }
+:root[data-theme="light"] :is(.text-pink-50, .text-pink-100, .text-pink-200, .text-pink-300) { color: #be185d; }
+:root[data-theme="light"] :is(.text-orange-50, .text-orange-100, .text-orange-200, .text-orange-300) { color: #c2410c; }
+:root[data-theme="light"] :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300) { color: #b45309; }
+:root[data-theme="light"] :is(.text-yellow-50, .text-yellow-100, .text-yellow-200, .text-yellow-300) { color: #a16207; }
+:root[data-theme="light"] :is(.text-lime-50, .text-lime-100, .text-lime-200, .text-lime-300) { color: #4d7c0f; }
+:root[data-theme="light"] :is(.text-green-50, .text-green-100, .text-green-200, .text-green-300) { color: #15803d; }
+:root[data-theme="light"] :is(.text-emerald-50, .text-emerald-100, .text-emerald-200, .text-emerald-300) { color: #047857; }
+:root[data-theme="light"] :is(.text-teal-50, .text-teal-100, .text-teal-200, .text-teal-300) { color: #0f766e; }
+:root[data-theme="light"] :is(.text-cyan-50, .text-cyan-100, .text-cyan-200, .text-cyan-300) { color: #0e7490; }
+:root[data-theme="light"] :is(.text-sky-50, .text-sky-100, .text-sky-200, .text-sky-300) { color: #0369a1; }
+:root[data-theme="light"] :is(.text-blue-50, .text-blue-100, .text-blue-200, .text-blue-300) { color: #1d4ed8; }
+:root[data-theme="light"] :is(.text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300) { color: #4338ca; }
+:root[data-theme="light"] :is(.text-violet-50, .text-violet-100, .text-violet-200, .text-violet-300) { color: #6d28d9; }
+:root[data-theme="light"] :is(.text-purple-50, .text-purple-100, .text-purple-200, .text-purple-300) { color: #7e22ce; }
+:root[data-theme="light"] :is(.text-fuchsia-50, .text-fuchsia-100, .text-fuchsia-200, .text-fuchsia-300) { color: #a21caf; }
+
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--erp-accent) transparent; }
 body { margin:0; padding:0; background:var(--erp-bg); color:var(--erp-text); font-family:Arial, Helvetica, sans-serif; transition:background .25s ease,color .25s ease; }
 button, a, input, select, textarea { transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease; }
