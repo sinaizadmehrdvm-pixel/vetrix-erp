@@ -168,8 +168,8 @@ export default function FiscalPeriods() {
   }
 
   const card = {
-    background: "linear-gradient(145deg, rgba(15,23,42,.94), rgba(15,23,42,.7))",
-    border: "1px solid rgba(34,211,238,.2)",
+    background: "var(--erp-panel)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 24,
     boxShadow: "0 20px 60px rgba(2,6,23,.3)",
   };
@@ -178,14 +178,14 @@ export default function FiscalPeriods() {
     boxSizing: "border-box",
     padding: "12px 14px",
     borderRadius: 14,
-    border: "1px solid rgba(148,163,184,.25)",
-    background: "#111c35",
-    color: "#f8fafc",
+    border: "1px solid var(--erp-border)",
+    background: "var(--erp-panel-solid)",
+    color: "var(--erp-text)",
     outline: "none",
   };
 
   return (
-    <div dir={dir} style={{ color: "#f8fafc", maxWidth: 1500, margin: "0 auto" }}>
+    <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1500, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "center", flexWrap: "wrap", marginBottom: 24 }}>
         <div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -193,12 +193,12 @@ export default function FiscalPeriods() {
               <CalendarDays size={28} />
             </div>
             <div>
-              <h1 style={{ margin: 0, color: "#67e8f9", fontSize: "clamp(28px,4vw,42px)", fontWeight: 950 }}>{copy.title}</h1>
-              <p style={{ margin: "7px 0 0", color: "#94a3b8" }}>{copy.subtitle}</p>
+              <h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(28px,4vw,42px)", fontWeight: 950 }}>{copy.title}</h1>
+              <p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p>
             </div>
           </div>
         </div>
-        <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 14, padding: "12px 17px", fontWeight: 900, cursor: "pointer", background: "#164e63", color: "#cffafe" }}>
+        <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 14, padding: "12px 17px", fontWeight: 900, cursor: "pointer", background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
           <RefreshCw size={18} className={loading ? "spin" : ""} />
           {copy.refresh}
         </button>
@@ -220,14 +220,14 @@ export default function FiscalPeriods() {
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 22 }}>
         {[
-          [CalendarDays, fa ? "کل دوره‌ها" : "Periods", n(periods.length), "#67e8f9"],
+          [CalendarDays, fa ? "کل دوره‌ها" : "Periods", n(periods.length), "var(--erp-accent)"],
           [UnlockKeyhole, fa ? "دوره‌های باز" : "Open periods", n(totals.open), "#86efac"],
           [FileText, copy.vouchers, n(totals.vouchers), "#c4b5fd"],
           [Scale, copy.difference, money(Math.abs(totals.debit - totals.credit)), Math.abs(totals.debit - totals.credit) < 0.01 ? "#86efac" : "#fca5a5"],
         ].map(([Icon, label, value, color]) => (
           <article key={label} style={{ ...card, padding: 18 }}>
             <Icon size={22} color={color} />
-            <div style={{ color: "#94a3b8", marginTop: 12, fontSize: 13 }}>{label}</div>
+            <div style={{ color: "var(--erp-muted)", marginTop: 12, fontSize: 13 }}>{label}</div>
             <div style={{ color, marginTop: 5, fontSize: 23, fontWeight: 950 }}>{value}</div>
           </article>
         ))}
@@ -235,23 +235,23 @@ export default function FiscalPeriods() {
 
       {isAdmin && (
         <form onSubmit={submit} style={{ ...card, padding: 20, marginBottom: 22 }}>
-          <h2 style={{ margin: "0 0 18px", display: "flex", alignItems: "center", gap: 9, color: "#a5f3fc" }}>
+          <h2 style={{ margin: "0 0 18px", display: "flex", alignItems: "center", gap: 9, color: "var(--erp-accent)" }}>
             <Plus size={22} /> {copy.newPeriod}
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,2fr) minmax(170px,1fr) minmax(170px,1fr) auto", gap: 12, alignItems: "end" }}>
-            <label style={{ color: "#cbd5e1", fontSize: 13 }}>
+            <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.name}
               <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} style={{ ...input, marginTop: 7 }} />
             </label>
-            <label style={{ color: "#cbd5e1", fontSize: 13 }}>
+            <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.start}
               <input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} style={{ ...input, marginTop: 7 }} />
             </label>
-            <label style={{ color: "#cbd5e1", fontSize: 13 }}>
+            <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.end}
               <input type="date" value={form.end_date} onChange={(event) => setForm({ ...form, end_date: event.target.value })} style={{ ...input, marginTop: 7 }} />
             </label>
-            <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 14, padding: "13px 20px", minHeight: 45, fontWeight: 950, cursor: creating ? "wait" : "pointer", background: "linear-gradient(135deg,#22d3ee,#22c55e)", color: "#03111f" }}>
+            <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 14, padding: "13px 20px", minHeight: 45, fontWeight: 950, cursor: creating ? "wait" : "pointer", background: "linear-gradient(135deg,var(--erp-accent),#22c55e)", color: "#03111f" }}>
               {creating ? "..." : copy.create}
             </button>
           </div>
@@ -260,19 +260,19 @@ export default function FiscalPeriods() {
 
       <section style={{ display: "grid", gap: 16 }}>
         {!loading && periods.length === 0 && (
-          <div style={{ ...card, padding: 36, textAlign: "center", color: "#94a3b8" }}>{copy.empty}</div>
+          <div style={{ ...card, padding: 36, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</div>
         )}
         {periods.map((period) => {
           const difference = Number(period.total_debit || 0) - Number(period.total_credit || 0);
           const balanced = Math.abs(difference) < 0.01;
           const isOpen = period.status === "open";
           return (
-            <article key={period.id} style={{ ...card, padding: 20, borderColor: isOpen ? "rgba(34,197,94,.32)" : "rgba(148,163,184,.2)" }}>
+            <article key={period.id} style={{ ...card, padding: 20, borderColor: isOpen ? "rgba(34,197,94,.32)" : "var(--erp-border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <h2 style={{ margin: 0, color: "#e2e8f0", fontSize: 24 }}>{period.name}</h2>
-                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", borderRadius: 999, padding: "6px 11px", fontSize: 12, fontWeight: 900, color: isOpen ? "#bbf7d0" : "#cbd5e1", background: isOpen ? "rgba(34,197,94,.14)" : "rgba(100,116,139,.18)" }}>
+                    <h2 style={{ margin: 0, color: "var(--erp-text)", fontSize: 24 }}>{period.name}</h2>
+                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", borderRadius: 999, padding: "6px 11px", fontSize: 12, fontWeight: 900, color: isOpen ? "#bbf7d0" : "var(--erp-muted)", background: isOpen ? "rgba(34,197,94,.14)" : "var(--erp-glow)" }}>
                       {isOpen ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
                       {isOpen ? copy.open : copy.closed}
                     </span>
@@ -281,10 +281,10 @@ export default function FiscalPeriods() {
                       {balanced ? copy.balanced : copy.unbalanced}
                     </span>
                   </div>
-                  <div style={{ marginTop: 9, color: "#94a3b8" }}>{date(period.start_date)} — {date(period.end_date)}</div>
+                  <div style={{ marginTop: 9, color: "var(--erp-muted)" }}>{date(period.start_date)} — {date(period.end_date)}</div>
                 </div>
                 {isAdmin && (
-                  <button onClick={() => changeStatus(period, isOpen ? "close" : "reopen")} disabled={busyId === period.id} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", fontWeight: 900, cursor: "pointer", color: isOpen ? "#fee2e2" : "#cffafe", background: isOpen ? "#7f1d1d" : "#155e75" }}>
+                  <button onClick={() => changeStatus(period, isOpen ? "close" : "reopen")} disabled={busyId === period.id} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", fontWeight: 900, cursor: "pointer", color: isOpen ? "#fee2e2" : "var(--erp-accent)", background: isOpen ? "#7f1d1d" : "var(--erp-panel-solid)" }}>
                     {isOpen ? <LockKeyhole size={17} /> : <RotateCcw size={17} />}
                     {busyId === period.id ? "..." : isOpen ? copy.close : copy.reopen}
                   </button>
@@ -297,9 +297,9 @@ export default function FiscalPeriods() {
                   [copy.credit, money(period.total_credit || 0)],
                   [copy.difference, money(Math.abs(difference))],
                 ].map(([label, value]) => (
-                  <div key={label} style={{ borderRadius: 16, padding: 13, background: "rgba(30,41,59,.72)" }}>
-                    <div style={{ color: "#94a3b8", fontSize: 12 }}>{label}</div>
-                    <div style={{ color: "#e0f2fe", fontWeight: 900, marginTop: 6 }}>{value}</div>
+                  <div key={label} style={{ borderRadius: 16, padding: 13, background: "var(--erp-panel-solid)" }}>
+                    <div style={{ color: "var(--erp-muted)", fontSize: 12 }}>{label}</div>
+                    <div style={{ color: "var(--erp-text)", fontWeight: 900, marginTop: 6 }}>{value}</div>
                   </div>
                 ))}
               </div>

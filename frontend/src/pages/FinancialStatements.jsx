@@ -139,8 +139,8 @@ export default function FinancialStatements() {
   }
 
   const card = {
-    background: "linear-gradient(145deg,rgba(15,23,42,.95),rgba(15,23,42,.72))",
-    border: "1px solid rgba(34,211,238,.2)",
+    background: "var(--erp-panel)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 24,
     boxShadow: "0 18px 55px rgba(2,6,23,.3)",
   };
@@ -153,25 +153,25 @@ export default function FinancialStatements() {
   };
 
   return (
-    <div dir={dir} style={{ color: "#f8fafc", maxWidth: 1500, margin: "0 auto" }}>
+    <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1500, margin: "0 auto" }}>
       <header className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
           <div style={{ width: 55, height: 55, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,#06b6d4,#8b5cf6)" }}>
             <FileBarChart size={30} />
           </div>
           <div>
-            <h1 style={{ margin: 0, color: "#a5f3fc", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
-            <p style={{ margin: "7px 0 0", color: "#94a3b8" }}>{copy.subtitle}</p>
+            <h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
+            <p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select value={periodId} onChange={(event) => changePeriod(event.target.value)} style={{ background: "#1e293b", color: "white", border: "1px solid rgba(34,211,238,.25)", borderRadius: 13, padding: "10px 13px" }}>
+          <select value={periodId} onChange={(event) => changePeriod(event.target.value)} style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}>
             <option value="">{copy.allTime}</option>
             {periods.map((period) => <option key={period.id} value={period.id}>{period.name} — {period.status}</option>)}
           </select>
-          <button onClick={() => load()} disabled={loading} style={{ ...button, background: "#164e63", color: "#cffafe", display: "flex", gap: 7, alignItems: "center" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
+          <button onClick={() => load()} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)", display: "flex", gap: 7, alignItems: "center" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
           <button onClick={downloadCsv} style={{ ...button, background: "#166534", color: "#dcfce7", display: "flex", gap: 7, alignItems: "center" }}><Download size={16} />{copy.export}</button>
-          <button onClick={() => window.print()} style={{ ...button, background: "#334155", color: "#e2e8f0", display: "flex", gap: 7, alignItems: "center" }}><Printer size={16} />{copy.print}</button>
+          <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", display: "flex", gap: 7, alignItems: "center" }}><Printer size={16} />{copy.print}</button>
         </div>
       </header>
 
@@ -181,10 +181,10 @@ export default function FinancialStatements() {
         <>
           <section style={{ ...card, padding: 17, marginBottom: 16, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <strong style={{ color: "#67e8f9" }}>{data.period?.name || copy.allTime}</strong>
-              {data.period && <div style={{ color: "#94a3b8", marginTop: 5 }}>{date(data.period.start_date)} — {date(data.period.end_date)}</div>}
+              <strong style={{ color: "var(--erp-accent)" }}>{data.period?.name || copy.allTime}</strong>
+              {data.period && <div style={{ color: "var(--erp-muted)", marginTop: 5 }}>{date(data.period.start_date)} — {date(data.period.end_date)}</div>}
             </div>
-            <div style={{ color: "#94a3b8" }}>{copy.posted}: <b style={{ color: "#e2e8f0" }}>{n(data.posted_vouchers)}</b></div>
+            <div style={{ color: "var(--erp-muted)" }}>{copy.posted}: <b style={{ color: "var(--erp-text)" }}>{n(data.posted_vouchers)}</b></div>
             <div style={{ color: data.valid ? "#86efac" : "#fca5a5", fontWeight: 900, display: "flex", gap: 7, alignItems: "center" }}>
               <Scale size={18} />{data.valid ? copy.balanced : copy.unbalanced}
             </div>
@@ -196,7 +196,7 @@ export default function FinancialStatements() {
               ["income", copy.income, TrendingUp],
               ["cash", copy.cash, Banknote],
             ].map(([id, label, Icon]) => (
-              <button key={id} onClick={() => setActive(id)} style={{ ...button, display: "flex", gap: 7, alignItems: "center", background: active === id ? "#22d3ee" : "#1e293b", color: active === id ? "#05202a" : "#cbd5e1" }}>
+              <button key={id} onClick={() => setActive(id)} style={{ ...button, display: "flex", gap: 7, alignItems: "center", background: active === id ? "var(--erp-accent)" : "var(--erp-panel-solid)", color: active === id ? "#05202a" : "var(--erp-muted)" }}>
                 <Icon size={17} />{label}
               </button>
             ))}
@@ -213,13 +213,13 @@ export default function FinancialStatements() {
 
 function StatementTable({ title, items, copy, money, color }) {
   return (
-    <section style={{ padding: 16, borderRadius: 18, background: "rgba(30,41,59,.65)" }}>
+    <section style={{ padding: 16, borderRadius: 18, background: "var(--erp-panel-solid)" }}>
       <h3 style={{ color, margin: "0 0 12px" }}>{title}</h3>
-      {!items.length && <div style={{ color: "#64748b", padding: 12 }}>{copy.noRows}</div>}
+      {!items.length && <div style={{ color: "var(--erp-muted)", padding: 12 }}>{copy.noRows}</div>}
       {items.map((item) => (
-        <div key={item.account_id || item.account_code} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 3px", borderTop: "1px solid rgba(148,163,184,.1)" }}>
-          <span><code style={{ color: "#64748b", marginInlineEnd: 8 }}>{item.account_code}</code>{item.account_name}</span>
-          <strong style={{ color: item.amount < 0 ? "#fca5a5" : "#e0f2fe" }}>{money(item.amount)}</strong>
+        <div key={item.account_id || item.account_code} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 3px", borderTop: "1px solid var(--erp-border)" }}>
+          <span><code style={{ color: "var(--erp-muted)", marginInlineEnd: 8 }}>{item.account_code}</code>{item.account_name}</span>
+          <strong style={{ color: item.amount < 0 ? "#fca5a5" : "var(--erp-text)" }}>{money(item.amount)}</strong>
         </div>
       ))}
     </section>
@@ -230,11 +230,11 @@ function BalanceSheet({ data, copy, money, card }) {
   return (
     <section style={{ ...card, padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
-        <StatementTable title={copy.assets} items={data.asset_items} copy={copy} money={money} color="#67e8f9" />
+        <StatementTable title={copy.assets} items={data.asset_items} copy={copy} money={money} color="var(--erp-accent)" />
         <StatementTable title={copy.liabilities} items={data.liability_items} copy={copy} money={money} color="#fda4af" />
         <div>
           <StatementTable title={copy.equity} items={data.equity_items} copy={copy} money={money} color="#c4b5fd" />
-          <div style={{ marginTop: 9, padding: 12, borderRadius: 14, background: "rgba(139,92,246,.12)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ marginTop: 9, padding: 12, borderRadius: 14, background: "var(--erp-glow)", display: "flex", justifyContent: "space-between" }}>
             <span>{copy.currentEarnings}</span><strong>{money(data.accumulated_earnings)}</strong>
           </div>
         </div>
@@ -280,15 +280,15 @@ function CashFlow({ data, copy, money, card }) {
     <section style={{ ...card, padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
         {metrics.map(([label, value, Icon]) => (
-          <div key={label} style={{ padding: 15, borderRadius: 17, background: "rgba(30,41,59,.68)" }}>
-            <Icon size={19} color="#67e8f9" />
-            <div style={{ color: "#94a3b8", marginTop: 9, fontSize: 12 }}>{label}</div>
-            <strong style={{ display: "block", marginTop: 5, color: value < 0 ? "#fca5a5" : "#e0f2fe", fontSize: 19 }}>{money(value)}</strong>
+          <div key={label} style={{ padding: 15, borderRadius: 17, background: "var(--erp-panel-solid)" }}>
+            <Icon size={19} color="var(--erp-accent)" />
+            <div style={{ color: "var(--erp-muted)", marginTop: 9, fontSize: 12 }}>{label}</div>
+            <strong style={{ display: "block", marginTop: 5, color: value < 0 ? "#fca5a5" : "var(--erp-text)", fontSize: 19 }}>{money(value)}</strong>
           </div>
         ))}
       </div>
       <div style={{ marginTop: 15 }}>
-        <StatementTable title={faLabel(copy.cash)} items={data.accounts.map((item) => ({ ...item, account_id: item.account_code, amount: item.net_change }))} copy={copy} money={money} color="#67e8f9" />
+        <StatementTable title={faLabel(copy.cash)} items={data.accounts.map((item) => ({ ...item, account_id: item.account_code, amount: item.net_change }))} copy={copy} money={money} color="var(--erp-accent)" />
       </div>
     </section>
   );
@@ -300,9 +300,9 @@ function faLabel(value) {
 
 function Total({ label, value, money, highlight }) {
   return (
-    <div style={{ padding: 15, borderRadius: 17, background: highlight ? "linear-gradient(135deg,rgba(34,211,238,.18),rgba(34,197,94,.14))" : "rgba(30,41,59,.68)" }}>
-      <div style={{ color: "#94a3b8", fontSize: 12 }}>{label}</div>
-      <strong style={{ display: "block", marginTop: 6, color: value < 0 ? "#fca5a5" : "#e0f2fe", fontSize: 20 }}>{money(value)}</strong>
+    <div style={{ padding: 15, borderRadius: 17, background: highlight ? "linear-gradient(135deg,var(--erp-glow),rgba(34,197,94,.14))" : "var(--erp-panel-solid)" }}>
+      <div style={{ color: "var(--erp-muted)", fontSize: 12 }}>{label}</div>
+      <strong style={{ display: "block", marginTop: 6, color: value < 0 ? "#fca5a5" : "var(--erp-text)", fontSize: 20 }}>{money(value)}</strong>
     </div>
   );
 }

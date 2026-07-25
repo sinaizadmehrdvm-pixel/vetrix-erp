@@ -224,8 +224,8 @@ export default function BackupRecovery() {
   }
 
   const card = {
-    background: "linear-gradient(145deg,rgba(15,23,42,.95),rgba(15,23,42,.72))",
-    border: "1px solid rgba(34,211,238,.2)",
+    background: "var(--erp-panel)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 24,
     boxShadow: "0 18px 55px rgba(2,6,23,.3)",
   };
@@ -240,29 +240,29 @@ export default function BackupRecovery() {
   }
 
   return (
-    <div dir={dir} style={{ color: "#f8fafc", maxWidth: 1550, margin: "0 auto" }}>
+    <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1550, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ width: 55, height: 55, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,#06b6d4,#22c55e)", color: "#03131d" }}>
+          <div style={{ width: 55, height: 55, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03131d" }}>
             <DatabaseBackup size={30} />
           </div>
           <div>
-            <h1 style={{ margin: 0, color: "#a5f3fc", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
-            <p style={{ margin: "7px 0 0", color: "#94a3b8" }}>{copy.subtitle}</p>
+            <h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
+            <p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p>
           </div>
         </div>
         <div style={{ display: "flex", gap: 9 }}>
-          <button onClick={() => load(false)} disabled={loading} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 14px", background: "#334155", color: "#e2e8f0", fontWeight: 800, cursor: "pointer" }}>
+          <button onClick={() => load(false)} disabled={loading} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 14px", background: "var(--erp-panel-solid)", color: "var(--erp-text)", fontWeight: 800, cursor: "pointer" }}>
             <RefreshCw size={17} /> {fa ? "به‌روزرسانی" : "Refresh"}
           </button>
-          <button onClick={create} disabled={creating} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "linear-gradient(135deg,#22d3ee,#22c55e)", color: "#03131d", fontWeight: 950, cursor: "pointer" }}>
+          <button onClick={create} disabled={creating} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03131d", fontWeight: 950, cursor: "pointer" }}>
             <HardDrive size={17} /> {creating ? "..." : copy.create}
           </button>
         </div>
       </header>
 
-      <div style={{ ...card, padding: 15, marginBottom: 10, color: "#bae6fd", display: "flex", gap: 10, alignItems: "center" }}>
-        <FileCheck2 color="#67e8f9" />
+      <div style={{ ...card, padding: 15, marginBottom: 10, color: "var(--erp-accent)", display: "flex", gap: 10, alignItems: "center" }}>
+        <FileCheck2 color="var(--erp-accent)" />
         {copy.autoInfo}
       </div>
       <div style={{ ...card, padding: 15, marginBottom: 18, color: "#bbf7d0", display: "flex", gap: 10, alignItems: "center" }}>
@@ -275,18 +275,18 @@ export default function BackupRecovery() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", minWidth: 1150, borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "rgba(30,41,59,.9)", color: "#a5f3fc" }}>
+              <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
                 {[copy.filename, copy.createdAt, copy.kind, copy.size, copy.integrity, copy.checksum, copy.actions].map((heading) => (
                   <th key={heading} style={{ padding: 13, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {!loading && backups.length === 0 && <tr><td colSpan={7} style={{ padding: 38, textAlign: "center", color: "#94a3b8" }}>{copy.empty}</td></tr>}
+              {!loading && backups.length === 0 && <tr><td colSpan={7} style={{ padding: 38, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
               {backups.map((item) => (
-                <tr key={item.filename} style={{ borderTop: "1px solid rgba(148,163,184,.1)" }}>
-                  <td style={{ padding: 13, color: "#bae6fd", direction: "ltr", textAlign: "left", fontSize: 12 }}>{item.filename}</td>
-                  <td style={{ padding: 13, whiteSpace: "nowrap" }}>{date(item.created_at)} <small style={{ color: "#64748b" }}>{time(item.created_at)}</small></td>
+                <tr key={item.filename} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                  <td style={{ padding: 13, color: "var(--erp-accent)", direction: "ltr", textAlign: "left", fontSize: 12 }}>{item.filename}</td>
+                  <td style={{ padding: 13, whiteSpace: "nowrap" }}>{date(item.created_at)} <small style={{ color: "var(--erp-muted)" }}>{time(item.created_at)}</small></td>
                   <td style={{ padding: 13 }}>{kindNames[item.kind] || item.kind}</td>
                   <td style={{ padding: 13 }}>{formatBytes(item.size_bytes)}</td>
                   <td style={{ padding: 13 }}>
@@ -295,7 +295,7 @@ export default function BackupRecovery() {
                       {item.valid === true ? copy.valid : item.valid === false ? copy.invalid : copy.notChecked}
                     </span>
                   </td>
-                  <td title={item.sha256} style={{ padding: 13, color: "#64748b", direction: "ltr", fontFamily: "monospace" }}>{item.sha256.slice(0, 12)}…</td>
+                  <td title={item.sha256} style={{ padding: 13, color: "var(--erp-muted)", direction: "ltr", fontFamily: "monospace" }}>{item.sha256.slice(0, 12)}…</td>
                   <td style={{ padding: 13 }}>
                     <div style={{ display: "flex", gap: 7 }}>
                       <ActionButton title={copy.verify} onClick={() => verify(item)} disabled={busy === item.filename}><FileCheck2 size={16} /></ActionButton>
@@ -317,7 +317,7 @@ export default function BackupRecovery() {
 
 function ActionButton({ title, onClick, disabled, danger, children }) {
   return (
-    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "#164e63", color: danger ? "#fecaca" : "#cffafe", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
+    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "var(--erp-glow)", color: danger ? "#fecaca" : "var(--erp-accent)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
       {children}
     </button>
   );

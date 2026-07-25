@@ -187,8 +187,8 @@ export default function UserManagement() {
   }
 
   const card = {
-    background: "linear-gradient(145deg,rgba(15,23,42,.95),rgba(15,23,42,.72))",
-    border: "1px solid rgba(34,211,238,.2)",
+    background: "var(--erp-panel)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 24,
     boxShadow: "0 18px 55px rgba(2,6,23,.3)",
   };
@@ -197,9 +197,9 @@ export default function UserManagement() {
     boxSizing: "border-box",
     padding: "12px 13px",
     borderRadius: 13,
-    border: "1px solid rgba(148,163,184,.25)",
-    background: "#111c35",
-    color: "#f8fafc",
+    border: "1px solid var(--erp-border)",
+    background: "var(--erp-panel-solid)",
+    color: "var(--erp-text)",
   };
 
   if (!isAdmin) {
@@ -212,18 +212,18 @@ export default function UserManagement() {
   }
 
   return (
-    <div dir={dir} style={{ color: "#f8fafc", maxWidth: 1500, margin: "0 auto" }}>
+    <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1500, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 15, flexWrap: "wrap", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ width: 54, height: 54, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,#06b6d4,#8b5cf6)" }}>
+          <div style={{ width: 54, height: 54, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))" }}>
             <UsersRound size={29} />
           </div>
           <div>
-            <h1 style={{ margin: 0, color: "#a5f3fc", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
-            <p style={{ margin: "7px 0 0", color: "#94a3b8" }}>{copy.subtitle}</p>
+            <h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(28px,4vw,41px)" }}>{copy.title}</h1>
+            <p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p>
           </div>
         </div>
-        <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", background: "#164e63", color: "#cffafe", fontWeight: 900, cursor: "pointer" }}>
+        <button onClick={load} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", background: "var(--erp-glow)", color: "var(--erp-accent)", fontWeight: 900, cursor: "pointer" }}>
           <RefreshCw size={17} /> {loading ? "..." : fa ? "به‌روزرسانی" : "Refresh"}
         </button>
       </header>
@@ -231,55 +231,55 @@ export default function UserManagement() {
       {error && <div style={{ ...card, padding: 15, marginBottom: 18, color: "#fecaca" }}>{error}</div>}
 
       <form onSubmit={submit} style={{ ...card, padding: 20, marginBottom: 20 }}>
-        <h2 style={{ margin: "0 0 16px", color: "#c4b5fd", display: "flex", gap: 8, alignItems: "center" }}><Plus size={21} />{copy.create}</h2>
+        <h2 style={{ margin: "0 0 16px", color: "var(--erp-accent-2)", display: "flex", gap: 8, alignItems: "center" }}><Plus size={21} />{copy.create}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11 }}>
           <input style={input} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder={copy.fullName} />
           <input style={input} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder={copy.username} autoComplete="off" />
           <label style={{ position: "relative" }}>
-            <KeyRound size={16} style={{ position: "absolute", top: 14, insetInlineStart: 12, color: "#64748b" }} />
+            <KeyRound size={16} style={{ position: "absolute", top: 14, insetInlineStart: 12, color: "var(--erp-muted)" }} />
             <input type="password" style={{ ...input, paddingInlineStart: 38 }} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={copy.password} autoComplete="new-password" />
-            <small style={{ color: "#64748b" }}>{copy.passwordHint}</small>
+            <small style={{ color: "var(--erp-muted)" }}>{copy.passwordHint}</small>
           </label>
           <select style={input} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
             {roles.map((role) => <option key={role.code} value={role.code}>{roleNames[role.code] || role.label}</option>)}
           </select>
-          <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 13, minHeight: 45, padding: "11px 16px", background: "linear-gradient(135deg,#22d3ee,#22c55e)", color: "#03111f", fontWeight: 950, cursor: "pointer" }}>
+          <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 13, minHeight: 45, padding: "11px 16px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03111f", fontWeight: 950, cursor: "pointer" }}>
             {creating ? "..." : copy.add}
           </button>
         </div>
       </form>
 
       <section style={{ ...card, padding: 20 }}>
-        <h2 style={{ margin: "0 0 16px", color: "#67e8f9", display: "flex", alignItems: "center", gap: 9 }}><UserCog />{copy.users} ({n(users.length)})</h2>
+        <h2 style={{ margin: "0 0 16px", color: "var(--erp-accent)", display: "flex", alignItems: "center", gap: 9 }}><UserCog />{copy.users} ({n(users.length)})</h2>
         <div style={{ display: "grid", gap: 12 }}>
-          {!loading && users.length === 0 && <div style={{ color: "#94a3b8", textAlign: "center", padding: 28 }}>{copy.noUsers}</div>}
+          {!loading && users.length === 0 && <div style={{ color: "var(--erp-muted)", textAlign: "center", padding: 28 }}>{copy.noUsers}</div>}
           {users.map((target) => {
             const role = roles.find((item) => item.code === target.role);
             const self = target.id === user.id;
             return (
-              <article key={target.id} style={{ borderRadius: 18, padding: 16, background: "rgba(30,41,59,.72)", border: self ? "1px solid rgba(34,211,238,.4)" : "1px solid rgba(148,163,184,.1)" }}>
+              <article key={target.id} style={{ borderRadius: 18, padding: 16, background: "var(--erp-panel-solid)", border: self ? "1px solid var(--erp-accent)" : "1px solid var(--erp-border)" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(150px,.6fr) minmax(250px,1.5fr) auto", alignItems: "center", gap: 12 }}>
                   <div>
                     <strong style={{ fontSize: 17 }}>{target.full_name}</strong>
-                    <div style={{ color: "#94a3b8", marginTop: 4, direction: "ltr", textAlign: dir === "rtl" ? "right" : "left" }}>@{target.username}</div>
-                    {self && <span style={{ display: "inline-block", marginTop: 6, color: "#67e8f9", fontSize: 12 }}>{copy.current}</span>}
+                    <div style={{ color: "var(--erp-muted)", marginTop: 4, direction: "ltr", textAlign: dir === "rtl" ? "right" : "left" }}>@{target.username}</div>
+                    {self && <span style={{ display: "inline-block", marginTop: 6, color: "var(--erp-accent)", fontSize: 12 }}>{copy.current}</span>}
                     {target.must_change_password && <span style={{ display: "inline-block", marginTop: 6, marginInlineStart: 6, color: "#fbbf24", fontSize: 12 }}>{copy.forced}</span>}
                   </div>
                   <select id={`role-${target.id}`} defaultValue={target.role === "user" ? "viewer" : target.role} disabled={self} style={input}>
                     {roles.map((item) => <option key={item.code} value={item.code}>{roleNames[item.code] || item.label}</option>)}
                   </select>
                   <div>
-                    <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 7 }}>{copy.capabilities}</div>
+                    <div style={{ color: "var(--erp-muted)", fontSize: 12, marginBottom: 7 }}>{copy.capabilities}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {(role?.capabilities || ["read"]).map((capability) => (
-                        <span key={capability} style={{ borderRadius: 999, padding: "5px 9px", color: "#cbd5e1", background: "rgba(15,23,42,.8)", fontSize: 11 }}>
+                        <span key={capability} style={{ borderRadius: 999, padding: "5px 9px", color: "var(--erp-muted)", background: "var(--erp-panel)", fontSize: 11 }}>
                           {capabilityNames[capability] || capability}
                         </span>
                       ))}
                     </div>
                   </div>
                   <div style={{ display: "grid", gap: 8 }}>
-                    <button onClick={() => saveRole(target)} disabled={self || busyId === target.id} style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 13px", background: self ? "#334155" : "#155e75", color: self ? "#64748b" : "#cffafe", fontWeight: 900, cursor: self ? "not-allowed" : "pointer" }}>
+                    <button onClick={() => saveRole(target)} disabled={self || busyId === target.id} style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 13px", background: self ? "var(--erp-panel-solid)" : "var(--erp-glow)", color: self ? "var(--erp-muted)" : "var(--erp-accent)", fontWeight: 900, cursor: self ? "not-allowed" : "pointer" }}>
                       <Save size={16} />{busyId === target.id ? "..." : copy.save}
                     </button>
                     <label style={{ display: "grid", gap: 5, color: "#fed7aa", fontSize: 12 }}>

@@ -130,17 +130,17 @@ export default function AuditTrail() {
   };
 
   const card = {
-    background: "linear-gradient(145deg,rgba(15,23,42,.95),rgba(15,23,42,.72))",
-    border: "1px solid rgba(34,211,238,.2)",
+    background: "var(--erp-panel)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 24,
     boxShadow: "0 18px 55px rgba(2,6,23,.3)",
   };
   const input = {
     width: "100%",
     boxSizing: "border-box",
-    background: "#111c35",
-    color: "#f8fafc",
-    border: "1px solid rgba(148,163,184,.24)",
+    background: "var(--erp-panel-solid)",
+    color: "var(--erp-text)",
+    border: "1px solid var(--erp-border)",
     borderRadius: 13,
     padding: "11px 12px",
   };
@@ -158,18 +158,18 @@ export default function AuditTrail() {
   const lastShown = Math.min((page + 1) * PAGE_SIZE, total);
 
   return (
-    <div dir={dir} style={{ color: "#f8fafc", maxWidth: 1600, margin: "0 auto" }}>
+    <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1600, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, flexWrap: "wrap", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ width: 54, height: 54, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,#8b5cf6,#06b6d4)" }}>
+          <div style={{ width: 54, height: 54, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,var(--erp-accent-2),var(--erp-accent))" }}>
             <Fingerprint size={30} />
           </div>
           <div>
-            <h1 style={{ margin: 0, color: "#c4b5fd", fontSize: "clamp(27px,4vw,41px)" }}>{copy.title}</h1>
-            <p style={{ margin: "7px 0 0", color: "#94a3b8" }}>{copy.subtitle}</p>
+            <h1 style={{ margin: 0, color: "var(--erp-accent-2)", fontSize: "clamp(27px,4vw,41px)" }}>{copy.title}</h1>
+            <p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p>
           </div>
         </div>
-        <button onClick={() => load()} disabled={loading} style={{ display: "flex", gap: 8, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "#164e63", color: "#cffafe", fontWeight: 900, cursor: "pointer" }}>
+        <button onClick={() => load()} disabled={loading} style={{ display: "flex", gap: 8, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "var(--erp-glow)", color: "var(--erp-accent)", fontWeight: 900, cursor: "pointer" }}>
           <RefreshCw size={17} /> {loading ? "..." : fa ? "به‌روزرسانی" : "Refresh"}
         </button>
       </header>
@@ -179,7 +179,7 @@ export default function AuditTrail() {
           {integrity.valid ? <ShieldCheck size={30} color="#86efac" /> : <AlertTriangle size={30} color="#fca5a5" />}
           <div>
             <strong style={{ color: integrity.valid ? "#bbf7d0" : "#fecaca", fontSize: 18 }}>{integrity.valid ? copy.valid : copy.broken}</strong>
-            <div style={{ color: "#94a3b8", marginTop: 4 }}>{n(integrity.events_checked)} {copy.checked}</div>
+            <div style={{ color: "var(--erp-muted)", marginTop: 4 }}>{n(integrity.events_checked)} {copy.checked}</div>
           </div>
         </section>
       )}
@@ -199,12 +199,12 @@ export default function AuditTrail() {
             <option value="true">{copy.success}</option>
             <option value="false">{copy.failed}</option>
           </select>
-          <label style={{ color: "#94a3b8", fontSize: 12 }}>{copy.from}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.from_date} onChange={(e) => setFilters({ ...filters, from_date: e.target.value })} /></label>
-          <label style={{ color: "#94a3b8", fontSize: 12 }}>{copy.to}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.to_date} onChange={(e) => setFilters({ ...filters, to_date: e.target.value })} /></label>
+          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.from}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.from_date} onChange={(e) => setFilters({ ...filters, from_date: e.target.value })} /></label>
+          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.to}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.to_date} onChange={(e) => setFilters({ ...filters, to_date: e.target.value })} /></label>
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 13, flexWrap: "wrap" }}>
-          <button type="submit" style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 15px", background: "#22d3ee", color: "#06202a", fontWeight: 900, cursor: "pointer" }}><Search size={16} />{copy.apply}</button>
-          <button type="button" onClick={resetFilters} style={{ border: 0, borderRadius: 12, padding: "10px 15px", background: "#334155", color: "#e2e8f0", fontWeight: 800, cursor: "pointer" }}>{copy.reset}</button>
+          <button type="submit" style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 15px", background: "var(--erp-accent)", color: "#06202a", fontWeight: 900, cursor: "pointer" }}><Search size={16} />{copy.apply}</button>
+          <button type="button" onClick={resetFilters} style={{ border: 0, borderRadius: 12, padding: "10px 15px", background: "var(--erp-panel-solid)", color: "var(--erp-text)", fontWeight: 800, cursor: "pointer" }}>{copy.reset}</button>
         </div>
       </form>
 
@@ -212,38 +212,38 @@ export default function AuditTrail() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "rgba(30,41,59,.88)", color: "#a5f3fc" }}>
+              <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
                 {[copy.dateTime, copy.actor, copy.role, copy.action, copy.method, copy.resource, copy.status, copy.ip, copy.requestId].map((heading) => (
                   <th key={heading} style={{ padding: 12, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {!loading && events.length === 0 && <tr><td colSpan={9} style={{ padding: 36, textAlign: "center", color: "#94a3b8" }}>{copy.empty}</td></tr>}
+              {!loading && events.length === 0 && <tr><td colSpan={9} style={{ padding: 36, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
               {events.map((event) => {
                 const successful = event.status_code < 400;
                 return (
-                  <tr key={event.id} style={{ borderTop: "1px solid rgba(148,163,184,.1)" }}>
-                    <td style={{ padding: 12, color: "#cbd5e1", whiteSpace: "nowrap" }}>{date(event.created_at)} <small style={{ color: "#64748b" }}>{time(event.created_at)}</small></td>
+                  <tr key={event.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td style={{ padding: 12, color: "var(--erp-muted)", whiteSpace: "nowrap" }}>{date(event.created_at)} <small style={{ color: "var(--erp-muted)" }}>{time(event.created_at)}</small></td>
                     <td style={{ padding: 12, fontWeight: 900 }}>{event.actor_username}</td>
-                    <td style={{ padding: 12, color: "#94a3b8" }}>{event.actor_role}</td>
-                    <td style={{ padding: 12, color: "#c4b5fd", fontWeight: 800 }}>{actionLabel(event.action)}</td>
+                    <td style={{ padding: 12, color: "var(--erp-muted)" }}>{event.actor_role}</td>
+                    <td style={{ padding: 12, color: "var(--erp-accent-2)", fontWeight: 800 }}>{actionLabel(event.action)}</td>
                     <td style={{ padding: 12 }}><code>{event.method}</code></td>
-                    <td style={{ padding: 12, color: "#bae6fd", direction: "ltr", textAlign: "left" }}>{event.path}</td>
+                    <td style={{ padding: 12, color: "var(--erp-accent)", direction: "ltr", textAlign: "left" }}>{event.path}</td>
                     <td style={{ padding: 12 }}><span style={{ color: successful ? "#86efac" : "#fca5a5", fontWeight: 900 }}>{event.status_code}</span></td>
-                    <td style={{ padding: 12, color: "#94a3b8", direction: "ltr" }}>{event.client_ip || "-"}</td>
-                    <td style={{ padding: 12, color: "#64748b", direction: "ltr", fontSize: 11 }}>{event.request_id.slice(0, 8)}…</td>
+                    <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr" }}>{event.client_ip || "-"}</td>
+                    <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr", fontSize: 11 }}>{event.request_id.slice(0, 8)}…</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <footer style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, borderTop: "1px solid rgba(148,163,184,.12)" }}>
-          <span style={{ color: "#94a3b8" }}>{copy.showing} {n(firstShown)}–{n(lastShown)} {copy.of} {n(total)}</span>
+        <footer style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, borderTop: "1px solid var(--erp-border)" }}>
+          <span style={{ color: "var(--erp-muted)" }}>{copy.showing} {n(firstShown)}–{n(lastShown)} {copy.of} {n(total)}</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button disabled={page === 0 || loading} onClick={() => move(page - 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}>{dir === "rtl" ? <ChevronRight /> : <ChevronLeft />}</button>
-            <button disabled={lastShown >= total || loading} onClick={() => move(page + 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "#334155", color: "white", cursor: "pointer" }}>{dir === "rtl" ? <ChevronLeft /> : <ChevronRight />}</button>
+            <button disabled={page === 0 || loading} onClick={() => move(page - 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "var(--erp-panel-solid)", color: "var(--erp-text)", cursor: "pointer" }}>{dir === "rtl" ? <ChevronRight /> : <ChevronLeft />}</button>
+            <button disabled={lastShown >= total || loading} onClick={() => move(page + 1)} style={{ border: 0, borderRadius: 10, padding: 9, background: "var(--erp-panel-solid)", color: "var(--erp-text)", cursor: "pointer" }}>{dir === "rtl" ? <ChevronLeft /> : <ChevronRight />}</button>
           </div>
         </footer>
       </section>

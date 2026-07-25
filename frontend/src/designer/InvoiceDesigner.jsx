@@ -316,21 +316,21 @@ export default function InvoiceDesigner() {
   }
 
   return (
-    <div dir={dir} className="min-h-screen p-5 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white">
+    <div dir={dir} className="min-h-screen p-5 bg-[var(--erp-bg)] text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {fa ? "استودیوی حرفه‌ای طراحی فاکتور" : "Professional Invoice Studio"}
           </h1>
-          <p className="text-slate-400 mt-2">
+          <p className="text-[var(--erp-muted)] mt-2">
             {fa ? "طراحی قالب چاپ با Drag، Resize، لایه‌ها، سایزهای مختلف و ذخیره قالب" : "Drag, resize, layers, multiple page sizes and saved templates"}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <button onClick={loadTemplates} className="studio-btn bg-slate-800 text-cyan-200"><RefreshCw size={18} /> {fa ? "دریافت" : "Refresh"}</button>
-          <button onClick={resetTemplate} className="studio-btn bg-slate-800 text-white"><Trash2 size={18} /> {fa ? "پیش‌فرض" : "Reset"}</button>
-          <button onClick={saveTemplate} className="studio-btn bg-cyan-400 text-slate-950"><Save size={18} /> {fa ? "ذخیره قالب" : "Save"}</button>
+          <button onClick={loadTemplates} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><RefreshCw size={18} /> {fa ? "دریافت" : "Refresh"}</button>
+          <button onClick={resetTemplate} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"><Trash2 size={18} /> {fa ? "پیش‌فرض" : "Reset"}</button>
+          <button onClick={saveTemplate} className="studio-btn bg-[var(--erp-accent)] text-slate-950"><Save size={18} /> {fa ? "ذخیره قالب" : "Save"}</button>
         </div>
       </div>
 
@@ -354,12 +354,12 @@ export default function InvoiceDesigner() {
             <ToolButton onClick={() => addElement("logo")} label={fa ? "لوگو" : "Logo"} />
           </div>
 
-          <div className="pt-4 border-t border-cyan-400/10">
-            <div className="text-cyan-300 font-black mb-2">{fa ? "قالب‌های ذخیره‌شده" : "Saved templates"}</div>
+          <div className="pt-4 border-t border-[var(--erp-border)]">
+            <div className="text-[var(--erp-accent)] font-black mb-2">{fa ? "قالب‌های ذخیره‌شده" : "Saved templates"}</div>
             <div className="space-y-2 max-h-[360px] overflow-y-auto">
               {templates.map((tpl) => (
                 <div key={tpl.id} className="flex gap-2">
-                  <button onClick={() => loadTemplate(tpl)} className="flex-1 text-right bg-slate-800 hover:bg-slate-700 rounded-2xl p-3">
+                  <button onClick={() => loadTemplate(tpl)} className="flex-1 text-right bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] rounded-2xl p-3">
                     {tpl.name}
                   </button>
                   <button onClick={() => removeTemplate(tpl.id)} className="px-3 rounded-2xl bg-red-500/80 text-white font-black">
@@ -367,25 +367,25 @@ export default function InvoiceDesigner() {
                   </button>
                 </div>
               ))}
-              {templates.length === 0 && <div className="text-slate-500 text-sm">{fa ? "قالبی ذخیره نشده است." : "No templates yet."}</div>}
+              {templates.length === 0 && <div className="text-[var(--erp-muted)] text-sm">{fa ? "قالبی ذخیره نشده است." : "No templates yet."}</div>}
             </div>
           </div>
         </Panel>
 
         <div
-          className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 overflow-auto"
+          className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-3xl p-5 overflow-auto"
           onMouseMove={onMouseMove}
           onMouseUp={stopActions}
           onMouseLeave={stopActions}
         >
           <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-            <div className="text-cyan-300 font-black flex gap-2 items-center"><Move /> {fa ? "صفحه طراحی" : "Canvas"}</div>
+            <div className="text-[var(--erp-accent)] font-black flex gap-2 items-center"><Move /> {fa ? "صفحه طراحی" : "Canvas"}</div>
             <div className="flex gap-2">
               <button onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} className="mini-btn"><Maximize2 size={15} /> -</button>
-              <div className="mini-btn text-cyan-200">{Math.round(zoom * 100)}%</div>
+              <div className="mini-btn text-[var(--erp-accent)]">{Math.round(zoom * 100)}%</div>
               <button onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))} className="mini-btn"><Maximize2 size={15} /> +</button>
               <button onClick={() => setShowGrid((v) => !v)} className="mini-btn"><Grid3X3 size={15} /> Grid</button>
-              <button onClick={() => setSnapGrid((v) => !v)} className={`mini-btn ${snapGrid ? "text-cyan-300" : "text-slate-400"}`}>Snap</button>
+              <button onClick={() => setSnapGrid((v) => !v)} className={`mini-btn ${snapGrid ? "text-[var(--erp-accent)]" : "text-[var(--erp-muted)]"}`}>Snap</button>
             </div>
           </div>
 
@@ -406,7 +406,7 @@ export default function InvoiceDesigner() {
                 <div
                   key={el.id}
                   onMouseDown={(e) => onMouseDown(e, el)}
-                  className={`absolute select-none overflow-hidden flex items-center justify-center cursor-move ${selectedId === el.id ? "ring-2 ring-cyan-500" : ""}`}
+                  className={`absolute select-none overflow-hidden flex items-center justify-center cursor-move ${selectedId === el.id ? "ring-2 ring-[var(--erp-accent)]" : ""}`}
                   style={{
                     left: el.x,
                     top: el.y,
@@ -429,7 +429,7 @@ export default function InvoiceDesigner() {
                     <div
                       data-resize="true"
                       onMouseDown={(e) => onResizeDown(e, el)}
-                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-cyan-500 rounded-full cursor-se-resize border border-white"
+                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-[var(--erp-accent)] rounded-full cursor-se-resize border border-white"
                     />
                   )}
                 </div>
@@ -441,7 +441,7 @@ export default function InvoiceDesigner() {
         <Panel title={fa ? "تنظیمات بخش" : "Properties"}>
           {selected ? (
             <>
-              <div className="font-black text-cyan-300">{selected.label || selected.type}</div>
+              <div className="font-black text-[var(--erp-accent)]">{selected.label || selected.type}</div>
 
               <div className="grid grid-cols-2 gap-2">
                 <Prop label="X" value={selected.x} onChange={(v) => updateElement(selected.id, { x: Number(v) })} />
@@ -450,7 +450,7 @@ export default function InvoiceDesigner() {
                 <Prop label="H" value={selected.h} onChange={(v) => updateElement(selected.id, { h: Number(v) })} />
               </div>
 
-              <label className="text-cyan-200 text-sm font-bold">{fa ? "متن" : "Text"}</label>
+              <label className="text-[var(--erp-accent)] text-sm font-bold">{fa ? "متن" : "Text"}</label>
               <textarea value={selected.text || ""} onChange={(e) => updateElement(selected.id, { text: e.target.value })} rows={4} className="studio-input" />
 
               <Prop label={fa ? "سایز فونت" : "Font size"} value={selected.fontSize} onChange={(v) => updateElement(selected.id, { fontSize: Number(v) })} />
@@ -466,7 +466,7 @@ export default function InvoiceDesigner() {
                 <option value="left">{fa ? "چپ" : "Left"}</option>
               </select>
 
-              <label className="bg-slate-800 rounded-2xl p-3 flex justify-between">
+              <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex justify-between">
                 <span>Bold</span>
                 <input type="checkbox" checked={!!selected.bold} onChange={(e) => updateElement(selected.id, { bold: e.target.checked })} />
               </label>
@@ -479,7 +479,7 @@ export default function InvoiceDesigner() {
               </div>
             </>
           ) : (
-            <div className="text-slate-400">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
+            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
           )}
         </Panel>
       </div>
@@ -487,9 +487,9 @@ export default function InvoiceDesigner() {
       <style>{`
         .studio-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.16);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
@@ -504,7 +504,8 @@ export default function InvoiceDesigner() {
           gap: 8px;
         }
         .mini-btn {
-          background: #1e293b;
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
           padding: 8px 10px;
           border-radius: 12px;
           font-weight: 800;
@@ -514,8 +515,8 @@ export default function InvoiceDesigner() {
         }
         .tool-wide {
           width: 100%;
-          background: #1e293b;
-          color: white;
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
           border-radius: 16px;
           padding: 12px;
           font-weight: 900;
@@ -531,8 +532,8 @@ export default function InvoiceDesigner() {
 
 function Panel({ title, children }) {
   return (
-    <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-      <h2 className="text-cyan-300 font-black flex gap-2 items-center">
+    <div className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+      <h2 className="text-[var(--erp-accent)] font-black flex gap-2 items-center">
         <FileText size={20} />
         {title}
       </h2>
@@ -543,7 +544,7 @@ function Panel({ title, children }) {
 
 function ToolButton({ label, onClick }) {
   return (
-    <button onClick={onClick} className="bg-slate-800 hover:bg-slate-700 rounded-2xl p-3 font-bold flex justify-center gap-2 items-center">
+    <button onClick={onClick} className="bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] rounded-2xl p-3 font-bold flex justify-center gap-2 items-center">
       <Plus size={16} />
       {label}
     </button>
@@ -553,7 +554,7 @@ function ToolButton({ label, onClick }) {
 function Prop({ label, value, onChange }) {
   return (
     <div>
-      <label className="text-cyan-200 text-sm font-bold">{label}</label>
+      <label className="text-[var(--erp-accent)] text-sm font-bold">{label}</label>
       <input type="number" value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="studio-input" />
     </div>
   );
@@ -562,8 +563,8 @@ function Prop({ label, value, onChange }) {
 function Color({ label, value, onChange }) {
   return (
     <div>
-      <label className="text-cyan-200 text-sm font-bold">{label}</label>
-      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-slate-800 rounded-2xl p-1 mt-1 mb-2" />
+      <label className="text-[var(--erp-accent)] text-sm font-bold">{label}</label>
+      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-[var(--erp-panel-solid)] rounded-2xl p-1 mt-1 mb-2" />
     </div>
   );
 }

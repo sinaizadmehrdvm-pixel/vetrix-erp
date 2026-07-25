@@ -5,7 +5,7 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen, Layers, BellRing, Sun, Moon,
+  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -21,6 +21,7 @@ const groups = [
       { key: "parties", fallbackKey: "customers", icon: UsersRound, path: "/customers" },
       { key: "products", icon: Package, path: "/products" },
       { key: "invoices", icon: Receipt, path: "/invoices" },
+      { key: "invoiceDesigner", fa: "طراح قالب فاکتور", en: "Invoice designer", icon: LayoutTemplate, path: "/invoice-designer", roles: ["admin", "accountant", "sales"] },
       { key: "recurringInvoices", fa: "فاکتور تکرارشونده", en: "Recurring invoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
       { key: "paymentReminders", fa: "یادآوری پرداخت", en: "Payment reminders", icon: BellRing, path: "/payment-reminders", roles: ["admin", "accountant", "sales"] },
       { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
