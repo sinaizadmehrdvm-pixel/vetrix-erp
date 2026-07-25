@@ -1,3 +1,4 @@
+import moment from "moment-jalaali";
 import {
   LineChart,
   Line,
@@ -9,20 +10,25 @@ import {
 
 import { useLanguage } from "../localization/useLanguage";
 
-const MONTH_LABELS = {
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  fa: ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور"],
-};
+function monthLabelFor(item, fa) {
+  // item.key is an unambiguous "YYYY-MM" (Gregorian) from the backend -
+  // always derive the label from it instead of the backend's own
+  // "month" field (which bakes in a fixed fa+en string regardless of the
+  // app's selected language) or the array index (which only lined up
+  // with a calendar month by coincidence for a 12-month chart).
+  if (!item.key) return item.month || "";
+  const parsed = moment(`${item.key}-01`, "YYYY-MM-DD");
+  if (!parsed.isValid()) return item.month || "";
+  return fa ? parsed.format("jMMMM") : parsed.format("MMM");
+}
 
 export default function SalesChart({ data = [] }) {
   const { t, language, n, money, dir } = useLanguage();
+  const fa = language === "fa";
 
-  const chartData = data.map((item, index) => ({
+  const chartData = data.map((item) => ({
     ...item,
-    monthLabel:
-      language === "fa"
-        ? MONTH_LABELS.fa[index] || item.month
-        : MONTH_LABELS.en[index] || item.month,
+    monthLabel: monthLabelFor(item, fa),
     sales: Number(item.sales || 0),
   }));
 
@@ -62,6 +68,8 @@ export default function SalesChart({ data = [] }) {
               reversed={dir === "rtl"}
               stroke="#94a3b8"
               tick={{ fill: "#e2e8f0", fontSize: 13 }}
+              interval="preserveStartEnd"
+              minTickGap={24}
             />
 
             <YAxis

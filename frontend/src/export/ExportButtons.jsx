@@ -1,9 +1,8 @@
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import { API_URL } from "../services/api";
 
 export default function ExportButtons() {
-  const API = "http://127.0.0.1:8001";
-
   const { t, language } = useLanguage();
 
   return (
@@ -16,7 +15,7 @@ export default function ExportButtons() {
       }}
     >
       <a
-        href={`${API}/export/invoices-excel`}
+        href={`${API_URL}/export/invoices-excel`}
         target="_blank"
         style={btn}
       >
@@ -25,7 +24,7 @@ export default function ExportButtons() {
       </a>
 
       <a
-        href={`${API}/export/invoices-pdf`}
+        href={`${API_URL}/export/invoices-pdf`}
         target="_blank"
         style={btn}
       >
@@ -37,7 +36,7 @@ export default function ExportButtons() {
 }
 
 const btn = {
-  background: "#22d3ee",
+  background: "var(--erp-accent)",
   color: "#071028",
   padding: "12px 18px",
   borderRadius: 16,
@@ -46,5 +45,5 @@ const btn = {
   display: "flex",
   alignItems: "center",
   gap: 10,
-  boxShadow: "0 10px 30px rgba(34,211,238,0.25)",
+  boxShadow: "0 10px 30px var(--erp-glow)",
 };

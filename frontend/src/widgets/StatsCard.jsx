@@ -12,30 +12,34 @@ export default function StatsCard({
   return (
     <motion.div
       whileHover={{ scale: 1.03 }}
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.8)",
-        border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 24,
         padding: 24,
-        color: "white",
+        color: "var(--erp-text)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        boxShadow: "0 15px 40px rgba(0,0,0,0.3)",
+        gap: 16,
         direction: language === "fa" ? "rtl" : "ltr",
       }}
     >
       <div
         style={{
           textAlign: language === "fa" ? "right" : "left",
+          minWidth: 0,
+          flex: 1,
         }}
       >
         <div
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-muted)",
             marginBottom: 10,
             fontSize: 14,
             fontWeight: 700,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {title}
@@ -46,6 +50,9 @@ export default function StatsCard({
             fontSize: 32,
             fontWeight: "bold",
             letterSpacing: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {value}
@@ -56,6 +63,9 @@ export default function StatsCard({
         style={{
           width: 70,
           height: 70,
+          minWidth: 70,
+          minHeight: 70,
+          flexShrink: 0,
           borderRadius: 20,
           background: color,
           display: "flex",

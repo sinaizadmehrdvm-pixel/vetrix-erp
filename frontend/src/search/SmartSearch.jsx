@@ -18,7 +18,7 @@ export default function SmartSearch({
     >
       <Search
         size={18}
-        color="#22d3ee"
+        color="var(--erp-accent)"
         style={{
           position: "absolute",
           top: "50%",
@@ -39,9 +39,9 @@ export default function SmartSearch({
               ? "14px 48px 14px 18px"
               : "14px 18px 14px 48px",
           borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(15,23,42,0.9)",
-          color: "white",
+          border: "1px solid var(--erp-border)",
+          background: "var(--erp-panel-solid)",
+          color: "var(--erp-text)",
           outline: "none",
           fontSize: 15,
           fontWeight: 600,

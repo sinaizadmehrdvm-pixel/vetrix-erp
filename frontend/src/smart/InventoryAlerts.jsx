@@ -29,8 +29,8 @@ export default function InventoryAlerts({ alerts = [] }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
         direction: dir,
@@ -38,7 +38,7 @@ export default function InventoryAlerts({ alerts = [] }) {
     >
       <h2
         style={{
-          color: "white",
+          color: "var(--erp-text)",
           marginBottom: 20,
           fontSize: 24,
           fontWeight: 900,
@@ -51,7 +51,7 @@ export default function InventoryAlerts({ alerts = [] }) {
       {alerts.length === 0 ? (
         <p
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-muted)",
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >

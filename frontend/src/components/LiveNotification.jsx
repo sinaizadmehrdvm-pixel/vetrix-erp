@@ -51,11 +51,11 @@ export default function LiveNotification({ notifications = [] }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
       }}
     >
@@ -73,7 +73,7 @@ export default function LiveNotification({ notifications = [] }) {
       {notifications.length === 0 ? (
         <p
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-muted)",
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >
@@ -93,7 +93,7 @@ export default function LiveNotification({ notifications = [] }) {
                   : item.type === "warning"
                   ? "rgba(245,158,11,0.18)"
                   : "rgba(16,185,129,0.18)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
@@ -101,7 +101,7 @@ export default function LiveNotification({ notifications = [] }) {
 
             <div
               style={{
-                color: "#94a3b8",
+                color: "var(--erp-muted)",
                 marginTop: 4,
                 lineHeight: 1.8,
               }}
