@@ -24,21 +24,33 @@ const JALALI_MONTHS_FA = [
 // fall mid-Gregorian-month, so two consecutive Gregorian buckets can
 // land in the same Jalali month while another gets skipped, scrambling
 // the label order. Anchoring once on "today" and stepping back by
-// array index keeps the labels perfectly sequential instead.
-function monthLabelForIndex(index, fa) {
+// array index keeps the mapping correct regardless of that boundary
+// mismatch: each of the 12 points gets exactly one (Jalali month,
+// Jalali month-index) pair, with no duplicates and no gaps.
+function jalaliMonthMeta(index) {
   const anchor = moment().subtract(index, "jMonth");
-  return fa ? JALALI_MONTHS_FA[anchor.jMonth()] : anchor.format("MMM");
+  return { jMonthIndex: anchor.jMonth(), label: { fa: JALALI_MONTHS_FA[anchor.jMonth()], en: anchor.format("MMM") } };
 }
 
 export default function SalesChart({ data = [] }) {
   const { t, language, n, money, dir } = useLanguage();
   const fa = language === "fa";
 
-  const chartData = data.map((item, index) => ({
-    ...item,
-    monthLabel: monthLabelForIndex(index, fa),
-    sales: Number(item.sales || 0),
-  }));
+  // Always laid out left-to-right in fixed calendar order (Farvardin/Jan
+  // first through Esfand/Dec last), not by recency - a rolling 12-month
+  // window contains each calendar month exactly once, so sorting by
+  // Jalali month index is unambiguous.
+  const chartData = data
+    .map((item, index) => {
+      const meta = jalaliMonthMeta(index);
+      return {
+        ...item,
+        monthLabel: fa ? meta.label.fa : meta.label.en,
+        monthOrder: meta.jMonthIndex,
+        sales: Number(item.sales || 0),
+      };
+    })
+    .sort((a, b) => a.monthOrder - b.monthOrder);
 
   return (
     <div
@@ -73,11 +85,9 @@ export default function SalesChart({ data = [] }) {
           >
             <XAxis
               dataKey="monthLabel"
-              reversed={dir === "rtl"}
               stroke="var(--erp-muted)"
-              tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
-              interval="preserveStartEnd"
-              minTickGap={24}
+              tick={{ fill: "var(--erp-muted)", fontSize: 12 }}
+              interval={0}
             />
 
             <YAxis
