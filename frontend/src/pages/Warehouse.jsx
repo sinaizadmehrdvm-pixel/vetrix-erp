@@ -4,7 +4,7 @@ import { Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownT
 import { useLanguage } from "../localization/useLanguage";
 import { createStockMovement, getProducts, getStockMovements } from "../services/api";
 
-const inputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-slate-400 border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+const inputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 function toNumber(value) { return Number(String(value ?? "").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[,،]/g, "").replace(/[^\d.-]/g, "") || 0); }
 function Field({ label, children }) { return <div className="space-y-2"><label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>{children}</div>; }
 
@@ -63,7 +63,7 @@ export default function Warehouse() {
 
   const filtered = useMemo(() => movements.filter(x => [x.product_name, x.warehouse, x.note, x.movement_type].join(" ").toLowerCase().includes(search.toLowerCase())), [movements, search]);
   const totalStock = products.reduce((sum, p) => sum + toNumber(p.stock), 0);
-  const lowStock = products.filter(p => toNumber(p.stock) <= 5).length;
+  const lowStock = products.filter(p => toNumber(p.stock) <= toNumber(p.min_stock || 0)).length;
 
   function movementIcon(type) { if (type === "in") return <ArrowDownToLine className="text-green-300"/>; if (type === "out") return <ArrowUpFromLine className="text-red-300"/>; return <SlidersHorizontal className="text-cyan-300"/>; }
   function movementLabel(type) { return type === "in" ? label.in : type === "out" ? label.out : label.adjustment; }
@@ -80,7 +80,7 @@ export default function Warehouse() {
       <Field label={label.date}><input type="date" className={inputClass} value={form.movement_date} onChange={e=>setForm({...form, movement_date:e.target.value})}/></Field>
       <Field label={label.note}><input className={inputClass} value={form.note} onChange={e=>setForm({...form, note:e.target.value})} placeholder={label.note}/></Field>
     </div><button onClick={addMovement} className="mt-5 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18}/>{label.save}</button></div>
-    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-slate-400"/></div>
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"/></div>
     {loading ? <div className="text-[var(--erp-muted)]">{fa ? "در حال دریافت..." : "Loading..."}</div> : filtered.length === 0 ? <div className="text-[var(--erp-muted)] flex items-center gap-2"><PackageCheck size={18}/>{label.noData}</div> : <div className="space-y-3">{filtered.map(item=><div key={item.id} className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">{movementIcon(item.movement_type)}</div><div><h3 className="font-black">{item.product_name || item.product_id}</h3><p className="text-[var(--erp-muted)] text-sm">{item.warehouse || "-"} | {movementLabel(item.movement_type)} | {item.movement_date ? date(item.movement_date) : "-"}</p>{item.note && <p className="text-[var(--erp-muted)] text-xs mt-1">{item.note}</p>}</div></div><strong className="text-[var(--erp-accent)] text-xl">{n(item.quantity)}</strong></div>)}</div>}
     </div>
   </div>;

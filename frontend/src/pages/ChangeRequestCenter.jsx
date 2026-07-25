@@ -241,7 +241,7 @@ export default function ChangeRequestCenter() {
           {audioName && <p className="text-xs" style={{ color: "var(--erp-muted)" }}>{audioName}</p>}
 
           <Field label={fa ? "منبع ویس" : "Voice source"}>
-            <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+            <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{{ in_app: fa ? "درون‌برنامه‌ای" : "In-app", telegram: "Telegram", whatsapp: "WhatsApp", other: fa ? "سایر" : "Other" }[item]}</option>)}</select>
           </Field>
           {form.source !== "in_app" && <Field label={fa ? "شناسه پیام یا لینک" : "Message ID or link"}><input style={inputStyle} value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} /></Field>}
           <Field label={fa ? "متن ویس پس از بررسی" : "Reviewed voice transcript"}>
@@ -519,7 +519,7 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
     </>}
     {review.action_type === "campaign_draft" && <>
       <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
-      <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel}>{channel}</option>)}</select></Field>
+      <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? (fa ? "وبسایت" : "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
     </>}
     <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{fa ? "انصراف" : "Cancel"}</button></div>
   </div>;
