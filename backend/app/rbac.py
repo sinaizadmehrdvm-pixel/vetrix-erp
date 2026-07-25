@@ -138,6 +138,7 @@ MUTATION_RULES = (
     ("/api/einvoice", {"admin", "accountant"}),
     ("/api/document-ocr", {"admin", "accountant", "sales", "warehouse"}),
     ("/api/finance", {"admin", "accountant"}),
+    ("/finance", {"admin", "accountant"}),
     ("/api/ai-bi", {"admin", "accountant"}),
     ("/designer", {"admin", "accountant", "sales"}),
 )

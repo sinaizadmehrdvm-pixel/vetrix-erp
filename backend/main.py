@@ -82,6 +82,7 @@ from app.recurring_invoices import maybe_generate_due_recurring_invoices, router
 from app.payment_gateway import router as payment_gateway_router
 from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
 from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
+from app.product_categories import router as product_categories_router
 from app.einvoice import router as einvoice_router
 from app.document_ocr import router as document_ocr_router
 from app.catalog import router as catalog_router
@@ -232,6 +233,7 @@ app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
 
 app.include_router(designer_router)
 app.include_router(finance_router)
+app.include_router(product_categories_router)
 app.include_router(ai_bi_router)
 app.include_router(pipeline_router)
 app.include_router(smart_inventory_router)

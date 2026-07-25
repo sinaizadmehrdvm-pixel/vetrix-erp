@@ -480,8 +480,8 @@ export default function FinanceCenter() {
         <Panel title={fa ? "وضعیت سیستم مالی" : "Finance system status"} icon={<ShieldCheck />}>
           <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-4 text-emerald-200 font-bold">
             {fa
-              ? "مرکز مالی آماده اتصال به چک‌ها، اقساط و بانکداری پیشرفته است."
-              : "Finance Center is ready for checks, installments and advanced banking."}
+              ? "حساب‌ها و تراکنش‌ها به‌صورت واقعی ذخیره می‌شوند."
+              : "Accounts and transactions are now saved for real."}
           </div>
           <div className="text-[var(--erp-muted)] text-sm leading-7 mt-3">
             {fa

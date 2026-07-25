@@ -93,6 +93,10 @@ export async function createProduct(data) { return await request("/products", { 
 export async function updateProduct(id, data) { return await request(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteProduct(id) { return await request(`/products/${id}`, { method: "DELETE" }); }
 
+export async function getProductCategories() { return await request("/product-categories"); }
+export async function createProductCategory(data) { return await request("/product-categories", { method: "POST", body: JSON.stringify(data) }); }
+export async function deleteProductCategory(id) { return await request(`/product-categories/${id}`, { method: "DELETE" }); }
+
 export async function getInvoices() { return await request("/invoices"); }
 export async function getInvoice(id) { return await request(`/invoices/${id}`); }
 export async function createInvoice(data) { return await request("/invoices", { method: "POST", body: JSON.stringify(data) }); }

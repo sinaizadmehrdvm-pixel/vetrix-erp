@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "../localization/useLanguage";
 import {
   createProduct,
+  getProductCategories,
   getProducts,
   updateProduct,
   deleteProduct,
@@ -183,6 +184,32 @@ export default function Products() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    getProductCategories()
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, []);
+
+  const mainCategoryOptions = useMemo(() => {
+    const names = Array.from(new Set(categories.map((c) => c.main_category).filter(Boolean)));
+    if (form.main_category && !names.includes(form.main_category)) names.unshift(form.main_category);
+    return names;
+  }, [categories, form.main_category]);
+
+  const subCategoryOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        categories
+          .filter((c) => c.main_category === form.main_category)
+          .map((c) => c.sub_category)
+          .filter(Boolean)
+      )
+    );
+    if (form.sub_category && !names.includes(form.sub_category)) names.unshift(form.sub_category);
+    return names;
+  }, [categories, form.main_category, form.sub_category]);
 
   const label = {
     title: fa ? "کالاها و خدمات" : "Products & Services",
@@ -667,12 +694,22 @@ export default function Products() {
             <input type="text" inputMode="numeric" className={inputClass} value={form.min_stock} onChange={(e) => setField("min_stock", normalizeNumberInput(e.target.value, fa))} placeholder={fa ? "۰" : "0"} />
           </Field>
 
-          <Field label={label.mainCategory}>
-            <input className={inputClass} value={faText(form.main_category, fa)} onChange={(e) => setField("main_category", faText(e.target.value, fa))} placeholder={label.mainCategory} />
+          <Field label={label.mainCategory} hint={fa ? "دسته‌بندی‌های جدید را از صفحه «دسته‌بندی کالا» اضافه کن" : "Add new categories from the Product Categories page"}>
+            <select className={inputClass} value={form.main_category} onChange={(e) => { setField("main_category", e.target.value); setField("sub_category", ""); }}>
+              <option value="">{fa ? "بدون گروه اصلی" : "No main category"}</option>
+              {mainCategoryOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
           </Field>
 
           <Field label={label.subCategory}>
-            <input className={inputClass} value={faText(form.sub_category, fa)} onChange={(e) => setField("sub_category", faText(e.target.value, fa))} placeholder={label.subCategory} />
+            <select className={inputClass} value={form.sub_category} onChange={(e) => setField("sub_category", e.target.value)} disabled={!form.main_category}>
+              <option value="">{fa ? "بدون زیرگروه" : "No sub category"}</option>
+              {subCategoryOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
           </Field>
 
           <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none flex items-center gap-2 cursor-pointer border border-[var(--erp-border)]">
