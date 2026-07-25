@@ -7,11 +7,10 @@
 //
 // 2) Well-established Shia/Iranian occasions on a *fixed* Hijri
 //    (lunar) date - Ashura, Eid al-Fitr, etc. These are exact on the
-//    Hijri calendar itself; the only uncertainty is the Gregorian/
-//    Jalali -> Hijri conversion (see utils/hijri.js), which - like
-//    every calculated Hijri calendar - can differ by a day from a
-//    given country's officially observed date. Shown with an
-//    "approximate" label for that reason.
+//    Hijri calendar itself; the Gregorian/Jalali -> Hijri conversion
+//    (see utils/hijri.js) is calibrated against Iran's official
+//    government holiday calendar so these line up with the dates
+//    users actually see marked as holidays elsewhere.
 export const FIXED_JALALI_OCCASIONS = {
   "1-1": { fa: "جشن نوروز", en: "Nowruz (Persian New Year)" },
   "1-2": { fa: "تعطیلات نوروز", en: "Nowruz holiday" },
@@ -34,6 +33,8 @@ export const FIXED_HIJRI_OCCASIONS = {
   "1-10": { fa: "عاشورای حسینی", en: "Ashura" },
   "2-20": { fa: "اربعین حسینی", en: "Arbaeen" },
   "2-28": { fa: "رحلت پیامبر اکرم (ص) و شهادت امام حسن مجتبی (ع)", en: "Passing of the Prophet & martyrdom of Imam Hasan" },
+  "2-29": { fa: "شهادت امام رضا (ع)", en: "Martyrdom of Imam Reza" },
+  "3-8": { fa: "شهادت امام حسن عسکری (ع)", en: "Martyrdom of Imam Hassan Askari" },
   "3-17": { fa: "میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)", en: "Birth of the Prophet & Imam Ja'far al-Sadiq" },
   "7-13": { fa: "میلاد امام علی (ع)", en: "Birth of Imam Ali" },
   "7-27": { fa: "مبعث پیامبر اکرم (ص)", en: "Mab'ath of the Prophet" },
