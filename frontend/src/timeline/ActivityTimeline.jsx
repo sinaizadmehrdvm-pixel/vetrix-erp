@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateTitle(title, t, language) {
@@ -22,8 +23,9 @@ function translateTitle(title, t, language) {
   return title;
 }
 
-export default function ActivityTimeline({ items = [] }) {
+export default function ActivityTimeline({ items = [], to = "/audit-trail" }) {
   const { t, language, n, dir } = useLanguage();
+  const fa = language === "fa";
 
   function localizeTime(value) {
     if (!value) return "-";
@@ -56,16 +58,31 @@ export default function ActivityTimeline({ items = [] }) {
         direction: dir,
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("activityTimeline")}
-      </h2>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {t("activityTimeline")}
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : "View all →"}
+        </span>
+      </Link>
 
       {items.length === 0 ? (
         <p

@@ -10,6 +10,14 @@ import {
 
 import { useLanguage } from "../localization/useLanguage";
 
+// moment-jalaali's jMMMM token returns the Latin transliteration
+// ("Farvardin"), not the Persian-script name, regardless of
+// loadPersian() - so the Persian month name is looked up explicitly.
+const JALALI_MONTHS_FA = [
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+];
+
 function monthLabelFor(item, fa) {
   // item.key is an unambiguous "YYYY-MM" (Gregorian) from the backend -
   // always derive the label from it instead of the backend's own
@@ -19,7 +27,7 @@ function monthLabelFor(item, fa) {
   if (!item.key) return item.month || "";
   const parsed = moment(`${item.key}-01`, "YYYY-MM-DD");
   if (!parsed.isValid()) return item.month || "";
-  return fa ? parsed.format("jMMMM") : parsed.format("MMM");
+  return fa ? JALALI_MONTHS_FA[parsed.jMonth()] : parsed.format("MMM");
 }
 
 export default function SalesChart({ data = [] }) {
@@ -34,8 +42,8 @@ export default function SalesChart({ data = [] }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.8)",
         borderRadius: 24,
         padding: 20,
         minHeight: 360,
@@ -44,7 +52,7 @@ export default function SalesChart({ data = [] }) {
     >
       <h2
         style={{
-          color: "white",
+          color: "var(--erp-text)",
           marginBottom: 20,
           textAlign: dir === "rtl" ? "right" : "left",
         }}
@@ -66,17 +74,17 @@ export default function SalesChart({ data = [] }) {
             <XAxis
               dataKey="monthLabel"
               reversed={dir === "rtl"}
-              stroke="#94a3b8"
-              tick={{ fill: "#e2e8f0", fontSize: 13 }}
+              stroke="var(--erp-muted)"
+              tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
               interval="preserveStartEnd"
               minTickGap={24}
             />
 
             <YAxis
               orientation={dir === "rtl" ? "right" : "left"}
-              stroke="#94a3b8"
+              stroke="var(--erp-muted)"
               tickFormatter={(value) => n(value)}
-              tick={{ fill: "#e2e8f0", fontSize: 13 }}
+              tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
             />
 
             <Tooltip
@@ -96,7 +104,7 @@ export default function SalesChart({ data = [] }) {
             <Line
               type="monotone"
               dataKey="sales"
-              stroke="#22d3ee"
+              stroke="var(--erp-accent)"
               strokeWidth={4}
               dot={{ r: 5 }}
               activeDot={{ r: 8 }}

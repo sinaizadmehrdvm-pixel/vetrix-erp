@@ -1,12 +1,14 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
-export default function TopProducts({ products = [] }) {
+export default function TopProducts({ products = [], to = "/products" }) {
   const { t, n, money, dir } = useLanguage();
+  const fa = dir === "rtl";
 
   const gridColumns =
     dir === "rtl" ? "110px 90px 1fr" : "1fr 90px 110px";
 
-  const cellStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+  const nameCellStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
   return (
     <div
@@ -18,14 +20,23 @@ export default function TopProducts({ products = [] }) {
         direction: dir,
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
           textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("topProducts")}
-      </h2>
+        <h2 style={{ margin: 0 }}>{t("topProducts")}</h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : "View all →"}
+        </span>
+      </Link>
 
       {products.length === 0 ? (
         <p style={{ color: "var(--erp-muted)" }}>{t("noProducts")}</p>
@@ -79,15 +90,15 @@ export default function TopProducts({ products = [] }) {
               >
                 {dir === "rtl" ? (
                   <>
-                    <span style={cellStyle}>{price}</span>
-                    <span style={cellStyle}>{stock}</span>
-                    <strong style={cellStyle}>{name}</strong>
+                    <span style={{ fontWeight: 700 }}>{price}</span>
+                    <span>{stock}</span>
+                    <strong style={nameCellStyle}>{name}</strong>
                   </>
                 ) : (
                   <>
-                    <strong style={cellStyle}>{name}</strong>
-                    <span style={cellStyle}>{stock}</span>
-                    <span style={cellStyle}>{price}</span>
+                    <strong style={nameCellStyle}>{name}</strong>
+                    <span>{stock}</span>
+                    <span style={{ fontWeight: 700 }}>{price}</span>
                   </>
                 )}
               </div>

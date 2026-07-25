@@ -158,6 +158,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? `${lowStock} کالا به حداقل موجودی رسیده‌اند.`
         : `${lowStock} products are low in stock.`,
       action: fa ? "بررسی انبار" : "Review inventory",
+      to: "/products",
     });
   }
 
@@ -170,6 +171,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? `${openCount || 0} فاکتور باز با مبلغ قابل پیگیری وجود دارد.`
         : `${openCount || 0} open invoices require follow-up.`,
       action: fa ? "پیگیری مطالبات" : "Follow up",
+      to: "/invoices",
     });
   }
 
@@ -182,6 +184,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? "هزینه‌ها یا خریدها بیشتر از فروش ثبت‌شده است."
         : "Costs or purchases are higher than recorded sales.",
       action: fa ? "تحلیل سود و زیان" : "Analyze P&L",
+      to: "/financial-statements",
     });
   }
 
@@ -194,6 +197,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? "پرداخت‌ها از دریافت‌ها بیشتر شده‌اند."
         : "Payments are higher than receipts.",
       action: fa ? "کنترل نقدینگی" : "Cash control",
+      to: "/reports",
     });
   }
 
@@ -206,6 +210,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? "برای تحلیل دقیق، فاکتورهای فروش روزانه را ثبت کن."
         : "Record daily sales invoices for better analysis.",
       action: fa ? "ثبت فروش" : "Record sales",
+      to: "/invoices",
     });
   }
 
@@ -218,6 +223,7 @@ function buildSmartAlerts({ fa, reports, stats }) {
         ? "هشدار جدی در فروش، نقدینگی و موجودی دیده نشد."
         : "No critical sales, cashflow or inventory alert was detected.",
       action: fa ? "ادامه پایش" : "Keep monitoring",
+      to: "/reports",
     });
   }
 
@@ -413,15 +419,15 @@ export default function Dashboard() {
 
       <ExportButtons />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginTop: 20, marginBottom: 30, direction: dir }}>
-        <StatsCard title={fa ? "فروش امروز" : "Sales today"} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="#22d3ee" />
-        <StatsCard title={fa ? "فروش ماه" : "Sales this month"} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="#10b981" />
-        <StatsCard title={fa ? "خرید ماه" : "Purchases this month"} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="#f59e0b" />
-        <StatsCard title={fa ? "دریافت امروز" : "Receipts today"} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="#10b981" />
-        <StatsCard title={fa ? "پرداخت امروز" : "Payments today"} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="#ef4444" />
-        <StatsCard title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "#22d3ee" : "#ef4444"} />
-        <StatsCard title={fa ? "فاکتورهای باز" : "Open invoices"} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="#f59e0b" />
-        <StatsCard title={fa ? "کالاهای کم موجود" : "Low stock"} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginTop: 20, marginBottom: 30, direction: dir, alignItems: "stretch" }}>
+        <StatsCard to="/invoices" title={fa ? "فروش امروز" : "Sales today"} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="#22d3ee" />
+        <StatsCard to="/invoices" title={fa ? "فروش ماه" : "Sales this month"} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="#10b981" />
+        <StatsCard to="/invoices" title={fa ? "خرید ماه" : "Purchases this month"} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="#f59e0b" />
+        <StatsCard to="/receipts" title={fa ? "دریافت امروز" : "Receipts today"} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="#10b981" />
+        <StatsCard to="/payments" title={fa ? "پرداخت امروز" : "Payments today"} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="#ef4444" />
+        <StatsCard to="/reports" title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "#22d3ee" : "#ef4444"} />
+        <StatsCard to="/invoices" title={fa ? "فاکتورهای باز" : "Open invoices"} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="#f59e0b" />
+        <StatsCard to="/products" title={fa ? "کالاهای کم موجود" : "Low stock"} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
       </div>
 
       <details className="group rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
@@ -431,30 +437,30 @@ export default function Dashboard() {
         </summary>
         <div className="pt-4">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginBottom: 30, direction: dir }}>
-        <StatsCard title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="#6366f1" />
-        <StatsCard title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="#10b981" />
-        <StatsCard title={t("products")} value={n(dashboardData.products_count || 0)} icon={<Package />} color="#f59e0b" />
-        <StatsCard title={fa ? "ارزش موجودی" : "Inventory value"} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
+        <StatsCard to="/invoices" title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="#6366f1" />
+        <StatsCard to="/customers" title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="#10b981" />
+        <StatsCard to="/products" title={t("products")} value={n(dashboardData.products_count || 0)} icon={<Package />} color="#f59e0b" />
+        <StatsCard to="/products" title={fa ? "ارزش موجودی" : "Inventory value"} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5" style={{ alignItems: "start" }}>
         <div>
           <SalesChart data={dashboardData.sales_chart || []} />
         </div>
         <BusinessPulse fa={fa} n={n} money={money} reports={reports} stats={dashboardData} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
         <InventoryAlerts alerts={dashboardData.alerts || []} />
         <AiInsights insight={dashboardData.ai_insight} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
         <RecentInvoices invoices={dashboardData.recent_invoices || []} />
         <TopProducts products={dashboardData.top_products || []} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
         <LiveNotification notifications={dashboardData.live_notifications || []} />
         <ActivityTimeline items={activityData} />
       </div>
@@ -485,6 +491,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[320px]">
           <MiniKpi
+            to="/reports"
             fa={fa}
             title={fa ? "سود خالص" : "Net profit"}
             value={money(netProfit)}
@@ -492,6 +499,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
             icon={<TrendingUp size={17} />}
           />
           <MiniKpi
+            to="/reports"
             fa={fa}
             title={fa ? "حاشیه سود" : "Profit margin"}
             value={`${n(profitMargin.toFixed(1))}%`}
@@ -499,6 +507,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
             icon={<Target size={17} />}
           />
           <MiniKpi
+            to="/invoices"
             fa={fa}
             title={fa ? "مطالبات باز" : "Open receivables"}
             value={money(openAmount)}
@@ -506,6 +515,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
             icon={<Wallet size={17} />}
           />
           <MiniKpi
+            to="/reports"
             fa={fa}
             title={fa ? "نقدینگی خالص" : "Net cashflow"}
             value={money(cashflow)}
@@ -525,15 +535,18 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
   );
 }
 
-function MiniKpi({ title, value, positive, icon }) {
+function MiniKpi({ title, value, positive, icon, to }) {
   return (
-    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+    <Link
+      to={to || "/reports"}
+      className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 block hover:border-[var(--erp-accent)] transition-colors"
+    >
       <div className="flex items-center gap-2 text-[var(--erp-muted)] text-xs font-bold mb-2">
         <span className={positive ? "text-emerald-300" : "text-rose-300"}>{icon}</span>
         {title}
       </div>
       <div className={`font-black text-lg ${positive ? "text-emerald-300" : "text-rose-300"}`}>{value}</div>
-    </div>
+    </Link>
   );
 }
 
@@ -552,9 +565,10 @@ function SmartAlertCenter({ fa, alerts }) {
 
       <div className="space-y-3">
         {alerts.map((item, index) => (
-          <div
+          <Link
             key={index}
-            className={`rounded-2xl p-4 border ${
+            to={item.to || "/reports"}
+            className={`block rounded-2xl p-4 border transition-transform hover:scale-[1.01] ${
               item.level === "danger"
                 ? "bg-rose-500/10 border-rose-400/20"
                 : item.level === "warning"
@@ -572,7 +586,7 @@ function SmartAlertCenter({ fa, alerts }) {
                 <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{item.action}</div>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -613,24 +627,28 @@ function BusinessPulse({ fa, n, money, reports, stats }) {
       value: money(profit.net_sales ?? stats.total_revenue ?? 0),
       icon: <ArrowUpRight size={18} />,
       color: "text-emerald-300",
+      to: "/invoices",
     },
     {
       title: fa ? "ریسک موجودی" : "Inventory risk",
       value: n(inventory.low_stock_count ?? stats.low_stock ?? 0),
       icon: <ShieldAlert size={18} />,
       color: toNumber(inventory.low_stock_count ?? stats.low_stock) > 0 ? "text-rose-300" : "text-emerald-300",
+      to: "/products",
     },
     {
       title: fa ? "فاکتورهای باز" : "Open invoices",
       value: n(invoices.open_count || 0),
       icon: <Flame size={18} />,
       color: toNumber(invoices.open_count) > 0 ? "text-amber-300" : "text-emerald-300",
+      to: "/invoices",
     },
     {
       title: fa ? "نقدینگی ماه" : "Monthly cash",
       value: money(cash.net_cashflow || 0),
       icon: <UserRoundCheck size={18} />,
       color: toNumber(cash.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300",
+      to: "/reports",
     },
   ];
 
@@ -641,13 +659,13 @@ function BusinessPulse({ fa, n, money, reports, stats }) {
       </h2>
       <div className="space-y-3">
         {rows.map((row, index) => (
-          <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3">
+          <Link key={index} to={row.to} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3 hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-3">
               <div className={`${row.color}`}>{row.icon}</div>
               <div className="text-[var(--erp-muted)] font-bold">{row.title}</div>
             </div>
             <div className={`font-black ${row.color}`}>{row.value}</div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

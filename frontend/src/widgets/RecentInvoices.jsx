@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 const STATUS_LABELS = {
@@ -10,12 +11,12 @@ function statusLabel(value, fa) {
   return (fa ? STATUS_LABELS.fa : STATUS_LABELS.en)[raw] || value || "-";
 }
 
-export default function RecentInvoices({ invoices = [] }) {
+export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
   const { t, money, dir, language } = useLanguage();
   const fa = language === "fa";
 
   const gridColumns =
-    dir === "rtl" ? "70px 90px 1fr 80px" : "80px 1fr 90px 70px";
+    dir === "rtl" ? "64px 84px 1fr 96px" : "96px 1fr 84px 64px";
 
   return (
     <div
@@ -27,14 +28,23 @@ export default function RecentInvoices({ invoices = [] }) {
         direction: dir,
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
           textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("recentInvoices")}
-      </h2>
+        <h2 style={{ margin: 0 }}>{t("recentInvoices")}</h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : "View all →"}
+        </span>
+      </Link>
 
       {invoices.length === 0 ? (
         <p style={{ color: "var(--erp-muted)" }}>{t("noInvoices")}</p>
@@ -44,7 +54,7 @@ export default function RecentInvoices({ invoices = [] }) {
             style={{
               display: "grid",
               gridTemplateColumns: gridColumns,
-              gap: 12,
+              gap: 10,
               paddingBottom: 10,
               color: "var(--erp-accent)",
               fontWeight: 900,
@@ -74,6 +84,7 @@ export default function RecentInvoices({ invoices = [] }) {
             const customer = invoice.customer || invoice.customer_name || "-";
             const total = money(invoice.total || invoice.total_amount || 0);
             const status = statusLabel(invoice.status, fa);
+            const ellipsisStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
             return (
               <div
@@ -81,7 +92,7 @@ export default function RecentInvoices({ invoices = [] }) {
                 style={{
                   display: "grid",
                   gridTemplateColumns: gridColumns,
-                  gap: 12,
+                  gap: 10,
                   padding: "12px 0",
                   borderBottom: "1px solid var(--erp-border)",
                   color: "var(--erp-text)",
@@ -91,19 +102,19 @@ export default function RecentInvoices({ invoices = [] }) {
               >
                 {dir === "rtl" ? (
                   <>
-                    <span style={{ color: "#22c55e", fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ color: "#22c55e", fontWeight: 900, ...ellipsisStyle }}>
                       {status}
                     </span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{total}</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer}</span>
+                    <span style={{ fontWeight: 700 }}>{total}</span>
+                    <span style={ellipsisStyle}>{customer}</span>
                     <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
                   </>
                 ) : (
                   <>
                     <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer}</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{total}</span>
-                    <span style={{ color: "#22c55e", fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={ellipsisStyle}>{customer}</span>
+                    <span style={{ fontWeight: 700 }}>{total}</span>
+                    <span style={{ color: "#22c55e", fontWeight: 900, ...ellipsisStyle }}>
                       {status}
                     </span>
                   </>

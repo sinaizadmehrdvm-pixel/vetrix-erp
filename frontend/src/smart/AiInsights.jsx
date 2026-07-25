@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateStatus(status, t, language) {
@@ -35,8 +36,9 @@ function translateRecommendation(recommendation, t, language) {
   return recommendation || t("improveSalesStrategy");
 }
 
-export default function AiInsights({ insight }) {
+export default function AiInsights({ insight, to = "/ai-bi" }) {
   const { t, language, money, dir } = useLanguage();
+  const fa = language === "fa";
 
   if (!insight) return null;
 
@@ -62,16 +64,31 @@ export default function AiInsights({ insight }) {
         direction: dir,
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 20,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
         {t("aiInsight")}
-      </h2>
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : "View all →"}
+        </span>
+      </Link>
 
       <div
         style={{

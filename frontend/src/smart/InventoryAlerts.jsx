@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateAlert(message, t, language) {
@@ -24,8 +25,9 @@ function translateAlert(message, t, language) {
   return message;
 }
 
-export default function InventoryAlerts({ alerts = [] }) {
+export default function InventoryAlerts({ alerts = [], to = "/products" }) {
   const { t, language, n, dir } = useLanguage();
+  const fa = language === "fa";
 
   return (
     <div
@@ -36,17 +38,32 @@ export default function InventoryAlerts({ alerts = [] }) {
         direction: dir,
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
-          color: "var(--erp-text)",
           marginBottom: 20,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("inventoryAlerts")}
-      </h2>
+        <h2
+          style={{
+            color: "var(--erp-text)",
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {t("inventoryAlerts")}
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : "View all →"}
+        </span>
+      </Link>
 
       {alerts.length === 0 ? (
         <p
@@ -66,8 +83,9 @@ export default function InventoryAlerts({ alerts = [] }) {
           );
 
           return (
-            <div
+            <Link
               key={alert.id || index}
+              to={to}
               style={{
                 background: "rgba(239,68,68,0.15)",
                 border: "1px solid rgba(239,68,68,0.4)",
@@ -79,6 +97,7 @@ export default function InventoryAlerts({ alerts = [] }) {
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: 12,
+                textDecoration: "none",
               }}
             >
               <div
@@ -108,7 +127,7 @@ export default function InventoryAlerts({ alerts = [] }) {
               >
                 {n(alert.stock || 0)}
               </strong>
-            </div>
+            </Link>
           );
         })
       )}
