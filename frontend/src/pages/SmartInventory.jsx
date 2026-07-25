@@ -180,7 +180,7 @@ export default function SmartInventory() {
               </thead>
               <tbody>
                 {rows.length ? rows.map((item) => (
-                  <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-slate-800/50">
+                  <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-[var(--erp-panel-solid)]/50">
                     <td className="p-3">
                       <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
                       <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>

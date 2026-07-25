@@ -118,7 +118,7 @@ export default function CatalogPublicView() {
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-4 py-3">
                 <div>
                   <div className="font-bold">{item.name}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--erp-muted)]">
                     {money(item.price)} {!item.in_stock && "• Out of stock"}
                   </div>
                 </div>

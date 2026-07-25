@@ -98,7 +98,7 @@ export default function CustomerPortalView() {
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <h2 className="text-xl font-black mb-1">{customer.name}</h2>
-          <p className="text-slate-400 text-sm">
+          <p className="text-[var(--erp-muted)] text-sm">
             {[customer.phone, customer.email, customer.city].filter(Boolean).join(" • ") || "—"}
           </p>
         </section>
@@ -118,7 +118,7 @@ export default function CustomerPortalView() {
             <p className="text-rose-300 text-sm mb-3">{payError}</p>
           )}
           {invoices.length === 0 ? (
-            <p className="text-slate-400">No invoices yet.</p>
+            <p className="text-[var(--erp-muted)]">No invoices yet.</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice) => (
@@ -128,7 +128,7 @@ export default function CustomerPortalView() {
                 >
                   <div>
                     <div className="font-bold">#{invoice.id} — {invoice.invoice_type}</div>
-                    <div className="text-xs text-slate-400">{invoice.payment_status}</div>
+                    <div className="text-xs text-[var(--erp-muted)]">{invoice.payment_status}</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="font-black text-[var(--erp-accent)]">{money(invoice.total_amount)}</div>
@@ -155,7 +155,7 @@ export default function CustomerPortalView() {
               <Wallet size={18} /> Statement
             </div>
             {ledger.entries.length === 0 ? (
-              <p className="text-slate-400">No transactions yet.</p>
+              <p className="text-[var(--erp-muted)]">No transactions yet.</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-auto pr-1">
                 {ledger.entries.map((entry, index) => (

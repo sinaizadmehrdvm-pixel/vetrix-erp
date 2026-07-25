@@ -151,7 +151,7 @@ export default function PaymentReminders() {
                   <span className="text-[var(--erp-muted)]">{entry.customer_name}</span>
                   {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {entry.detail}</span>}
                 </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-slate-300"}`}>
+                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-[var(--erp-muted)]"}`}>
                   {entry.status}
                 </span>
               </div>

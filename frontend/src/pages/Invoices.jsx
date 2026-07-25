@@ -1005,7 +1005,7 @@ export default function Invoices() {
                       <select
                         value={item.warehouse_id}
                         onChange={(e) => updateItem(index, "warehouse_id", e.target.value)}
-                        className="bg-slate-800 rounded-2xl p-3 outline-none w-full border border-slate-700 focus:border-cyan-400"
+                        className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       >
                         <option value="">{fa ? "مشخص نشده" : "Unspecified"}</option>
                         {warehouses.filter((w) => w.active).map((w) => (

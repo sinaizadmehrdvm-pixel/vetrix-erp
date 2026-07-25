@@ -44,14 +44,14 @@ function priorityTone(priority) {
   if (key === "high") return "bg-amber-500/15 text-amber-200 border-amber-400/20";
   if (key === "medium") return "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]";
   if (key === "low") return "bg-emerald-500/15 text-emerald-200 border-emerald-400/20";
-  return "bg-slate-500/15 text-slate-200 border-slate-400/20";
+  return "bg-slate-500/15 text-[var(--erp-text)] border-slate-400/20";
 }
 
 function statusTone(status) {
   const key = String(status || "open").toLowerCase();
   if (key === "done") return "bg-emerald-500/15 text-emerald-200 border-emerald-400/20";
   if (key === "doing") return "bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]";
-  if (key === "cancelled") return "bg-slate-500/15 text-slate-300 border-slate-400/20";
+  if (key === "cancelled") return "bg-slate-500/15 text-[var(--erp-muted)] border-slate-400/20";
   return "bg-amber-500/15 text-amber-200 border-amber-400/20";
 }
 

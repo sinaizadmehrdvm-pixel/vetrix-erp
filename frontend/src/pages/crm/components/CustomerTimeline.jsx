@@ -113,7 +113,7 @@ function getEventTone(event) {
   if (type.includes("loyalty") || type.includes("gift")) return "border-yellow-400/20 bg-yellow-400/10 text-yellow-200";
   if (type.includes("call") || type.includes("message") || type.includes("whatsapp")) return "border-blue-400/20 bg-blue-400/10 text-blue-200";
 
-  return "border-slate-400/20 bg-slate-400/10 text-slate-200";
+  return "border-slate-400/20 bg-slate-400/10 text-[var(--erp-text)]";
 }
 
 function normalizeEvents(events) {

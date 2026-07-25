@@ -81,8 +81,8 @@ export default function PaymentGatewayView() {
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 text-center">
-          <p className="text-slate-400 text-sm">Invoice #{session.invoice_id}</p>
-          <p className="text-slate-400 text-sm mb-3">{session.customer_name}</p>
+          <p className="text-[var(--erp-muted)] text-sm">Invoice #{session.invoice_id}</p>
+          <p className="text-[var(--erp-muted)] text-sm mb-3">{session.customer_name}</p>
           <div className="text-4xl font-black mb-4">{money(session.amount)}</div>
 
           {session.provider === "sandbox" && (
@@ -104,7 +104,7 @@ export default function PaymentGatewayView() {
               <button
                 onClick={() => simulate("failure")}
                 disabled={submitting}
-                className="rounded-xl bg-white/10 text-slate-200 font-bold px-4 py-3 disabled:opacity-60"
+                className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold px-4 py-3 disabled:opacity-60"
               >
                 Simulate failed payment
               </button>

@@ -71,12 +71,12 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-cyan-500/20 p-5 text-white">
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-black flex items-center gap-2">
             <Camera size={18} /> {fa ? "اسکن بارکد" : "Scan barcode"}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-[var(--erp-muted)] hover:text-[var(--erp-text)]">
             <X size={20} />
           </button>
         </div>

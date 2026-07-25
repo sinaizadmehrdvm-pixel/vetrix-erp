@@ -480,7 +480,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
             {fa ? "امتیاز سلامت کسب‌وکار" : "Business health score"}
           </div>
           <div className={`text-6xl font-black ${scoreColor}`}>{n(score)}</div>
-          <div className="text-slate-400 mt-2">{scoreLabel}</div>
+          <div className="text-[var(--erp-muted)] mt-2">{scoreLabel}</div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[320px]">

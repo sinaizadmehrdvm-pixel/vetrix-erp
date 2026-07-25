@@ -257,7 +257,7 @@ function Table({ headers, rows, empty }) {
         <tbody>
           {rows.length ? rows.map((row, i) => (
             <tr key={i} className="border-t border-[var(--erp-border)] hover:bg-white/5">
-              {row.map((cell, j) => <td key={j} className="p-3 text-slate-200">{cell}</td>)}
+              {row.map((cell, j) => <td key={j} className="p-3 text-[var(--erp-text)]">{cell}</td>)}
             </tr>
           )) : (
             <tr><td colSpan={headers.length} className="p-6 text-center text-[var(--erp-muted)]">{empty}</td></tr>

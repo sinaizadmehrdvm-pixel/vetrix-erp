@@ -186,18 +186,18 @@ export default function AiBusinessIntelligence() {
               icon={<Wallet />}
             >
               {!forecast ? (
-                <div className="text-slate-400">{fa ? "در حال محاسبه..." : "Calculating..."}</div>
+                <div className="text-[var(--erp-muted)]">{fa ? "در حال محاسبه..." : "Calculating..."}</div>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-slate-800/80 p-4">
-                      <div className="text-xs text-slate-400 mb-1">{fa ? "وضعیت نقدی فعلی" : "Current net cash"}</div>
+                    <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4">
+                      <div className="text-xs text-[var(--erp-muted)] mb-1">{fa ? "وضعیت نقدی فعلی" : "Current net cash"}</div>
                       <div className="text-xl font-black" style={{ color: forecast.current_net_cash >= 0 ? "#10b981" : "#ef4444" }}>
                         {money(forecast.current_net_cash)}
                       </div>
                     </div>
-                    <div className="rounded-2xl bg-slate-800/80 p-4">
-                      <div className="text-xs text-slate-400 mb-1">
+                    <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4">
+                      <div className="text-xs text-[var(--erp-muted)] mb-1">
                         {fa ? "پیش‌بینی روند (۳۰ روز)" : "Trend projection (30d)"}
                       </div>
                       <div className="text-xl font-black" style={{ color: forecast.trend_projected_net_cash >= 0 ? "#10b981" : "#ef4444" }}>
@@ -206,26 +206,26 @@ export default function AiBusinessIntelligence() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-800/80 p-4">
+                  <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4">
                     <div className="text-sm font-bold text-cyan-300 mb-2">
                       {fa ? "رویدادهای زمان‌بندی‌شده (چک‌ها)" : "Scheduled events (cheques)"}
                     </div>
-                    <div className="flex justify-between text-sm text-slate-300 mb-1">
+                    <div className="flex justify-between text-sm text-[var(--erp-muted)] mb-1">
                       <span>{fa ? "ورودی مورد انتظار" : "Expected inflow"}</span>
                       <span className="text-emerald-300 font-bold">{money(forecast.scheduled_inflow)}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-slate-300">
+                    <div className="flex justify-between text-sm text-[var(--erp-muted)]">
                       <span>{fa ? "خروجی مورد انتظار" : "Expected outflow"}</span>
                       <span className="text-rose-300 font-bold">{money(forecast.scheduled_outflow)}</span>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-800/80 p-4">
-                    <div className="flex justify-between text-sm text-slate-300 mb-1">
+                  <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-4">
+                    <div className="flex justify-between text-sm text-[var(--erp-muted)] mb-1">
                       <span>{fa ? "مطالبات باز (بدون تاریخ مشخص)" : "Open receivables (undated)"}</span>
                       <span className="text-emerald-300 font-bold">{money(forecast.open_receivables)}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-slate-300">
+                    <div className="flex justify-between text-sm text-[var(--erp-muted)]">
                       <span>{fa ? "بدهی‌های باز (بدون تاریخ مشخص)" : "Open payables (undated)"}</span>
                       <span className="text-rose-300 font-bold">{money(forecast.open_payables)}</span>
                     </div>
@@ -234,7 +234,7 @@ export default function AiBusinessIntelligence() {
                   {forecast.scheduled_events.length > 0 && (
                     <div className="space-y-2 max-h-48 overflow-auto pr-1">
                       {forecast.scheduled_events.map((event, index) => (
-                        <div key={index} className="flex justify-between rounded-xl bg-slate-800/60 px-3 py-2 text-xs">
+                        <div key={index} className="flex justify-between rounded-xl bg-[var(--erp-panel-solid)] px-3 py-2 text-xs">
                           <span>{event.cheque_number} ({event.due_date})</span>
                           <span className={event.type === "cheque_received" ? "text-emerald-300" : "text-rose-300"}>
                             {money(event.amount)}
@@ -252,7 +252,7 @@ export default function AiBusinessIntelligence() {
               icon={<ShieldAlert />}
             >
               {!anomalies ? (
-                <div className="text-slate-400">{fa ? "در حال بررسی..." : "Scanning..."}</div>
+                <div className="text-[var(--erp-muted)]">{fa ? "در حال بررسی..." : "Scanning..."}</div>
               ) : anomalies.items.length === 0 ? (
                 <div className="text-[var(--erp-muted)] rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center gap-2">
                   <CheckCircle2 size={18} /> {fa ? "ناهنجاری‌ای شناسایی نشد." : "No anomalies detected."}
@@ -315,7 +315,7 @@ function AlertRow({ item }) {
   return (
     <div className={`rounded-2xl border p-4 ${cls}`}>
       <div className="font-black">{item.title}</div>
-      <div className="text-sm mt-2 leading-7 text-slate-200">{item.message}</div>
+      <div className="text-sm mt-2 leading-7 text-[var(--erp-text)]">{item.message}</div>
       <div className="text-xs mt-3 font-bold">{item.action}</div>
     </div>
   );
@@ -332,12 +332,12 @@ function AnomalyRow({ item, fa }) {
     high: "bg-rose-500/10 border-rose-400/20 text-rose-200",
     medium: "bg-amber-500/10 border-amber-400/20 text-amber-200",
     low: "bg-cyan-500/10 border-cyan-400/20 text-cyan-200",
-  }[item.severity] || "bg-slate-800/70 border-white/5 text-slate-200";
+  }[item.severity] || "bg-[var(--erp-panel-solid)] border-[var(--erp-border)] text-[var(--erp-text)]";
   const label = ANOMALY_TYPE_LABELS[item.type];
   return (
     <div className={`rounded-2xl border p-4 ${cls}`}>
       <div className="font-black">{label ? (fa ? label.fa : label.en) : item.type}</div>
-      <div className="text-sm mt-2 leading-7 text-slate-200">{item.message}</div>
+      <div className="text-sm mt-2 leading-7 text-[var(--erp-text)]">{item.message}</div>
     </div>
   );
 }
@@ -347,7 +347,7 @@ function DataPanel({ title, icon, items, money, n, type, fa }) {
     <Panel title={title} icon={icon}>
       <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
         {items.length === 0 ? (
-          <div className="text-slate-400 rounded-2xl bg-slate-800/60 p-4 flex items-center gap-2">
+          <div className="text-[var(--erp-muted)] rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center gap-2">
             <CheckCircle2 size={18} /> {fa ? "موردی برای نمایش وجود ندارد." : "Nothing to show."}
           </div>
         ) : items.map((item, index) => (
