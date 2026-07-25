@@ -1,28 +1,51 @@
-// Gregorian <-> Hijri (Islamic) calendar conversion using the standard
-// tabular/arithmetic Islamic calendar algorithm (civil epoch, JDN
-// 1948440 = 1 Muharram 1 AH = 19 July 622 CE proleptic Gregorian). This
-// is the same widely-used reference algorithm behind most calendar
-// converters, and matches the commonly-cited international reference
-// point (1 Jan 2000 CE = 24 Ramadan 1420 AH) with no adjustment.
+// Gregorian <-> Hijri (Islamic) calendar conversion.
 //
-// Like every calculated Hijri calendar, the raw tabular result can
-// differ from a given country's officially *announced* (committee/
-// moon-sighting based) calendar - real Hijri months run 29 or 30 days
-// depending on the actual decision, which no fixed formula can know in
-// advance. For Iran specifically, cross-checking against the official
-// government holiday calendar for Mordad 1405 (13 Mordad = 20 Safar,
-// 21 Mordad = 28 Safar, 22 Mordad = 29 Safar, 30 Mordad = 8 Rabi
-// al-Awwal 1448 - via eghtesadonline.com's coverage of the official
-// calendar) showed the raw tabular output landing exactly one day
-// behind Iran's official calendar across all four anchor points,
-// including the month rollover into Rabi al-Awwal - so a +1 day
-// correction is applied to match Iran's official calendar for the
-// current Hijri year. This is a point-in-time calibration, not a
-// universal constant: if it ever drifts again for a future year, the
-// fix is to re-derive HIJRI_DAY_ADJUSTMENT the same way, against a
-// fresh official anchor date.
+// The pure tabular/arithmetic Islamic calendar algorithm (civil epoch,
+// JDN 1948440 = 1 Muharram 1 AH) matches the commonly-cited
+// international reference point (1 Jan 2000 CE = 24 Ramadan 1420 AH),
+// but real Hijri calendars are ultimately fixed by each country's
+// moon-sighting committee, not a formula - actual months run 29 or 30
+// days depending on the real decision, and that decision drifts against
+// the tabular calculation by a different, unpredictable amount every
+// month (not a constant offset - see below).
+//
+// Cross-checking the raw tabular output against Iran's official
+// government holiday calendar for six consecutive Hijri months covering
+// most of Persian year 1405 (Shawwal 1447 through Rabi al-Awwal 1448)
+// showed the real/tabular gap changing sign mid-cycle:
+//   Shawwal 1447    starts 2026-03-21  (tabular: +1 day off)
+//   Dhu al-Qadah 1447 starts 2026-04-19  (tabular: +1 day off, forced by
+//                                          the 58-day gap between the
+//                                          Shawwal and Dhu al-Hijjah
+//                                          anchors below - 58 only
+//                                          factors as 29+29)
+//   Dhu al-Hijjah 1447 starts 2026-05-18  (tabular: exact match)
+//   Muharram 1448   starts 2026-06-16  (tabular: -1 day off)
+//   Safar 1448      starts 2026-07-16  (tabular: -1 day off)
+//   Rabi al-Awwal 1448 starts 2026-08-14  (tabular: -1 day off)
+// Each anchor was independently confirmed by at least two official
+// dates (e.g. Eid al-Adha + Eid al-Ghadir both confirm Dhu al-Hijjah;
+// Tasua + Ashura both confirm Muharram; Arbaeen + two further Safar
+// holidays confirm Safar). Because the gap flips sign here, a single
+// global correction constant cannot be correct for the whole year - it
+// would fix one month while breaking the next. Real dates within any
+// of these six anchored months are read directly off the anchor
+// (exact, no formula error possible). Dates outside this anchored
+// range fall back to the tabular algorithm, offset by the nearest
+// anchor's own correction so the result stays continuous with the
+// verified data instead of snapping back to raw tabular error - this
+// is necessarily an estimate for months we have no official anchor
+// for yet, same as any calculated Hijri calendar.
 const ISLAMIC_EPOCH_JDN = 1948440;
-const HIJRI_DAY_ADJUSTMENT = 1;
+
+const HIJRI_MONTH_ANCHORS = [
+  { hy: 1447, hm: 10, gYear: 2026, gMonth: 3, gDay: 21 }, // Shawwal - Eid al-Fitr
+  { hy: 1447, hm: 11, gYear: 2026, gMonth: 4, gDay: 19 }, // Dhu al-Qadah
+  { hy: 1447, hm: 12, gYear: 2026, gMonth: 5, gDay: 18 }, // Dhu al-Hijjah - Eid al-Adha / Eid al-Ghadir
+  { hy: 1448, hm: 1, gYear: 2026, gMonth: 6, gDay: 16 }, // Muharram - Tasua / Ashura
+  { hy: 1448, hm: 2, gYear: 2026, gMonth: 7, gDay: 16 }, // Safar - Arbaeen and later holidays
+  { hy: 1448, hm: 3, gYear: 2026, gMonth: 8, gDay: 14 }, // Rabi al-Awwal
+];
 
 export const HIJRI_MONTHS_FA = [
   "محرم", "صفر", "ربیع‌الاول", "ربیع‌الثانی", "جمادی‌الاول", "جمادی‌الثانی",
@@ -59,11 +82,36 @@ function islamicToJDN(year, month, day) {
   );
 }
 
-/** Returns { year, month, day } - month is 1-based (1 = Muharram). */
-export function toHijri(gYear, gMonth1Based, gDay) {
-  const jdn = gregorianToJDN(gYear, gMonth1Based, gDay) + HIJRI_DAY_ADJUSTMENT;
+function fromTabularJDN(jdn) {
   const year = Math.floor((30 * (jdn - ISLAMIC_EPOCH_JDN) + 10646) / 10631);
   const month = Math.min(12, Math.ceil((jdn - (29 + islamicToJDN(year, 1, 1))) / 29.5) + 1);
   const day = jdn - islamicToJDN(year, month, 1) + 1;
   return { year, month, day };
+}
+
+const ANCHORS_WITH_JDN = HIJRI_MONTH_ANCHORS.map((anchor) => ({
+  ...anchor,
+  jdn: gregorianToJDN(anchor.gYear, anchor.gMonth, anchor.gDay),
+}));
+
+/** Returns { year, month, day } - month is 1-based (1 = Muharram). */
+export function toHijri(gYear, gMonth1Based, gDay) {
+  const jdn = gregorianToJDN(gYear, gMonth1Based, gDay);
+
+  let nearest = ANCHORS_WITH_JDN[0];
+  let nearestIndex = 0;
+  ANCHORS_WITH_JDN.forEach((anchor, index) => {
+    if (anchor.jdn <= jdn) {
+      nearest = anchor;
+      nearestIndex = index;
+    }
+  });
+
+  const next = ANCHORS_WITH_JDN[nearestIndex + 1];
+  if (jdn >= nearest.jdn && next && jdn < next.jdn) {
+    return { year: nearest.hy, month: nearest.hm, day: jdn - nearest.jdn + 1 };
+  }
+
+  const correction = nearest.jdn - islamicToJDN(nearest.hy, nearest.hm, 1);
+  return fromTabularJDN(jdn - correction);
 }
