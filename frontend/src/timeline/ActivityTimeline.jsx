@@ -56,6 +56,9 @@ export default function ActivityTimeline({ items = [], to = "/audit-trail" }) {
         padding: 20,
         color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Link
@@ -85,14 +88,17 @@ export default function ActivityTimeline({ items = [], to = "/audit-trail" }) {
       </Link>
 
       {items.length === 0 ? (
-        <p
-          style={{
-            color: "var(--erp-muted)",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-        >
-          {t("noActivity")}
-        </p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noActivity")}
+          </p>
+        </div>
       ) : (
         items.map((item, index) => (
           <div

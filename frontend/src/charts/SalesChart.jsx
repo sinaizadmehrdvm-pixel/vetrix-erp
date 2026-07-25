@@ -18,25 +18,25 @@ const JALALI_MONTHS_FA = [
   "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
 ];
 
-function monthLabelFor(item, fa) {
-  // item.key is an unambiguous "YYYY-MM" (Gregorian) from the backend -
-  // always derive the label from it instead of the backend's own
-  // "month" field (which bakes in a fixed fa+en string regardless of the
-  // app's selected language) or the array index (which only lined up
-  // with a calendar month by coincidence for a 12-month chart).
-  if (!item.key) return item.month || "";
-  const parsed = moment(`${item.key}-01`, "YYYY-MM-DD");
-  if (!parsed.isValid()) return item.month || "";
-  return fa ? JALALI_MONTHS_FA[parsed.jMonth()] : parsed.format("MMM");
+// The backend buckets this chart by Gregorian year-month (index 0 =
+// current month, counting backward). Converting each bucket's "day 1"
+// to Jalali independently is unreliable - Persian month boundaries
+// fall mid-Gregorian-month, so two consecutive Gregorian buckets can
+// land in the same Jalali month while another gets skipped, scrambling
+// the label order. Anchoring once on "today" and stepping back by
+// array index keeps the labels perfectly sequential instead.
+function monthLabelForIndex(index, fa) {
+  const anchor = moment().subtract(index, "jMonth");
+  return fa ? JALALI_MONTHS_FA[anchor.jMonth()] : anchor.format("MMM");
 }
 
 export default function SalesChart({ data = [] }) {
   const { t, language, n, money, dir } = useLanguage();
   const fa = language === "fa";
 
-  const chartData = data.map((item) => ({
+  const chartData = data.map((item, index) => ({
     ...item,
-    monthLabel: monthLabelFor(item, fa),
+    monthLabel: monthLabelForIndex(index, fa),
     sales: Number(item.sales || 0),
   }));
 

@@ -18,6 +18,9 @@ export default function TopProducts({ products = [], to = "/products" }) {
         padding: 20,
         color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Link
@@ -39,9 +42,11 @@ export default function TopProducts({ products = [], to = "/products" }) {
       </Link>
 
       {products.length === 0 ? (
-        <p style={{ color: "var(--erp-muted)" }}>{t("noProducts")}</p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noProducts")}</p>
+        </div>
       ) : (
-        <>
+        <div style={{ flex: 1 }}>
           <div
             style={{
               display: "grid",
@@ -104,7 +109,7 @@ export default function TopProducts({ products = [], to = "/products" }) {
               </div>
             );
           })}
-        </>
+        </div>
       )}
     </div>
   );

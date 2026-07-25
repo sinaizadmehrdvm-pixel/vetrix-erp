@@ -57,6 +57,9 @@ export default function LiveNotification({ notifications = [] }) {
         padding: 20,
         color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <h2
@@ -71,14 +74,17 @@ export default function LiveNotification({ notifications = [] }) {
       </h2>
 
       {notifications.length === 0 ? (
-        <p
-          style={{
-            color: "var(--erp-muted)",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-        >
-          {t("noNotifications")}
-        </p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noNotifications")}
+          </p>
+        </div>
       ) : (
         notifications.map((item, index) => (
           <div

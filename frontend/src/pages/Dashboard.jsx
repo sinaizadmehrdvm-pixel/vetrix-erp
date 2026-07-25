@@ -443,24 +443,24 @@ export default function Dashboard() {
         <StatsCard to="/products" title={fa ? "ارزش موجودی" : "Inventory value"} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5" style={{ alignItems: "start" }}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5">
         <div>
           <SalesChart data={dashboardData.sales_chart || []} />
         </div>
         <BusinessPulse fa={fa} n={n} money={money} reports={reports} stats={dashboardData} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <InventoryAlerts alerts={dashboardData.alerts || []} />
         <AiInsights insight={dashboardData.ai_insight} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <RecentInvoices invoices={dashboardData.recent_invoices || []} />
         <TopProducts products={dashboardData.top_products || []} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
         <LiveNotification notifications={dashboardData.live_notifications || []} />
         <ActivityTimeline items={activityData} />
       </div>
@@ -653,11 +653,11 @@ function BusinessPulse({ fa, n, money, reports, stats }) {
   ];
 
   return (
-    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl h-full">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl h-full flex flex-col">
       <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">
         {fa ? "نبض کسب‌وکار" : "Business pulse"}
       </h2>
-      <div className="space-y-3">
+      <div className="flex-1 flex flex-col justify-between gap-3">
         {rows.map((row, index) => (
           <Link key={index} to={row.to} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3 hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-3">

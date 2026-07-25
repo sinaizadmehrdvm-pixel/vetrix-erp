@@ -36,6 +36,9 @@ export default function InventoryAlerts({ alerts = [], to = "/products" }) {
         borderRadius: 24,
         padding: 20,
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Link
@@ -66,14 +69,17 @@ export default function InventoryAlerts({ alerts = [], to = "/products" }) {
       </Link>
 
       {alerts.length === 0 ? (
-        <p
-          style={{
-            color: "var(--erp-muted)",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-        >
-          {t("noAlerts")}
-        </p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noAlerts")}
+          </p>
+        </div>
       ) : (
         alerts.map((alert, index) => {
           const message = translateAlert(

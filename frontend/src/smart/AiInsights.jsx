@@ -62,6 +62,9 @@ export default function AiInsights({ insight, to = "/ai-bi" }) {
         padding: 24,
         color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Link
@@ -90,37 +93,39 @@ export default function AiInsights({ insight, to = "/ai-bi" }) {
         </span>
       </Link>
 
-      <div
-        style={{
-          fontSize: 22,
-          marginBottom: 12,
-          fontWeight: 800,
-          color: "var(--erp-text)",
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {t("profit")}: {money(profit)}
-      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div
+          style={{
+            fontSize: 22,
+            marginBottom: 12,
+            fontWeight: 800,
+            color: "var(--erp-text)",
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {t("profit")}: {money(profit)}
+        </div>
 
-      <div
-        style={{
-          color: "var(--erp-accent)",
-          marginBottom: 12,
-          fontWeight: 800,
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {statusText}
-      </div>
+        <div
+          style={{
+            color: "var(--erp-accent)",
+            marginBottom: 12,
+            fontWeight: 800,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {statusText}
+        </div>
 
-      <div
-        style={{
-          color: "var(--erp-muted)",
-          lineHeight: 1.8,
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {recommendationText}
+        <div
+          style={{
+            color: "var(--erp-muted)",
+            lineHeight: 1.8,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {recommendationText}
+        </div>
       </div>
     </div>
   );

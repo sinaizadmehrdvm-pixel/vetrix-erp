@@ -26,6 +26,9 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
         padding: 20,
         color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Link
@@ -47,9 +50,11 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
       </Link>
 
       {invoices.length === 0 ? (
-        <p style={{ color: "var(--erp-muted)" }}>{t("noInvoices")}</p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noInvoices")}</p>
+        </div>
       ) : (
-        <>
+        <div style={{ flex: 1 }}>
           <div
             style={{
               display: "grid",
@@ -122,7 +127,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
               </div>
             );
           })}
-        </>
+        </div>
       )}
     </div>
   );
