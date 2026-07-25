@@ -1,10 +1,32 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, KeyRound, ShieldCheck, UserPlus } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  CheckCircle2,
+  KeyRound,
+  ShieldCheck,
+  UserPlus,
+  Sparkles,
+  Calculator,
+  Mic,
+  User,
+  Lock,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL } from "../services/api";
+
+const FEATURES = [
+  { icon: Calculator, fa: "حسابداری و خزانه‌داری حرفه‌ای", en: "Professional accounting & treasury" },
+  { icon: Sparkles, fa: "هوش تجاری و پیش‌بینی هوشمند", en: "AI-powered business intelligence" },
+  { icon: Mic, fa: "گزارش‌دهی و درخواست‌های صوتی", en: "Voice-driven reports & requests" },
+  { icon: ShieldCheck, fa: "امنیت چندلایه و رمزنگاری‌شده", en: "Layered, encrypted security" },
+];
+
+const EASE = [0.16, 1, 0.3, 1];
 
 export default function Login() {
   const navigate = useNavigate();
@@ -158,159 +180,392 @@ export default function Login() {
   }
 
   const inputClass =
-    "w-full mb-4 p-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none focus:ring-2 focus:ring-[var(--erp-accent)]";
+    "w-full mb-4 py-4 ps-12 pe-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none border border-transparent focus:border-[var(--erp-accent)] focus:ring-2 focus:ring-[var(--erp-glow)] transition-all duration-200";
 
   return (
-    <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-text)] px-4 py-8">
-      <section className="w-full max-w-lg bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-8 shadow-2xl">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-4xl font-black text-[var(--erp-accent)]">Vetrix ERP</h1>
-          <span className="rounded-full bg-cyan-950 px-3 py-1 text-xs text-cyan-200">v{version}</span>
-        </div>
-        <p className="text-[var(--erp-muted)] mb-7">
-          {mode === "setup"
-            ? fa
-              ? "راه‌اندازی امن و ساخت مدیر اولیه"
-              : "Secure first-run administrator setup"
-            : fa
-              ? "سیستم حرفه‌ای حسابداری و مدیریت"
-              : "Professional Accounting System"}
-        </p>
+    <div dir={dir} className="relative min-h-screen overflow-hidden bg-[var(--erp-bg)] text-[var(--erp-text)] flex items-center justify-center px-4 py-10">
+      <AnimatedBackground />
 
-        {mode === "checking" && (
-          <div className="py-12 text-center text-[var(--erp-accent)]">
-            <ShieldCheck className="mx-auto mb-4 animate-pulse" size={42} />
-            {fa ? "در حال بررسی نصب..." : "Checking installation..."}
+      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.05fr_1fr] gap-10 xl:gap-16 items-center">
+        <BrandPanel fa={fa} />
+
+        <motion.section
+          initial={{ opacity: 0, y: 28, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.65, ease: EASE }}
+          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
+          style={{ boxShadow: "0 30px 90px -25px var(--erp-glow), 0 1px 0 0 var(--erp-border)" }}
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 -inset-inline-end-24 w-56 h-56 rounded-full opacity-40 blur-3xl"
+            style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)" }}
+          />
+
+          <div className="relative flex items-center gap-3 mb-6 lg:hidden">
+            <LogoMark size={44} />
+            <div className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[var(--erp-accent)] to-[var(--erp-accent-2)]">
+              Vetrix ERP
+            </div>
           </div>
-        )}
 
-        {mode === "setup" && (
-          <form onSubmit={handleSetup}>
-            <div className="mb-5 rounded-2xl border border-emerald-400/25 bg-emerald-950/30 p-4 text-sm text-emerald-100">
-              <UserPlus className="mb-2" size={22} />
-              {fa
-                ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
-                : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
-            </div>
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
-              {fa ? "نام و نام خانوادگی مدیر" : "Administrator full name"}
-            </label>
-            <input id="full-name" autoComplete="name" value={setup.full_name} onChange={(event) => setSetup({ ...setup, full_name: event.target.value })} className={inputClass} required />
+          <div className="relative flex items-center justify-between gap-3 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-[var(--erp-text)]">
+              {mode === "setup"
+                ? fa ? "راه‌اندازی اولیه" : "First-run setup"
+                : fa ? "خوش آمدید" : "Welcome back"}
+            </h1>
+            <span className="rounded-full bg-[var(--erp-glow)] border border-[var(--erp-border)] px-3 py-1 text-xs font-bold text-[var(--erp-accent)] whitespace-nowrap">
+              v{version}
+            </span>
+          </div>
+          <p className="relative text-[var(--erp-muted)] mb-7 text-sm">
+            {mode === "setup"
+              ? fa
+                ? "راه‌اندازی امن و ساخت مدیر اولیه"
+                : "Secure first-run administrator setup"
+              : fa
+                ? "سیستم حرفه‌ای حسابداری و مدیریت"
+                : "Professional Accounting System"}
+          </p>
 
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-username">
-              {fa ? "نام کاربری مدیر" : "Administrator username"}
-            </label>
-            <input id="setup-username" autoComplete="username" value={setup.username} onChange={(event) => setSetup({ ...setup, username: event.target.value })} className={inputClass} required />
+          <AnimatePresence initial={false}>
+            {mode === "checking" && (
+              <motion.div
+                key="checking"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="relative py-14 text-center text-[var(--erp-accent)]"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                  className="inline-flex mb-4"
+                >
+                  <ShieldCheck size={42} />
+                </motion.div>
+                <div>{fa ? "در حال بررسی نصب..." : "Checking installation..."}</div>
+              </motion.div>
+            )}
 
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-password">
-              {fa ? "رمز عبور قوی (حداقل ۱۰ کاراکتر)" : "Strong password (minimum 10 characters)"}
-            </label>
-            <input id="setup-password" autoComplete="new-password" type="password" value={setup.password} onChange={(event) => setSetup({ ...setup, password: event.target.value })} className={inputClass} minLength={10} required />
+            {mode === "setup" && (
+              <motion.form
+                key="setup"
+                initial={{ opacity: 0, x: fa ? -16 : 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: fa ? 16 : -16 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                onSubmit={handleSetup}
+                className="relative"
+              >
+                <div className="mb-5 rounded-2xl border border-emerald-400/25 bg-emerald-950/30 p-4 text-sm text-emerald-100">
+                  <UserPlus className="mb-2" size={22} />
+                  {fa
+                    ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
+                    : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
+                </div>
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
+                  {fa ? "نام و نام خانوادگی مدیر" : "Administrator full name"}
+                </label>
+                <IconInput icon={User}>
+                  <input id="full-name" autoComplete="name" value={setup.full_name} onChange={(event) => setSetup({ ...setup, full_name: event.target.value })} className={inputClass} required />
+                </IconInput>
 
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-password">
-              {fa ? "تکرار رمز عبور" : "Confirm password"}
-            </label>
-            <input id="confirm-password" autoComplete="new-password" type="password" value={setup.confirm_password} onChange={(event) => setSetup({ ...setup, confirm_password: event.target.value })} className={inputClass} minLength={10} required />
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-username">
+                  {fa ? "نام کاربری مدیر" : "Administrator username"}
+                </label>
+                <IconInput icon={User}>
+                  <input id="setup-username" autoComplete="username" value={setup.username} onChange={(event) => setSetup({ ...setup, username: event.target.value })} className={inputClass} required />
+                </IconInput>
 
-            {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-emerald-400 text-black font-black py-4 rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2">
-              <CheckCircle2 size={19} />
-              {submitting ? (fa ? "در حال راه‌اندازی..." : "Setting up...") : (fa ? "ساخت مدیر و ورود" : "Create administrator & sign in")}
-            </button>
-          </form>
-        )}
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-password">
+                  {fa ? "رمز عبور قوی (حداقل ۱۰ کاراکتر)" : "Strong password (minimum 10 characters)"}
+                </label>
+                <IconInput icon={Lock}>
+                  <input id="setup-password" autoComplete="new-password" type="password" value={setup.password} onChange={(event) => setSetup({ ...setup, password: event.target.value })} className={inputClass} minLength={10} required />
+                </IconInput>
 
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-password">
+                  {fa ? "تکرار رمز عبور" : "Confirm password"}
+                </label>
+                <IconInput icon={Lock}>
+                  <input id="confirm-password" autoComplete="new-password" type="password" value={setup.confirm_password} onChange={(event) => setSetup({ ...setup, confirm_password: event.target.value })} className={inputClass} minLength={10} required />
+                </IconInput>
 
+                {error && <ErrorBox message={error} />}
+                <SubmitButton submitting={submitting} from="#34d399" to="#22d3ee">
+                  <CheckCircle2 size={19} />
+                  {submitting ? (fa ? "در حال راه‌اندازی..." : "Setting up...") : (fa ? "ساخت مدیر و ورود" : "Create administrator & sign in")}
+                </SubmitButton>
+              </motion.form>
+            )}
 
-        {mode === "force-password-change" && (
-          <form onSubmit={handleForcedPasswordChange}>
-            <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/30 p-4 text-sm text-amber-100">
-              <KeyRound className="mb-2" size={22} />
-              {fa
-                ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
-                : "To continue, your administrator requires you to change your password."}
-            </div>
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="new-password">
-              {fa ? "رمز عبور جدید" : "New password"}
-            </label>
-            <input id="new-password" autoComplete="new-password" type="password" value={passwordChange.new_password} onChange={(event) => setPasswordChange({ ...passwordChange, new_password: event.target.value })} className={inputClass} minLength={12} required />
+            {mode === "force-password-change" && (
+              <motion.form
+                key="force-password-change"
+                initial={{ opacity: 0, x: fa ? -16 : 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: fa ? 16 : -16 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                onSubmit={handleForcedPasswordChange}
+                className="relative"
+              >
+                <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/30 p-4 text-sm text-amber-100">
+                  <KeyRound className="mb-2" size={22} />
+                  {fa
+                    ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
+                    : "To continue, your administrator requires you to change your password."}
+                </div>
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="new-password">
+                  {fa ? "رمز عبور جدید" : "New password"}
+                </label>
+                <IconInput icon={Lock}>
+                  <input id="new-password" autoComplete="new-password" type="password" value={passwordChange.new_password} onChange={(event) => setPasswordChange({ ...passwordChange, new_password: event.target.value })} className={inputClass} minLength={12} required />
+                </IconInput>
 
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-new-password">
-              {fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
-            </label>
-            <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-new-password">
+                  {fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
+                </label>
+                <IconInput icon={Lock}>
+                  <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
+                </IconInput>
 
-            {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-amber-300 text-black font-black py-4 rounded-2xl disabled:opacity-60">
-              {submitting ? (fa ? "در حال تغییر رمز..." : "Changing password...") : (fa ? "تغییر رمز و ادامه" : "Change password & continue")}
-            </button>
-          </form>
-        )}
+                {error && <ErrorBox message={error} />}
+                <SubmitButton submitting={submitting} from="#fbbf24" to="#f59e0b">
+                  {submitting ? (fa ? "در حال تغییر رمز..." : "Changing password...") : (fa ? "تغییر رمز و ادامه" : "Change password & continue")}
+                </SubmitButton>
+              </motion.form>
+            )}
 
-        {mode === "totp" && (
-          <form onSubmit={handleTotpLogin}>
-            <div className="mb-5 rounded-2xl border border-cyan-400/25 bg-cyan-950/30 p-4 text-sm text-cyan-100">
-              <ShieldCheck className="mb-2" size={22} />
-              {fa
-                ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
-                : "Enter the 6-digit code from your authenticator app, or a recovery code."}
-            </div>
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="totp-code">
-              {fa ? "کد تأیید" : "Verification code"}
-            </label>
-            <input
-              id="totp-code"
-              autoComplete="one-time-code"
-              inputMode="numeric"
-              value={mfa.code}
-              onChange={(event) => setMfa({ ...mfa, code: event.target.value })}
-              className={inputClass}
-              required
-              autoFocus
-            />
+            {mode === "totp" && (
+              <motion.form
+                key="totp"
+                initial={{ opacity: 0, x: fa ? -16 : 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: fa ? 16 : -16 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                onSubmit={handleTotpLogin}
+                className="relative"
+              >
+                <div className="mb-5 rounded-2xl border border-cyan-400/25 bg-cyan-950/30 p-4 text-sm text-cyan-100">
+                  <ShieldCheck className="mb-2" size={22} />
+                  {fa
+                    ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
+                    : "Enter the 6-digit code from your authenticator app, or a recovery code."}
+                </div>
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="totp-code">
+                  {fa ? "کد تأیید" : "Verification code"}
+                </label>
+                <IconInput icon={KeyRound}>
+                  <input
+                    id="totp-code"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    value={mfa.code}
+                    onChange={(event) => setMfa({ ...mfa, code: event.target.value })}
+                    className={inputClass}
+                    required
+                    autoFocus
+                  />
+                </IconInput>
 
-            {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-[var(--erp-accent)] text-black font-black py-4 rounded-2xl disabled:opacity-60">
-              {submitting ? (fa ? "در حال بررسی..." : "Verifying...") : (fa ? "تأیید و ورود" : "Verify & sign in")}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode("login"); setMfa({ token: "", code: "" }); setError(""); }}
-              className="w-full mt-3 text-sm text-[var(--erp-muted)] hover:text-[var(--erp-text)]"
-            >
-              {fa ? "بازگشت به ورود" : "Back to login"}
-            </button>
-          </form>
-        )}
+                {error && <ErrorBox message={error} />}
+                <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
+                  {submitting ? (fa ? "در حال بررسی..." : "Verifying...") : (fa ? "تأیید و ورود" : "Verify & sign in")}
+                </SubmitButton>
+                <button
+                  type="button"
+                  onClick={() => { setMode("login"); setMfa({ token: "", code: "" }); setError(""); }}
+                  className="w-full mt-3 text-sm text-[var(--erp-muted)] hover:text-[var(--erp-text)] transition-colors"
+                >
+                  {fa ? "بازگشت به ورود" : "Back to login"}
+                </button>
+              </motion.form>
+            )}
 
-        {mode === "login" && (
-          <form onSubmit={handleLogin}>
-            <KeyRound className="mb-4 text-cyan-300" size={28} />
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="username">
-              {fa ? "نام کاربری" : "Username"}
-            </label>
-            <input id="username" autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} className={inputClass} required />
+            {mode === "login" && (
+              <motion.form
+                key="login"
+                initial={{ opacity: 0, x: fa ? -16 : 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: fa ? 16 : -16 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                onSubmit={handleLogin}
+                className="relative"
+              >
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="username">
+                  {fa ? "نام کاربری" : "Username"}
+                </label>
+                <IconInput icon={User}>
+                  <input id="username" autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} className={inputClass} required />
+                </IconInput>
 
-            <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="password">
-              {fa ? "رمز عبور" : "Password"}
-            </label>
-            <input id="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className={inputClass} required />
+                <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="password">
+                  {fa ? "رمز عبور" : "Password"}
+                </label>
+                <IconInput icon={Lock}>
+                  <input id="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className={inputClass} required />
+                </IconInput>
 
-            {error && <ErrorBox message={error} />}
-            <button type="submit" disabled={submitting} className="w-full bg-[var(--erp-accent)] text-black font-black py-4 rounded-2xl disabled:opacity-60">
-              {submitting ? (fa ? "در حال ورود..." : "Signing in...") : (fa ? "ورود" : "Login")}
-            </button>
-          </form>
-        )}
-      </section>
+                {error && <ErrorBox message={error} />}
+                <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
+                  {submitting ? (fa ? "در حال ورود..." : "Signing in...") : (fa ? "ورود" : "Login")}
+                  {!submitting && <ArrowLeft size={18} className={fa ? "" : "rotate-180"} />}
+                </SubmitButton>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </motion.section>
+      </div>
     </div>
+  );
+}
+
+function IconInput({ icon: Icon, children }) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute inset-y-0 start-4 flex items-center text-[var(--erp-muted)]">
+        <Icon size={18} />
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function SubmitButton({ submitting, from, to, children }) {
+  return (
+    <motion.button
+      type="submit"
+      disabled={submitting}
+      whileHover={submitting ? {} : { scale: 1.015, y: -1 }}
+      whileTap={submitting ? {} : { scale: 0.98 }}
+      className="w-full text-black font-black py-4 rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2 transition-shadow"
+      style={{
+        background: `linear-gradient(110deg, ${from}, ${to})`,
+        boxShadow: `0 12px 30px -10px ${from === "var(--erp-accent)" ? "var(--erp-glow)" : `${from}55`}`,
+      }}
+    >
+      {submitting && <Loader2 size={18} className="animate-spin" />}
+      {children}
+    </motion.button>
   );
 }
 
 function ErrorBox({ message }) {
   return (
-    <div role="alert" className="mb-4 rounded-2xl border border-red-400/30 bg-red-950/40 p-3 text-sm text-red-200">
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      role="alert"
+      className="mb-4 rounded-2xl border border-red-400/30 bg-red-950/40 p-3 text-sm text-red-200"
+    >
       {message}
+    </motion.div>
+  );
+}
+
+function LogoMark({ size = 56 }) {
+  return (
+    <motion.div
+      animate={{ boxShadow: ["0 0 0px var(--erp-glow)", "0 0 28px var(--erp-glow)", "0 0 0px var(--erp-glow)"] }}
+      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      className="flex items-center justify-center rounded-2xl font-black text-black shrink-0"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.5,
+        background: "linear-gradient(135deg, var(--erp-accent), var(--erp-accent-2))",
+      }}
+    >
+      V
+    </motion.div>
+  );
+}
+
+function BrandPanel({ fa }) {
+  return (
+    <div className="hidden lg:flex flex-col justify-center relative z-10 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className="flex items-center gap-4 mb-8"
+      >
+        <LogoMark size={64} />
+        <div>
+          <div className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[var(--erp-accent)] to-[var(--erp-accent-2)]">
+            Vetrix ERP
+          </div>
+          <div className="text-[var(--erp-muted)] text-sm mt-1">
+            {fa ? "پلتفرم یکپارچه مدیریت کسب‌وکار" : "The unified business management platform"}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.h2
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
+        className="text-2xl xl:text-3xl font-black leading-snug mb-8 max-w-md"
+      >
+        {fa
+          ? "همه‌چیز برای اداره‌ی هوشمند کسب‌وکار شما، در یک‌جا."
+          : "Everything to run your business intelligently, in one place."}
+      </motion.h2>
+
+      <div className="space-y-3 max-w-md">
+        {FEATURES.map((feature, index) => (
+          <motion.div
+            key={feature.en}
+            initial={{ opacity: 0, x: fa ? 20 : -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 + index * 0.1, ease: EASE }}
+            className="flex items-center gap-3 rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-xl px-4 py-3"
+          >
+            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] shrink-0">
+              <feature.icon size={19} />
+            </span>
+            <span className="text-sm font-bold text-[var(--erp-text)]">{fa ? feature.fa : feature.en}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnimatedBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+      <motion.div
+        className="absolute w-[36rem] h-[36rem] rounded-full blur-3xl opacity-30"
+        style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)", top: "-12rem", insetInlineStart: "-10rem" }}
+        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute w-[30rem] h-[30rem] rounded-full blur-3xl opacity-25"
+        style={{ background: "radial-gradient(circle, var(--erp-accent-2), transparent 70%)", bottom: "-10rem", insetInlineEnd: "-8rem" }}
+        animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute w-[24rem] h-[24rem] rounded-full blur-3xl opacity-20"
+        style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)", top: "40%", insetInlineStart: "40%" }}
+        animate={{ scale: [1, 1.15, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage: "radial-gradient(var(--erp-text) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{ background: "radial-gradient(circle at 50% 50%, transparent 0%, var(--erp-bg) 85%)" }}
+      />
     </div>
   );
 }
