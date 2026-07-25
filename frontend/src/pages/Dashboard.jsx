@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import StatsCard from "../widgets/StatsCard";
-import CalendarWidget from "../widgets/CalendarWidget";
+import CalendarSection from "../widgets/CalendarSection";
 import SalesChart from "../charts/SalesChart";
 import InventoryAlerts from "../smart/InventoryAlerts";
 import AiInsights from "../smart/AiInsights";
@@ -410,10 +410,8 @@ export default function Dashboard() {
         <SmartAlertCenter fa={fa} alerts={smartAlerts} />
       </div>
 
-      <div className="mb-6" style={{ display: "flex", direction: dir }}>
-        <div style={{ width: "100%", maxWidth: 420 }}>
-          <CalendarWidget />
-        </div>
+      <div className="mb-6">
+        <CalendarSection />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 20, marginBottom: 20, flexWrap: "wrap", direction: dir }}>

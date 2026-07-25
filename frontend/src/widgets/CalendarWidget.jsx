@@ -1,7 +1,7 @@
-import { useState } from "react";
 import moment from "moment-jalaali";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import { fixedOccasionFor } from "../localization/occasions";
 
 // moment-jalaali's loadPersian() (called once, in src/utils/date.js) quietly
 // switches moment's *global* default locale to Persian - so even plain
@@ -30,10 +30,24 @@ function buildJalaliMonth(cursor) {
 
   const cells = Array(offset).fill(null);
   for (let day = 1; day <= daysInMonth; day += 1) {
+    const m = cursor.clone().jDate(day);
     cells.push({
+      key: `${year}-${month}-${day}`,
       day,
       isToday: isCurrentMonth && today.jDate() === day,
       isWeekend: (offset + day - 1) % 7 === 6, // Friday column
+      occasion: fixedOccasionFor(month + 1, day),
+      dateInfo: {
+        jYear: year,
+        jMonth: month + 1,
+        jDay: day,
+        gYear: m.toDate().getFullYear(),
+        gMonth: m.toDate().getMonth() + 1,
+        gDay: m.toDate().getDate(),
+        weekdayIndex: (offset + day - 1) % 7,
+        isToday: isCurrentMonth && today.jDate() === day,
+        occasion: fixedOccasionFor(month + 1, day),
+      },
     });
   }
   return { title: `${JALALI_MONTHS_FA[month]} ${year}`, weekdays: WEEKDAYS_FA, cells };
@@ -50,87 +64,91 @@ function buildGregorianMonth(cursor) {
 
   const cells = Array(offset).fill(null);
   for (let day = 1; day <= daysInMonth; day += 1) {
+    const jm = moment(new Date(year, month, day));
+    const occasion = fixedOccasionFor(jm.jMonth() + 1, jm.jDate());
     cells.push({
+      key: `${year}-${month}-${day}`,
       day,
       isToday: isCurrentMonth && today.getDate() === day,
       isWeekend: (offset + day - 1) % 7 === 0 || (offset + day - 1) % 7 === 6,
+      occasion,
+      dateInfo: {
+        jYear: jm.jYear(),
+        jMonth: jm.jMonth() + 1,
+        jDay: jm.jDate(),
+        gYear: year,
+        gMonth: month + 1,
+        gDay: day,
+        weekdayIndex: (offset + day - 1) % 7,
+        isToday: isCurrentMonth && today.getDate() === day,
+        occasion,
+      },
     });
   }
   return { title: `${GREGORIAN_MONTHS_EN[month]} ${year}`, weekdays: WEEKDAYS_EN, cells };
 }
 
-export default function CalendarWidget() {
+export default function CalendarWidget({ cursor, onCursorChange, selectedKey, onSelectDay }) {
   const { language, dir, n } = useLanguage();
   const fa = language === "fa";
-  const [cursor, setCursor] = useState(() => moment());
 
   const { title, weekdays, cells } = fa ? buildJalaliMonth(cursor) : buildGregorianMonth(cursor);
   const weeks = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
   function goPrev() {
-    setCursor((current) => current.clone().subtract(1, fa ? "jMonth" : "month"));
+    onCursorChange(cursor.clone().subtract(1, fa ? "jMonth" : "month"));
   }
   function goNext() {
-    setCursor((current) => current.clone().add(1, fa ? "jMonth" : "month"));
+    onCursorChange(cursor.clone().add(1, fa ? "jMonth" : "month"));
   }
   function goToday() {
-    setCursor(moment());
+    onCursorChange(moment());
   }
 
   return (
     <div
       className="erp-surface"
       style={{
-        borderRadius: 24,
-        padding: 20,
+        borderRadius: 20,
+        padding: 14,
         color: "var(--erp-text)",
         direction: dir,
         height: "100%",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <CalendarDays size={20} color="var(--erp-accent)" />
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>{title}</h2>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button
-            type="button"
-            onClick={goPrev}
-            aria-label={fa ? "ماه قبل" : "Previous month"}
-            style={iconButtonStyle}
-          >
-            <ChevronLeft size={16} />
+          <CalendarDays size={16} color="var(--erp-accent)" />
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 900 }}>{title}</h2>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button type="button" onClick={goPrev} aria-label={fa ? "ماه قبل" : "Previous month"} style={iconButtonStyle}>
+            <ChevronLeft size={13} />
           </button>
           <button
             type="button"
             onClick={goToday}
-            style={{ ...iconButtonStyle, width: "auto", padding: "0 10px", fontSize: 12, fontWeight: 800, color: "var(--erp-accent)" }}
+            style={{ ...iconButtonStyle, width: "auto", padding: "0 8px", fontSize: 11, fontWeight: 800, color: "var(--erp-accent)" }}
           >
             {fa ? "امروز" : "Today"}
           </button>
-          <button
-            type="button"
-            onClick={goNext}
-            aria-label={fa ? "ماه بعد" : "Next month"}
-            style={iconButtonStyle}
-          >
-            <ChevronRight size={16} />
+          <button type="button" onClick={goNext} aria-label={fa ? "ماه بعد" : "Next month"} style={iconButtonStyle}>
+            <ChevronRight size={13} />
           </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
         {weekdays.map((wd, index) => (
           <div
             key={index}
             style={{
               textAlign: "center",
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: 800,
               color: index === weekdays.length - 1 ? "#fb7185" : "var(--erp-muted)",
-              padding: "4px 0",
+              padding: "2px 0",
             }}
           >
             {wd}
@@ -138,33 +156,55 @@ export default function CalendarWidget() {
         ))}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-            {week.map((cell, dayIndex) => (
-              <div
-                key={dayIndex}
-                style={{
-                  aspectRatio: "1 / 1",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: cell?.isToday ? 900 : 600,
-                  background: cell?.isToday ? "var(--erp-accent)" : "transparent",
-                  color: cell
-                    ? cell.isToday
-                      ? "#071028"
-                      : cell.isWeekend
-                        ? "#fb7185"
-                        : "var(--erp-text)"
-                    : "transparent",
-                }}
-              >
-                {cell ? n(cell.day) : ""}
-              </div>
-            ))}
+          <div key={weekIndex} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {week.map((cell, dayIndex) => {
+              const isSelected = cell && cell.key === selectedKey;
+              return (
+                <button
+                  key={dayIndex}
+                  type="button"
+                  disabled={!cell}
+                  onClick={() => cell && onSelectDay(cell.key, cell.dateInfo)}
+                  style={{
+                    aspectRatio: "1 / 1",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 8,
+                    border: isSelected && !cell?.isToday ? "1.5px solid var(--erp-accent)" : "1.5px solid transparent",
+                    fontSize: 12,
+                    fontWeight: cell?.isToday ? 900 : 600,
+                    background: cell?.isToday ? "var(--erp-accent)" : "transparent",
+                    color: cell
+                      ? cell.isToday
+                        ? "#071028"
+                        : cell.isWeekend
+                          ? "#fb7185"
+                          : "var(--erp-text)"
+                      : "transparent",
+                    cursor: cell ? "pointer" : "default",
+                    padding: 0,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {cell ? n(cell.day) : ""}
+                  {cell?.occasion && (
+                    <span
+                      style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: "50%",
+                        marginTop: 1,
+                        background: cell.isToday ? "#071028" : "var(--erp-accent)",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -173,9 +213,9 @@ export default function CalendarWidget() {
 }
 
 const iconButtonStyle = {
-  width: 30,
-  height: 30,
-  borderRadius: 10,
+  width: 24,
+  height: 24,
+  borderRadius: 8,
   border: "none",
   background: "var(--erp-panel-solid)",
   color: "var(--erp-text)",
