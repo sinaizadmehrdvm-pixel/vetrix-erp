@@ -79,6 +79,40 @@ const unitOptionsEn = [
   "branch",
 ];
 
+const unitOptionsAr = [
+  "قطعة",
+  "جهاز",
+  "كرتون",
+  "عبوة",
+  "صندوق",
+  "طقم",
+  "زوج",
+  "كيلوغرام",
+  "غرام",
+  "متر",
+  "لتر",
+  "زجاجة",
+  "لفة",
+  "فرع",
+];
+
+const unitOptionsTr = [
+  "Adet",
+  "Cihaz",
+  "Koli",
+  "Paket",
+  "Kutu",
+  "Set",
+  "Çift",
+  "kg",
+  "g",
+  "m",
+  "litre",
+  "Şişe",
+  "Rulo",
+  "Dal",
+];
+
 const inputClass =
   "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 
@@ -175,11 +209,28 @@ function Field({ label, children, hint }) {
 export default function Products() {
   const { language, n, money, dir } = useLanguage();
   const fa = language === "fa";
-  const unitOptions = fa ? unitOptionsFa : unitOptionsEn;
+  const unitOptions =
+    language === "fa"
+      ? unitOptionsFa
+      : language === "ar"
+      ? unitOptionsAr
+      : language === "tr"
+      ? unitOptionsTr
+      : unitOptionsEn;
 
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ ...empty, unit: fa ? "عدد" : "pcs" });
+  const [form, setForm] = useState({
+    ...empty,
+    unit:
+      language === "fa"
+        ? "عدد"
+        : language === "ar"
+        ? "قطعة"
+        : language === "tr"
+        ? "Adet"
+        : "pcs",
+  });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");

@@ -184,7 +184,22 @@ img, svg { max-width: 100%; }
 .erp-data-table th { position: sticky; top: 0; background: var(--erp-panel-solid); color: var(--erp-accent); }
 .erp-import-metrics { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 9px; }
 .erp-main :where(input, select, textarea) { min-height: 42px; }
-.erp-main :where(button, [role="button"]) { min-height: 42px; }
+/* App-wide button sizing standard - pages were each hand-styling their
+   own buttons (Tailwind classes like px-4 py-3 vs px-5 py-3, or inline
+   style={{padding:"10px 13px"}}), so the same kind of action ("Save",
+   "Refresh") ended up a visibly different height/font/roundness from
+   page to page. Height/font/radius are forced here since they're safe
+   to unify regardless of button content; padding is intentionally not
+   forced, since small square icon-only buttons (e.g. a 40x40px trash
+   icon in a table row) would overflow/clip if given the same
+   horizontal padding as a labeled "Save" button. */
+.erp-main :where(button, [role="button"]) {
+  min-height: 44px;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  border-radius: 14px !important;
+  box-sizing: border-box;
+}
 @media (max-width: 640px) {
   .erp-import-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp-main :where(.grid) { min-width: 0; }

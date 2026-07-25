@@ -91,9 +91,9 @@ function normalizeParty(item = {}) {
 }
 
 function balanceLabel(balance, language) {
-  if (balance > 0) return language === "fa" ? "بدهکار" : "Debtor";
-  if (balance < 0) return language === "fa" ? "بستانکار" : "Creditor";
-  return language === "fa" ? "تسویه" : "Settled";
+  if (balance > 0) return language === "fa" ? "بدهکار" : language === "ar" ? "مدين" : language === "tr" ? "Borçlu" : "Debtor";
+  if (balance < 0) return language === "fa" ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacaklı" : "Creditor";
+  return language === "fa" ? "تسویه" : language === "ar" ? "مسدد" : language === "tr" ? "Kapandı" : "Settled";
 }
 
 function crmScore(item) {
@@ -124,47 +124,56 @@ function crmRank(score) {
   return { key: "C", color: "text-rose-300", bg: "bg-rose-400/10", border: "border-rose-400/20" };
 }
 
-function crmStatus(item, fa) {
+function crmStatus(item, language) {
+  const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
   const balance = toNumber(item.balance);
   const limit = toNumber(item.credit_limit);
   if (balance > 0 && limit > 0 && balance > limit) {
-    return { key: "over_limit", label: fa ? "بیش از سقف اعتبار" : "Over credit limit", color: "text-rose-300", bg: "bg-rose-500/10" };
+    return { key: "over_limit", label: fa ? "بیش از سقف اعتبار" : ar ? "تجاوز حد الائتمان" : tr ? "Kredi limiti aşıldı" : "Over credit limit", color: "text-rose-300", bg: "bg-rose-500/10" };
   }
   if (balance > 0) {
-    return { key: "debtor", label: fa ? "نیازمند پیگیری" : "Needs follow-up", color: "text-amber-300", bg: "bg-amber-500/10" };
+    return { key: "debtor", label: fa ? "نیازمند پیگیری" : ar ? "بحاجة إلى متابعة" : tr ? "Takip gerekiyor" : "Needs follow-up", color: "text-amber-300", bg: "bg-amber-500/10" };
   }
   if (balance < 0) {
-    return { key: "creditor", label: fa ? "بستانکار" : "Creditor", color: "text-emerald-300", bg: "bg-emerald-500/10" };
+    return { key: "creditor", label: fa ? "بستانکار" : ar ? "دائن" : tr ? "Alacaklı" : "Creditor", color: "text-emerald-300", bg: "bg-emerald-500/10" };
   }
-  return { key: "healthy", label: fa ? "سالم" : "Healthy", color: "text-cyan-300", bg: "bg-cyan-500/10" };
+  return { key: "healthy", label: fa ? "سالم" : ar ? "سليم" : tr ? "Sağlıklı" : "Healthy", color: "text-cyan-300", bg: "bg-cyan-500/10" };
 }
 
-function crmTags(item, fa) {
+function crmTags(item, language) {
+  const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
   const tags = [];
   const type = item.party_type || item.customer_type;
   const balance = toNumber(item.balance);
   const limit = toNumber(item.credit_limit);
 
-  if (type === "vip") tags.push(fa ? "VIP" : "VIP");
-  if (type === "doctor") tags.push(fa ? "پزشک" : "Doctor");
-  if (type === "company") tags.push(fa ? "شرکتی" : "Company");
-  if (type === "supplier") tags.push(fa ? "تأمین‌کننده" : "Supplier");
-  if (balance > 0) tags.push(fa ? "مطالبات" : "Receivable");
-  if (limit > 0) tags.push(fa ? "اعتباری" : "Credit");
-  if (balance > limit && limit > 0) tags.push(fa ? "ریسک" : "Risk");
-  if (item.pending_sync) tags.push(fa ? "آفلاین" : "Offline");
+  if (type === "vip") tags.push(fa ? "VIP" : ar ? "VIP" : tr ? "VIP" : "VIP");
+  if (type === "doctor") tags.push(fa ? "پزشک" : ar ? "طبيب" : tr ? "Doktor" : "Doctor");
+  if (type === "company") tags.push(fa ? "شرکتی" : ar ? "شركة" : tr ? "Şirket" : "Company");
+  if (type === "supplier") tags.push(fa ? "تأمین‌کننده" : ar ? "مورّد" : tr ? "Tedarikçi" : "Supplier");
+  if (balance > 0) tags.push(fa ? "مطالبات" : ar ? "ذمم مدينة" : tr ? "Alacak" : "Receivable");
+  if (limit > 0) tags.push(fa ? "اعتباری" : ar ? "ائتمان" : tr ? "Kredili" : "Credit");
+  if (balance > limit && limit > 0) tags.push(fa ? "ریسک" : ar ? "مخاطرة" : tr ? "Risk" : "Risk");
+  if (item.pending_sync) tags.push(fa ? "آفلاین" : ar ? "غير متصل" : tr ? "Çevrimdışı" : "Offline");
 
   return tags.slice(0, 4);
 }
 
-function followupSuggestion(item, fa) {
+function followupSuggestion(item, language) {
+  const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
   const balance = toNumber(item.balance);
   const limit = toNumber(item.credit_limit);
-  if (balance > 0 && limit > 0 && balance > limit) return fa ? "تماس فوری برای تسویه یا افزایش اعتبار" : "Urgent call for settlement or credit review";
-  if (balance > 0) return fa ? "پیگیری دریافت مطالبات" : "Follow up receivables";
-  if (!item.phone && !item.mobile) return fa ? "تکمیل شماره تماس" : "Complete contact number";
-  if (!item.city && !item.address) return fa ? "تکمیل اطلاعات آدرس" : "Complete address info";
-  return fa ? "حفظ ارتباط و ثبت تعامل بعدی" : "Maintain relationship and log next touchpoint";
+  if (balance > 0 && limit > 0 && balance > limit) return fa ? "تماس فوری برای تسویه یا افزایش اعتبار" : ar ? "اتصال عاجل للتسوية أو مراجعة حد الائتمان" : tr ? "Tahsilat veya kredi limiti gözden geçirmesi için acil arama" : "Urgent call for settlement or credit review";
+  if (balance > 0) return fa ? "پیگیری دریافت مطالبات" : ar ? "متابعة تحصيل الذمم المدينة" : tr ? "Alacak tahsilatını takip et" : "Follow up receivables";
+  if (!item.phone && !item.mobile) return fa ? "تکمیل شماره تماس" : ar ? "استكمال رقم الاتصال" : tr ? "İletişim numarasını tamamla" : "Complete contact number";
+  if (!item.city && !item.address) return fa ? "تکمیل اطلاعات آدرس" : ar ? "استكمال بيانات العنوان" : tr ? "Adres bilgilerini tamamla" : "Complete address info";
+  return fa ? "حفظ ارتباط و ثبت تعامل بعدی" : ar ? "الحفاظ على التواصل وتسجيل التفاعل القادم" : tr ? "İlişkiyi sürdür ve bir sonraki teması kaydet" : "Maintain relationship and log next touchpoint";
 }
 
 
@@ -212,12 +221,20 @@ export default function Customers() {
         setMessage(
           fa
             ? "اتصال به سرور برقرار نشد؛ طرف‌حساب‌ها از حافظه آفلاین نمایش داده شدند."
+            : language === "ar"
+            ? "تعذّر الاتصال بالخادم؛ تم عرض الأطراف من الذاكرة المؤقتة غير المتصلة."
+            : language === "tr"
+            ? "Sunucuya bağlanılamadı; cariler çevrimdışı önbellekten yüklendi."
             : "Server unavailable; parties loaded from offline cache."
         );
       } else {
         setMessage(
           fa
             ? "خطا در دریافت طرف‌حساب‌ها از سرور و کش آفلاین موجود نیست"
+            : language === "ar"
+            ? "خطأ في جلب الأطراف من الخادم ولا توجد ذاكرة مؤقتة غير متصلة"
+            : language === "tr"
+            ? "Cariler sunucudan alınamadı ve çevrimdışı önbellek bulunamadı"
             : "Error loading parties and no offline cache found"
         );
       }
@@ -261,7 +278,7 @@ export default function Customers() {
         acc.totalCreditor += creditorOf(item);
         acc.totalBalance += balanceOf(item);
         const score = crmScore(item);
-        const status = crmStatus(item, fa);
+        const status = crmStatus(item, language);
         if (score >= 85) acc.vipCount += 1;
         if (status.key === "over_limit" || status.key === "debtor") acc.followupCount += 1;
         if (status.key === "over_limit") acc.riskCount += 1;
@@ -270,7 +287,7 @@ export default function Customers() {
       },
       { totalDebtor: 0, totalCreditor: 0, totalBalance: 0, vipCount: 0, followupCount: 0, riskCount: 0, scoreSum: 0 }
     );
-  }, [parties, fa, balanceOf, debtorOf, creditorOf]);
+  }, [parties, language, balanceOf, debtorOf, creditorOf]);
 
   const filtered = useMemo(() => {
     const keyword = toEnglishDigits(search).toLowerCase().trim();
@@ -278,8 +295,8 @@ export default function Customers() {
     const list = parties.filter((item) => {
       const score = crmScore(item);
       const rank = crmRank(score);
-      const status = crmStatus(item, fa);
-      const tags = crmTags(item, fa).join(" ");
+      const status = crmStatus(item, language);
+      const tags = crmTags(item, language).join(" ");
 
       const matchesText = [
         item.name,
@@ -322,7 +339,7 @@ export default function Customers() {
       if (sortMode === "name_asc") return String(a.name || "").localeCompare(String(b.name || ""));
       return 0;
     });
-  }, [parties, search, typeFilter, crmFilter, sortMode, fa, debtorOf, creditorOf]);
+  }, [parties, search, typeFilter, crmFilter, sortMode, language, debtorOf, creditorOf]);
 
   function payloadFromForm() {
     return {
@@ -346,7 +363,7 @@ export default function Customers() {
 
   async function save() {
     if (!form.name.trim()) {
-      alert(fa ? "نام طرف‌حساب را وارد کن" : "Enter party name");
+      alert(fa ? "نام طرف‌حساب را وارد کن" : language === "ar" ? "أدخل اسم الطرف" : language === "tr" ? "Cari adını girin" : "Enter party name");
       return;
     }
 
@@ -398,6 +415,10 @@ export default function Customers() {
       setMessage(
         fa
           ? "سرور در دسترس نبود؛ تغییرات طرف‌حساب در حافظه آفلاین ذخیره شد."
+          : language === "ar"
+          ? "تعذّر الوصول إلى الخادم؛ تم حفظ تغييرات الطرف في وضع عدم الاتصال."
+          : language === "tr"
+          ? "Sunucuya ulaşılamadı; cari değişiklikleri çevrimdışı kaydedildi."
           : "Server unavailable; party changes saved offline."
       );
 
@@ -459,7 +480,13 @@ export default function Customers() {
     await saveCache(updated);
     if (syncedCount > 0) {
       setMessage(
-        fa ? `${toPersianDigits(syncedCount)} طرف‌حساب آفلاین همگام‌سازی شد.` : `${syncedCount} offline customer record(s) synced.`
+        fa
+          ? `${toPersianDigits(syncedCount)} طرف‌حساب آفلاین همگام‌سازی شد.`
+          : language === "ar"
+          ? `تمت مزامنة ${syncedCount} من سجلات العملاء غير المتصلة.`
+          : language === "tr"
+          ? `${syncedCount} çevrimdışı cari kaydı senkronize edildi.`
+          : `${syncedCount} offline customer record(s) synced.`
       );
     }
   }
@@ -561,7 +588,7 @@ export default function Customers() {
       ...filtered.map((item) => {
         const score = crmScore(item);
         const rank = crmRank(score);
-        const status = crmStatus(item, fa);
+        const status = crmStatus(item, language);
         const balance = balanceOf(item);
         return [
           item.id,
@@ -574,7 +601,7 @@ export default function Customers() {
           debtorOf(item),
           creditorOf(item),
           balance,
-          followupSuggestion(item, fa),
+          followupSuggestion(item, language),
         ];
       }),
     ];
@@ -704,6 +731,7 @@ export default function Customers() {
 
       <CrmOverview
         fa={fa}
+        language={language}
         n={n}
         money={money}
         parties={parties}
@@ -938,8 +966,8 @@ export default function Customers() {
                 const creditor = creditorOf(item);
                 const score = crmScore(item);
                 const rank = crmRank(score);
-                const status = crmStatus(item, fa);
-                const tags = crmTags(item, fa);
+                const status = crmStatus(item, language);
+                const tags = crmTags(item, language);
 
                 return (
                   <tr
@@ -1011,7 +1039,7 @@ export default function Customers() {
                     <td className="p-3">
                       <div className="text-xs text-[var(--erp-muted)] mb-2 flex items-center gap-1">
                         <CalendarClock size={13} />
-                        {followupSuggestion(item, fa)}
+                        {followupSuggestion(item, language)}
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Link
@@ -1059,7 +1087,9 @@ export default function Customers() {
 }
 
 
-function CrmOverview({ fa, n, money, parties, summary }) {
+function CrmOverview({ fa, language, n, money, parties, summary }) {
+  const ar = language === "ar";
+  const tr = language === "tr";
   const topCustomers = [...parties]
     .sort((a, b) => crmScore(b) - crmScore(a))
     .slice(0, 4);
@@ -1071,16 +1101,20 @@ function CrmOverview({ fa, n, money, parties, summary }) {
         <div>
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <Activity size={22} />
-            {fa ? "مرکز هوشمند ارتباط با مشتری" : "Customer Intelligence Center"}
+            {fa ? "مرکز هوشمند ارتباط با مشتری" : ar ? "مركز ذكاء علاقات العملاء" : tr ? "Müşteri Zeka Merkezi" : "Customer Intelligence Center"}
           </h2>
           <p className="text-[var(--erp-muted)] text-sm mt-1">
             {fa
               ? "امتیازدهی، اولویت پیگیری، اعتبار و ارزش مشتری‌ها در یک نگاه"
+              : ar
+              ? "تقييم العملاء وأولوية المتابعة والائتمان وقيمة العميل في لمحة واحدة"
+              : tr
+              ? "Müşteri puanlaması, takip önceliği, kredi ve müşteri değeri tek bakışta"
               : "Customer scoring, follow-up priority, credit and customer value at a glance"}
           </p>
         </div>
         <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] px-5 py-3">
-          <div className="text-[var(--erp-muted)] text-xs font-bold">{fa ? "میانگین امتیاز" : "Average score"}</div>
+          <div className="text-[var(--erp-muted)] text-xs font-bold">{fa ? "میانگین امتیاز" : ar ? "متوسط النقاط" : tr ? "Ortalama puan" : "Average score"}</div>
           <div className="text-[var(--erp-accent)] text-2xl font-black">{n(averageScore)}/100</div>
         </div>
       </div>
@@ -1089,14 +1123,14 @@ function CrmOverview({ fa, n, money, parties, summary }) {
         {topCustomers.map((item) => {
           const score = crmScore(item);
           const rank = crmRank(score);
-          const status = crmStatus(item, fa);
+          const status = crmStatus(item, language);
           return (
             <div key={item.id} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="font-black text-[var(--erp-text)] truncate">{item.name || "-"}</div>
                 <span className={`px-2 py-1 rounded-full text-xs font-black ${rank.bg} ${rank.color}`}>{rank.key}</span>
               </div>
-              <div className="text-xs text-[var(--erp-muted)] mb-3">{item.phone || item.mobile || (fa ? "بدون شماره" : "No phone")}</div>
+              <div className="text-xs text-[var(--erp-muted)] mb-3">{item.phone || item.mobile || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
               <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-3">
                 <div className="h-full bg-cyan-400" style={{ width: `${score}%` }} />
               </div>
@@ -1109,7 +1143,7 @@ function CrmOverview({ fa, n, money, parties, summary }) {
         })}
         {topCustomers.length === 0 && (
           <div className="text-[var(--erp-muted)] col-span-full">
-            {fa ? "هنوز مشتری ثبت نشده است." : "No customers yet."}
+            {fa ? "هنوز مشتری ثبت نشده است." : ar ? "لا يوجد عملاء بعد." : tr ? "Henüz müşteri yok." : "No customers yet."}
           </div>
         )}
       </div>
