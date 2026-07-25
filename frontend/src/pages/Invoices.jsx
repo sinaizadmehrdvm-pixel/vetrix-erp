@@ -22,6 +22,7 @@ import {
   Save,
   X,
   ScanBarcode,
+  FileCheck2,
 } from "lucide-react";
 
 import {
@@ -36,6 +37,7 @@ import {
   getPriceQuote,
   lookupProductByCode,
   requestInvoicePaymentLink,
+  submitInvoiceEinvoice,
   getWarehouses,
 } from "../services/api";
 import toast from "react-hot-toast";
@@ -720,6 +722,19 @@ export default function Invoices() {
     }
   }
 
+  async function submitEinvoice(invoice) {
+    try {
+      const result = await submitInvoiceEinvoice(invoice.id);
+      toast.success(
+        fa
+          ? `فاکتور ثبت شد. کد مرجع: ${result.tax_reference}`
+          : `Submitted. Tax reference: ${result.tax_reference}`
+      );
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
+
   const selectedCustomerBalance = Number(
     selectedCustomerLedger?.customer?.balance ?? selectedCustomerLedger?.balance ?? 0
   );
@@ -1167,6 +1182,17 @@ export default function Invoices() {
                           >
                             <CreditCard size={16} />
                             {fa ? "لینک پرداخت" : "Payment link"}
+                          </button>
+                        )}
+
+                        {invoice.invoice_type === "sale" && (
+                          <button
+                            type="button"
+                            onClick={() => submitEinvoice(invoice)}
+                            className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
+                          >
+                            <FileCheck2 size={16} />
+                            {fa ? "ارسال به مودیان" : "Submit e-invoice"}
                           </button>
                         )}
 

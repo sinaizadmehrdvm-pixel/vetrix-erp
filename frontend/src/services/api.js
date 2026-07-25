@@ -222,6 +222,14 @@ export async function requestInvoicePaymentLink(invoiceId) {
   return await request(`/api/payments/invoices/${invoiceId}/request`, { method: "POST" });
 }
 
+// Iran e-invoice (INTA/Modian) submission
+export async function submitInvoiceEinvoice(invoiceId) {
+  return await request(`/api/einvoice/invoices/${invoiceId}/submit`, { method: "POST" });
+}
+export async function getEinvoiceStatus(invoiceId) {
+  return await request(`/api/einvoice/invoices/${invoiceId}/status`);
+}
+
 // Automated overdue payment reminders
 export async function getPaymentReminderStatus() { return await request("/api/payment-reminders/status"); }
 export async function getOverdueInvoices() { return await request("/api/payment-reminders/overdue"); }

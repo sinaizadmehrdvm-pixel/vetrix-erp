@@ -13,6 +13,11 @@ import {
 import { useLanguage } from "../localization/useLanguage";
 import { createExpense, deleteExpense, getExpenses } from "../services/api";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
+import { getCache, setCache } from "../storage/db";
+import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
+import ReceiptScanner from "../components/ReceiptScanner";
+
+const EXPENSES_CACHE_KEY = "expenses";
 
 const inputClass =
   "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
@@ -115,10 +120,18 @@ export default function Expenses() {
       setError("");
 
       const data = await getExpenses();
-      setExpenses(Array.isArray(data) ? data : []);
+      const normalized = Array.isArray(data) ? data : [];
+      setExpenses(normalized);
+      await setCache(EXPENSES_CACHE_KEY, normalized);
     } catch (e) {
       console.error(e);
-      setError(fa ? "خطا در دریافت هزینه‌ها" : "Error loading expenses");
+      const cached = await getCache(EXPENSES_CACHE_KEY);
+      if (Array.isArray(cached) && cached.length) {
+        setExpenses(cached);
+        setError(fa ? "اتصال برقرار نیست؛ داده‌های ذخیره‌شده نمایش داده می‌شود." : "Offline; showing cached expenses.");
+      } else {
+        setError(fa ? "خطا در دریافت هزینه‌ها" : "Error loading expenses");
+      }
     } finally {
       setLoading(false);
     }
@@ -139,14 +152,16 @@ export default function Expenses() {
       return;
     }
 
+    const payload = {
+      title: form.title,
+      category: form.category,
+      amount,
+      note: form.note,
+      expense_date: form.expense_date ? saveDate(form.expense_date) : null,
+    };
+
     try {
-      const result = await createExpense({
-        title: form.title,
-        category: form.category,
-        amount,
-        note: form.note,
-        expense_date: form.expense_date ? saveDate(form.expense_date) : null,
-      });
+      const result = await createExpense(payload);
 
       if (result?.status === "error") {
         throw new Error(result.message);
@@ -162,15 +177,92 @@ export default function Expenses() {
 
       await load();
     } catch (e) {
-      alert(e.message || (fa ? "خطا در ثبت هزینه" : "Error creating expense"));
+      console.error("Create expense error:", e);
+
+      const offlineExpense = {
+        ...payload,
+        id: Date.now(),
+        created_at: new Date().toISOString(),
+        pending_sync: true,
+        offline_created: true,
+      };
+
+      const next = [offlineExpense, ...(Array.isArray(expenses) ? expenses : [])];
+      setExpenses(next);
+      await setCache(EXPENSES_CACHE_KEY, next);
+
+      setForm({ title: "", category: "", amount: "", expense_date: "", note: "" });
+      setError(fa ? "سرور در دسترس نبود؛ هزینه در حافظه آفلاین ذخیره شد." : "Server unavailable; expense saved offline.");
     }
+  }
+
+  function extractExpensePayload(item) {
+    return {
+      title: item.title,
+      category: item.category,
+      amount: toNumber(item.amount),
+      note: item.note,
+      expense_date: item.expense_date || null,
+    };
+  }
+
+  function mergeExpenseResult(item, serverResult, payload) {
+    return {
+      ...item,
+      ...payload,
+      id: item.offline_created ? serverResult?.id || item.id : item.id,
+      pending_sync: false,
+      offline_created: false,
+    };
+  }
+
+  async function createExpenseForSync(payload) {
+    const result = await createExpense(payload);
+    if (result?.status === "error") throw new Error(result.message || "sync failed");
+    return result;
+  }
+
+  async function syncPendingExpenses() {
+    if (countPending(expenses) === 0) return;
+    const { items: updated, syncedCount } = await syncPendingRecords(expenses, {
+      extractPayload: extractExpensePayload,
+      create: createExpenseForSync,
+      update: async () => { throw new Error("expenses are never offline-updated"); },
+      mergeResult: mergeExpenseResult,
+    });
+    setExpenses(updated);
+    await setCache(EXPENSES_CACHE_KEY, updated);
+    if (syncedCount > 0) {
+      setError("");
+    }
+  }
+
+  useOnlineSync(syncPendingExpenses);
+
+  function applyScannedExpense(items) {
+    if (!items?.length) return;
+    const total = items.reduce((sum, item) => sum + toNumber(item.total || item.unit_price), 0);
+    const title = items.map((item) => item.description).filter(Boolean).join(", ");
+    setForm((current) => ({
+      ...current,
+      title: faText(title || current.title, fa),
+      amount: normalizeAmount(String(total || current.amount), fa),
+    }));
   }
 
   async function removeExpense(id) {
     if (!confirm(fa ? "این هزینه حذف شود؟" : "Delete this expense?")) return;
 
-    await deleteExpense(id);
-    await load();
+    try {
+      await deleteExpense(id);
+      await load();
+    } catch (e) {
+      console.error("Delete expense error:", e);
+      const filtered = expenses.filter((item) => String(item.id) !== String(id));
+      setExpenses(filtered);
+      await setCache(EXPENSES_CACHE_KEY, filtered);
+      setError(fa ? "سرور در دسترس نبود؛ هزینه فقط از حافظه آفلاین حذف شد." : "Server unavailable; expense removed from offline cache only.");
+    }
   }
 
   const filtered = useMemo(() => {
@@ -192,14 +284,25 @@ export default function Expenses() {
           <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
-        <button
-          onClick={load}
-          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
-        >
-          <RefreshCw size={18} />
-          {label.refresh}
-        </button>
+        <div className="flex items-center gap-2">
+          <ReceiptScanner onApply={applyScannedExpense} />
+          <button
+            onClick={load}
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
+          >
+            <RefreshCw size={18} />
+            {label.refresh}
+          </button>
+        </div>
       </div>
+
+      {countPending(expenses) > 0 && (
+        <div className="bg-amber-500/15 border border-amber-400/30 text-amber-100 rounded-2xl p-4 text-sm">
+          {fa
+            ? `${toPersianDigits(countPending(expenses))} هزینه آفلاین در انتظار همگام‌سازی است.`
+            : `${countPending(expenses)} offline expense(s) waiting to sync.`}
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/15 border border-red-400/30 text-red-200 rounded-2xl p-4 flex items-center gap-2">
@@ -332,6 +435,9 @@ export default function Expenses() {
                   <div>
                     <h3 className="font-bold text-lg">
                       {faText(expense.title, fa)}
+                      {expense.pending_sync && (
+                        <span className="mx-2 text-xs text-amber-300">{fa ? "آفلاین" : "Offline"}</span>
+                      )}
                     </h3>
 
                     <div className="text-[var(--erp-muted)] text-sm">
