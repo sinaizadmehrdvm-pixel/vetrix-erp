@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Receipt } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 
 const STATUS_LABELS = {
@@ -12,11 +13,8 @@ function statusLabel(value, fa) {
 }
 
 export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
-  const { t, money, dir, language } = useLanguage();
-  const fa = language === "fa";
-
-  const gridColumns =
-    dir === "rtl" ? "64px 84px 1fr 96px" : "96px 1fr 84px 64px";
+  const { t, n, money, dir } = useLanguage();
+  const fa = dir === "rtl";
 
   return (
     <div
@@ -54,76 +52,57 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
           <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noInvoices")}</p>
         </div>
       ) : (
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: gridColumns,
-              gap: 10,
-              paddingBottom: 10,
-              color: "var(--erp-accent)",
-              fontWeight: 900,
-              borderBottom: "1px solid var(--erp-border)",
-              textAlign: dir === "rtl" ? "right" : "left",
-            }}
-          >
-            {dir === "rtl" ? (
-              <>
-                <span>{t("status")}</span>
-                <span>{t("total")}</span>
-                <span>{t("customer")}</span>
-                <span>ID</span>
-              </>
-            ) : (
-              <>
-                <span>ID</span>
-                <span>{t("customer")}</span>
-                <span>{t("total")}</span>
-                <span>{t("status")}</span>
-              </>
-            )}
-          </div>
-
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
           {invoices.map((invoice) => {
-            const id = `#${invoice.id}`;
             const customer = invoice.customer || invoice.customer_name || "-";
             const total = money(invoice.total || invoice.total_amount || 0);
             const status = statusLabel(invoice.status, fa);
-            const ellipsisStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
             return (
               <div
                 key={invoice.id}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: gridColumns,
-                  gap: 10,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--erp-border)",
-                  color: "var(--erp-text)",
-                  textAlign: dir === "rtl" ? "right" : "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "var(--erp-panel-solid)",
                   minWidth: 0,
                 }}
               >
-                {dir === "rtl" ? (
-                  <>
-                    <span style={{ color: "#22c55e", fontWeight: 900, ...ellipsisStyle }}>
-                      {status}
-                    </span>
-                    <span style={{ fontWeight: 700 }}>{total}</span>
-                    <span style={ellipsisStyle}>{customer}</span>
-                    <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
-                  </>
-                ) : (
-                  <>
-                    <strong style={{ color: "var(--erp-accent)" }}>{id}</strong>
-                    <span style={ellipsisStyle}>{customer}</span>
-                    <span style={{ fontWeight: 700 }}>{total}</span>
-                    <span style={{ color: "#22c55e", fontWeight: 900, ...ellipsisStyle }}>
-                      {status}
-                    </span>
-                  </>
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      minWidth: 40,
+                      borderRadius: 12,
+                      background: "var(--erp-glow)",
+                      color: "var(--erp-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Receipt size={18} />
+                  </div>
+                  <div style={{ minWidth: 0, textAlign: dir === "rtl" ? "right" : "left" }}>
+                    <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {fa ? `فاکتور شماره ${n(invoice.id)}` : `Invoice #${n(invoice.id)}`}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--erp-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {customer}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: dir === "rtl" ? "left" : "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{total}</div>
+                  <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 700, whiteSpace: "nowrap" }}>{status}</div>
+                </div>
               </div>
             );
           })}

@@ -1,14 +1,10 @@
 import { Link } from "react-router-dom";
+import { Package } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 
 export default function TopProducts({ products = [], to = "/products" }) {
   const { t, n, money, dir } = useLanguage();
   const fa = dir === "rtl";
-
-  const gridColumns =
-    dir === "rtl" ? "110px 90px 1fr" : "1fr 90px 110px";
-
-  const nameCellStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
   return (
     <div
@@ -46,34 +42,7 @@ export default function TopProducts({ products = [], to = "/products" }) {
           <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noProducts")}</p>
         </div>
       ) : (
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: gridColumns,
-              gap: 12,
-              paddingBottom: 10,
-              color: "var(--erp-accent)",
-              fontWeight: 900,
-              borderBottom: "1px solid var(--erp-border)",
-              textAlign: dir === "rtl" ? "right" : "left",
-            }}
-          >
-            {dir === "rtl" ? (
-              <>
-                <span>{t("sell")}</span>
-                <span>{t("stock")}</span>
-                <span>{t("product")}</span>
-              </>
-            ) : (
-              <>
-                <span>{t("product")}</span>
-                <span>{t("stock")}</span>
-                <span>{t("sell")}</span>
-              </>
-            )}
-          </div>
-
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 10 }}>
           {products.map((p, index) => {
             const name = p.name || "-";
             const stock = n(p.stock || 0);
@@ -83,29 +52,44 @@ export default function TopProducts({ products = [], to = "/products" }) {
               <div
                 key={p.id || index}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: gridColumns,
-                  gap: 12,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--erp-border)",
-                  textAlign: dir === "rtl" ? "right" : "left",
+                  display: "flex",
                   alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "var(--erp-panel-solid)",
                   minWidth: 0,
                 }}
               >
-                {dir === "rtl" ? (
-                  <>
-                    <span style={{ fontWeight: 700 }}>{price}</span>
-                    <span>{stock}</span>
-                    <strong style={nameCellStyle}>{name}</strong>
-                  </>
-                ) : (
-                  <>
-                    <strong style={nameCellStyle}>{name}</strong>
-                    <span>{stock}</span>
-                    <span style={{ fontWeight: 700 }}>{price}</span>
-                  </>
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      minWidth: 40,
+                      borderRadius: 12,
+                      background: "var(--erp-glow)",
+                      color: "var(--erp-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Package size={18} />
+                  </div>
+                  <div style={{ minWidth: 0, textAlign: dir === "rtl" ? "right" : "left" }}>
+                    <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {name}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--erp-muted)", whiteSpace: "nowrap" }}>
+                      {t("stock")}: {stock}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>{price}</div>
               </div>
             );
           })}
