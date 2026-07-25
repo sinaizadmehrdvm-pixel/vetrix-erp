@@ -3,22 +3,32 @@ import moment from "moment-jalaali";
 import { useLanguage } from "../localization/useLanguage";
 import CalendarWidget from "./CalendarWidget";
 import DayDetailsCard from "./DayDetailsCard";
+import { fixedJalaliOccasionFor, fixedHijriOccasionFor } from "../localization/occasions";
+import { toHijri } from "../utils/hijri";
 
 function todayDateInfo() {
   const now = moment();
   const weekdayIndex = (now.day() + 1) % 7; // Saturday-first, matches CalendarWidget
+  const gDate = now.toDate();
+  const gYear = gDate.getFullYear();
+  const gMonth = gDate.getMonth() + 1;
+  const gDay = gDate.getDate();
+  const hijri = toHijri(gYear, gMonth, gDay);
+  const occasions = [
+    fixedJalaliOccasionFor(now.jMonth() + 1, now.jDate()),
+    fixedHijriOccasionFor(hijri.month, hijri.day),
+  ].filter(Boolean);
   return {
     key: `${now.jYear()}-${now.jMonth()}-${now.jDate()}`,
     dateInfo: {
       jYear: now.jYear(),
       jMonth: now.jMonth() + 1,
       jDay: now.jDate(),
-      gYear: now.toDate().getFullYear(),
-      gMonth: now.toDate().getMonth() + 1,
-      gDay: now.toDate().getDate(),
+      gYear, gMonth, gDay,
+      hYear: hijri.year, hMonth: hijri.month, hDay: hijri.day,
       weekdayIndex,
       isToday: true,
-      occasion: null,
+      occasions,
     },
   };
 }
@@ -49,7 +59,7 @@ export default function CalendarSection() {
           onSelectDay={handleSelectDay}
         />
       </div>
-      <div style={{ width: 220, flexShrink: 0 }}>
+      <div style={{ width: 240, flexShrink: 0 }}>
         <DayDetailsCard dateInfo={selectedDateInfo} />
       </div>
     </div>

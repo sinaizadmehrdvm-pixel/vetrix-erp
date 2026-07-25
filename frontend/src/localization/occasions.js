@@ -1,12 +1,17 @@
-// A deliberately small, high-confidence set of Iranian national
-// occasions that fall on a *fixed* solar (Jalali) calendar date every
-// year - Nowruz, Nature Day, the Revolution anniversary, etc. Lunar
-// Hijri-calendar occasions (Eid al-Fitr, Ashura, Tasua, ...) shift by
-// ~11 days each Jalali year and are deliberately left out: converting
-// them correctly requires a verified Hijri<->Jalali table this app
-// doesn't have, and showing a wrong religious/national holiday date
-// in a business tool is worse than showing none. Keyed as "month-day"
-// with a 1-based Jalali month.
+// Two small, curated occasion lists - deliberately NOT an exhaustive
+// database, to avoid ever asserting a wrong date in a business tool.
+//
+// 1) Iranian national occasions on a *fixed* solar (Jalali) date -
+//    Nowruz, Nature Day, the Revolution anniversary, etc. These need
+//    no calendar conversion at all, so there's no accuracy concern.
+//
+// 2) Well-established Shia/Iranian occasions on a *fixed* Hijri
+//    (lunar) date - Ashura, Eid al-Fitr, etc. These are exact on the
+//    Hijri calendar itself; the only uncertainty is the Gregorian/
+//    Jalali -> Hijri conversion (see utils/hijri.js), which - like
+//    every calculated Hijri calendar - can differ by a day from a
+//    given country's officially observed date. Shown with an
+//    "approximate" label for that reason.
 export const FIXED_JALALI_OCCASIONS = {
   "1-1": { fa: "جشن نوروز", en: "Nowruz (Persian New Year)" },
   "1-2": { fa: "تعطیلات نوروز", en: "Nowruz holiday" },
@@ -22,6 +27,28 @@ export const FIXED_JALALI_OCCASIONS = {
   "12-29": { fa: "روز ملی شدن صنعت نفت", en: "Oil Industry Nationalization Day" },
 };
 
-export function fixedOccasionFor(jMonth1Based, jDay) {
+// Keyed "hijriMonth-hijriDay" (1-based month, 1 = Muharram).
+export const FIXED_HIJRI_OCCASIONS = {
+  "1-1": { fa: "آغاز سال نو قمری", en: "Islamic New Year" },
+  "1-9": { fa: "تاسوعای حسینی", en: "Tasua" },
+  "1-10": { fa: "عاشورای حسینی", en: "Ashura" },
+  "2-20": { fa: "اربعین حسینی", en: "Arbaeen" },
+  "2-28": { fa: "رحلت پیامبر اکرم (ص) و شهادت امام حسن مجتبی (ع)", en: "Passing of the Prophet & martyrdom of Imam Hasan" },
+  "3-17": { fa: "میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)", en: "Birth of the Prophet & Imam Ja'far al-Sadiq" },
+  "7-13": { fa: "میلاد امام علی (ع)", en: "Birth of Imam Ali" },
+  "7-27": { fa: "مبعث پیامبر اکرم (ص)", en: "Mab'ath of the Prophet" },
+  "8-15": { fa: "میلاد امام زمان (عج)", en: "Birth of Imam Mahdi" },
+  "9-21": { fa: "شهادت امام علی (ع)", en: "Martyrdom of Imam Ali" },
+  "10-1": { fa: "عید فطر", en: "Eid al-Fitr" },
+  "12-9": { fa: "روز عرفه", en: "Day of Arafah" },
+  "12-10": { fa: "عید قربان", en: "Eid al-Adha" },
+  "12-18": { fa: "عید غدیر خم", en: "Eid al-Ghadir" },
+};
+
+export function fixedJalaliOccasionFor(jMonth1Based, jDay) {
   return FIXED_JALALI_OCCASIONS[`${jMonth1Based}-${jDay}`] || null;
+}
+
+export function fixedHijriOccasionFor(hMonth1Based, hDay) {
+  return FIXED_HIJRI_OCCASIONS[`${hMonth1Based}-${hDay}`] || null;
 }

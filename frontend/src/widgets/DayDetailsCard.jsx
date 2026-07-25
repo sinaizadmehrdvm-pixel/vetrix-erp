@@ -1,5 +1,6 @@
 import { PartyPopper, Sparkles } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import { HIJRI_MONTHS_FA, HIJRI_MONTHS_EN } from "../utils/hijri";
 
 const JALALI_MONTHS_FA = [
   "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
@@ -22,9 +23,19 @@ export default function DayDetailsCard({ dateInfo }) {
   const bigDay = fa ? dateInfo.jDay : dateInfo.gDay;
   const bigMonth = fa ? JALALI_MONTHS_FA[dateInfo.jMonth - 1] : GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1];
   const bigYear = fa ? dateInfo.jYear : dateInfo.gYear;
-  const otherCalendarLabel = fa
-    ? `${dateInfo.gDay} ${GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1]} ${dateInfo.gYear}`
-    : `${dateInfo.jDay} ${JALALI_MONTHS_FA[dateInfo.jMonth - 1]} ${dateInfo.jYear}`;
+
+  const hijriMonth = fa ? HIJRI_MONTHS_FA[dateInfo.hMonth - 1] : HIJRI_MONTHS_EN[dateInfo.hMonth - 1];
+  const otherCalendars = fa
+    ? [
+        { label: "میلادی", value: `${dateInfo.gDay} ${GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1]} ${dateInfo.gYear}` },
+        { label: "قمری", value: `${n(dateInfo.hDay)} ${hijriMonth} ${n(dateInfo.hYear)}` },
+      ]
+    : [
+        { label: "Jalali", value: `${dateInfo.jDay} ${JALALI_MONTHS_FA[dateInfo.jMonth - 1]} ${dateInfo.jYear}` },
+        { label: "Hijri", value: `${dateInfo.hDay} ${hijriMonth} ${dateInfo.hYear}` },
+      ];
+
+  const occasions = dateInfo.occasions || (dateInfo.occasion ? [dateInfo.occasion] : []);
 
   return (
     <div
@@ -54,35 +65,43 @@ export default function DayDetailsCard({ dateInfo }) {
 
       <div
         style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
           fontSize: 12,
           color: "var(--erp-muted)",
-          textAlign: "center",
           paddingTop: 10,
           borderTop: "1px solid var(--erp-border)",
-          marginBottom: dateInfo.occasion ? 12 : 0,
+          marginBottom: occasions.length > 0 ? 12 : 0,
         }}
       >
-        {fa ? "تقویم دیگر: " : "Other calendar: "}
-        {otherCalendarLabel}
+        {otherCalendars.map((entry) => (
+          <div key={entry.label} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontWeight: 700 }}>{entry.label}</span>
+            <span>{entry.value}</span>
+          </div>
+        ))}
       </div>
 
-      {dateInfo.occasion && (
-        <div
-          style={{
-            marginTop: "auto",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            background: "var(--erp-glow)",
-            border: "1px solid var(--erp-border)",
-            borderRadius: 14,
-            padding: 12,
-          }}
-        >
-          <PartyPopper size={16} color="var(--erp-accent)" style={{ flexShrink: 0, marginTop: 1 }} />
-          <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>
-            {fa ? dateInfo.occasion.fa : dateInfo.occasion.en}
-          </div>
+      {occasions.length > 0 && (
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+          {occasions.map((occasion, index) => (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                background: "var(--erp-glow)",
+                border: "1px solid var(--erp-border)",
+                borderRadius: 14,
+                padding: 12,
+              }}
+            >
+              <PartyPopper size={16} color="var(--erp-accent)" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{fa ? occasion.fa : occasion.en}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
