@@ -29,6 +29,11 @@ export default function StatsCard({
           direction: language === "fa" ? "rtl" : "ltr",
           textDecoration: "none",
           cursor: to ? "pointer" : "default",
+          // Makes the value font size react to this card's own width
+          // instead of the viewport - in an auto-fit grid, growing the
+          // window adds more columns rather than widening each card, so
+          // a vw-based size overshoots badly and forces awkward wrapping.
+          containerType: "inline-size",
         }}
       >
         <div
@@ -54,11 +59,12 @@ export default function StatsCard({
 
           <div
             style={{
-              fontSize: "clamp(16px, 2.3vw, 30px)",
+              fontSize: "clamp(15px, 8.5cqi, 28px)",
               fontWeight: "bold",
-              letterSpacing: 0.5,
-              lineHeight: 1.25,
-              overflowWrap: "anywhere",
+              letterSpacing: 0.3,
+              lineHeight: 1.3,
+              wordBreak: "keep-all",
+              overflowWrap: "normal",
               color: "var(--erp-text)",
             }}
           >
