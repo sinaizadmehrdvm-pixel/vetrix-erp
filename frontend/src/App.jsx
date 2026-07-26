@@ -15,6 +15,7 @@ const Products = lazy(() => import("./pages/Products"));
 const ProductCategories = lazy(() => import("./pages/ProductCategories"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const InvoicePrint = lazy(() => import("./pages/InvoicePrint"));
+const InvoicePrintChoose = lazy(() => import("./pages/InvoicePrintChoose"));
 const Warehouse = lazy(() => import("./pages/Warehouse"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Payments = lazy(() => import("./pages/Payments"));
@@ -140,7 +141,8 @@ function AppContent() {
           <Route path="products" element={<Products />} />
           <Route path="product-categories" element={<ProductCategories />} />
           <Route path="invoices" element={<Invoices />} />
-          <Route path="invoice-print/:id" element={<InvoicePrint />} />
+          <Route path="invoice-print/:id" element={<InvoicePrintChoose />} />
+          <Route path="invoice-print/:id/edit" element={<InvoicePrint />} />
           <Route path="warehouse" element={<Warehouse />} />
           <Route path="smart-inventory" element={<SmartInventory />} />
           <Route path="transactions" element={<Transactions />} />

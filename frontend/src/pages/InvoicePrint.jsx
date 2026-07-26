@@ -17,141 +17,23 @@ import {
 import { useLanguage } from "../localization/useLanguage";
 import { getCache } from "../storage/db";
 import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
-
-const INVOICES_CACHE_KEY = "invoices";
-
-const PAGE_SIZES = {
-  A4: { w: 794, h: 1123, label: "A4" },
-  A5: { w: 559, h: 794, label: "A5" },
-  THERMAL80: { w: 302, h: 980, label: "Thermal 80" },
-  THERMAL58: { w: 220, h: 980, label: "Thermal 58" },
-};
-
-const defaultConfig = {
-  page_size: "A4",
-  theme: { primary: "#0f172a", accent: "#06b6d4" },
-  elements: [
-    { id: "title", type: "text", label: "عنوان فاکتور", text: "{{invoice_title}}", x: 540, y: 45, w: 190, h: 45, fontSize: 24, color: "#0f172a", bg: "#ffffff", border: "#ffffff", radius: 10, align: "center", bold: true },
-    { id: "logo", type: "logo", label: "لوگو", text: "LOGO", x: 55, y: 40, w: 120, h: 65, fontSize: 18, color: "#0891b2", bg: "#ecfeff", border: "#bae6fd", radius: 16, align: "center", bold: true },
-    { id: "company", type: "text", label: "نام شرکت", text: "Vetrix ERP\nسیستم حسابداری و مدیریت فروش", x: 190, y: 45, w: 300, h: 75, fontSize: 18, color: "#0891b2", bg: "#ffffff", border: "#ffffff", radius: 8, align: "center", bold: true },
-    { id: "invoiceInfo", type: "box", label: "اطلاعات فاکتور", text: "شماره: {{invoice_id}}\nتاریخ: {{invoice_date}}\nوضعیت: {{payment_status}}", x: 520, y: 120, w: 220, h: 90, fontSize: 13, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "customer", type: "box", label: "طرف حساب", text: "طرف حساب\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", x: 55, y: 145, w: 400, h: 95, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "table", type: "table", label: "جدول اقلام", text: "جدول اقلام فاکتور", x: 55, y: 275, w: 685, h: 265, fontSize: 13, color: "#0f172a", bg: "#ffffff", border: "#94a3b8", radius: 10, align: "center", bold: true },
-    { id: "totals", type: "totals", label: "جمع فاکتور", text: "جمع فاکتور", x: 55, y: 570, w: 300, h: 160, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "qr", type: "qr", label: "QR Code", text: "QR", x: 590, y: 600, w: 105, h: 105, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "note", type: "box", label: "توضیحات", text: "توضیحات\n{{invoice_note}}", x: 55, y: 760, w: 685, h: 75, fontSize: 13, color: "#334155", bg: "#ffffff", border: "#e2e8f0", radius: 12, align: "right", bold: false },
-    { id: "signature", type: "box", label: "امضا", text: "امضاء فروشنده / حسابدار", x: 55, y: 900, w: 250, h: 85, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "stamp", type: "box", label: "مهر", text: "مهر شرکت / امضاء طرف حساب", x: 490, y: 900, w: 250, h: 85, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "footer", type: "text", label: "متن پایین", text: "با تشکر از اعتماد شما", x: 250, y: 1035, w: 300, h: 35, fontSize: 13, color: "#334155", bg: "transparent", border: "transparent", radius: 0, align: "center", bold: true },
-  ],
-};
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-function toNumber(value) {
-  const cleaned = String(value ?? "0")
-    .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-    .replace(/[,،]/g, "")
-    .replace(/[^\d.-]/g, "");
-  const num = Number(cleaned);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function getInvoiceItems(invoice) {
-  if (Array.isArray(invoice?.items)) return invoice.items;
-  if (Array.isArray(invoice?.invoice_items)) return invoice.invoice_items;
-  if (Array.isArray(invoice?.details)) return invoice.details;
-  return [];
-}
-
-function normalizeConfig(config) {
-  const source = config && typeof config === "object" ? config : defaultConfig;
-  return {
-    ...defaultConfig,
-    ...source,
-    theme: { ...defaultConfig.theme, ...(source.theme || {}) },
-    elements: Array.isArray(source.elements) && source.elements.length ? source.elements : defaultConfig.elements,
-  };
-}
-
-function getInvoiceTitle(invoice, language) {
-  const type = invoice?.invoice_type || invoice?.type || "sale";
-  const labels = {
-    fa: {
-      sale: "فاکتور فروش",
-      buy: "فاکتور خرید",
-      proforma: "پیش‌فاکتور",
-      return_sale: "مرجوعی فروش",
-      return_buy: "مرجوعی خرید",
-    },
-    ar: {
-      sale: "فاتورة مبيعات",
-      buy: "فاتورة مشتريات",
-      proforma: "فاتورة أولية",
-      return_sale: "مرتجع مبيعات",
-      return_buy: "مرتجع مشتريات",
-    },
-    tr: {
-      sale: "Satış Faturası",
-      buy: "Alış Faturası",
-      proforma: "Proforma Fatura",
-      return_sale: "Satış İadesi",
-      return_buy: "Alış İadesi",
-    },
-    en: {
-      sale: "Sales Invoice",
-      buy: "Purchase Invoice",
-      proforma: "Proforma Invoice",
-      return_sale: "Sales Return",
-      return_buy: "Purchase Return",
-    },
-  };
-  const map = labels[language] || labels.en;
-  const fallback = { fa: "فاکتور", ar: "فاتورة", tr: "Fatura", en: "Invoice" }[language] || "Invoice";
-  return invoice?.invoice_type_label || map[type] || fallback;
-}
-
-function paymentLabel(status, language) {
-  const key = String(status || "unpaid").toLowerCase();
-  const labels = {
-    fa: {
-      paid: "تسویه شده",
-      unpaid: "تسویه نشده",
-      partial: "تسویه ناقص",
-      draft: "پیش‌نویس",
-      final: "نهایی",
-    },
-    ar: {
-      paid: "مسدد",
-      unpaid: "غير مسدد",
-      partial: "مسدد جزئيًا",
-      draft: "مسودة",
-      final: "نهائي",
-    },
-    tr: {
-      paid: "Ödendi",
-      unpaid: "Ödenmedi",
-      partial: "Kısmi Ödendi",
-      draft: "Taslak",
-      final: "Kesin",
-    },
-    en: {
-      paid: "Paid",
-      unpaid: "Unpaid",
-      partial: "Partial",
-      draft: "Draft",
-      final: "Final",
-    },
-  };
-  const map = labels[language] || labels.en;
-  return map[key] || key || "-";
-}
+import {
+  PAGE_SIZES,
+  buildDefaultConfig,
+  defaultTemplateName,
+  normalizeConfig,
+  getInvoiceItems,
+  computeInvoiceTotals,
+  buildReplaceTokens,
+} from "./invoicePrintHelpers";
+import { Canvas, PrintElement } from "./invoicePrintComponents";
 
 function snap(value) {
   return Math.round(Number(value || 0) / 10) * 10;
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 export default function InvoicePrint({ invoice: propInvoice = null }) {
@@ -162,10 +44,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const [cachedInvoice, setCachedInvoice] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
-  const [templateName, setTemplateName] = useState(
-    fa ? "قالب چاپ فاکتور" : language === "ar" ? "قالب طباعة الفاتورة" : language === "tr" ? "Fatura Yazdırma Şablonu" : "Invoice print template"
-  );
-  const [config, setConfig] = useState(defaultConfig);
+  const [templateName, setTemplateName] = useState(() => defaultTemplateName(language));
+  const [config, setConfig] = useState(() => buildDefaultConfig(language));
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [editMode, setEditMode] = useState(true);
   const [drag, setDrag] = useState(null);
@@ -180,20 +60,23 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const page = PAGE_SIZES[config.page_size] || PAGE_SIZES.A4;
   const selectedElement = config.elements.find((el) => el.id === selectedElementId) || null;
 
-  const totals = useMemo(() => {
-    const subtotal =
-      invoice?.subtotal ??
-      items.reduce((sum, item) => sum + toNumber(item.quantity) * toNumber(item.unit_price ?? item.price), 0);
+  const totals = useMemo(() => computeInvoiceTotals(invoice, items), [invoice, items]);
 
-    const discount = toNumber(invoice?.discount ?? invoice?.discount_amount);
-    const tax = toNumber(invoice?.tax ?? invoice?.tax_amount);
-    const shipping = toNumber(invoice?.shipping_cost);
-    const total = invoice?.total_amount ?? invoice?.total ?? subtotal - discount + tax + shipping;
-    const settled = toNumber(invoice?.settled_amount ?? invoice?.paid_amount ?? invoice?.received_amount);
-    const remaining = Math.max(toNumber(invoice?.remaining_amount ?? total - settled), 0);
-
-    return { subtotal, discount, tax, shipping, total, settled, remaining };
-  }, [invoice, items]);
+  // Keep the quick "default template" in sync with the active language -
+  // without this, switching the app language while already on this page
+  // left the template name and every element's default text stuck in
+  // whatever language was active when the component first mounted.
+  // Resynced during render (React's documented pattern for this) rather
+  // than in an effect, which would cause an extra render pass.
+  const [syncedLanguage, setSyncedLanguage] = useState(language);
+  if (language !== syncedLanguage) {
+    setSyncedLanguage(language);
+    if (selectedTemplateId === "default") {
+      setConfig(buildDefaultConfig(language));
+      setTemplateName(defaultTemplateName(language));
+      setSelectedElementId("title");
+    }
+  }
 
   useEffect(() => {
     async function loadInvoiceDetails() {
@@ -209,7 +92,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         console.error("Invoice fetch error:", e);
       }
       try {
-        const cached = await getCache(INVOICES_CACHE_KEY);
+        const cached = await getCache("invoices");
         if (Array.isArray(cached)) {
           const found = cached.find((x) => String(x.id) === String(id));
           setCachedInvoice(found || null);
@@ -224,6 +107,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   useEffect(() => {
     const timer = setTimeout(() => { void loadTemplates(); }, 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadTemplates() {
@@ -232,7 +116,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       const data = await getPdfTemplates();
       const normalized = (Array.isArray(data) ? data : []).map((tpl) => ({
         ...tpl,
-        config: normalizeConfig(tpl.config),
+        config: normalizeConfig(tpl.config, language),
       }));
       setTemplates(normalized);
     } catch (err) {
@@ -244,7 +128,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   function updateConfig(nextConfig) {
-    setConfig(normalizeConfig(nextConfig));
+    setConfig(normalizeConfig(nextConfig, language));
   }
 
   function updateElement(id, patch) {
@@ -258,10 +142,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setSelectedTemplateId(templateId);
 
     if (templateId === "default") {
-      setTemplateName(
-        fa ? "قالب چاپ فاکتور" : language === "ar" ? "قالب طباعة الفاتورة" : language === "tr" ? "Fatura Yazdırma Şablonu" : "Invoice print template"
-      );
-      updateConfig(defaultConfig);
+      setTemplateName(defaultTemplateName(language));
+      updateConfig(buildDefaultConfig(language));
       setSelectedElementId("title");
       setMessage(
         fa
@@ -281,7 +163,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setTemplateName(
       template.name || (fa ? "قالب چاپ" : language === "ar" ? "قالب الطباعة" : language === "tr" ? "Yazdırma Şablonu" : "Print template")
     );
-    updateConfig(template.config || defaultConfig);
+    updateConfig(template.config || buildDefaultConfig(language));
     setSelectedElementId((template.config?.elements || [])[0]?.id || "title");
     setMessage(
       fa
@@ -329,10 +211,15 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
   function duplicateElement() {
     if (!selectedElement) return;
+    const copyLabel =
+      fa ? `${selectedElement.label || selectedElement.type} کپی`
+      : language === "ar" ? `نسخة ${selectedElement.label || selectedElement.type}`
+      : language === "tr" ? `${selectedElement.label || selectedElement.type} Kopyası`
+      : `${selectedElement.label || selectedElement.type} copy`;
     const copy = {
       ...clone(selectedElement),
       id: `${selectedElement.id}_copy_${Date.now()}`,
-      label: `${selectedElement.label || selectedElement.type} کپی`,
+      label: copyLabel,
       x: selectedElement.x + 20,
       y: selectedElement.y + 20,
     };
@@ -406,68 +293,10 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setResize(null);
   }
 
-  function replaceTokens(text) {
-    const notRegistered =
-      fa ? "ثبت نشده" : language === "ar" ? "غير مسجل" : language === "tr" ? "Kayıtlı değil" : "Not registered";
-    const customerName = invoice?.customerName || invoice?.customer_name || invoice?.customer?.name || "-";
-    const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || notRegistered;
-    const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || notRegistered;
-    const invoiceDate = date(invoice?.created_at || new Date(), { month: "long" });
-    const invoiceTitle = getInvoiceTitle(invoice, language);
-    const status = paymentLabel(invoice?.payment_status || invoice?.status, language);
-
-    const tokens = {
-      "{{invoice_title}}": invoiceTitle,
-      "{{invoice_id}}": `#${n(invoice?.id || "")}`,
-      "{{invoice_date}}": invoiceDate,
-      "{{payment_status}}": status,
-      "{{customer_name}}": customerName,
-      "{{customer_phone}}": customerPhone,
-      "{{customer_address}}": customerAddress,
-      "{{subtotal}}": money(totals.subtotal),
-      "{{discount}}": money(totals.discount),
-      "{{tax}}": money(totals.tax),
-      "{{shipping}}": money(totals.shipping),
-      "{{total}}": money(totals.total),
-      "{{settled}}": money(totals.settled),
-      "{{remaining}}": money(totals.remaining),
-      "{{invoice_note}}": invoice?.invoice_note || invoice?.note || "-",
-    };
-
-    return String(text || "").replace(/\{\{[^}]+\}\}/g, (match) => tokens[match] ?? match);
-  }
+  const replaceTokens = buildReplaceTokens({ invoice, items, totals, language, n, money, date });
 
   function renderElement(element) {
-    if (element.type === "table") return <ItemsTable items={items} language={language} n={n} money={money} />;
-    if (element.type === "totals") return <TotalsBox totals={totals} language={language} money={money} />;
-
-    if (element.type === "qr") {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-700">
-          <div className="w-14 h-14 border-4 border-slate-800 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-white">
-            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-            <span /><span className="bg-slate-900" /><span />
-            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-          </div>
-          <small>QR #{n(invoice?.id || "")}</small>
-        </div>
-      );
-    }
-
-    if (element.type === "barcode") {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center text-slate-800">
-          <div className="tracking-[6px] text-3xl">|||| || ||| |||| || |</div>
-          <small>{invoice?.id || ""}</small>
-        </div>
-      );
-    }
-
-    if (element.type === "logo") {
-      return <div className="w-full h-full flex items-center justify-center text-cyan-700 font-black">{replaceTokens(element.text || "LOGO")}</div>;
-    }
-
-    return <div className="whitespace-pre-line leading-relaxed w-full">{replaceTokens(element.text)}</div>;
+    return <PrintElement element={element} items={items} language={language} n={n} money={money} invoice={invoice} replaceTokens={replaceTokens} />;
   }
 
   if (!invoice) {
@@ -508,9 +337,9 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <Link to="/invoices" className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2">
+          <Link to={`/invoice-print/${invoice.id}`} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2">
             <ArrowLeft size={18} />
-            {fa ? "بازگشت" : language === "ar" ? "رجوع" : language === "tr" ? "Geri" : "Back"}
+            {fa ? "بازگشت به گزینه‌های چاپ" : language === "ar" ? "الرجوع إلى خيارات الطباعة" : language === "tr" ? "Yazdırma Seçeneklerine Dön" : "Back to print options"}
           </Link>
 
           <button type="button" onClick={saveAsTemplate} className="px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
@@ -687,128 +516,6 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         }
       `}</style>
     </section>
-  );
-}
-
-function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, dir }) {
-  return (
-    <div className="min-w-max flex justify-center pb-10">
-      <div
-        className="print-canvas relative bg-white text-slate-950 shadow-2xl origin-top"
-        style={{
-          width: page.w,
-          height: page.h,
-          transform: `scale(${zoom})`,
-          backgroundImage: showGrid
-            ? "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)"
-            : "none",
-          backgroundSize: "20px 20px",
-        }}
-      >
-        {(config.elements || []).map((element) => (
-          <div
-            key={element.id}
-            onMouseDown={(e) => onElementMouseDown(e, element)}
-            className={`absolute select-none overflow-hidden flex items-center justify-center ${editMode ? "cursor-move" : ""} ${selectedElementId === element.id ? "ring-2 ring-cyan-500" : ""}`}
-            style={{
-              left: element.x,
-              top: element.y,
-              width: element.w,
-              height: element.h,
-              color: element.color,
-              background: element.bg,
-              border: `1px solid ${element.border || "transparent"}`,
-              borderRadius: element.radius,
-              fontSize: element.fontSize,
-              fontWeight: element.bold ? 900 : 500,
-              textAlign: element.align || "center",
-              padding: 8,
-              direction: dir || "ltr",
-            }}
-          >
-            {renderElement(element)}
-            {editMode && selectedElementId === element.id && (
-              <div
-                data-resize="true"
-                onMouseDown={(e) => onResizeMouseDown(e, element)}
-                className="absolute -bottom-2 -right-2 w-4 h-4 bg-cyan-500 rounded-full cursor-se-resize border border-white"
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ItemsTable({ items, language, n, money }) {
-  const fa = language === "fa";
-  const ar = language === "ar";
-  const tr = language === "tr";
-  return (
-    <table className="w-full border-collapse text-[11px]">
-      <thead>
-        <tr className="bg-slate-900 text-white">
-          <th className="border p-1">#</th>
-          <th className="border p-1">{fa ? "شرح" : ar ? "الوصف" : tr ? "Açıklama" : "Item"}</th>
-          <th className="border p-1">{fa ? "تعداد" : ar ? "الكمية" : tr ? "Adet" : "Qty"}</th>
-          <th className="border p-1">{fa ? "واحد" : ar ? "الوحدة" : tr ? "Birim" : "Unit"}</th>
-          <th className="border p-1">{fa ? "جمع" : ar ? "الإجمالي" : tr ? "Toplam" : "Total"}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.length ? (
-          items.map((item, index) => {
-            const unit = item.unit_price ?? item.price ?? 0;
-            const total = item.total ?? item.total_price ?? toNumber(item.quantity) * toNumber(unit);
-            return (
-              <tr key={`${item.product_id || item.id || index}-${index}`}>
-                <td className="border p-1 text-center">{n(index + 1)}</td>
-                <td className="border p-1">{item.product_name || item.name || item.product?.name || "-"}</td>
-                <td className="border p-1 text-center">{n(item.quantity || 0)}</td>
-                <td className="border p-1 text-center">{money(unit)}</td>
-                <td className="border p-1 text-center">{money(total)}</td>
-              </tr>
-            );
-          })
-        ) : (
-          <tr>
-            <td colSpan={5} className="border p-2 text-center">
-              {fa ? "اقلامی ثبت نشده است." : ar ? "لا توجد بنود مسجلة." : tr ? "Kayıtlı kalem yok." : "No items."}
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function TotalsBox({ totals, language, money }) {
-  const fa = language === "fa";
-  const ar = language === "ar";
-  const tr = language === "tr";
-  const rows = [
-    [fa ? "جمع جزء" : ar ? "المجموع الفرعي" : tr ? "Ara Toplam" : "Subtotal", totals.subtotal],
-    [fa ? "تخفیف" : ar ? "الخصم" : tr ? "İskonto" : "Discount", totals.discount],
-    [fa ? "مالیات" : ar ? "الضريبة" : tr ? "Vergi" : "Tax", totals.tax],
-    [fa ? "حمل" : ar ? "الشحن" : tr ? "Kargo" : "Shipping", totals.shipping],
-    [fa ? "پرداخت شده" : ar ? "المسدد" : tr ? "Ödenen" : "Settled", totals.settled],
-    [fa ? "باقی‌مانده" : ar ? "المتبقي" : tr ? "Kalan" : "Remaining", totals.remaining],
-  ];
-
-  return (
-    <div className="w-full text-[12px] space-y-1">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between border-b border-slate-200 pb-1">
-          <span>{label}</span>
-          <b>{money(value)}</b>
-        </div>
-      ))}
-      <div className="flex justify-between text-cyan-700 font-black text-sm pt-2">
-        <span>{fa ? "مبلغ نهایی" : ar ? "المبلغ الإجمالي" : tr ? "Genel Toplam" : "Total"}</span>
-        <b>{money(totals.total)}</b>
-      </div>
-    </div>
   );
 }
 

@@ -1220,33 +1220,36 @@ export default function Invoices() {
                       })()}
                     </td>
                     <td>
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-1.5 flex-wrap">
                         <button
                           type="button"
                           onClick={() => openPrint(invoice)}
-                          className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-bold inline-flex items-center gap-2"
+                          title={label.printInvoice}
+                          aria-label={label.printInvoice}
+                          className="w-9 h-9 shrink-0 rounded-xl bg-[var(--erp-accent)] text-slate-950 inline-flex items-center justify-center"
                         >
                           <Printer size={16} />
-                          {label.printInvoice}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => editInvoice(invoice)}
-                          className="px-3 py-2 rounded-xl bg-blue-500/20 text-blue-200 font-bold inline-flex items-center gap-2"
+                          title={label.edit}
+                          aria-label={label.edit}
+                          className="w-9 h-9 shrink-0 rounded-xl bg-blue-500/20 text-blue-200 inline-flex items-center justify-center"
                         >
                           <Edit3 size={16} />
-                          {label.edit}
                         </button>
 
                         {invoice.invoice_type === "sale" && (invoice.payment_status || invoice.status) !== "paid" && (
                           <button
                             type="button"
                             onClick={() => getPaymentLink(invoice)}
-                            className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-200 font-bold inline-flex items-center gap-2"
+                            title={fa ? "لینک پرداخت" : "Payment link"}
+                            aria-label={fa ? "لینک پرداخت" : "Payment link"}
+                            className="w-9 h-9 shrink-0 rounded-xl bg-emerald-500/20 text-emerald-200 inline-flex items-center justify-center"
                           >
                             <CreditCard size={16} />
-                            {fa ? "لینک پرداخت" : "Payment link"}
                           </button>
                         )}
 
@@ -1254,20 +1257,22 @@ export default function Invoices() {
                           <button
                             type="button"
                             onClick={() => submitEinvoice(invoice)}
-                            className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
+                            title={fa ? "ارسال به مودیان" : "Submit e-invoice"}
+                            aria-label={fa ? "ارسال به مودیان" : "Submit e-invoice"}
+                            className="w-9 h-9 shrink-0 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center justify-center"
                           >
                             <FileCheck2 size={16} />
-                            {fa ? "ارسال به مودیان" : "Submit e-invoice"}
                           </button>
                         )}
 
                         <button
                           type="button"
                           onClick={() => deleteInvoice(invoice)}
-                          className="px-3 py-2 rounded-xl bg-red-500/20 text-red-300 font-bold inline-flex items-center gap-2"
+                          title={label.delete}
+                          aria-label={label.delete}
+                          className="w-9 h-9 shrink-0 rounded-xl bg-red-500/20 text-red-300 inline-flex items-center justify-center"
                         >
                           <Trash2 size={16} />
-                          {label.delete}
                         </button>
                       </div>
                     </td>
