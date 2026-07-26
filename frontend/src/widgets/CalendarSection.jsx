@@ -6,14 +6,14 @@ import DayDetailsCard from "./DayDetailsCard";
 import { fixedJalaliOccasionFor, fixedHijriOccasionFor } from "../localization/occasions";
 import { toHijri } from "../utils/hijri";
 
-function todayDateInfo(fa) {
+function calendarSystemFor(language) {
+  if (language === "fa") return "jalali";
+  if (language === "ar") return "hijri";
+  return "gregorian";
+}
+
+function todayDateInfo(calendarSystem) {
   const now = moment();
-  // Weekday indexing must match each calendar's own convention -
-  // Saturday-first for Jalali, Sunday-first for Gregorian (see
-  // CalendarWidget's buildJalaliMonth/buildGregorianMonth) - otherwise
-  // this initial "today" state (shown before the user clicks any day)
-  // reads the wrong weekday name in English mode.
-  const weekdayIndex = fa ? (now.day() + 1) % 7 : now.day();
   const gDate = now.toDate();
   const gYear = gDate.getFullYear();
   const gMonth = gDate.getMonth() + 1;
@@ -23,10 +23,34 @@ function todayDateInfo(fa) {
     fixedJalaliOccasionFor(now.jMonth() + 1, now.jDate()),
     fixedHijriOccasionFor(hijri.month, hijri.day),
   ].filter(Boolean);
-  const isWeekend = fa ? weekdayIndex === 6 : weekdayIndex === 0 || weekdayIndex === 6;
+
+  // Weekday indexing and the cell `key` format must both match the
+  // active calendar's own convention from CalendarWidget's month
+  // builders - Saturday-first keyed on jYear/jMonth(0-based)/jDate for
+  // Jalali, Sunday-first keyed on hYear/hMonth(1-based)/hDay for Hijri,
+  // Sunday-first keyed on gYear/gMonth(0-based)/gDay for Gregorian -
+  // otherwise this initial "today" state (shown before the user clicks
+  // any day) would never match its own cell's key and never highlight.
+  let weekdayIndex;
+  let isWeekend;
+  let key;
+  if (calendarSystem === "jalali") {
+    weekdayIndex = (now.day() + 1) % 7;
+    isWeekend = weekdayIndex === 6;
+    key = `${now.jYear()}-${now.jMonth()}-${now.jDate()}`;
+  } else if (calendarSystem === "hijri") {
+    weekdayIndex = now.day();
+    isWeekend = weekdayIndex === 5 || weekdayIndex === 6;
+    key = `${hijri.year}-${hijri.month}-${hijri.day}`;
+  } else {
+    weekdayIndex = now.day();
+    isWeekend = weekdayIndex === 0 || weekdayIndex === 6;
+    key = `${gYear}-${gMonth - 1}-${gDay}`;
+  }
+
   const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
   return {
-    key: `${now.jYear()}-${now.jMonth()}-${now.jDate()}`,
+    key,
     dateInfo: {
       jYear: now.jYear(),
       jMonth: now.jMonth() + 1,
@@ -43,9 +67,9 @@ function todayDateInfo(fa) {
 
 export default function CalendarSection() {
   const { dir, language } = useLanguage();
-  const fa = language === "fa";
+  const calendarSystem = calendarSystemFor(language);
   const [cursor, setCursor] = useState(() => moment());
-  const initial = useMemo(() => todayDateInfo(fa), [fa]);
+  const initial = useMemo(() => todayDateInfo(calendarSystem), [calendarSystem]);
   const [selectedKey, setSelectedKey] = useState(initial.key);
   const [selectedDateInfo, setSelectedDateInfo] = useState(initial.dateInfo);
 

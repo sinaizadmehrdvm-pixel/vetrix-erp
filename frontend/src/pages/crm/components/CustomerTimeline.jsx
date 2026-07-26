@@ -14,6 +14,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { formatCalendarDate } from "../../../utils/date";
 
 function toNumber(value) {
   return Number(
@@ -25,25 +26,8 @@ function toNumber(value) {
   );
 }
 
-const DATE_LOCALES = { fa: "fa-IR-u-ca-persian", ar: "ar-AE", tr: "tr-TR", en: "en-US" };
-
 function formatDate(value, language) {
-  if (!value) return "-";
-
-  try {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-
-    return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.en, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  } catch {
-    return String(value);
-  }
+  return formatCalendarDate(value, language, { time: true });
 }
 
 function getEventIcon(event) {

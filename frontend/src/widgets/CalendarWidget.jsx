@@ -2,7 +2,7 @@ import moment from "moment-jalaali";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 import { fixedJalaliOccasionFor, fixedHijriOccasionFor } from "../localization/occasions";
-import { toHijri } from "../utils/hijri";
+import { toHijri, hijriToGregorian, daysInHijriMonth, addHijriMonths, HIJRI_MONTHS_AR } from "../utils/hijri";
 
 // moment-jalaali's loadPersian() (called once, in src/utils/date.js) quietly
 // switches moment's *global* default locale to Persian - so even plain
@@ -19,6 +19,13 @@ const GREGORIAN_MONTHS_EN = [
 ];
 const WEEKDAYS_FA = ["ش", "ی", "د", "س", "چ", "پ", "ج"]; // Saturday-first
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_AR = ["ح", "ن", "ث", "ر", "خ", "ج", "س"]; // Sunday-first
+
+function calendarSystemFor(language) {
+  if (language === "fa") return "jalali";
+  if (language === "ar") return "hijri";
+  return "gregorian";
+}
 
 function occasionsFor(jMonth1Based, jDay, gYear, gMonth1Based, gDay) {
   const jalali = fixedJalaliOccasionFor(jMonth1Based, jDay);
@@ -104,19 +111,84 @@ function buildGregorianMonth(cursor) {
   return { title: `${GREGORIAN_MONTHS_EN[month]} ${year}`, weekdays: WEEKDAYS_EN, cells };
 }
 
+// Hijri months don't line up with Gregorian month boundaries, so unlike
+// the Jalali/Gregorian builders above, this one derives its own
+// year/month from the cursor's Gregorian date via toHijri() rather than
+// reading it directly off `cursor` - the cursor is still just an opaque
+// "some day near the displayed month" moment, same contract as the other
+// two builders, so CalendarSection doesn't need to know which calendar
+// is active.
+function buildHijriMonth(cursor) {
+  const gCursor = cursor.toDate();
+  const { year, month } = toHijri(gCursor.getFullYear(), gCursor.getMonth() + 1, gCursor.getDate());
+  const daysInMonth = daysInHijriMonth(year, month);
+  const firstOfMonthG = hijriToGregorian(year, month, 1);
+  const offset = new Date(firstOfMonthG.year, firstOfMonthG.month - 1, firstOfMonthG.day).getDay(); // Sunday-first
+  const todayG = new Date();
+  const todayHijriYmd = toHijri(todayG.getFullYear(), todayG.getMonth() + 1, todayG.getDate());
+  const isCurrentMonth = todayHijriYmd.year === year && todayHijriYmd.month === month;
+
+  const cells = Array(offset).fill(null);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const g = hijriToGregorian(year, month, day);
+    const jm = moment(new Date(g.year, g.month - 1, g.day));
+    const { list: occasions } = occasionsFor(jm.jMonth() + 1, jm.jDate(), g.year, g.month, g.day);
+    const isWeekend = (offset + day - 1) % 7 === 5 || (offset + day - 1) % 7 === 6; // Friday/Saturday
+    const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
+    cells.push({
+      key: `${year}-${month}-${day}`,
+      day,
+      isToday: isCurrentMonth && todayHijriYmd.day === day,
+      isWeekend,
+      isHoliday,
+      occasions,
+      dateInfo: {
+        jYear: jm.jYear(), jMonth: jm.jMonth() + 1, jDay: jm.jDate(),
+        gYear: g.year, gMonth: g.month, gDay: g.day,
+        hYear: year, hMonth: month, hDay: day,
+        weekdayIndex: (offset + day - 1) % 7,
+        isToday: isCurrentMonth && todayHijriYmd.day === day,
+        isHoliday,
+        occasions,
+      },
+    });
+  }
+  return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_AR, cells, hijriYearMonth: { year, month } };
+}
+
 export default function CalendarWidget({ cursor, onCursorChange, selectedKey, onSelectDay }) {
   const { language, dir, n } = useLanguage();
-  const fa = language === "fa";
+  const calendarSystem = calendarSystemFor(language);
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
-  const { title, weekdays, cells } = fa ? buildJalaliMonth(cursor) : buildGregorianMonth(cursor);
+  const built =
+    calendarSystem === "jalali" ? buildJalaliMonth(cursor)
+    : calendarSystem === "hijri" ? buildHijriMonth(cursor)
+    : buildGregorianMonth(cursor);
+  const { title, weekdays, cells } = built;
 
   function goPrev() {
-    onCursorChange(cursor.clone().subtract(1, fa ? "jMonth" : "month"));
+    if (calendarSystem === "jalali") {
+      onCursorChange(cursor.clone().subtract(1, "jMonth"));
+    } else if (calendarSystem === "hijri") {
+      const { year, month } = addHijriMonths(built.hijriYearMonth, -1);
+      const g = hijriToGregorian(year, month, 1);
+      onCursorChange(moment(new Date(g.year, g.month - 1, g.day)));
+    } else {
+      onCursorChange(cursor.clone().subtract(1, "month"));
+    }
   }
   function goNext() {
-    onCursorChange(cursor.clone().add(1, fa ? "jMonth" : "month"));
+    if (calendarSystem === "jalali") {
+      onCursorChange(cursor.clone().add(1, "jMonth"));
+    } else if (calendarSystem === "hijri") {
+      const { year, month } = addHijriMonths(built.hijriYearMonth, 1);
+      const g = hijriToGregorian(year, month, 1);
+      onCursorChange(moment(new Date(g.year, g.month - 1, g.day)));
+    } else {
+      onCursorChange(cursor.clone().add(1, "month"));
+    }
   }
   function goToday() {
     onCursorChange(moment());

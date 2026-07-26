@@ -1,3 +1,5 @@
+import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
+
 export const COUNTRY_PROFILES = {
   IR: {
     code: "IR",
@@ -151,15 +153,50 @@ export function formatCountryMoney(value, profile, language, currencyOverride) {
   }).format(Number(value || 0));
 }
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+// Arabic dates render through our own moon-sighting-calibrated toHijri()
+// (see utils/hijri.js) rather than Intl's built-in `-u-ca-islamic`
+// calendar, which uses a plain tabular algorithm and can land a day or
+// two off real-world Hijri dates - exactly the kind of mismatch this
+// app's accounting users have called out before. Routing every Arabic
+// date display through the same conversion keeps the whole app (this
+// function, the calendar widget, day-details) agreed on one Hijri date.
+function formatHijriDate(date, profile, options) {
+  // Read the Gregorian y/m/d in the company's own time zone (not the
+  // browser's) before converting to Hijri, matching how the Intl-based
+  // branch below always formats in `profile.timeZone`.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: profile.timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date);
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value);
+  const h = toHijri(get("year"), get("month"), get("day"));
+  if (options.month === "long") {
+    return `${h.day} ${HIJRI_MONTHS_AR[h.month - 1]} ${h.year}`;
+  }
+  return `${pad2(h.day)}/${pad2(h.month)}/${h.year}`;
+}
+
 export function formatCountryDate(value, profile, language, options = {}) {
   if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
+
   // Calendar system follows the selected UI language first (Persian ->
-  // Jalali, everything else -> Gregorian) rather than the company's
-  // country profile alone - otherwise switching the language away from
-  // Persian while the country profile stayed Iran (the app default)
-  // would keep showing Jalali dates in an English/Arabic/Turkish UI.
+  // Jalali, Arabic -> Hijri, everything else -> Gregorian) rather than
+  // the company's country profile alone - otherwise switching the
+  // language away from Persian while the country profile stayed Iran
+  // (the app default) would keep showing Jalali dates in a non-Persian
+  // UI.
+  if (language === "ar" && !options.calendar) {
+    return formatHijriDate(date, profile, options);
+  }
+
   const languageCalendar = language === "fa" ? "persian" : "gregory";
   const calendar = options.calendar || languageCalendar;
   const locale = `${localeFor(profile, language)}-u-ca-${calendar}`;

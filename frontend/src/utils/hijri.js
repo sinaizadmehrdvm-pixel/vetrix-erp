@@ -55,6 +55,10 @@ export const HIJRI_MONTHS_EN = [
   "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Awwal", "Jumada al-Thani",
   "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah",
 ];
+export const HIJRI_MONTHS_AR = [
+  "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
+  "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة",
+];
 
 function gregorianToJDN(year, month, day) {
   const a = Math.floor((14 - month) / 12);
@@ -114,4 +118,59 @@ export function toHijri(gYear, gMonth1Based, gDay) {
 
   const correction = nearest.jdn - islamicToJDN(nearest.hy, nearest.hm, 1);
   return fromTabularJDN(jdn - correction);
+}
+
+function hijriMonthOrder(hYear, hMonth1Based) {
+  return hYear * 12 + (hMonth1Based - 1);
+}
+
+/** JDN of the 1st day of a given Hijri month, using the same anchor+correction approach as toHijri(). */
+function hijriMonthStartJDN(hYear, hMonth1Based) {
+  const exact = ANCHORS_WITH_JDN.find((a) => a.hy === hYear && a.hm === hMonth1Based);
+  if (exact) return exact.jdn;
+
+  const targetOrder = hijriMonthOrder(hYear, hMonth1Based);
+  let nearest = ANCHORS_WITH_JDN[0];
+  ANCHORS_WITH_JDN.forEach((anchor) => {
+    if (hijriMonthOrder(anchor.hy, anchor.hm) <= targetOrder) nearest = anchor;
+  });
+
+  const correction = nearest.jdn - islamicToJDN(nearest.hy, nearest.hm, 1);
+  return islamicToJDN(hYear, hMonth1Based, 1) + correction;
+}
+
+function jdnToGregorian(jdn) {
+  const a = jdn + 32044;
+  const b = Math.floor((4 * a + 3) / 146097);
+  const c = a - Math.floor((146097 * b) / 4);
+  const d = Math.floor((4 * c + 3) / 1461);
+  const e = c - Math.floor((1461 * d) / 4);
+  const m = Math.floor((5 * e + 2) / 153);
+  const day = e - Math.floor((153 * m + 2) / 5) + 1;
+  const month = m + 3 - 12 * Math.floor(m / 10);
+  const year = 100 * b + d - 4800 + Math.floor(m / 10);
+  return { year, month, day };
+}
+
+/** Returns { year, month, day } in the Gregorian calendar for a Hijri date (month is 1-based). */
+export function hijriToGregorian(hYear, hMonth1Based, hDay) {
+  const jdn = hijriMonthStartJDN(hYear, hMonth1Based) + (hDay - 1);
+  return jdnToGregorian(jdn);
+}
+
+/** Number of days (29 or 30) in a given Hijri month, consistent with the anchor-calibrated data above. */
+export function daysInHijriMonth(hYear, hMonth1Based) {
+  const thisStart = hijriMonthStartJDN(hYear, hMonth1Based);
+  const nextYear = hMonth1Based === 12 ? hYear + 1 : hYear;
+  const nextMonth = hMonth1Based === 12 ? 1 : hMonth1Based + 1;
+  const nextStart = hijriMonthStartJDN(nextYear, nextMonth);
+  return nextStart - thisStart;
+}
+
+/** Adds (or subtracts, with a negative count) whole Hijri months to a { year, month } pair. */
+export function addHijriMonths({ year, month }, count) {
+  const total = hijriMonthOrder(year, month) + count;
+  const year2 = Math.floor(total / 12);
+  const month2 = (total % 12) + 1;
+  return { year: year2, month: month2 };
 }

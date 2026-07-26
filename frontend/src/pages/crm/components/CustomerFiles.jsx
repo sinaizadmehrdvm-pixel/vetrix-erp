@@ -2,23 +2,7 @@ import { Download, FileArchive, FileImage, FileText, FolderOpen, Plus, RefreshCw
 import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { openAuthenticatedDocument } from "../../../services/api";
-
-const DATE_LOCALES = { fa: "fa-IR-u-ca-persian", ar: "ar-AE", tr: "tr-TR", en: "en-US" };
-
-function formatDate(value, language) {
-  if (!value) return "-";
-  try {
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.en, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return String(value);
-  }
-}
+import { formatCalendarDate } from "../../../utils/date";
 
 function fileIcon(file) {
   const name = String(file?.name || file?.file_name || file?.title || "").toLowerCase();
@@ -167,7 +151,7 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] flex items-center justify-center">{fileIcon(file)}</div>
-                <div><div className="font-black text-[var(--erp-text)] break-words">{file.title}</div><div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(file.created_at, lang)}</div></div>
+                <div><div className="font-black text-[var(--erp-text)] break-words">{file.title}</div><div className="text-xs text-[var(--erp-muted)] mt-1">{formatCalendarDate(file.created_at, lang)}</div></div>
               </div>
               {onDeleteFile && <button type="button" onClick={() => onDeleteFile(file.id)} className="w-9 h-9 rounded-xl bg-red-500/10 text-red-200 flex items-center justify-center"><Trash2 size={16} /></button>}
             </div>

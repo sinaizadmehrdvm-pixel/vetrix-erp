@@ -9,6 +9,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { formatCalendarDate } from "../../../utils/date";
 
 function toNumber(value) {
   return Number(
@@ -18,23 +19,6 @@ function toNumber(value) {
       .replace(/[,،]/g, "")
       .replace(/[^\d.-]/g, "") || 0
   );
-}
-
-const DATE_LOCALES = { fa: "fa-IR-u-ca-persian", ar: "ar-AE", tr: "tr-TR", en: "en-US" };
-
-function formatDate(value, language) {
-  if (!value) return "-";
-  try {
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.en, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return String(value);
-  }
 }
 
 function invoiceTypeLabel(type, language) {
@@ -290,7 +274,7 @@ export default function CustomerFinancial({
               {filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
                   <td className="p-3 font-black text-[var(--erp-text)]">#{n(inv.id)}</td>
-                  <td className="p-3 text-[var(--erp-muted)]">{formatDate(inv.created_at, lang)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{formatCalendarDate(inv.created_at, lang)}</td>
                   <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, lang)}</td>
                   <td className="p-3 text-[var(--erp-accent)] font-black">{money(inv.total_amount)}</td>
                   <td className="p-3 text-amber-300 font-black">{money(inv.remaining_amount || 0)}</td>

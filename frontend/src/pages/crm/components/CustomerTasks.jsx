@@ -1,7 +1,7 @@
 import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, Plus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import JalaliDateField from "../../../components/forms/JalaliDateField";
-import { toJalali } from "../../../utils/date";
+import { toJalali, toHijriText } from "../../../utils/date";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -213,7 +213,7 @@ export default function CustomerTasks({
                 <div className="flex flex-wrap gap-2 mt-3">
                   <span className={`px-3 py-1 rounded-full border text-xs font-black ${statusTone(task.status)}`}>{statusLabel(task.status, lang)}</span>
                   <span className={`px-3 py-1 rounded-full border text-xs font-black ${priorityTone(task.priority)}`}>{priorityLabel(task.priority, lang)}</span>
-                  {task.due_date && <span className="px-3 py-1 rounded-full border text-xs font-black bg-slate-500/10 text-[var(--erp-muted)] border-slate-400/20 flex items-center gap-1"><CalendarClock size={13} />{lang === "fa" ? toJalali(task.due_date) : task.due_date}</span>}
+                  {task.due_date && <span className="px-3 py-1 rounded-full border text-xs font-black bg-slate-500/10 text-[var(--erp-muted)] border-slate-400/20 flex items-center gap-1"><CalendarClock size={13} />{lang === "fa" ? toJalali(task.due_date) : lang === "ar" ? toHijriText(task.due_date) : task.due_date}</span>}
                   {task.assignee && <span className="px-3 py-1 rounded-full border text-xs font-black bg-blue-500/10 text-blue-200 border-blue-400/20">{task.assignee}</span>}
                 </div>
               </div>

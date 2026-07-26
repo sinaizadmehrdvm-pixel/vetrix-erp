@@ -1,6 +1,6 @@
 import { PartyPopper, Sparkles } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
-import { HIJRI_MONTHS_FA, HIJRI_MONTHS_EN } from "../utils/hijri";
+import { HIJRI_MONTHS_FA, HIJRI_MONTHS_EN, HIJRI_MONTHS_AR } from "../utils/hijri";
 
 const JALALI_MONTHS_FA = [
   "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
@@ -12,30 +12,54 @@ const GREGORIAN_MONTHS_EN = [
 ];
 const WEEKDAY_NAMES_FA = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const WEEKDAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAY_NAMES_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+function calendarSystemFor(language) {
+  if (language === "fa") return "jalali";
+  if (language === "ar") return "hijri";
+  return "gregorian";
+}
 
 export default function DayDetailsCard({ dateInfo }) {
   const { language, dir, n } = useLanguage();
-  const fa = language === "fa";
+  const calendarSystem = calendarSystemFor(language);
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   if (!dateInfo) return null;
 
-  const weekdayLabel = fa ? WEEKDAY_NAMES_FA[dateInfo.weekdayIndex] : WEEKDAY_NAMES_EN[dateInfo.weekdayIndex];
-  const bigDay = fa ? dateInfo.jDay : dateInfo.gDay;
-  const bigMonth = fa ? JALALI_MONTHS_FA[dateInfo.jMonth - 1] : GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1];
-  const bigYear = fa ? dateInfo.jYear : dateInfo.gYear;
+  // Weekday index follows Saturday-first for Jalali and Sunday-first for
+  // both Hijri and Gregorian (see CalendarWidget's month builders), so
+  // Jalali needs its own name array while Hijri/Gregorian share the
+  // Sunday-first WEEKDAY_NAMES_* arrays.
+  const weekdayLabel =
+    calendarSystem === "jalali" ? WEEKDAY_NAMES_FA[dateInfo.weekdayIndex]
+    : calendarSystem === "hijri" ? WEEKDAY_NAMES_AR[dateInfo.weekdayIndex]
+    : WEEKDAY_NAMES_EN[dateInfo.weekdayIndex];
 
-  const hijriMonth = fa ? HIJRI_MONTHS_FA[dateInfo.hMonth - 1] : HIJRI_MONTHS_EN[dateInfo.hMonth - 1];
-  const otherCalendars = fa
-    ? [
-        { label: "میلادی", value: `${dateInfo.gDay} ${GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1]} ${dateInfo.gYear}` },
-        { label: "قمری", value: `${n(dateInfo.hDay)} ${hijriMonth} ${n(dateInfo.hYear)}` },
-      ]
-    : [
-        { label: "Jalali", value: `${dateInfo.jDay} ${JALALI_MONTHS_FA[dateInfo.jMonth - 1]} ${dateInfo.jYear}` },
-        { label: "Hijri", value: `${dateInfo.hDay} ${hijriMonth} ${dateInfo.hYear}` },
-      ];
+  const bigDay = calendarSystem === "jalali" ? dateInfo.jDay : calendarSystem === "hijri" ? dateInfo.hDay : dateInfo.gDay;
+  const bigYear = calendarSystem === "jalali" ? dateInfo.jYear : calendarSystem === "hijri" ? dateInfo.hYear : dateInfo.gYear;
+  const bigMonth =
+    calendarSystem === "jalali" ? JALALI_MONTHS_FA[dateInfo.jMonth - 1]
+    : calendarSystem === "hijri" ? HIJRI_MONTHS_AR[dateInfo.hMonth - 1]
+    : GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1];
+
+  const hijriMonth = tr(HIJRI_MONTHS_FA[dateInfo.hMonth - 1], HIJRI_MONTHS_AR[dateInfo.hMonth - 1], HIJRI_MONTHS_EN[dateInfo.hMonth - 1], HIJRI_MONTHS_EN[dateInfo.hMonth - 1]);
+  const otherCalendars =
+    calendarSystem === "jalali"
+      ? [
+          { label: "میلادی", value: `${dateInfo.gDay} ${GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1]} ${dateInfo.gYear}` },
+          { label: "قمری", value: `${n(dateInfo.hDay)} ${hijriMonth} ${n(dateInfo.hYear)}` },
+        ]
+      : calendarSystem === "hijri"
+      ? [
+          { label: "ميلادي", value: `${n(dateInfo.gDay)} ${GREGORIAN_MONTHS_EN[dateInfo.gMonth - 1]} ${n(dateInfo.gYear)}` },
+          { label: "الفارسي", value: `${n(dateInfo.jDay)} ${JALALI_MONTHS_FA[dateInfo.jMonth - 1]} ${n(dateInfo.jYear)}` },
+        ]
+      : [
+          { label: "Jalali", value: `${dateInfo.jDay} ${JALALI_MONTHS_FA[dateInfo.jMonth - 1]} ${dateInfo.jYear}` },
+          { label: "Hijri", value: `${dateInfo.hDay} ${hijriMonth} ${dateInfo.hYear}` },
+        ];
 
   const occasions = dateInfo.occasions || (dateInfo.occasion ? [dateInfo.occasion] : []);
 
@@ -109,7 +133,7 @@ export default function DayDetailsCard({ dateInfo }) {
                     {tr("تعطیل رسمی", "عطلة رسمية", "Resmi tatil", "Official holiday")}
                   </span>
                 )}
-                <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{fa ? occasion.fa : occasion.en}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{calendarSystem === "jalali" ? occasion.fa : occasion.en}</div>
               </div>
             </div>
           ))}
