@@ -19,20 +19,21 @@ async function api(path, options = {}) {
 const emptyInvoiceItem = { product_id: "", quantity: "1" };
 
 const REPORT_TYPES = [
-  { value: "sales", fa: "فاکتورهای فروش", en: "Sales invoices" },
-  { value: "purchases", fa: "فاکتورهای خرید", en: "Purchase invoices" },
-  { value: "inventory", fa: "موجودی انبار", en: "Inventory" },
-  { value: "customer_balances", fa: "مانده حساب مشتریان", en: "Customer balances" },
-  { value: "product_profit", fa: "سودآوری کالاها", en: "Product profitability" },
-  { value: "open_invoices", fa: "فاکتورهای تسویه‌نشده", en: "Open invoices" },
-  { value: "inventory_movements", fa: "گردش انبار", en: "Stock movements" },
+  { value: "sales", fa: "فاکتورهای فروش", ar: "فواتير المبيعات", tr: "Satış faturaları", en: "Sales invoices" },
+  { value: "purchases", fa: "فاکتورهای خرید", ar: "فواتير المشتريات", tr: "Alış faturaları", en: "Purchase invoices" },
+  { value: "inventory", fa: "موجودی انبار", ar: "المخزون", tr: "Envanter", en: "Inventory" },
+  { value: "customer_balances", fa: "مانده حساب مشتریان", ar: "أرصدة العملاء", tr: "Müşteri bakiyeleri", en: "Customer balances" },
+  { value: "product_profit", fa: "سودآوری کالاها", ar: "ربحية المنتجات", tr: "Ürün kârlılığı", en: "Product profitability" },
+  { value: "open_invoices", fa: "فاکتورهای تسویه‌نشده", ar: "الفواتير غير المسواة", tr: "Ödenmemiş faturalar", en: "Open invoices" },
+  { value: "inventory_movements", fa: "گردش انبار", ar: "حركة المخزون", tr: "Stok hareketleri", en: "Stock movements" },
 ];
 
 export default function ChangeRequestCenter() {
   const { language, dir } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [requests, setRequests] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -87,7 +88,7 @@ export default function ChangeRequestCenter() {
       recorderRef.current = recorder;
       setRecording(true);
     } catch {
-      toast.error(fa ? "دسترسی میکروفن فعال نیست." : "Microphone access is unavailable.");
+      toast.error(tr("دسترسی میکروفن فعال نیست.", "تعذّر الوصول إلى الميكروفون.", "Mikrofon erişimi kullanılamıyor.", "Microphone access is unavailable."));
     }
   }
 
@@ -108,7 +109,7 @@ export default function ChangeRequestCenter() {
   function proposedChanges() {
     if (form.action_type === "note_only") return {};
     if (form.action_type === "campaign_draft") {
-      return { title: form.value || (fa ? "کمپین پیشنهادی" : "Proposed campaign"), channel: "instagram", body: form.transcript };
+      return { title: form.value || tr("کمپین پیشنهادی", "حملة مقترحة", "Önerilen kampanya", "Proposed campaign"), channel: "instagram", body: form.transcript };
     }
     if (form.action_type === "sale_invoice_draft") {
       return {
@@ -155,7 +156,7 @@ export default function ChangeRequestCenter() {
         }),
       });
       await api(`/${created.request_id}/submit`, { method: "POST" });
-      toast.success(fa ? "درخواست برای تأیید مدیر ارسال شد." : "Request submitted for administrator approval.");
+      toast.success(tr("درخواست برای تأیید مدیر ارسال شد.", "تم إرسال الطلب لموافقة المدير.", "Talep, yönetici onayına gönderildi.", "Request submitted for administrator approval."));
       setForm({
         source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "",
         invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
@@ -198,7 +199,7 @@ export default function ChangeRequestCenter() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      toast.success(fa ? "متن بازبینی و برای تأیید نهایی آماده شد." : "Transcript reviewed and queued for final approval.");
+      toast.success(tr("متن بازبینی و برای تأیید نهایی آماده شد.", "تمت مراجعة النص وإدراجه في قائمة الانتظار للموافقة النهائية.", "Metin incelendi ve nihai onay için sıraya alındı.", "Transcript reviewed and queued for final approval."));
       await load();
     } catch (error) {
       toast.error(error.message);
@@ -207,13 +208,13 @@ export default function ChangeRequestCenter() {
   }
 
   async function decide(id, action) {
-    const note = window.prompt(action === "reject" ? (fa ? "دلیل رد را وارد کنید:" : "Enter rejection reason:") : (fa ? "یادداشت تأیید (اختیاری):" : "Approval note (optional):"), "");
+    const note = window.prompt(action === "reject" ? tr("دلیل رد را وارد کنید:", "أدخل سبب الرفض:", "Reddetme nedenini girin:", "Enter rejection reason:") : tr("یادداشت تأیید (اختیاری):", "ملاحظة الموافقة (اختياري):", "Onay notu (isteğe bağlı):", "Approval note (optional):"), "");
     if (note === null || (action === "reject" && !note.trim())) return;
     try {
       await api(`/${id}/${action}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note }),
       });
-      toast.success(action === "approve" ? (fa ? "تأیید و اعمال شد." : "Approved and applied.") : (fa ? "درخواست رد شد." : "Request rejected."));
+      toast.success(action === "approve" ? tr("تأیید و اعمال شد.", "تمت الموافقة والتطبيق.", "Onaylandı ve uygulandı.", "Approved and applied.") : tr("درخواست رد شد.", "تم رفض الطلب.", "Talep reddedildi.", "Request rejected."));
       load();
     } catch (error) { toast.error(error.message); }
   }
@@ -222,52 +223,52 @@ export default function ChangeRequestCenter() {
     <div dir={dir} className="space-y-5">
       <header className="erp-surface rounded-3xl p-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="flex items-center gap-3"><Mic className="erp-accent" size={34} /><h1 className="text-3xl font-black erp-accent">{fa ? "مرکز درخواست تغییر با ویس" : "Voice Change Request Center"}</h1></div>
-          <p className="mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "هیچ تغییری بدون بازبینی و تأیید مدیر اجرا نمی‌شود." : "No change is executed without administrator review and approval."}</p>
+          <div className="flex items-center gap-3"><Mic className="erp-accent" size={34} /><h1 className="text-3xl font-black erp-accent">{tr("مرکز درخواست تغییر با ویس", "مركز طلبات التغيير الصوتية", "Sesli Değişiklik Talebi Merkezi", "Voice Change Request Center")}</h1></div>
+          <p className="mt-2" style={{ color: "var(--erp-muted)" }}>{tr("هیچ تغییری بدون بازبینی و تأیید مدیر اجرا نمی‌شود.", "لا يتم تنفيذ أي تغيير دون مراجعة المدير والموافقة عليه.", "Hiçbir değişiklik, yönetici incelemesi ve onayı olmadan uygulanmaz.", "No change is executed without administrator review and approval.")}</p>
         </div>
-        <button onClick={load} className="erp-surface rounded-2xl px-4 py-3 font-black erp-accent flex gap-2"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}</button>
+        <button onClick={load} className="erp-surface rounded-2xl px-4 py-3 font-black erp-accent flex gap-2"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}</button>
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-[430px_1fr] gap-5">
         <form onSubmit={submit} className="erp-surface rounded-3xl p-5 space-y-4">
-          <h2 className="text-xl font-black">{fa ? "درخواست جدید" : "New request"}</h2>
+          <h2 className="text-xl font-black">{tr("درخواست جدید", "طلب جديد", "Yeni talep", "New request")}</h2>
           <div className="grid grid-cols-2 gap-3">
             <button type="button" onClick={recording ? stopRecording : startRecording} className="rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: recording ? "#ef4444" : "var(--erp-accent)", color: recording ? "white" : "#071028" }}>
-              {recording ? <MicOff /> : <Mic />}{recording ? (fa ? "توقف ضبط" : "Stop") : (fa ? "ضبط ویس" : "Record")}
+              {recording ? <MicOff /> : <Mic />}{recording ? tr("توقف ضبط", "إيقاف", "Durdur", "Stop") : tr("ضبط ویس", "تسجيل صوتي", "Ses kaydet", "Record")}
             </button>
-            <label className="erp-surface rounded-2xl p-4 font-black flex items-center justify-center gap-2 cursor-pointer"><FileAudio />{fa ? "انتخاب فایل" : "Audio file"}<input type="file" accept="audio/*" hidden onChange={chooseAudio} /></label>
+            <label className="erp-surface rounded-2xl p-4 font-black flex items-center justify-center gap-2 cursor-pointer"><FileAudio />{tr("انتخاب فایل", "ملف صوتي", "Ses dosyası", "Audio file")}<input type="file" accept="audio/*" hidden onChange={chooseAudio} /></label>
           </div>
           {audioUrl && <audio controls src={audioUrl} className="w-full" />}
           {audioName && <p className="text-xs" style={{ color: "var(--erp-muted)" }}>{audioName}</p>}
 
-          <Field label={fa ? "منبع ویس" : "Voice source"}>
-            <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{{ in_app: fa ? "درون‌برنامه‌ای" : "In-app", telegram: "Telegram", whatsapp: "WhatsApp", other: fa ? "سایر" : "Other" }[item]}</option>)}</select>
+          <Field label={tr("منبع ویس", "مصدر الصوت", "Ses kaynağı", "Voice source")}>
+            <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{{ in_app: tr("درون‌برنامه‌ای", "داخل التطبيق", "Uygulama içi", "In-app"), telegram: "Telegram", whatsapp: "WhatsApp", other: tr("سایر", "أخرى", "Diğer", "Other") }[item]}</option>)}</select>
           </Field>
-          {form.source !== "in_app" && <Field label={fa ? "شناسه پیام یا لینک" : "Message ID or link"}><input style={inputStyle} value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} /></Field>}
-          <Field label={fa ? "متن ویس پس از بررسی" : "Reviewed voice transcript"}>
-            <textarea required minLength={2} rows={5} style={inputStyle} value={form.transcript} onChange={(e) => setForm({ ...form, transcript: e.target.value })} placeholder={fa ? "متن دقیق درخواست را وارد یا پس از تبدیل صدا اصلاح کنید…" : "Enter or review the exact voice instruction…"} />
+          {form.source !== "in_app" && <Field label={tr("شناسه پیام یا لینک", "معرّف الرسالة أو الرابط", "Mesaj kimliği veya bağlantı", "Message ID or link")}><input style={inputStyle} value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} /></Field>}
+          <Field label={tr("متن ویس پس از بررسی", "نص الرسالة الصوتية بعد المراجعة", "İncelenmiş ses dökümü", "Reviewed voice transcript")}>
+            <textarea required minLength={2} rows={5} style={inputStyle} value={form.transcript} onChange={(e) => setForm({ ...form, transcript: e.target.value })} placeholder={tr("متن دقیق درخواست را وارد یا پس از تبدیل صدا اصلاح کنید…", "أدخل نص الطلب الدقيق أو راجعه بعد تحويل الصوت إلى نص…", "Talebin tam metnini girin veya sesten metne dönüştürüldükten sonra düzenleyin…", "Enter or review the exact voice instruction…")} />
           </Field>
-          <Field label={fa ? "نوع درخواست" : "Request type"}>
+          <Field label={tr("نوع درخواست", "نوع الطلب", "Talep türü", "Request type")}>
             <select style={inputStyle} value={form.action_type} onChange={(e) => setForm({ ...form, action_type: e.target.value })}>
-              <option value="note_only">{fa ? "فقط یادداشت؛ بدون اجرا" : "Note only; no execution"}</option>
-              <option value="online_product_update">{fa ? "تغییر مشخصات کالای سایت" : "Online product update"}</option>
-              <option value="campaign_draft">{fa ? "ساخت پیش‌نویس تبلیغ" : "Create campaign draft"}</option>
-              <option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option>
-              <option value="report_delivery">{fa ? "ارسال گزارش" : "Send a report"}</option>
+              <option value="note_only">{tr("فقط یادداشت؛ بدون اجرا", "ملاحظة فقط؛ دون تنفيذ", "Sadece not; uygulama yok", "Note only; no execution")}</option>
+              <option value="online_product_update">{tr("تغییر مشخصات کالای سایت", "تحديث بيانات المنتج على الموقع", "Site ürün güncellemesi", "Online product update")}</option>
+              <option value="campaign_draft">{tr("ساخت پیش‌نویس تبلیغ", "إنشاء مسودة حملة", "Kampanya taslağı oluştur", "Create campaign draft")}</option>
+              <option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option>
+              <option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option>
             </select>
           </Field>
 
           {form.action_type === "online_product_update" && <>
-            <Field label={fa ? "کالا" : "Product"}><select required style={inputStyle} value={form.target_id} onChange={(e) => setForm({ ...form, target_id: e.target.value })}><option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-            <Field label={fa ? "فیلد قابل تغییر" : "Allowed field"}><select style={inputStyle} value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })}><option value="online_price">{fa ? "قیمت سایت" : "Online price"}</option><option value="discount_percent">{fa ? "درصد تخفیف" : "Discount percent"}</option><option value="is_published">{fa ? "وضعیت انتشار" : "Published"}</option><option value="sync_stock">{fa ? "همگام‌سازی موجودی" : "Stock sync"}</option></select></Field>
-            <Field label={fa ? "مقدار جدید" : "New value"}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{fa ? "انتخاب" : "Choose"}</option><option value="true">{fa ? "فعال" : "Enabled"}</option><option value="false">{fa ? "غیرفعال" : "Disabled"}</option></select> : <input required type="number" min="0" style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />}</Field>
+            <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select required style={inputStyle} value={form.target_id} onChange={(e) => setForm({ ...form, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+            <Field label={tr("فیلد قابل تغییر", "الحقل القابل للتعديل", "Değiştirilebilir alan", "Allowed field")}><select style={inputStyle} value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("وضعیت انتشار", "حالة النشر", "Yayın durumu", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
+            <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input required type="number" min="0" style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />}</Field>
           </>}
 
-          {form.action_type === "campaign_draft" && <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></Field>}
+          {form.action_type === "campaign_draft" && <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></Field>}
 
           {form.action_type === "sale_invoice_draft" && (
             <InvoiceItemsBuilder
-              fa={fa}
+              language={language}
               customers={customers}
               products={products}
               customerId={form.invoice_customer_id}
@@ -279,7 +280,7 @@ export default function ChangeRequestCenter() {
 
           {form.action_type === "report_delivery" && (
             <ReportDeliveryFields
-              fa={fa}
+              language={language}
               reportType={form.report_type}
               reportFormat={form.report_format}
               destinationEmail={form.destination_email}
@@ -289,13 +290,13 @@ export default function ChangeRequestCenter() {
             />
           )}
 
-          <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><Send size={18} />{fa ? "ارسال برای تأیید مدیر" : "Submit for administrator approval"}</button>
+          <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><Send size={18} />{tr("ارسال برای تأیید مدیر", "إرسال لموافقة المدير", "Yönetici onayına gönder", "Submit for administrator approval")}</button>
         </form>
 
         <section className="space-y-3">
-          <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{fa ? "امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است." : "Security: requesters cannot approve their own request and arbitrary commands are forbidden."}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} products={products} customers={customers} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
-          {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{fa ? "درخواستی وجود ندارد." : "No requests yet."}</div>}
+          <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{tr("امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است.", "الأمان: لا يمكن لمقدّم الطلب الموافقة على طلبه الخاص، ويُمنع تنفيذ أي أوامر حرة.", "Güvenlik: talep sahibi kendi talebini onaylayamaz ve serbest komut çalıştırma yasaktır.", "Security: requesters cannot approve their own request and arbitrary commands are forbidden.")}</p></div>
+          {requests.map((item) => <RequestCard key={item.id} item={item} language={language} products={products} customers={customers} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
+          {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{tr("درخواستی وجود ندارد.", "لا توجد طلبات حتى الآن.", "Henüz talep yok.", "No requests yet.")}</div>}
         </section>
       </div>
     </div>
@@ -317,7 +318,10 @@ export default function ChangeRequestCenter() {
 const inputStyle = { width: "100%", padding: 12, borderRadius: 12, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" };
 function Field({ label, children }) { return <label className="block text-sm font-bold space-y-1"><span>{label}</span>{children}</label>; }
 
-function InvoiceItemsBuilder({ fa, customers, products, customerId, items, onCustomerChange, onItemsChange }) {
+function InvoiceItemsBuilder({ language, customers, products, customerId, items, onCustomerChange, onItemsChange }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+
   function updateRow(index, field, value) {
     const next = [...items];
     next[index] = { ...next[index], [field]: value };
@@ -332,48 +336,52 @@ function InvoiceItemsBuilder({ fa, customers, products, customerId, items, onCus
   }
   return (
     <>
-      <Field label={fa ? "طرف‌حساب" : "Customer"}>
+      <Field label={tr("طرف‌حساب", "العميل", "Cari", "Customer")}>
         <select required style={inputStyle} value={customerId} onChange={(e) => onCustomerChange(e.target.value)}>
-          <option value="">{fa ? "انتخاب طرف‌حساب" : "Choose customer"}</option>
+          <option value="">{tr("انتخاب طرف‌حساب", "اختر العميل", "Cari seçin", "Choose customer")}</option>
           {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </Field>
       {items.map((row, index) => (
         <div key={index} className="grid grid-cols-[1fr_90px_40px] gap-2 items-end">
-          <Field label={index === 0 ? (fa ? "کالا" : "Product") : ""}>
+          <Field label={index === 0 ? tr("کالا", "المنتج", "Ürün", "Product") : ""}>
             <select required style={inputStyle} value={row.product_id} onChange={(e) => updateRow(index, "product_id", e.target.value)}>
-              <option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>
+              <option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>
               {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
-          <Field label={index === 0 ? (fa ? "تعداد" : "Qty") : ""}>
+          <Field label={index === 0 ? tr("تعداد", "الكمية", "Adet", "Qty") : ""}>
             <input required type="number" min="0.01" step="any" style={inputStyle} value={row.quantity} onChange={(e) => updateRow(index, "quantity", e.target.value)} />
           </Field>
           <button type="button" onClick={() => removeRow(index)} className="rounded-xl p-3 bg-red-500/20 text-red-300"><Trash2 size={16} /></button>
         </div>
       ))}
       <button type="button" onClick={addRow} className="rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent">
-        <Plus size={16} /> {fa ? "افزودن ردیف" : "Add row"}
+        <Plus size={16} /> {tr("افزودن ردیف", "إضافة صف", "Satır ekle", "Add row")}
       </button>
     </>
   );
 }
 
-function ReportDeliveryFields({ fa, reportType, reportFormat, destinationEmail, onReportTypeChange, onReportFormatChange, onDestinationEmailChange }) {
+function ReportDeliveryFields({ language, reportType, reportFormat, destinationEmail, onReportTypeChange, onReportFormatChange, onDestinationEmailChange }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const reportTypeLabel = (rt) => tr(rt.fa, rt.ar || rt.en, rt.tr || rt.en, rt.en);
+
   return (
     <>
-      <Field label={fa ? "نوع گزارش" : "Report type"}>
+      <Field label={tr("نوع گزارش", "نوع التقرير", "Rapor türü", "Report type")}>
         <select style={inputStyle} value={reportType} onChange={(e) => onReportTypeChange(e.target.value)}>
-          {REPORT_TYPES.map((rt) => <option key={rt.value} value={rt.value}>{fa ? rt.fa : rt.en}</option>)}
+          {REPORT_TYPES.map((rt) => <option key={rt.value} value={rt.value}>{reportTypeLabel(rt)}</option>)}
         </select>
       </Field>
-      <Field label={fa ? "فرمت" : "Format"}>
+      <Field label={tr("فرمت", "الصيغة", "Biçim", "Format")}>
         <select style={inputStyle} value={reportFormat} onChange={(e) => onReportFormatChange(e.target.value)}>
           <option value="pdf">PDF</option>
           <option value="csv">CSV / Excel</option>
         </select>
       </Field>
-      <Field label={fa ? "ارسال به ایمیل" : "Send to email"}>
+      <Field label={tr("ارسال به ایمیل", "الإرسال إلى البريد الإلكتروني", "E-postaya gönder", "Send to email")}>
         <input
           required
           type="email"
@@ -387,22 +395,51 @@ function ReportDeliveryFields({ fa, reportType, reportFormat, destinationEmail, 
   );
 }
 
-function RequestCard({ item, fa, products, customers, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
-  const status = {
-    draft: fa ? "پیش‌نویس" : "Draft",
-    needs_transcript_review: fa ? "نیازمند بازبینی متن" : "Transcript review required",
-    pending_approval: fa ? "در انتظار تأیید" : "Pending approval",
-    applied: fa ? "اعمال‌شده" : "Applied",
-    rejected: fa ? "ردشده" : "Rejected",
-    failed: fa ? "ناموفق" : "Failed",
-  }[item.status] || item.status;
+function RequestCard({ item, language, products, customers, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const statusMaps = {
+    fa: {
+      draft: "پیش‌نویس",
+      needs_transcript_review: "نیازمند بازبینی متن",
+      pending_approval: "در انتظار تأیید",
+      applied: "اعمال‌شده",
+      rejected: "ردشده",
+      failed: "ناموفق",
+    },
+    ar: {
+      draft: "مسودة",
+      needs_transcript_review: "بحاجة إلى مراجعة النص",
+      pending_approval: "بانتظار الموافقة",
+      applied: "تم التطبيق",
+      rejected: "مرفوض",
+      failed: "فشل",
+    },
+    tr: {
+      draft: "Taslak",
+      needs_transcript_review: "Metin incelemesi gerekli",
+      pending_approval: "Onay bekliyor",
+      applied: "Uygulandı",
+      rejected: "Reddedildi",
+      failed: "Başarısız",
+    },
+    en: {
+      draft: "Draft",
+      needs_transcript_review: "Transcript review required",
+      pending_approval: "Pending approval",
+      applied: "Applied",
+      rejected: "Rejected",
+      failed: "Failed",
+    },
+  };
+  const status = (statusMaps[language] || statusMaps.en)[item.status] || item.status;
   return <article className="erp-surface rounded-2xl p-5">
     <div className="flex justify-between gap-3">
       <div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div>
       <span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span>
     </div>
     <p className="mt-4 whitespace-pre-wrap">{item.transcript}</p>
-    {item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{fa ? "دریافت فایل صوتی امن" : "Download secured audio"}</button>}
+    {item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{tr("دریافت فایل صوتی امن", "تنزيل الملف الصوتي الآمن", "Güvenli ses dosyasını indir", "Download secured audio")}</button>}
     <pre className="mt-3 rounded-xl p-3 text-xs overflow-x-auto" style={{ background: "var(--erp-panel-solid)" }}>{JSON.stringify(item.proposed_changes, null, 2)}</pre>
     {item.apply_result && <p className="mt-3 text-sm erp-accent">{item.apply_result}</p>}
     {item.action_type === "sale_invoice_draft" && item.status === "applied" && (
@@ -413,15 +450,17 @@ function RequestCard({ item, fa, products, customers, canReview, canApprove, onR
         style={{ background: "#22c55e", color: "#052e16" }}
       >
         <FileText size={17} />
-        {fa ? "ساخت فاکتور از این درخواست" : "Create invoice from this"}
+        {tr("ساخت فاکتور از این درخواست", "إنشاء فاتورة من هذا الطلب", "Bu talepten fatura oluştur", "Create invoice from this")}
       </button>
     )}
-    {canReview && <TranscriptReviewer item={item} products={products} customers={customers} fa={fa} onReview={onReview} />}
-    {canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{fa ? "تأیید و اعمال" : "Approve & apply"}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{fa ? "رد" : "Reject"}</button></div>}
+    {canReview && <TranscriptReviewer item={item} products={products} customers={customers} language={language} onReview={onReview} />}
+    {canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{tr("تأیید و اعمال", "الموافقة والتطبيق", "Onayla ve uygula", "Approve & apply")}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{tr("رد", "رفض", "Reddet", "Reject")}</button></div>}
   </article>;
 }
 
-function TranscriptReviewer({ item, products, customers, fa, onReview }) {
+function TranscriptReviewer({ item, products, customers, language, onReview }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [review, setReview] = useState({
@@ -485,14 +524,14 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
     }
   }
 
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="mt-4 rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#f59e0b", color: "#451a03" }}><PencilLine size={17} />{fa ? "بازبینی متن و نوع تغییر" : "Review transcript & action"}</button>;
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="mt-4 rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#f59e0b", color: "#451a03" }}><PencilLine size={17} />{tr("بازبینی متن و نوع تغییر", "مراجعة النص ونوع التغيير", "Metni ve işlem türünü incele", "Review transcript & action")}</button>;
 
   return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
-    <Field label={fa ? "متن نهایی تأییدشده توسط مدیر" : "Manager-reviewed final transcript"}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: e.target.value })} /></Field>
-    <Field label={fa ? "تبدیل متن به" : "Convert transcript to"}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{fa ? "یادداشت بدون اجرا" : "Non-executable note"}</option><option value="online_product_update">{fa ? "تغییر کالای سایت" : "Online product update"}</option><option value="campaign_draft">{fa ? "پیش‌نویس کمپین" : "Campaign draft"}</option><option value="sale_invoice_draft">{fa ? "پیش‌نویس فاکتور فروش" : "Sale invoice draft"}</option><option value="report_delivery">{fa ? "ارسال گزارش" : "Send a report"}</option></select></Field>
+    <Field label={tr("متن نهایی تأییدشده توسط مدیر", "النص النهائي الذي راجعه المدير", "Yönetici tarafından incelenen nihai metin", "Manager-reviewed final transcript")}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: e.target.value })} /></Field>
+    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option></select></Field>
     {review.action_type === "sale_invoice_draft" && (
       <InvoiceItemsBuilder
-        fa={fa}
+        language={language}
         customers={customers}
         products={products}
         customerId={review.invoice_customer_id}
@@ -503,7 +542,7 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
     )}
     {review.action_type === "report_delivery" && (
       <ReportDeliveryFields
-        fa={fa}
+        language={language}
         reportType={review.report_type}
         reportFormat={review.report_format}
         destinationEmail={review.destination_email}
@@ -513,14 +552,14 @@ function TranscriptReviewer({ item, products, customers, fa, onReview }) {
       />
     )}
     {review.action_type === "online_product_update" && <>
-      <Field label={fa ? "کالا" : "Product"}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{fa ? "انتخاب کالا" : "Choose product"}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
-      <Field label={fa ? "فیلد مجاز" : "Allowed field"}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{fa ? "قیمت سایت" : "Online price"}</option><option value="discount_percent">{fa ? "درصد تخفیف" : "Discount percent"}</option><option value="is_published">{fa ? "انتشار" : "Published"}</option><option value="sync_stock">{fa ? "همگام‌سازی موجودی" : "Stock sync"}</option></select></Field>
-      <Field label={fa ? "مقدار جدید" : "New value"}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{fa ? "انتخاب" : "Choose"}</option><option value="true">{fa ? "فعال" : "Enabled"}</option><option value="false">{fa ? "غیرفعال" : "Disabled"}</option></select> : <input type="number" min="0" style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })} />}</Field>
+      <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
+      <Field label={tr("فیلد مجاز", "الحقل المسموح به", "İzin verilen alan", "Allowed field")}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("انتشار", "النشر", "Yayın", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
+      <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input type="number" min="0" style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })} />}</Field>
     </>}
     {review.action_type === "campaign_draft" && <>
-      <Field label={fa ? "عنوان کمپین" : "Campaign title"}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
-      <Field label={fa ? "شبکه" : "Channel"}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? (fa ? "وبسایت" : "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
+      <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
+      <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
     </>}
-    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : (fa ? "ثبت بازبینی و ارسال برای تأیید نهایی" : "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{fa ? "انصراف" : "Cancel"}</button></div>
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
   </div>;
 }

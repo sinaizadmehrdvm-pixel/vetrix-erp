@@ -65,7 +65,9 @@ function trendPercent(rows) {
   return ((current - prev) / prev) * 100;
 }
 
-function buildInsights({ reports, dashboard, monthly, fa, money, n }) {
+function buildInsights({ reports, dashboard, monthly, language, money, n }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const profit = reports?.profit_loss || {};
   const inventory = reports?.inventory || {};
   const invoiceSummary = reports?.invoice_summary || {};
@@ -78,38 +80,39 @@ function buildInsights({ reports, dashboard, monthly, fa, money, n }) {
   const list = [];
 
   if (trend > 15) {
-    list.push({ tone: "emerald", icon: <TrendingUp />, title: fa ? "رشد فروش قابل توجه" : "Strong sales growth", text: fa ? `فروش نسبت به دوره قبل حدود ${n(Math.round(trend))}% رشد داشته است.` : `Sales grew about ${Math.round(trend)}% vs previous period.` });
+    list.push({ tone: "emerald", icon: <TrendingUp />, title: tr("رشد فروش قابل توجه", "نمو ملحوظ في المبيعات", "Belirgin satış büyümesi", "Strong sales growth"), text: tr(`فروش نسبت به دوره قبل حدود ${n(Math.round(trend))}% رشد داشته است.`, `نمت المبيعات بنحو ${n(Math.round(trend))}% مقارنة بالفترة السابقة.`, `Satışlar önceki döneme göre yaklaşık %${n(Math.round(trend))} arttı.`, `Sales grew about ${Math.round(trend)}% vs previous period.`) });
   } else if (trend < -15) {
-    list.push({ tone: "rose", icon: <TrendingDown />, title: fa ? "افت فروش" : "Sales drop", text: fa ? `فروش نسبت به دوره قبل حدود ${n(Math.abs(Math.round(trend)))}% کاهش داشته است. کمپین فروش پیشنهاد می‌شود.` : `Sales dropped about ${Math.abs(Math.round(trend))}%. A campaign is recommended.` });
+    list.push({ tone: "rose", icon: <TrendingDown />, title: tr("افت فروش", "انخفاض المبيعات", "Satış düşüşü", "Sales drop"), text: tr(`فروش نسبت به دوره قبل حدود ${n(Math.abs(Math.round(trend)))}% کاهش داشته است. کمپین فروش پیشنهاد می‌شود.`, `انخفضت المبيعات بنحو ${n(Math.abs(Math.round(trend)))}% مقارنة بالفترة السابقة. يُنصح بإطلاق حملة ترويجية.`, `Satışlar önceki döneme göre yaklaşık %${n(Math.abs(Math.round(trend)))} azaldı. Bir kampanya başlatılması önerilir.`, `Sales dropped about ${Math.abs(Math.round(trend))}%. A campaign is recommended.`) });
   }
 
   if (netProfit < 0) {
-    list.push({ tone: "rose", icon: <AlertTriangle />, title: fa ? "هشدار سود منفی" : "Negative profit warning", text: fa ? "سود خالص منفی است. هزینه‌ها، قیمت فروش و تخفیف‌ها باید بررسی شوند." : "Net profit is negative. Review costs, pricing and discounts." });
+    list.push({ tone: "rose", icon: <AlertTriangle />, title: tr("هشدار سود منفی", "تحذير: الربح سلبي", "Negatif kâr uyarısı", "Negative profit warning"), text: tr("سود خالص منفی است. هزینه‌ها، قیمت فروش و تخفیف‌ها باید بررسی شوند.", "صافي الربح سلبي. يجب مراجعة التكاليف والأسعار والخصومات.", "Net kâr negatif. Maliyetler, fiyatlandırma ve indirimler gözden geçirilmeli.", "Net profit is negative. Review costs, pricing and discounts.") });
   } else if (netProfit > 0) {
-    list.push({ tone: "emerald", icon: <DollarSign />, title: fa ? "وضعیت سود مثبت" : "Positive profit", text: fa ? `سود خالص فعلی ${money(netProfit)} است.` : `Current net profit is ${money(netProfit)}.` });
+    list.push({ tone: "emerald", icon: <DollarSign />, title: tr("وضعیت سود مثبت", "ربح إيجابي", "Pozitif kâr", "Positive profit"), text: tr(`سود خالص فعلی ${money(netProfit)} است.`, `صافي الربح الحالي هو ${money(netProfit)}.`, `Mevcut net kâr ${money(netProfit)}.`, `Current net profit is ${money(netProfit)}.`) });
   }
 
   if (lowStock > 0) {
-    list.push({ tone: "amber", icon: <Package />, title: fa ? "نیاز به تامین موجودی" : "Inventory replenishment", text: fa ? `${n(lowStock)} کالا کم‌موجود است. پیشنهاد خرید و تامین فعال شود.` : `${lowStock} item(s) are low-stock. Purchase planning is recommended.` });
+    list.push({ tone: "amber", icon: <Package />, title: tr("نیاز به تامین موجودی", "الحاجة إلى تجديد المخزون", "Stok yenileme ihtiyacı", "Inventory replenishment"), text: tr(`${n(lowStock)} کالا کم‌موجود است. پیشنهاد خرید و تامین فعال شود.`, `يوجد ${n(lowStock)} صنف منخفض المخزون. يُنصح بتفعيل تخطيط الشراء.`, `${n(lowStock)} üründe stok azaldı. Satın alma planlaması önerilir.`, `${lowStock} item(s) are low-stock. Purchase planning is recommended.`) });
   }
 
   if (openInvoices > 0) {
-    list.push({ tone: "cyan", icon: <Wallet />, title: fa ? "پیگیری فاکتورهای باز" : "Open invoices follow-up", text: fa ? `${n(openInvoices)} فاکتور باز وجود دارد. پیگیری وصول مطالبات پیشنهاد می‌شود.` : `${openInvoices} open invoice(s). Receivable follow-up is recommended.` });
+    list.push({ tone: "cyan", icon: <Wallet />, title: tr("پیگیری فاکتورهای باز", "متابعة الفواتير المفتوحة", "Açık faturaların takibi", "Open invoices follow-up"), text: tr(`${n(openInvoices)} فاکتور باز وجود دارد. پیگیری وصول مطالبات پیشنهاد می‌شود.`, `يوجد ${n(openInvoices)} فاتورة مفتوحة. يُنصح بمتابعة تحصيل الذمم المدينة.`, `${n(openInvoices)} açık fatura var. Alacak takibi önerilir.`, `${openInvoices} open invoice(s). Receivable follow-up is recommended.`) });
   }
 
   if (forecast > salesMonth && salesMonth > 0) {
-    list.push({ tone: "emerald", icon: <Brain />, title: fa ? "پیش‌بینی رشد فروش" : "Sales forecast growth", text: fa ? `بر اساس میانگین اخیر، فروش دوره بعد می‌تواند حدود ${money(forecast)} باشد.` : `Based on recent average, next period sales may be around ${money(forecast)}.` });
+    list.push({ tone: "emerald", icon: <Brain />, title: tr("پیش‌بینی رشد فروش", "توقّع نمو المبيعات", "Satış büyüme tahmini", "Sales forecast growth"), text: tr(`بر اساس میانگین اخیر، فروش دوره بعد می‌تواند حدود ${money(forecast)} باشد.`, `استناداً إلى المتوسط الأخير، قد تبلغ مبيعات الفترة القادمة نحو ${money(forecast)}.`, `Son ortalamaya göre, gelecek dönem satışları yaklaşık ${money(forecast)} olabilir.`, `Based on recent average, next period sales may be around ${money(forecast)}.`) });
   }
 
   if (!list.length) {
-    list.push({ tone: "cyan", icon: <Sparkles />, title: fa ? "وضعیت پایدار" : "Stable business status", text: fa ? "اطلاعات فعلی نشانه بحران جدی ندارد. ادامه پایش روزانه پیشنهاد می‌شود." : "Current data shows no major issue. Continue daily monitoring." });
+    list.push({ tone: "cyan", icon: <Sparkles />, title: tr("وضعیت پایدار", "وضع مستقر", "Kararlı iş durumu", "Stable business status"), text: tr("اطلاعات فعلی نشانه بحران جدی ندارد. ادامه پایش روزانه پیشنهاد می‌شود.", "لا تشير البيانات الحالية إلى أي مشكلة جوهرية. يُنصح بمواصلة المتابعة اليومية.", "Mevcut veriler ciddi bir sorun göstermiyor. Günlük takibe devam edilmesi önerilir.", "Current data shows no major issue. Continue daily monitoring.") });
   }
   return list;
 }
 
 export default function BusinessIntelligence() {
   const { language, dir, money, n } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [reports, setReports] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [crm, setCrm] = useState(null);
@@ -130,7 +133,7 @@ export default function BusinessIntelligence() {
       setCrm(crmRes || {});
     } catch (error) {
       console.error("BI loading error:", error);
-      setMessage(fa ? "خطا در دریافت اطلاعات هوش تجاری" : "Business intelligence loading error");
+      setMessage(tr("خطا در دریافت اطلاعات هوش تجاری", "خطأ في جلب بيانات الذكاء التجاري", "İş zekâsı verileri yüklenirken hata oluştu", "Business intelligence loading error"));
     } finally {
       setLoading(false);
     }
@@ -180,30 +183,30 @@ export default function BusinessIntelligence() {
     };
   }, [reports, dashboard, crm, monthly]);
 
-  const insights = useMemo(() => buildInsights({ reports, dashboard, monthly, fa, money, n }), [reports, dashboard, monthly, fa, money, n]);
+  const insights = useMemo(() => buildInsights({ reports, dashboard, monthly, language, money, n }), [reports, dashboard, monthly, language, money, n]);
 
   const purchaseSuggestions = useMemo(() => {
     const inventory = reports?.inventory || {};
     const rows = Array.isArray(inventory.low_stock_items) ? inventory.low_stock_items : Array.isArray(dashboard?.alerts) ? dashboard.alerts : [];
     return rows.slice(0, 8).map((item, index) => ({
       id: item.id || index,
-      name: item.name || item.product_name || item.title || item.message || (fa ? "کالای کم‌موجود" : "Low stock item"),
+      name: item.name || item.product_name || item.title || item.message || (language === "fa" ? "کالای کم‌موجود" : language === "ar" ? "صنف منخفض المخزون" : language === "tr" ? "Az stoklu ürün" : "Low stock item"),
       stock: toNumber(item.stock ?? item.quantity ?? item.current_stock ?? 0),
       min: toNumber(item.min_stock ?? item.reorder_level ?? item.minimum_stock ?? 0),
       suggested: Math.max(1, toNumber(item.reorder_qty ?? item.suggested_qty ?? item.min_stock ?? 1)),
     }));
-  }, [reports, dashboard, fa]);
+  }, [reports, dashboard, language]);
 
   function exportSnapshot() {
     const lines = [
-      fa ? "گزارش هوش تجاری Vetrix ERP" : "Vetrix ERP BI Snapshot",
+      tr("گزارش هوش تجاری Vetrix ERP", "تقرير الذكاء التجاري لـ Vetrix ERP", "Vetrix ERP İş Zekâsı Anlık Görüntüsü", "Vetrix ERP BI Snapshot"),
       "--------------------------------",
-      `${fa ? "فروش ماه" : "Sales month"}: ${money(metrics.salesMonth)}`,
-      `${fa ? "سود خالص" : "Net profit"}: ${money(metrics.netProfit)}`,
-      `${fa ? "حاشیه سود" : "Profit margin"}: ${n(Math.round(metrics.profitMargin))}%`,
-      `${fa ? "پیش‌بینی فروش" : "Sales forecast"}: ${money(metrics.forecast)}`,
-      `${fa ? "کالاهای کم موجود" : "Low stock"}: ${n(metrics.lowStock)}`,
-      `${fa ? "مطالبات" : "Receivables"}: ${money(metrics.receivablesTotal)}`,
+      `${tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales month")}: ${money(metrics.salesMonth)}`,
+      `${tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")}: ${money(metrics.netProfit)}`,
+      `${tr("حاشیه سود", "هامش الربح", "Kâr marjı", "Profit margin")}: ${n(Math.round(metrics.profitMargin))}%`,
+      `${tr("پیش‌بینی فروش", "توقّع المبيعات", "Satış tahmini", "Sales forecast")}: ${money(metrics.forecast)}`,
+      `${tr("کالاهای کم موجود", "المخزون المنخفض", "Düşük stok", "Low stock")}: ${n(metrics.lowStock)}`,
+      `${tr("مطالبات", "الذمم المدينة", "Alacaklar", "Receivables")}: ${money(metrics.receivablesTotal)}`,
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -218,30 +221,30 @@ export default function BusinessIntelligence() {
     <div dir={dir} className="min-h-screen p-6 text-[var(--erp-text)]" style={{ direction: dir, background: "radial-gradient(circle at top left, var(--erp-glow), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), var(--erp-bg)" }}>
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
-          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3"><Brain size={40} />{fa ? "هوش تجاری و مدیریت هوشمند" : "Business Intelligence"}</h1>
-          <p className="text-[var(--erp-muted)] mt-2">{fa ? "تحلیل فروش، سود، نقدینگی، مشتریان، موجودی، پیش‌بینی و پیشنهادهای مدیریتی" : "Sales, profit, cashflow, customers, inventory, forecasting and management suggestions"}</p>
+          <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3"><Brain size={40} />{tr("هوش تجاری و مدیریت هوشمند", "الذكاء التجاري والإدارة الذكية", "İş Zekâsı ve Akıllı Yönetim", "Business Intelligence")}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">{tr("تحلیل فروش، سود، نقدینگی، مشتریان، موجودی، پیش‌بینی و پیشنهادهای مدیریتی", "تحليل المبيعات والأرباح والتدفق النقدي والعملاء والمخزون والتوقعات والمقترحات الإدارية", "Satış, kâr, nakit akışı, müşteriler, stok, tahmin ve yönetim önerileri analizi", "Sales, profit, cashflow, customers, inventory, forecasting and management suggestions")}</p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <button onClick={exportSnapshot} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"><Download size={18} />{fa ? "خروجی خلاصه" : "Export"}</button>
-          <button onClick={loadBI} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{fa ? "به‌روزرسانی" : "Refresh"}</button>
+          <button onClick={exportSnapshot} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"><Download size={18} />{tr("خروجی خلاصه", "تصدير", "Dışa aktar", "Export")}</button>
+          <button onClick={loadBI} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"><RefreshCw size={18} className={loading ? "animate-spin" : ""} />{tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}</button>
         </div>
       </div>
 
       {message && <div className="rounded-2xl bg-red-500/10 border border-red-400/20 text-red-200 p-4 mb-5">{message}</div>}
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-5">
-        <KpiCard icon={<DollarSign />} title={fa ? "فروش امروز" : "Sales today"} value={money(metrics.salesToday)} tone="cyan" />
-        <KpiCard icon={<TrendingUp />} title={fa ? "فروش ماه" : "Sales month"} value={money(metrics.salesMonth)} tone="emerald" />
-        <KpiCard icon={<Wallet />} title={fa ? "سود خالص" : "Net profit"} value={money(metrics.netProfit)} tone={metrics.netProfit >= 0 ? "emerald" : "rose"} />
-        <KpiCard icon={<Target />} title={fa ? "حاشیه سود" : "Profit margin"} value={`${n(Math.round(metrics.profitMargin))}%`} tone={metrics.profitMargin >= 20 ? "emerald" : metrics.profitMargin >= 5 ? "amber" : "rose"} />
-        <KpiCard icon={<Brain />} title={fa ? "پیش‌بینی فروش" : "Sales forecast"} value={money(metrics.forecast)} hint={fa ? "میانگین سه دوره اخیر" : "3-period moving average"} tone="cyan" />
-        <KpiCard icon={<Package />} title={fa ? "ارزش موجودی" : "Inventory value"} value={money(metrics.inventoryValue)} tone="cyan" />
-        <KpiCard icon={<AlertTriangle />} title={fa ? "کالاهای کم‌موجود" : "Low stock"} value={n(metrics.lowStock)} tone={metrics.lowStock > 0 ? "rose" : "emerald"} />
-        <KpiCard icon={<Users />} title={fa ? "مشتریان پرریسک" : "Risk customers"} value={n(metrics.riskCount)} tone={metrics.riskCount > 0 ? "amber" : "emerald"} />
+        <KpiCard icon={<DollarSign />} title={tr("فروش امروز", "مبيعات اليوم", "Bugünkü satış", "Sales today")} value={money(metrics.salesToday)} tone="cyan" />
+        <KpiCard icon={<TrendingUp />} title={tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales month")} value={money(metrics.salesMonth)} tone="emerald" />
+        <KpiCard icon={<Wallet />} title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(metrics.netProfit)} tone={metrics.netProfit >= 0 ? "emerald" : "rose"} />
+        <KpiCard icon={<Target />} title={tr("حاشیه سود", "هامش الربح", "Kâr marjı", "Profit margin")} value={`${n(Math.round(metrics.profitMargin))}%`} tone={metrics.profitMargin >= 20 ? "emerald" : metrics.profitMargin >= 5 ? "amber" : "rose"} />
+        <KpiCard icon={<Brain />} title={tr("پیش‌بینی فروش", "توقّع المبيعات", "Satış tahmini", "Sales forecast")} value={money(metrics.forecast)} hint={tr("میانگین سه دوره اخیر", "متوسط متحرك لثلاث فترات", "3 dönemlik hareketli ortalama", "3-period moving average")} tone="cyan" />
+        <KpiCard icon={<Package />} title={tr("ارزش موجودی", "قيمة المخزون", "Stok değeri", "Inventory value")} value={money(metrics.inventoryValue)} tone="cyan" />
+        <KpiCard icon={<AlertTriangle />} title={tr("کالاهای کم‌موجود", "المخزون المنخفض", "Düşük stok", "Low stock")} value={n(metrics.lowStock)} tone={metrics.lowStock > 0 ? "rose" : "emerald"} />
+        <KpiCard icon={<Users />} title={tr("مشتریان پرریسک", "العملاء المعرّضون للخطر", "Riskli müşteriler", "Risk customers")} value={n(metrics.riskCount)} tone={metrics.riskCount > 0 ? "amber" : "emerald"} />
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.3fr_.7fr] gap-5 mb-5">
-        <Panel title={fa ? "نمودار فروش، خرید و سود" : "Sales, purchases and profit chart"} icon={<BarChart3 />}>
+        <Panel title={tr("نمودار فروش، خرید و سود", "مخطط المبيعات والمشتريات والأرباح", "Satış, alış ve kâr grafiği", "Sales, purchases and profit chart")} icon={<BarChart3 />}>
           <div className="h-80 flex items-end gap-3 px-2 overflow-x-auto">
             {monthly.map((row, index) => (
               <div key={`${row.label}-${index}`} className="flex-1 flex flex-col items-center gap-2 min-w-[42px]">
@@ -255,44 +258,44 @@ export default function BusinessIntelligence() {
             ))}
           </div>
           <div className="flex flex-wrap gap-4 mt-4 text-sm text-[var(--erp-muted)]">
-            <Legend color="bg-cyan-400" label={fa ? "فروش" : "Sales"} />
-            <Legend color="bg-amber-400" label={fa ? "خرید" : "Purchases"} />
-            <Legend color="bg-emerald-400" label={fa ? "سود" : "Profit"} />
+            <Legend color="bg-cyan-400" label={tr("فروش", "المبيعات", "Satış", "Sales")} />
+            <Legend color="bg-amber-400" label={tr("خرید", "المشتريات", "Alış", "Purchases")} />
+            <Legend color="bg-emerald-400" label={tr("سود", "الربح", "Kâr", "Profit")} />
           </div>
         </Panel>
 
-        <Panel title={fa ? "وضعیت مدیریتی سریع" : "Executive summary"} icon={<Crown />}>
+        <Panel title={tr("وضعیت مدیریتی سریع", "ملخص تنفيذي سريع", "Hızlı yönetici özeti", "Executive summary")} icon={<Crown />}>
           <div className="space-y-4">
-            <ScoreGauge value={metrics.scoreAvg || 50} title={fa ? "میانگین امتیاز مشتریان" : "Avg customer score"} n={n} />
-            <ExecutiveRow label={fa ? "دریافت امروز" : "Receipts today"} value={money(metrics.receiptToday)} />
-            <ExecutiveRow label={fa ? "پرداخت امروز" : "Payments today"} value={money(metrics.paymentToday)} />
-            <ExecutiveRow label={fa ? "فاکتورهای باز" : "Open invoices"} value={n(metrics.openInvoices)} />
-            <ExecutiveRow label={fa ? "مبلغ فاکتورهای باز" : "Open amount"} value={money(metrics.openAmount)} />
-            <ExecutiveRow label={fa ? "مطالبات CRM" : "CRM receivables"} value={money(metrics.receivablesTotal)} />
+            <ScoreGauge value={metrics.scoreAvg || 50} title={tr("میانگین امتیاز مشتریان", "متوسط تقييم العملاء", "Ortalama müşteri puanı", "Avg customer score")} n={n} />
+            <ExecutiveRow label={tr("دریافت امروز", "المقبوضات اليوم", "Bugünkü tahsilat", "Receipts today")} value={money(metrics.receiptToday)} />
+            <ExecutiveRow label={tr("پرداخت امروز", "المدفوعات اليوم", "Bugünkü ödeme", "Payments today")} value={money(metrics.paymentToday)} />
+            <ExecutiveRow label={tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")} value={n(metrics.openInvoices)} />
+            <ExecutiveRow label={tr("مبلغ فاکتورهای باز", "مبلغ الفواتير المفتوحة", "Açık fatura tutarı", "Open amount")} value={money(metrics.openAmount)} />
+            <ExecutiveRow label={tr("مطالبات CRM", "ذمم إدارة علاقات العملاء", "CRM alacakları", "CRM receivables")} value={money(metrics.receivablesTotal)} />
           </div>
         </Panel>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-5 mb-5">
-        <Panel title={fa ? "پیشنهادهای هوشمند مدیریتی" : "Smart management insights"} icon={<Lightbulb />}>
+        <Panel title={tr("پیشنهادهای هوشمند مدیریتی", "رؤى إدارية ذكية", "Akıllı yönetim önerileri", "Smart management insights")} icon={<Lightbulb />}>
           <div className="space-y-3">{insights.map((item, index) => <InsightCard key={index} item={item} />)}</div>
         </Panel>
-        <Panel title={fa ? "پیشنهاد خرید و تامین موجودی" : "Purchase & replenishment suggestions"} icon={<ShoppingCart />}>
+        <Panel title={tr("پیشنهاد خرید و تامین موجودی", "مقترحات الشراء وتجديد المخزون", "Satın alma ve stok yenileme önerileri", "Purchase & replenishment suggestions")} icon={<ShoppingCart />}>
           <div className="space-y-3">
             {purchaseSuggestions.length ? purchaseSuggestions.map((item) => (
               <div key={item.id} className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 flex items-center justify-between gap-3">
-                <div><div className="font-black text-[var(--erp-text)]">{item.name}</div><div className="text-[var(--erp-muted)] text-sm mt-1">{fa ? "موجودی" : "Stock"}: {n(item.stock)} / {fa ? "حداقل" : "Min"}: {n(item.min)}</div></div>
-                <div className="text-[var(--erp-accent)] font-black">{fa ? "خرید پیشنهادی" : "Suggested"}: {n(item.suggested)}</div>
+                <div><div className="font-black text-[var(--erp-text)]">{item.name}</div><div className="text-[var(--erp-muted)] text-sm mt-1">{tr("موجودی", "المخزون", "Stok", "Stock")}: {n(item.stock)} / {tr("حداقل", "الحد الأدنى", "Min", "Min")}: {n(item.min)}</div></div>
+                <div className="text-[var(--erp-accent)] font-black">{tr("خرید پیشنهادی", "الكمية المقترحة", "Önerilen", "Suggested")}: {n(item.suggested)}</div>
               </div>
-            )) : <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">{fa ? "فعلاً پیشنهاد خریدی ثبت نشده است." : "No purchase suggestions yet."}</div>}
+            )) : <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">{tr("فعلاً پیشنهاد خریدی ثبت نشده است.", "لا توجد مقترحات شراء حتى الآن.", "Henüz satın alma önerisi yok.", "No purchase suggestions yet.")}</div>}
           </div>
         </Panel>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <MiniPanel icon={<Users />} title={fa ? "مشتریان" : "Customers"} main={n(metrics.customersCount)} sub={`${fa ? "VIP" : "VIP"}: ${n(metrics.vipCount)}`} />
-        <MiniPanel icon={<CalendarClock />} title={fa ? "روند فروش" : "Sales trend"} main={`${n(Math.round(metrics.trend))}%`} sub={metrics.trend >= 0 ? (fa ? "رو به رشد" : "Growing") : (fa ? "کاهشی" : "Declining")} />
-        <MiniPanel icon={<Package />} title={fa ? "سلامت موجودی" : "Inventory health"} main={metrics.lowStock > 0 ? (fa ? "نیازمند بررسی" : "Needs review") : (fa ? "مناسب" : "Good")} sub={`${fa ? "کم‌موجود" : "Low stock"}: ${n(metrics.lowStock)}`} />
+        <MiniPanel icon={<Users />} title={tr("مشتریان", "العملاء", "Müşteriler", "Customers")} main={n(metrics.customersCount)} sub={`${tr("VIP", "VIP", "VIP", "VIP")}: ${n(metrics.vipCount)}`} />
+        <MiniPanel icon={<CalendarClock />} title={tr("روند فروش", "اتجاه المبيعات", "Satış trendi", "Sales trend")} main={`${n(Math.round(metrics.trend))}%`} sub={metrics.trend >= 0 ? tr("رو به رشد", "في نمو", "Yükseliyor", "Growing") : tr("کاهشی", "في انخفاض", "Düşüyor", "Declining")} />
+        <MiniPanel icon={<Package />} title={tr("سلامت موجودی", "سلامة المخزون", "Stok sağlığı", "Inventory health")} main={metrics.lowStock > 0 ? tr("نیازمند بررسی", "بحاجة إلى مراجعة", "İnceleme gerekli", "Needs review") : tr("مناسب", "جيد", "İyi", "Good")} sub={`${tr("کم‌موجود", "المخزون المنخفض", "Düşük stok", "Low stock")}: ${n(metrics.lowStock)}`} />
       </section>
     </div>
   );
