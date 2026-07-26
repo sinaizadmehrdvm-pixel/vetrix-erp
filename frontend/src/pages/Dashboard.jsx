@@ -136,7 +136,7 @@ function normalizeNotifications(items, t) {
   });
 }
 
-function buildSmartAlerts({ language, reports, stats }) {
+function buildSmartAlerts({ language, reports, stats, n }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const profit = reports?.profit_loss || {};
@@ -158,10 +158,10 @@ function buildSmartAlerts({ language, reports, stats }) {
       icon: <Boxes size={18} />,
       title: tr("هشدار موجودی کالا", "تنبيه المخزون", "Envanter uyarısı", "Inventory alert"),
       text: tr(
-        `${lowStock} کالا به حداقل موجودی رسیده‌اند.`,
-        `${lowStock} منتجات وصلت إلى الحد الأدنى من المخزون.`,
-        `${lowStock} ürün minimum stok seviyesine ulaştı.`,
-        `${lowStock} products are low in stock.`
+        `${n(lowStock)} کالا به حداقل موجودی رسیده‌اند.`,
+        `${n(lowStock)} منتجات وصلت إلى الحد الأدنى من المخزون.`,
+        `${n(lowStock)} ürün minimum stok seviyesine ulaştı.`,
+        `${n(lowStock)} products are low in stock.`
       ),
       action: tr("بررسی انبار", "مراجعة المخزون", "Envanteri incele", "Review inventory"),
       to: "/products",
@@ -174,10 +174,10 @@ function buildSmartAlerts({ language, reports, stats }) {
       icon: <ClipboardList size={18} />,
       title: tr("فاکتورهای تسویه‌نشده", "فواتير غير مسواة", "Ödenmemiş faturalar", "Unsettled invoices"),
       text: tr(
-        `${openCount || 0} فاکتور باز با مبلغ قابل پیگیری وجود دارد.`,
-        `توجد ${openCount || 0} فاتورة مفتوحة تتطلب متابعة.`,
-        `${openCount || 0} açık fatura takip gerektiriyor.`,
-        `${openCount || 0} open invoices require follow-up.`
+        `${n(openCount || 0)} فاکتور باز با مبلغ قابل پیگیری وجود دارد.`,
+        `توجد ${n(openCount || 0)} فاتورة مفتوحة تتطلب متابعة.`,
+        `${n(openCount || 0)} açık fatura takip gerektiriyor.`,
+        `${n(openCount || 0)} open invoices require follow-up.`
       ),
       action: tr("پیگیری مطالبات", "متابعة المستحقات", "Alacakları takip et", "Follow up"),
       to: "/invoices",
@@ -363,7 +363,7 @@ export default function Dashboard() {
   const inventory = reports?.inventory || {};
   const openInvoices = safeArray(reports?.open_invoices);
   const businessScore = buildBusinessScore({ reports, stats: dashboardData });
-  const smartAlerts = buildSmartAlerts({ language, reports, stats: dashboardData });
+  const smartAlerts = buildSmartAlerts({ language, reports, stats: dashboardData, n });
   const quickActions = buildQuickActions(language);
   const netProfit = toNumber(profit.net_profit ?? dashboardData.net_profit);
   const netSales = toNumber(profit.net_sales ?? dashboardData.total_revenue);
