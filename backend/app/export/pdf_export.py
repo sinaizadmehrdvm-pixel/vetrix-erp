@@ -20,7 +20,7 @@ import base64
 import tempfile
 import html
 
-from app.export.localization import format_report_date, format_report_money
+from app.export.localization import format_report_date, format_report_money, localized_digits
 
 try:
     from app.designer.engine import apply_template
@@ -603,7 +603,7 @@ def build_invoice_pdf(
     total_sum = sum(_safe_float(_get_attr(i, "total_amount", 0)) for i in invoices)
 
     summary_text = (
-        f"تعداد فاکتور: {count} | جمع کل: {_money(total_sum, currency, language, settings)}"
+        f"تعداد فاکتور: {localized_digits(count, language)} | جمع کل: {_money(total_sum, currency, language, settings)}"
         if fa
         else f"Invoice count: {count} | Total: {_money(total_sum, currency, language, settings)}"
     )
