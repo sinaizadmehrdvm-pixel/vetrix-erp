@@ -8,13 +8,14 @@ import { useLanguage } from "../localization/useLanguage";
 export default function PaymentGatewayView() {
   const { authority } = useParams();
   const { language, dir, money } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [session, setSession] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const invalidLinkMessage = fa ? "این لینک پرداخت دیگر معتبر نیست." : "This payment link is no longer valid.";
+  const invalidLinkMessage = tr("این لینک پرداخت دیگر معتبر نیست.", "رابط الدفع هذا لم يعد صالحاً.", "Bu ödeme bağlantısı artık geçerli değil.", "This payment link is no longer valid.");
 
   async function load() {
     try {
@@ -44,7 +45,7 @@ export default function PaymentGatewayView() {
         body: JSON.stringify({ authority, outcome }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.detail || (fa ? "پردازش پرداخت ممکن نشد." : "Could not process the payment."));
+      if (!res.ok) throw new Error(data?.detail || tr("پردازش پرداخت ممکن نشد.", "تعذّر معالجة الدفع.", "Ödeme işlenemedi.", "Could not process the payment."));
       await load();
     } catch (err) {
       setError(err.message);
@@ -56,7 +57,7 @@ export default function PaymentGatewayView() {
   if (loading) {
     return (
       <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
-        {fa ? "در حال بارگذاری..." : "Loading..."}
+        {tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
       </div>
     );
   }
@@ -77,17 +78,17 @@ export default function PaymentGatewayView() {
       <div className="max-w-md w-full space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "Vetrix ERP — پرداخت" : "Vetrix ERP — Payment"}</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{tr("Vetrix ERP — پرداخت", "Vetrix ERP — الدفع", "Vetrix ERP — Ödeme", "Vetrix ERP — Payment")}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 text-center">
-          <p className="text-[var(--erp-muted)] text-sm">{fa ? `فاکتور شماره ${session.invoice_id}` : `Invoice #${session.invoice_id}`}</p>
+          <p className="text-[var(--erp-muted)] text-sm">{tr(`فاکتور شماره ${session.invoice_id}`, `الفاتورة رقم ${session.invoice_id}`, `${session.invoice_id} numaralı fatura`, `Invoice #${session.invoice_id}`)}</p>
           <p className="text-[var(--erp-muted)] text-sm mb-3">{session.customer_name}</p>
           <div className="text-4xl font-black mb-4">{money(session.amount)}</div>
 
           {session.provider === "sandbox" && (
             <div className="mb-4 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-100 text-xs px-3 py-2">
-              {fa ? "حالت آزمایشی — این یک پرداخت شبیه‌سازی‌شده است، هیچ مبلغ واقعی جابه‌جا نمی‌شود." : "TEST MODE — this is a simulated payment, no real money moves."}
+              {tr("حالت آزمایشی — این یک پرداخت شبیه‌سازی‌شده است، هیچ مبلغ واقعی جابه‌جا نمی‌شود.", "الوضع التجريبي — هذه عملية دفع محاكاة، لا يتم تحويل أي مبلغ حقيقي.", "TEST MODU — bu simüle edilmiş bir ödemedir, gerçek para hareket etmez.", "TEST MODE — this is a simulated payment, no real money moves.")}
             </div>
           )}
 
@@ -99,14 +100,14 @@ export default function PaymentGatewayView() {
                 className="rounded-xl bg-emerald-400 text-slate-950 font-black px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <CreditCard size={18} />
-                {submitting ? (fa ? "در حال پردازش..." : "Processing...") : (fa ? "پرداخت (آزمایشی)" : "Pay now (sandbox)")}
+                {submitting ? tr("در حال پردازش...", "جارٍ المعالجة...", "İşleniyor...", "Processing...") : tr("پرداخت (آزمایشی)", "الدفع (تجريبي)", "Öde (deneme)", "Pay now (sandbox)")}
               </button>
               <button
                 onClick={() => simulate("failure")}
                 disabled={submitting}
                 className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold px-4 py-3 disabled:opacity-60"
               >
-                {fa ? "شبیه‌سازی پرداخت ناموفق" : "Simulate failed payment"}
+                {tr("شبیه‌سازی پرداخت ناموفق", "محاكاة دفع فاشل", "Başarısız ödemeyi simüle et", "Simulate failed payment")}
               </button>
             </div>
           )}
@@ -114,14 +115,14 @@ export default function PaymentGatewayView() {
           {session.status === "success" && (
             <div className="text-emerald-300 flex flex-col items-center gap-2">
               <CheckCircle2 size={40} />
-              <p className="font-black">{fa ? "پرداخت موفق بود" : "Payment successful"}</p>
+              <p className="font-black">{tr("پرداخت موفق بود", "تم الدفع بنجاح", "Ödeme başarılı oldu", "Payment successful")}</p>
             </div>
           )}
 
           {session.status === "failed" && (
             <div className="text-rose-300 flex flex-col items-center gap-2">
               <XCircle size={40} />
-              <p className="font-black">{fa ? "پرداخت ناموفق بود" : "Payment failed"}</p>
+              <p className="font-black">{tr("پرداخت ناموفق بود", "فشل الدفع", "Ödeme başarısız oldu", "Payment failed")}</p>
             </div>
           )}
         </section>

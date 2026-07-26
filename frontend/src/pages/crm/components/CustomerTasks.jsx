@@ -157,7 +157,7 @@ export default function CustomerTasks({
         <h3 className="text-[var(--erp-accent)] font-black mb-4 flex items-center gap-2"><Plus size={20} />{tr("ثبت وظیفه جدید", "إضافة مهمة جديدة", "Yeni görev ekle", "Add new task")}</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("عنوان وظیفه؛ مثال: تماس برای پیگیری پرداخت", "عنوان المهمة؛ مثال: اتصال لمتابعة الدفع", "Görev başlığı; örn: Ödeme takibi için arama", "Task title")} className="crm-input" />
-          <JalaliDateField value={form.due_date} onChange={(isoDate) => setForm({ ...form, due_date: isoDate })} fa={lang === "fa"} className="crm-input" style={{ gap: 8 }} />
+          <JalaliDateField value={form.due_date} onChange={(isoDate) => setForm({ ...form, due_date: isoDate })} fa={lang === "fa"} language={lang} className="crm-input" style={{ gap: 8 }} />
           <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder={tr("مسئول انجام", "المسؤول", "Sorumlu", "Assignee")} className="crm-input" />
           <div className="grid grid-cols-2 gap-3">
             <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="crm-input">

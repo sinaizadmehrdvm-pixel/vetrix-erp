@@ -9,7 +9,10 @@ import { toJalali, todayJalali, fromJalali } from "../../utils/date";
 // string with only its digits swapped to Persian numerals, which isn't a
 // real calendar conversion and made the "Today" button fill a value that
 // contradicted the field's own placeholder.
-export default function JalaliDateField({ value, onChange, fa, className, placeholder, style }) {
+export default function JalaliDateField({ value, onChange, fa, language, className, placeholder, style }) {
+  const lang = language || (fa ? "fa" : "en");
+  const tr = (faText, arText, trText, enText) =>
+    lang === "fa" ? faText : lang === "ar" ? arText : lang === "tr" ? trText : enText;
   const displayFor = (v) => (fa ? toJalali(v) : v || "");
   const [text, setText] = useState(() => displayFor(value));
 
@@ -47,7 +50,7 @@ export default function JalaliDateField({ value, onChange, fa, className, placeh
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={(e) => commit(e.target.value)}
-        placeholder={placeholder || (fa ? "تاریخ شمسی مثل ۱۴۰۵/۰۳/۰۹" : "Date like 2026-05-30")}
+        placeholder={placeholder || (fa ? "تاریخ شمسی مثل ۱۴۰۵/۰۳/۰۹" : tr("", "تاريخ مثل 2026-05-30", "Tarih, ör. 2026-05-30", "Date like 2026-05-30"))}
         className={className}
         style={{ width: "100%" }}
       />
@@ -58,7 +61,7 @@ export default function JalaliDateField({ value, onChange, fa, className, placeh
         style={{ minWidth: 105, flexShrink: 0 }}
       >
         <CalendarDays size={17} />
-        {fa ? "امروز" : "Today"}
+        {tr("امروز", "اليوم", "Bugün", "Today")}
       </button>
     </div>
   );

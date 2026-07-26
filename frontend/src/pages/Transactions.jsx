@@ -582,6 +582,7 @@ export default function Transactions() {
             value={form.date}
             onChange={(isoDate) => setForm({ ...form, date: isoDate })}
             fa={language === "fa"}
+            language={language}
             className={inputClass}
           />
         </div>
