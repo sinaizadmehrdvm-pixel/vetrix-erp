@@ -44,9 +44,13 @@ function toNumber(value) {
 }
 
 function balanceLabel(balance, language) {
-  if (balance > 0) return language === "fa" ? "بدهکار" : "Debtor";
-  if (balance < 0) return language === "fa" ? "بستانکار" : "Creditor";
-  return language === "fa" ? "تسویه شده" : "Settled";
+  if (balance > 0) {
+    return language === "fa" ? "بدهکار" : language === "ar" ? "مدين" : language === "tr" ? "Borçlu" : "Debtor";
+  }
+  if (balance < 0) {
+    return language === "fa" ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacaklı" : "Creditor";
+  }
+  return language === "fa" ? "تسویه شده" : language === "ar" ? "مسوّى" : language === "tr" ? "Kapatıldı" : "Settled";
 }
 
 function sourceLabel(sourceType, language) {
@@ -65,6 +69,36 @@ function sourceLabel(sourceType, language) {
     payment: "پرداخت به طرف حساب",
   };
 
+  const ar = {
+    opening_balance: "الرصيد الافتتاحي",
+    invoice: "فاتورة بيع",
+    sale: "فاتورة بيع",
+    buy: "فاتورة شراء",
+    purchase: "فاتورة شراء",
+    return_sale: "مرتجع بيع",
+    sale_return: "مرتجع بيع",
+    return_buy: "مرتجع شراء",
+    buy_return: "مرتجع شراء",
+    purchase_return: "مرتجع شراء",
+    receipt: "قبض من الطرف",
+    payment: "دفعة إلى الطرف",
+  };
+
+  const tr = {
+    opening_balance: "Açılış bakiyesi",
+    invoice: "Satış faturası",
+    sale: "Satış faturası",
+    buy: "Alış faturası",
+    purchase: "Alış faturası",
+    return_sale: "Satış iadesi",
+    sale_return: "Satış iadesi",
+    return_buy: "Alış iadesi",
+    buy_return: "Alış iadesi",
+    purchase_return: "Alış iadesi",
+    receipt: "Cariden tahsilat",
+    payment: "Cariye ödeme",
+  };
+
   const en = {
     opening_balance: "Opening balance",
     invoice: "Sales invoice",
@@ -80,7 +114,8 @@ function sourceLabel(sourceType, language) {
     payment: "Payment to party",
   };
 
-  return (language === "fa" ? fa : en)[sourceType] || sourceType || "-";
+  const table = language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? tr : en;
+  return table[sourceType] || sourceType || "-";
 }
 
 function getDebit(row) {
@@ -126,7 +161,8 @@ export default function CustomerDetails() {
   const [supplierPortalLink, setSupplierPortalLink] = useState("");
   const [supplierPortalBusy, setSupplierPortalBusy] = useState(false);
 
-  const isFa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   function formatDate(value) {
     return value ? date(value, { month: "long" }) : "-";
@@ -142,7 +178,7 @@ export default function CustomerDetails() {
       setLedger(Array.isArray(data.ledger) ? data.ledger : []);
     } catch (err) {
       console.error("Customer ledger error:", err);
-      setError(err.message || (isFa ? "خطا در دریافت پرونده طرف‌حساب" : "Error loading party ledger"));
+      setError(err.message || tr("خطا در دریافت پرونده طرف‌حساب", "خطأ في جلب ملف حساب العميل", "Cari dosyası alınırken hata oluştu", "Error loading party ledger"));
     } finally {
       setLoading(false);
     }
@@ -176,7 +212,7 @@ export default function CustomerDetails() {
       const data = await createCustomerPortalLink(id);
       setPortalLink(`${window.location.origin}/portal/${data.token}`);
       setPortalEnabled(true);
-      toast.success(isFa ? "لینک پورتال ساخته شد." : "Portal link created.");
+      toast.success(tr("لینک پورتال ساخته شد.", "تم إنشاء رابط البوابة.", "Portal bağlantısı oluşturuldu.", "Portal link created."));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -190,7 +226,7 @@ export default function CustomerDetails() {
       await revokeCustomerPortalAccess(id);
       setPortalEnabled(false);
       setPortalLink("");
-      toast.success(isFa ? "دسترسی پورتال لغو شد." : "Portal access revoked.");
+      toast.success(tr("دسترسی پورتال لغو شد.", "تم إلغاء الوصول إلى البوابة.", "Portal erişimi iptal edildi.", "Portal access revoked."));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -201,9 +237,9 @@ export default function CustomerDetails() {
   async function copyPortalLink() {
     try {
       await navigator.clipboard.writeText(portalLink);
-      toast.success(isFa ? "لینک کپی شد." : "Link copied.");
+      toast.success(tr("لینک کپی شد.", "تم نسخ الرابط.", "Bağlantı kopyalandı.", "Link copied."));
     } catch {
-      toast.error(isFa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
+      toast.error(tr("کپی خودکار ممکن نشد.", "تعذّر النسخ التلقائي.", "Otomatik kopyalama başarısız oldu.", "Couldn't copy automatically."));
     }
   }
 
@@ -213,7 +249,7 @@ export default function CustomerDetails() {
       const data = await createSupplierPortalLink(id);
       setSupplierPortalLink(`${window.location.origin}/supplier-portal/${data.token}`);
       setSupplierPortalEnabled(true);
-      toast.success(isFa ? "لینک پورتال تأمین‌کننده ساخته شد." : "Supplier portal link created.");
+      toast.success(tr("لینک پورتال تأمین‌کننده ساخته شد.", "تم إنشاء رابط بوابة المورد.", "Tedarikçi portal bağlantısı oluşturuldu.", "Supplier portal link created."));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -227,7 +263,7 @@ export default function CustomerDetails() {
       await revokeSupplierPortalAccess(id);
       setSupplierPortalEnabled(false);
       setSupplierPortalLink("");
-      toast.success(isFa ? "دسترسی پورتال تأمین‌کننده لغو شد." : "Supplier portal access revoked.");
+      toast.success(tr("دسترسی پورتال تأمین‌کننده لغو شد.", "تم إلغاء الوصول إلى بوابة المورد.", "Tedarikçi portal erişimi iptal edildi.", "Supplier portal access revoked."));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -238,9 +274,9 @@ export default function CustomerDetails() {
   async function copySupplierPortalLink() {
     try {
       await navigator.clipboard.writeText(supplierPortalLink);
-      toast.success(isFa ? "لینک کپی شد." : "Link copied.");
+      toast.success(tr("لینک کپی شد.", "تم نسخ الرابط.", "Bağlantı kopyalandı.", "Link copied."));
     } catch {
-      toast.error(isFa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
+      toast.error(tr("کپی خودکار ممکن نشد.", "تعذّر النسخ التلقائي.", "Otomatik kopyalama başarısız oldu.", "Couldn't copy automatically."));
     }
   }
 
@@ -277,31 +313,37 @@ export default function CustomerDetails() {
     setCrmNotes(next);
     saveCrmState(next, followupDate);
     setNewNote("");
-    setCrmMessage(isFa ? "یادداشت CRM ذخیره شد." : "CRM note saved.");
+    setCrmMessage(tr("یادداشت CRM ذخیره شد.", "تم حفظ ملاحظة CRM.", "CRM notu kaydedildi.", "CRM note saved."));
   }
 
   function saveFollowupDate(value) {
     setFollowupDate(value);
     saveCrmState(crmNotes, value);
-    setCrmMessage(isFa ? "تاریخ پیگیری ذخیره شد." : "Follow-up date saved.");
+    setCrmMessage(tr("تاریخ پیگیری ذخیره شد.", "تم حفظ تاريخ المتابعة.", "Takip tarihi kaydedildi.", "Follow-up date saved."));
   }
 
   function whatsappMessage() {
     const balance = finance?.balance || 0;
     if (balance > 0) {
-      return isFa
-        ? `سلام ${party?.name || ""} عزیز، مانده حساب شما ${money(balance)} است. لطفاً جهت تسویه یا هماهنگی با ما در ارتباط باشید.`
-        : `Hello ${party?.name || ""}, your outstanding balance is ${money(balance)}. Please contact us for settlement.`;
+      return tr(
+        `سلام ${party?.name || ""} عزیز، مانده حساب شما ${money(balance)} است. لطفاً جهت تسویه یا هماهنگی با ما در ارتباط باشید.`,
+        `مرحباً ${party?.name || ""} الكريم، رصيد حسابك ${money(balance)}. يرجى التواصل معنا للتسوية أو التنسيق.`,
+        `Sayın ${party?.name || ""}, hesap bakiyeniz ${money(balance)}. Lütfen mutabakat veya bilgi için bizimle iletişime geçin.`,
+        `Hello ${party?.name || ""}, your outstanding balance is ${money(balance)}. Please contact us for settlement.`
+      );
     }
-    return isFa
-      ? `سلام ${party?.name || ""} عزیز، ممنون از همکاری شما. جهت سفارش یا پیگیری بعدی در خدمت شما هستیم.`
-      : `Hello ${party?.name || ""}, thank you for your cooperation. We are ready for your next order or follow-up.`;
+    return tr(
+      `سلام ${party?.name || ""} عزیز، ممنون از همکاری شما. جهت سفارش یا پیگیری بعدی در خدمت شما هستیم.`,
+      `مرحباً ${party?.name || ""} الكريم، نشكر لكم تعاونكم. نحن في خدمتكم لأي طلب أو متابعة لاحقة.`,
+      `Sayın ${party?.name || ""}, iş birliğiniz için teşekkür ederiz. Yeni bir sipariş veya sonraki takip için hizmetinizdeyiz.`,
+      `Hello ${party?.name || ""}, thank you for your cooperation. We are ready for your next order or follow-up.`
+    );
   }
 
   function openWhatsApp() {
     const phone = String(party?.mobile || party?.phone || "").replace(/[^0-9]/g, "");
     if (!phone) {
-      alert(isFa ? "شماره موبایل/تلفن ثبت نشده است." : "No phone/mobile number is saved.");
+      alert(tr("شماره موبایل/تلفن ثبت نشده است.", "لم يتم تسجيل رقم الهاتف/الجوال.", "Telefon/cep telefonu numarası kayıtlı değil.", "No phone/mobile number is saved."));
       return;
     }
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage())}`, "_blank");
@@ -392,20 +434,36 @@ export default function CustomerDetails() {
     const level = score >= 80 ? "vip" : score >= 60 ? "active" : finance.balance > 0 ? "followup" : "normal";
     const suggestion =
       finance.balance > 0
-        ? (isFa ? "پیگیری مطالبات و ثبت نتیجه تماس پیشنهاد می‌شود." : "Follow up receivables and log the call result.")
+        ? tr(
+            "پیگیری مطالبات و ثبت نتیجه تماس پیشنهاد می‌شود.",
+            "يُنصح بمتابعة المستحقات وتسجيل نتيجة الاتصال.",
+            "Alacakların takibi ve görüşme sonucunun kaydedilmesi önerilir.",
+            "Follow up receivables and log the call result."
+          )
         : normalizedLedger.length === 0
-        ? (isFa ? "برای این مشتری هنوز گردش مالی ثبت نشده است؛ اولین تعامل را ثبت کن." : "No financial activity yet; register the first interaction.")
-        : (isFa ? "ارتباط با مشتری حفظ شود و پیشنهاد خرید مجدد ارسال گردد." : "Maintain relationship and send a reorder proposal.");
+        ? tr(
+            "برای این مشتری هنوز گردش مالی ثبت نشده است؛ اولین تعامل را ثبت کن.",
+            "لم يتم تسجيل أي نشاط مالي لهذا العميل بعد؛ سجّل أول تفاعل.",
+            "Bu müşteri için henüz finansal hareket kaydedilmedi; ilk etkileşimi kaydedin.",
+            "No financial activity yet; register the first interaction."
+          )
+        : tr(
+            "ارتباط با مشتری حفظ شود و پیشنهاد خرید مجدد ارسال گردد.",
+            "حافظ على التواصل مع العميل وأرسل عرض إعادة الشراء.",
+            "Müşteri ile iletişim sürdürülmeli ve yeniden sipariş teklifi gönderilmelidir.",
+            "Maintain relationship and send a reorder proposal."
+          );
 
     const levelLabels = {
-      vip: isFa ? "ویژه" : "VIP",
-      active: isFa ? "فعال" : "Active",
-      followup: isFa ? "نیازمند پیگیری" : "Needs follow-up",
-      normal: isFa ? "عادی" : "Normal",
+      vip: tr("ویژه", "مميز", "VIP", "VIP"),
+      active: tr("فعال", "نشط", "Aktif", "Active"),
+      followup: tr("نیازمند پیگیری", "يحتاج إلى متابعة", "Takip gerekiyor", "Needs follow-up"),
+      normal: tr("عادی", "عادي", "Normal", "Normal"),
     };
 
     return { score, level, levelLabel: levelLabels[level] || level, suggestion };
-  }, [party, normalizedLedger, finance, isFa]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [party, normalizedLedger, finance, language]);
 
   const crmTimeline = useMemo(() => {
     const ledgerEvents = normalizedLedger.slice(-8).map((row) => ({
@@ -436,7 +494,7 @@ export default function CustomerDetails() {
   if (loading && !party) {
     return (
       <div dir={dir} className="text-[var(--erp-accent)] p-8">
-        {isFa ? "در حال بارگذاری..." : "Loading..."}
+        {tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
       </div>
     );
   }
@@ -451,7 +509,7 @@ export default function CustomerDetails() {
           to="/customers"
           className="inline-flex mt-4 px-4 py-3 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-black"
         >
-          {isFa ? "بازگشت" : "Back"}
+          {tr("بازگشت", "رجوع", "Geri", "Back")}
         </Link>
       </div>
     );
@@ -468,7 +526,7 @@ export default function CustomerDetails() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             <ArrowLeft size={18} />
-            {isFa ? "بازگشت" : "Back"}
+            {tr("بازگشت", "رجوع", "Geri", "Back")}
           </Link>
 
           <button
@@ -476,7 +534,7 @@ export default function CustomerDetails() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"
           >
             <Printer size={18} />
-            {isFa ? "چاپ پرونده" : "Print"}
+            {tr("چاپ پرونده", "طباعة الملف", "Dosyayı yazdır", "Print")}
           </button>
 
           <button
@@ -484,7 +542,7 @@ export default function CustomerDetails() {
             className="px-4 py-3 rounded-2xl bg-emerald-500/20 text-emerald-200 font-black flex items-center gap-2 border border-emerald-400/20"
           >
             <MessageCircle size={18} />
-            {isFa ? "واتساپ" : "WhatsApp"}
+            {tr("واتساپ", "واتساب", "WhatsApp", "WhatsApp")}
           </button>
 
           <button
@@ -493,7 +551,7 @@ export default function CustomerDetails() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
           >
             <RefreshCcw size={18} />
-            {isFa ? "به‌روزرسانی" : "Refresh"}
+            {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
 
           {portalEnabled ? (
@@ -503,7 +561,7 @@ export default function CustomerDetails() {
               className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
             >
               <ShieldOff size={18} />
-              {isFa ? "لغو پورتال مشتری" : "Revoke customer portal"}
+              {tr("لغو پورتال مشتری", "إلغاء بوابة العميل", "Müşteri portalını iptal et", "Revoke customer portal")}
             </button>
           ) : (
             <button
@@ -512,7 +570,7 @@ export default function CustomerDetails() {
               className="px-4 py-3 rounded-2xl bg-indigo-500/15 text-indigo-200 font-black flex items-center gap-2 border border-indigo-400/20 disabled:opacity-60"
             >
               <Link2 size={18} />
-              {isFa ? "ساخت لینک پورتال مشتری" : "Create customer portal link"}
+              {tr("ساخت لینک پورتال مشتری", "إنشاء رابط بوابة العميل", "Müşteri portal bağlantısı oluştur", "Create customer portal link")}
             </button>
           )}
 
@@ -524,7 +582,7 @@ export default function CustomerDetails() {
                 className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
               >
                 <ShieldOff size={18} />
-                {isFa ? "لغو پورتال تأمین‌کننده" : "Revoke supplier portal"}
+                {tr("لغو پورتال تأمین‌کننده", "إلغاء بوابة المورد", "Tedarikçi portalını iptal et", "Revoke supplier portal")}
               </button>
             ) : (
               <button
@@ -533,7 +591,7 @@ export default function CustomerDetails() {
                 className="px-4 py-3 rounded-2xl bg-teal-500/15 text-teal-200 font-black flex items-center gap-2 border border-teal-400/20 disabled:opacity-60"
               >
                 <Link2 size={18} />
-                {isFa ? "ساخت لینک پورتال تأمین‌کننده" : "Create supplier portal link"}
+                {tr("ساخت لینک پورتال تأمین‌کننده", "إنشاء رابط بوابة المورد", "Tedarikçi portal bağlantısı oluştur", "Create supplier portal link")}
               </button>
             )
           )}
@@ -541,10 +599,15 @@ export default function CustomerDetails() {
 
         <div className="text-right">
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
-            {isFa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Profile"}
+            {tr("پرونده ۳۶۰ درجه طرف‌حساب", "ملف العميل الشامل 360", "Müşteri 360 Derece Profili", "Customer 360 Profile")}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {isFa ? `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}` : `Complete finance and CRM profile #${party.id}`}
+            {tr(
+              `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}`,
+              `ملف مالي وCRM ومتابعة واتصالات كامل للعميل رقم #${n(party.id)}`,
+              `Cari için tam finans, CRM, takip ve iletişim dosyası #${n(party.id)}`,
+              `Complete finance and CRM profile #${party.id}`
+            )}
           </p>
         </div>
       </div>
@@ -556,7 +619,7 @@ export default function CustomerDetails() {
             onClick={copyPortalLink}
             className="px-4 py-2 rounded-xl bg-indigo-400 text-slate-950 font-black flex-shrink-0"
           >
-            {isFa ? "کپی لینک" : "Copy link"}
+            {tr("کپی لینک", "نسخ الرابط", "Bağlantıyı kopyala", "Copy link")}
           </button>
         </div>
       )}
@@ -568,7 +631,7 @@ export default function CustomerDetails() {
             onClick={copySupplierPortalLink}
             className="px-4 py-2 rounded-xl bg-teal-400 text-slate-950 font-black flex-shrink-0"
           >
-            {isFa ? "کپی لینک" : "Copy link"}
+            {tr("کپی لینک", "نسخ الرابط", "Bağlantıyı kopyala", "Copy link")}
           </button>
         </div>
       )}
@@ -580,10 +643,10 @@ export default function CustomerDetails() {
             <div className="text-[var(--erp-accent)] font-bold mt-1">
               {
                 {
-                  customer: isFa ? "مشتری" : "Customer",
-                  supplier: isFa ? "تامین‌کننده" : "Supplier",
-                  both: isFa ? "مشتری و تامین‌کننده" : "Customer & supplier",
-                }[party.customer_type || "customer"] || (isFa ? "مشتری" : "Customer")
+                  customer: tr("مشتری", "عميل", "Müşteri", "Customer"),
+                  supplier: tr("تامین‌کننده", "مورد", "Tedarikçi", "Supplier"),
+                  both: tr("مشتری و تامین‌کننده", "عميل ومورد", "Müşteri ve Tedarikçi", "Customer & supplier"),
+                }[party.customer_type || "customer"] || tr("مشتری", "عميل", "Müşteri", "Customer")
               }
             </div>
           </div>
@@ -593,32 +656,37 @@ export default function CustomerDetails() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Info icon={<Phone size={17} />} label={isFa ? "شماره تماس" : "Phone"} value={party.phone || "-"} />
-          <Info icon={<Mail size={17} />} label={isFa ? "ایمیل" : "Email"} value={party.email || "-"} />
-          <Info icon={<MapPin size={17} />} label={isFa ? "شهر" : "City"} value={party.city || "-"} />
-          <Info icon={<MapPin size={17} />} label={isFa ? "آدرس" : "Address"} value={party.address || "-"} />
-          <Info icon={<CreditCard size={17} />} label={isFa ? "کد ملی/شناسه" : "National ID"} value={party.national_id || "-"} />
-          <Info icon={<CreditCard size={17} />} label={isFa ? "کد اقتصادی" : "Economic Code"} value={party.economic_code || "-"} />
-          <Info icon={<UserRound size={17} />} label={isFa ? "شخص رابط" : "Contact"} value={party.contact_person || "-"} />
-          <Info icon={<Wallet size={17} />} label={isFa ? "سقف اعتبار" : "Credit Limit"} value={money(toNumber(party.credit_limit))} />
+          <Info icon={<Phone size={17} />} label={tr("شماره تماس", "رقم الهاتف", "Telefon Numarası", "Phone")} value={party.phone || "-"} />
+          <Info icon={<Mail size={17} />} label={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")} value={party.email || "-"} />
+          <Info icon={<MapPin size={17} />} label={tr("شهر", "المدينة", "Şehir", "City")} value={party.city || "-"} />
+          <Info icon={<MapPin size={17} />} label={tr("آدرس", "العنوان", "Adres", "Address")} value={party.address || "-"} />
+          <Info icon={<CreditCard size={17} />} label={tr("کد ملی/شناسه", "الرقم الوطني/المعرف", "Kimlik/Vergi No", "National ID")} value={party.national_id || "-"} />
+          <Info icon={<CreditCard size={17} />} label={tr("کد اقتصادی", "الرمز الاقتصادي", "Vergi Kodu", "Economic Code")} value={party.economic_code || "-"} />
+          <Info icon={<UserRound size={17} />} label={tr("شخص رابط", "الشخص المسؤول", "İlgili Kişi", "Contact")} value={party.contact_person || "-"} />
+          <Info icon={<Wallet size={17} />} label={tr("سقف اعتبار", "حد الائتمان", "Kredi Limiti", "Credit Limit")} value={money(toNumber(party.credit_limit))} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <Kpi
-          title={isFa ? "مانده حساب" : "Balance"}
+          title={tr("مانده حساب", "الرصيد", "Bakiye", "Balance")}
           value={money(Math.abs(finance.balance))}
-          hint={isFa ? `${party.name} ${balanceLabel(finance.balance, language)} است` : balanceLabel(finance.balance, language)}
+          hint={tr(
+            `${party.name} ${balanceLabel(finance.balance, language)} است`,
+            balanceLabel(finance.balance, language),
+            balanceLabel(finance.balance, language),
+            balanceLabel(finance.balance, language)
+          )}
           color={finance.balance > 0 ? "#fca5a5" : finance.balance < 0 ? "#86efac" : "#22d3ee"}
           icon={<Wallet size={20} />}
         />
-        <Kpi title={isFa ? "بدهکار" : "Debtor"} value={money(finance.debtor)} color="#fca5a5" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "بستانکار" : "Creditor"} value={money(finance.creditor)} color="#86efac" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "مانده اول دوره" : "Opening"} value={money(Math.abs(finance.opening))} hint={balanceLabel(finance.opening, language)} color="#22d3ee" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "آخرین فعالیت" : "Last activity"} value={finance.lastActivity ? formatDate(finance.lastActivity.date || finance.lastActivity.created_at) : "-"} icon={<Clock size={20} />} />
-        <Kpi title={isFa ? "تعداد تراکنش" : "Transactions"} value={n(normalizedLedger.length)} icon={<ArrowRightLeft size={20} />} />
-        <Kpi title={isFa ? "جمع بدهکار" : "Total debit"} value={money(finance.totalDebit)} icon={<ArrowRightLeft size={20} />} />
-        <Kpi title={isFa ? "جمع بستانکار" : "Total credit"} value={money(finance.totalCredit)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("بدهکار", "مدين", "Borçlu", "Debtor")} value={money(finance.debtor)} color="#fca5a5" icon={<Wallet size={20} />} />
+        <Kpi title={tr("بستانکار", "دائن", "Alacaklı", "Creditor")} value={money(finance.creditor)} color="#86efac" icon={<Wallet size={20} />} />
+        <Kpi title={tr("مانده اول دوره", "الرصيد الافتتاحي", "Açılış Bakiyesi", "Opening")} value={money(Math.abs(finance.opening))} hint={balanceLabel(finance.opening, language)} color="#22d3ee" icon={<Wallet size={20} />} />
+        <Kpi title={tr("آخرین فعالیت", "آخر نشاط", "Son İşlem", "Last activity")} value={finance.lastActivity ? formatDate(finance.lastActivity.date || finance.lastActivity.created_at) : "-"} icon={<Clock size={20} />} />
+        <Kpi title={tr("تعداد تراکنش", "عدد المعاملات", "İşlem Sayısı", "Transactions")} value={n(normalizedLedger.length)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("جمع بدهکار", "إجمالي المدين", "Toplam Borç", "Total debit")} value={money(finance.totalDebit)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("جمع بستانکار", "إجمالي الدائن", "Toplam Alacak", "Total credit")} value={money(finance.totalCredit)} icon={<ArrowRightLeft size={20} />} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5">
@@ -626,7 +694,7 @@ export default function CustomerDetails() {
           <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
             <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
               <Sparkles size={24} />
-              {isFa ? "هوش ارتباط با مشتری" : "Customer Intelligence"}
+              {tr("هوش ارتباط با مشتری", "ذكاء العميل", "Müşteri Zekası", "Customer Intelligence")}
             </h2>
             <span className={`px-4 py-2 rounded-2xl font-black ${customerIntelligence.score >= 80 ? "bg-yellow-400/10 text-yellow-300" : customerIntelligence.score >= 60 ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>
               <Star size={16} className="inline mx-1" /> {n(customerIntelligence.score)}/100
@@ -634,9 +702,9 @@ export default function CustomerDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            <Info icon={<BellRing size={17} />} label={isFa ? "پیگیری بعدی" : "Next follow-up"} value={followupDate || (isFa ? "ثبت نشده" : "Not set")} />
-            <Info icon={<CheckCircle2 size={17} />} label={isFa ? "وضعیت CRM" : "CRM Status"} value={customerIntelligence.levelLabel} />
-            <Info icon={<MessageCircle size={17} />} label={isFa ? "یادداشت‌ها" : "Notes"} value={n(crmNotes.length)} />
+            <Info icon={<BellRing size={17} />} label={tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki Takip", "Next follow-up")} value={followupDate || tr("ثبت نشده", "غير محدد", "Belirtilmedi", "Not set")} />
+            <Info icon={<CheckCircle2 size={17} />} label={tr("وضعیت CRM", "حالة CRM", "CRM Durumu", "CRM Status")} value={customerIntelligence.levelLabel} />
+            <Info icon={<MessageCircle size={17} />} label={tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes")} value={n(crmNotes.length)} />
           </div>
 
           <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] p-4 text-[var(--erp-accent)] font-bold mb-5">
@@ -649,14 +717,14 @@ export default function CustomerDetails() {
               onChange={(e) => saveFollowupDate(e.target.value)}
               type="text"
               className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
-              placeholder={isFa ? "مثال: ۱۴۰۵/۰۴/۲۵" : "Example: 2026/07/16"}
+              placeholder={tr("مثال: ۱۴۰۵/۰۴/۲۵", "مثال: 2026/07/16", "Örnek: 2026/07/16", "Example: 2026/07/16")}
             />
             <button
               onClick={openWhatsApp}
               className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/20 rounded-2xl font-black flex items-center justify-center gap-2"
             >
               <MessageCircle size={18} />
-              {isFa ? "پیام آماده واتساپ" : "WhatsApp message"}
+              {tr("پیام آماده واتساپ", "رسالة واتساب جاهزة", "Hazır WhatsApp Mesajı", "WhatsApp message")}
             </button>
           </div>
 
@@ -672,14 +740,19 @@ export default function CustomerDetails() {
               onChange={(e) => setNewNote(e.target.value)}
               rows={3}
               className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
-              placeholder={isFa ? "یادداشت تماس، مذاکره، قول پرداخت یا درخواست مشتری..." : "Call note, negotiation, payment promise or customer request..."}
+              placeholder={tr(
+                "یادداشت تماس، مذاکره، قول پرداخت یا درخواست مشتری...",
+                "ملاحظة اتصال، مفاوضة، وعد بالدفع أو طلب العميل...",
+                "Görüşme notu, müzakere, ödeme sözü veya müşteri talebi...",
+                "Call note, negotiation, payment promise or customer request..."
+              )}
             />
             <button
               onClick={addCrmNote}
               className="bg-[var(--erp-accent)] text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2"
             >
               <Plus size={18} />
-              {isFa ? "ثبت" : "Add"}
+              {tr("ثبت", "إضافة", "Ekle", "Add")}
             </button>
           </div>
         </div>
@@ -687,7 +760,7 @@ export default function CustomerDetails() {
         <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2 mb-5">
             <Clock size={24} />
-            {isFa ? "تایم‌لاین مشتری" : "Customer timeline"}
+            {tr("تایم‌لاین مشتری", "الجدول الزمني للعميل", "Müşteri Zaman Çizelgesi", "Customer timeline")}
           </h2>
           <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
             {crmTimeline.map((event) => (
@@ -695,7 +768,7 @@ export default function CustomerDetails() {
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <div className="text-[var(--erp-text)] font-black text-sm">{event.title}</div>
                   <span className={`text-xs px-2 py-1 rounded-full ${event.type === "crm" ? "bg-cyan-400/10 text-cyan-300" : "bg-emerald-400/10 text-emerald-300"}`}>
-                    {event.type === "crm" ? (isFa ? "CRM" : "CRM") : (isFa ? "مالی" : "Finance")}
+                    {event.type === "crm" ? "CRM" : tr("مالی", "مالي", "Finansal", "Finance")}
                   </span>
                 </div>
                 <div className="text-xs text-[var(--erp-muted)] flex items-center justify-between gap-2">
@@ -706,7 +779,7 @@ export default function CustomerDetails() {
             ))}
 
             {crmTimeline.length === 0 && (
-              <div className="text-[var(--erp-muted)]">{isFa ? "هنوز رویدادی ثبت نشده است." : "No timeline events yet."}</div>
+              <div className="text-[var(--erp-muted)]">{tr("هنوز رویدادی ثبت نشده است.", "لم يتم تسجيل أي حدث بعد.", "Henüz bir olay kaydedilmedi.", "No timeline events yet.")}</div>
             )}
           </div>
         </div>
@@ -716,7 +789,7 @@ export default function CustomerDetails() {
         <div className="flex flex-wrap justify-between gap-3 mb-5">
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={24} />
-            {isFa ? "صورت‌حساب" : "Ledger"}
+            {tr("صورت‌حساب", "كشف الحساب", "Hesap Ekstresi", "Ledger")}
           </h2>
 
           <div className="flex gap-2">
@@ -726,7 +799,7 @@ export default function CustomerDetails() {
                 viewMode === "all" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
-              {isFa ? "دفتر کل" : "All"}
+              {tr("دفتر کل", "الكل", "Tümü", "All")}
             </button>
 
             <button
@@ -735,7 +808,7 @@ export default function CustomerDetails() {
                 viewMode === "bank" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
-              {isFa ? "ریزگردش بانکی" : "Bank"}
+              {tr("ریزگردش بانکی", "الحركة البنكية", "Banka Hareketi", "Bank")}
             </button>
           </div>
         </div>
@@ -745,12 +818,12 @@ export default function CustomerDetails() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                  <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
-                  <th className="p-3 text-right">{isFa ? "شرح" : "Description"}</th>
-                  <th className="p-3 text-right">{isFa ? "بدهکار" : "Debit"}</th>
-                  <th className="p-3 text-right">{isFa ? "بستانکار" : "Credit"}</th>
-                  <th className="p-3 text-right">{isFa ? "مانده حساب" : "Account balance"}</th>
-                  <th className="p-3 text-right">{isFa ? "وضعیت" : "Status"}</th>
+                  <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
+                  <th className="p-3 text-right">{tr("شرح", "البيان", "Açıklama", "Description")}</th>
+                  <th className="p-3 text-right">{tr("بدهکار", "مدين", "Borç", "Debit")}</th>
+                  <th className="p-3 text-right">{tr("بستانکار", "دائن", "Alacak", "Credit")}</th>
+                  <th className="p-3 text-right">{tr("مانده حساب", "رصيد الحساب", "Hesap Bakiyesi", "Account balance")}</th>
+                  <th className="p-3 text-right">{tr("وضعیت", "الحالة", "Durum", "Status")}</th>
                 </tr>
               </thead>
 
@@ -784,7 +857,7 @@ export default function CustomerDetails() {
                 {visibleRows.length === 0 && (
                   <tr>
                     <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
-                      {isFa ? "هنوز گردش حسابی ثبت نشده است" : "No ledger rows"}
+                      {tr("هنوز گردش حسابی ثبت نشده است", "لم يتم تسجيل أي حركة حساب بعد", "Henüz hesap hareketi kaydedilmedi", "No ledger rows")}
                     </td>
                   </tr>
                 )}
@@ -796,12 +869,12 @@ export default function CustomerDetails() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                  <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
-                  <th className="p-3 text-right">{isFa ? "شرح عملیات بانکی" : "Bank transaction"}</th>
-                  <th className="p-3 text-right">{isFa ? "ورود وجه" : "Inflow"}</th>
-                  <th className="p-3 text-right">{isFa ? "خروج وجه" : "Outflow"}</th>
-                  <th className="p-3 text-right">{isFa ? "مانده نقد/بانک" : "Cash/Bank balance"}</th>
-                  <th className="p-3 text-right">{isFa ? "نوع" : "Type"}</th>
+                  <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
+                  <th className="p-3 text-right">{tr("شرح عملیات بانکی", "بيان العملية البنكية", "Banka İşlemi Açıklaması", "Bank transaction")}</th>
+                  <th className="p-3 text-right">{tr("ورود وجه", "الوارد", "Giren Tutar", "Inflow")}</th>
+                  <th className="p-3 text-right">{tr("خروج وجه", "الصادر", "Çıkan Tutar", "Outflow")}</th>
+                  <th className="p-3 text-right">{tr("مانده نقد/بانک", "رصيد النقد/البنك", "Nakit/Banka Bakiyesi", "Cash/Bank balance")}</th>
+                  <th className="p-3 text-right">{tr("نوع", "النوع", "Tür", "Type")}</th>
                 </tr>
               </thead>
 
@@ -825,7 +898,7 @@ export default function CustomerDetails() {
                 {bankRows.length === 0 && (
                   <tr>
                     <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
-                      {isFa ? "هنوز دریافت یا پرداخت بانکی ثبت نشده است" : "No bank transaction has been registered yet"}
+                      {tr("هنوز دریافت یا پرداخت بانکی ثبت نشده است", "لم يتم تسجيل أي قبض أو دفع بنكي بعد", "Henüz banka tahsilatı veya ödemesi kaydedilmedi", "No bank transaction has been registered yet")}
                     </td>
                   </tr>
                 )}
