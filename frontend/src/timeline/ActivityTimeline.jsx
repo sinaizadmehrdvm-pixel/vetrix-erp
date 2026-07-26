@@ -83,7 +83,7 @@ export default function ActivityTimeline({ items = [], to = "/audit-trail" }) {
           {t("activityTimeline")}
         </h2>
         <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
-          {fa ? "مشاهده همه ←" : "View all →"}
+          {fa ? "مشاهده همه ←" : language === "ar" ? "عرض الكل ←" : language === "tr" ? "Tümünü gör →" : "View all →"}
         </span>
       </Link>
 

@@ -3,8 +3,9 @@ import { Package } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 
 export default function TopProducts({ products = [], to = "/products" }) {
-  const { t, n, money, dir } = useLanguage();
-  const fa = dir === "rtl";
+  const { t, n, money, dir, language } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   return (
     <div
@@ -33,7 +34,7 @@ export default function TopProducts({ products = [], to = "/products" }) {
       >
         <h2 style={{ margin: 0 }}>{t("topProducts")}</h2>
         <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
-          {fa ? "مشاهده همه ←" : "View all →"}
+          {tr("مشاهده همه ←", "عرض الكل ←", "Tümünü gör →", "View all →")}
         </span>
       </Link>
 

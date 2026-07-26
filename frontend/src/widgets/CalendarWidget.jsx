@@ -107,6 +107,8 @@ function buildGregorianMonth(cursor) {
 export default function CalendarWidget({ cursor, onCursorChange, selectedKey, onSelectDay }) {
   const { language, dir, n } = useLanguage();
   const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   const { title, weekdays, cells } = fa ? buildJalaliMonth(cursor) : buildGregorianMonth(cursor);
 
@@ -137,7 +139,7 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 900 }}>{title}</h2>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button type="button" onClick={goPrev} aria-label={fa ? "ماه قبل" : "Previous month"} style={iconButtonStyle}>
+          <button type="button" onClick={goPrev} aria-label={tr("ماه قبل", "الشهر السابق", "Önceki ay", "Previous month")} style={iconButtonStyle}>
             <ChevronLeft size={13} />
           </button>
           <button
@@ -145,9 +147,9 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
             onClick={goToday}
             style={{ ...iconButtonStyle, width: "auto", padding: "0 8px", fontSize: 11, fontWeight: 800, color: "var(--erp-accent)" }}
           >
-            {fa ? "امروز" : "Today"}
+            {tr("امروز", "اليوم", "Bugün", "Today")}
           </button>
-          <button type="button" onClick={goNext} aria-label={fa ? "ماه بعد" : "Next month"} style={iconButtonStyle}>
+          <button type="button" onClick={goNext} aria-label={tr("ماه بعد", "الشهر التالي", "Sonraki ay", "Next month")} style={iconButtonStyle}>
             <ChevronRight size={13} />
           </button>
         </div>

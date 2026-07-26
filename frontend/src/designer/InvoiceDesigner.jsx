@@ -70,10 +70,11 @@ function normalizeConfig(config) {
 
 export default function InvoiceDesigner() {
   const { language, dir } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   const [templates, setTemplates] = useState([]);
-  const [name, setName] = useState(fa ? "قالب رسمی فاکتور" : "Official invoice template");
+  const [name, setName] = useState(tr("قالب رسمی فاکتور", "قالب فاتورة رسمي", "Resmi fatura şablonu", "Official invoice template"));
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [selectedId, setSelectedId] = useState("title");
   const [drag, setDrag] = useState(null);
@@ -93,7 +94,7 @@ export default function InvoiceDesigner() {
     } catch (e) {
       console.error(e);
       setTemplates([]);
-      setMessage(fa ? "خطا در دریافت قالب‌ها" : "Template loading error");
+      setMessage(tr("خطا در دریافت قالب‌ها", "خطأ في تحميل القوالب", "Şablonlar yüklenirken hata oluştu", "Template loading error"));
     }
   }
 
@@ -114,20 +115,20 @@ export default function InvoiceDesigner() {
   function addElement(type) {
     const id = `${type}_${Date.now()}`;
     const labels = {
-      text: fa ? "متن جدید" : "Text",
-      box: fa ? "کادر جدید" : "Box",
-      table: fa ? "جدول اقلام" : "Items table",
-      totals: fa ? "جمع فاکتور" : "Totals",
+      text: tr("متن جدید", "نص جديد", "Yeni metin", "Text"),
+      box: tr("کادر جدید", "مربع جديد", "Yeni kutu", "Box"),
+      table: tr("جدول اقلام", "جدول البنود", "Kalem tablosu", "Items table"),
+      totals: tr("جمع فاکتور", "إجمالي الفاتورة", "Fatura toplamı", "Totals"),
       qr: "QR",
       barcode: "Barcode",
-      logo: fa ? "لوگو" : "Logo",
+      logo: tr("لوگو", "الشعار", "Logo", "Logo"),
     };
 
     const el = {
       id,
       type,
       label: labels[type] || type,
-      text: type === "text" ? (fa ? "متن جدید" : "New text") : labels[type] || type,
+      text: type === "text" ? tr("متن جدید", "نص جديد", "Yeni metin", "New text") : labels[type] || type,
       x: 80,
       y: 80,
       w: type === "qr" ? 85 : type === "barcode" ? 180 : 170,
@@ -154,7 +155,7 @@ export default function InvoiceDesigner() {
 
   function duplicateSelected() {
     if (!selected) return;
-    const copy = { ...clone(selected), id: `${selected.id}_copy_${Date.now()}`, label: `${selected.label} کپی`, x: selected.x + 20, y: selected.y + 20 };
+    const copy = { ...clone(selected), id: `${selected.id}_copy_${Date.now()}`, label: `${selected.label} ${tr("کپی", "نسخة", "kopya", "copy")}`, x: selected.x + 20, y: selected.y + 20 };
     setConfig((prev) => ({ ...prev, elements: [...prev.elements, copy] }));
     setSelectedId(copy.id);
   }
@@ -225,7 +226,7 @@ export default function InvoiceDesigner() {
     setName(tpl.name || name);
     setConfig(cfg);
     setSelectedId(cfg.elements[0]?.id || "");
-    setMessage(fa ? "قالب بارگذاری شد." : "Template loaded.");
+    setMessage(tr("قالب بارگذاری شد.", "تم تحميل القالب.", "Şablon yüklendi.", "Template loaded."));
   }
 
   async function saveTemplate() {
@@ -234,19 +235,19 @@ export default function InvoiceDesigner() {
       page_size: config.page_size,
       config,
     });
-    setMessage(fa ? "قالب با موفقیت ذخیره شد." : "Template saved.");
+    setMessage(tr("قالب با موفقیت ذخیره شد.", "تم حفظ القالب بنجاح.", "Şablon başarıyla kaydedildi.", "Template saved."));
     await loadTemplates();
   }
 
   async function removeTemplate(id) {
-    if (!window.confirm(fa ? "قالب حذف شود؟" : "Delete template?")) return;
+    if (!window.confirm(tr("قالب حذف شود؟", "هل تريد حذف القالب؟", "Şablon silinsin mi?", "Delete template?"))) return;
     await deletePdfTemplate(id);
-    setMessage(fa ? "قالب حذف شد." : "Template deleted.");
+    setMessage(tr("قالب حذف شد.", "تم حذف القالب.", "Şablon silindi.", "Template deleted."));
     await loadTemplates();
   }
 
   function resetTemplate() {
-    if (!window.confirm(fa ? "قالب به حالت پیش‌فرض برگردد؟" : "Reset template?")) return;
+    if (!window.confirm(tr("قالب به حالت پیش‌فرض برگردد؟", "هل تريد إعادة تعيين القالب؟", "Şablon sıfırlansın mı?", "Reset template?"))) return;
     const cfg = clone(DEFAULT_CONFIG);
     setConfig(cfg);
     setSelectedId("title");
@@ -259,17 +260,17 @@ export default function InvoiceDesigner() {
           <thead>
             <tr className="bg-slate-900 text-white">
               <th className="border p-1">#</th>
-              <th className="border p-1">{fa ? "شرح" : "Item"}</th>
-              <th className="border p-1">{fa ? "تعداد" : "Qty"}</th>
-              <th className="border p-1">{fa ? "قیمت" : "Price"}</th>
-              <th className="border p-1">{fa ? "جمع" : "Total"}</th>
+              <th className="border p-1">{tr("شرح", "الوصف", "Açıklama", "Item")}</th>
+              <th className="border p-1">{tr("تعداد", "الكمية", "Adet", "Qty")}</th>
+              <th className="border p-1">{tr("قیمت", "السعر", "Fiyat", "Price")}</th>
+              <th className="border p-1">{tr("جمع", "الإجمالي", "Toplam", "Total")}</th>
             </tr>
           </thead>
           <tbody>
             {[1, 2, 3].map((i) => (
               <tr key={i}>
                 <td className="border p-1">{i}</td>
-                <td className="border p-1">{fa ? "نمونه کالا" : "Sample item"}</td>
+                <td className="border p-1">{tr("نمونه کالا", "منتج نموذجي", "Örnek ürün", "Sample item")}</td>
                 <td className="border p-1">1</td>
                 <td className="border p-1">100,000</td>
                 <td className="border p-1">100,000</td>
@@ -283,9 +284,9 @@ export default function InvoiceDesigner() {
     if (el.type === "totals") {
       return (
         <div className="w-full text-[12px] leading-7">
-          <div className="flex justify-between"><span>{fa ? "جمع جزء" : "Subtotal"}</span><b>300,000</b></div>
-          <div className="flex justify-between"><span>{fa ? "تخفیف" : "Discount"}</span><b>0</b></div>
-          <div className="flex justify-between text-cyan-700 font-black"><span>{fa ? "نهایی" : "Total"}</span><b>300,000</b></div>
+          <div className="flex justify-between"><span>{tr("جمع جزء", "المجموع الفرعي", "Ara toplam", "Subtotal")}</span><b>300,000</b></div>
+          <div className="flex justify-between"><span>{tr("تخفیف", "الخصم", "İndirim", "Discount")}</span><b>0</b></div>
+          <div className="flex justify-between text-cyan-700 font-black"><span>{tr("نهایی", "الإجمالي النهائي", "Nihai toplam", "Total")}</span><b>300,000</b></div>
         </div>
       );
     }
@@ -320,24 +321,24 @@ export default function InvoiceDesigner() {
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
-            {fa ? "استودیوی حرفه‌ای طراحی فاکتور" : "Professional Invoice Studio"}
+            {tr("استودیوی حرفه‌ای طراحی فاکتور", "استوديو تصميم الفواتير الاحترافي", "Profesyonel Fatura Tasarım Stüdyosu", "Professional Invoice Studio")}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa ? "طراحی قالب چاپ با Drag، Resize، لایه‌ها، سایزهای مختلف و ذخیره قالب" : "Drag, resize, layers, multiple page sizes and saved templates"}
+            {tr("طراحی قالب چاپ با Drag، Resize، لایه‌ها، سایزهای مختلف و ذخیره قالب", "تصميم قالب الطباعة بالسحب وتغيير الحجم والطبقات وأحجام مختلفة وحفظ القالب", "Sürükle, boyutlandır, katmanlar, farklı boyutlar ve kayıtlı şablonlarla yazdırma şablonu tasarlayın", "Drag, resize, layers, multiple page sizes and saved templates")}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <button onClick={loadTemplates} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><RefreshCw size={18} /> {fa ? "دریافت" : "Refresh"}</button>
-          <button onClick={resetTemplate} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"><Trash2 size={18} /> {fa ? "پیش‌فرض" : "Reset"}</button>
-          <button onClick={saveTemplate} className="studio-btn bg-[var(--erp-accent)] text-slate-950"><Save size={18} /> {fa ? "ذخیره قالب" : "Save"}</button>
+          <button onClick={loadTemplates} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><RefreshCw size={18} /> {tr("دریافت", "تحديث", "Yenile", "Refresh")}</button>
+          <button onClick={resetTemplate} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"><Trash2 size={18} /> {tr("پیش‌فرض", "إعادة تعيين", "Sıfırla", "Reset")}</button>
+          <button onClick={saveTemplate} className="studio-btn bg-[var(--erp-accent)] text-slate-950"><Save size={18} /> {tr("ذخیره قالب", "حفظ القالب", "Şablonu kaydet", "Save")}</button>
         </div>
       </div>
 
       {message && <div className="mb-4 bg-emerald-500/10 border border-emerald-400/20 text-emerald-300 rounded-2xl p-4 font-bold">{message}</div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-[310px_1fr_320px] gap-5">
-        <Panel title={fa ? "قالب‌ها و ابزار" : "Templates & Tools"}>
+        <Panel title={tr("قالب‌ها و ابزار", "القوالب والأدوات", "Şablonlar ve araçlar", "Templates & Tools")}>
           <input value={name} onChange={(e) => setName(e.target.value)} className="studio-input" />
 
           <select value={config.page_size} onChange={(e) => setConfig((p) => ({ ...p, page_size: e.target.value }))} className="studio-input">
@@ -345,17 +346,17 @@ export default function InvoiceDesigner() {
           </select>
 
           <div className="grid grid-cols-2 gap-2">
-            <ToolButton onClick={() => addElement("text")} label={fa ? "متن" : "Text"} />
-            <ToolButton onClick={() => addElement("box")} label={fa ? "کادر" : "Box"} />
-            <ToolButton onClick={() => addElement("table")} label={fa ? "جدول" : "Table"} />
-            <ToolButton onClick={() => addElement("totals")} label={fa ? "جمع" : "Totals"} />
+            <ToolButton onClick={() => addElement("text")} label={tr("متن", "نص", "Metin", "Text")} />
+            <ToolButton onClick={() => addElement("box")} label={tr("کادر", "مربع", "Kutu", "Box")} />
+            <ToolButton onClick={() => addElement("table")} label={tr("جدول", "جدول", "Tablo", "Table")} />
+            <ToolButton onClick={() => addElement("totals")} label={tr("جمع", "الإجمالي", "Toplam", "Totals")} />
             <ToolButton onClick={() => addElement("qr")} label="QR" />
             <ToolButton onClick={() => addElement("barcode")} label="Barcode" />
-            <ToolButton onClick={() => addElement("logo")} label={fa ? "لوگو" : "Logo"} />
+            <ToolButton onClick={() => addElement("logo")} label={tr("لوگو", "الشعار", "Logo", "Logo")} />
           </div>
 
           <div className="pt-4 border-t border-[var(--erp-border)]">
-            <div className="text-[var(--erp-accent)] font-black mb-2">{fa ? "قالب‌های ذخیره‌شده" : "Saved templates"}</div>
+            <div className="text-[var(--erp-accent)] font-black mb-2">{tr("قالب‌های ذخیره‌شده", "القوالب المحفوظة", "Kayıtlı şablonlar", "Saved templates")}</div>
             <div className="space-y-2 max-h-[360px] overflow-y-auto">
               {templates.map((tpl) => (
                 <div key={tpl.id} className="flex gap-2">
@@ -367,7 +368,7 @@ export default function InvoiceDesigner() {
                   </button>
                 </div>
               ))}
-              {templates.length === 0 && <div className="text-[var(--erp-muted)] text-sm">{fa ? "قالبی ذخیره نشده است." : "No templates yet."}</div>}
+              {templates.length === 0 && <div className="text-[var(--erp-muted)] text-sm">{tr("قالبی ذخیره نشده است.", "لا يوجد قالب محفوظ.", "Kayıtlı şablon yok.", "No templates yet.")}</div>}
             </div>
           </div>
         </Panel>
@@ -379,7 +380,7 @@ export default function InvoiceDesigner() {
           onMouseLeave={stopActions}
         >
           <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-            <div className="text-[var(--erp-accent)] font-black flex gap-2 items-center"><Move /> {fa ? "صفحه طراحی" : "Canvas"}</div>
+            <div className="text-[var(--erp-accent)] font-black flex gap-2 items-center"><Move /> {tr("صفحه طراحی", "لوحة التصميم", "Tasarım tuvali", "Canvas")}</div>
             <div className="flex gap-2">
               <button onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} className="mini-btn"><Maximize2 size={15} /> -</button>
               <div className="mini-btn text-[var(--erp-accent)]">{Math.round(zoom * 100)}%</div>
@@ -420,7 +421,7 @@ export default function InvoiceDesigner() {
                     fontWeight: el.bold ? 900 : 500,
                     textAlign: el.align || "center",
                     padding: 8,
-                    direction: fa ? "rtl" : "ltr",
+                    direction: dir,
                   }}
                 >
                   {renderElement(el)}
@@ -438,7 +439,7 @@ export default function InvoiceDesigner() {
           </div>
         </div>
 
-        <Panel title={fa ? "تنظیمات بخش" : "Properties"}>
+        <Panel title={tr("تنظیمات بخش", "إعدادات العنصر", "Öğe ayarları", "Properties")}>
           {selected ? (
             <>
               <div className="font-black text-[var(--erp-accent)]">{selected.label || selected.type}</div>
@@ -450,20 +451,20 @@ export default function InvoiceDesigner() {
                 <Prop label="H" value={selected.h} onChange={(v) => updateElement(selected.id, { h: Number(v) })} />
               </div>
 
-              <label className="text-[var(--erp-accent)] text-sm font-bold">{fa ? "متن" : "Text"}</label>
+              <label className="text-[var(--erp-accent)] text-sm font-bold">{tr("متن", "النص", "Metin", "Text")}</label>
               <textarea value={selected.text || ""} onChange={(e) => updateElement(selected.id, { text: e.target.value })} rows={4} className="studio-input" />
 
-              <Prop label={fa ? "سایز فونت" : "Font size"} value={selected.fontSize} onChange={(v) => updateElement(selected.id, { fontSize: Number(v) })} />
-              <Prop label={fa ? "گردی گوشه" : "Radius"} value={selected.radius} onChange={(v) => updateElement(selected.id, { radius: Number(v) })} />
+              <Prop label={tr("سایز فونت", "حجم الخط", "Yazı boyutu", "Font size")} value={selected.fontSize} onChange={(v) => updateElement(selected.id, { fontSize: Number(v) })} />
+              <Prop label={tr("گردی گوشه", "استدارة الحواف", "Köşe yarıçapı", "Radius")} value={selected.radius} onChange={(v) => updateElement(selected.id, { radius: Number(v) })} />
 
-              <Color label={fa ? "رنگ متن" : "Color"} value={selected.color} onChange={(v) => updateElement(selected.id, { color: v })} />
-              <Color label={fa ? "پس‌زمینه" : "Background"} value={selected.bg} onChange={(v) => updateElement(selected.id, { bg: v })} />
-              <Color label={fa ? "خط دور" : "Border"} value={selected.border} onChange={(v) => updateElement(selected.id, { border: v })} />
+              <Color label={tr("رنگ متن", "لون النص", "Metin rengi", "Color")} value={selected.color} onChange={(v) => updateElement(selected.id, { color: v })} />
+              <Color label={tr("پس‌زمینه", "الخلفية", "Arka plan", "Background")} value={selected.bg} onChange={(v) => updateElement(selected.id, { bg: v })} />
+              <Color label={tr("خط دور", "الحدود", "Kenarlık", "Border")} value={selected.border} onChange={(v) => updateElement(selected.id, { border: v })} />
 
               <select value={selected.align || "center"} onChange={(e) => updateElement(selected.id, { align: e.target.value })} className="studio-input">
-                <option value="right">{fa ? "راست" : "Right"}</option>
-                <option value="center">{fa ? "وسط" : "Center"}</option>
-                <option value="left">{fa ? "چپ" : "Left"}</option>
+                <option value="right">{tr("راست", "يمين", "Sağ", "Right")}</option>
+                <option value="center">{tr("وسط", "وسط", "Orta", "Center")}</option>
+                <option value="left">{tr("چپ", "يسار", "Sol", "Left")}</option>
               </select>
 
               <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex justify-between">
@@ -472,14 +473,14 @@ export default function InvoiceDesigner() {
               </label>
 
               <div className="grid grid-cols-1 gap-2">
-                <button onClick={duplicateSelected} className="tool-wide"><Copy size={16} /> {fa ? "کپی" : "Duplicate"}</button>
-                <button onClick={bringToFront} className="tool-wide"><ArrowUp size={16} /> {fa ? "آوردن جلو" : "Bring front"}</button>
-                <button onClick={sendToBack} className="tool-wide"><ArrowDown size={16} /> {fa ? "فرستادن عقب" : "Send back"}</button>
-                <button onClick={deleteSelected} className="tool-wide bg-red-500 text-white"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
+                <button onClick={duplicateSelected} className="tool-wide"><Copy size={16} /> {tr("کپی", "نسخ", "Kopyala", "Duplicate")}</button>
+                <button onClick={bringToFront} className="tool-wide"><ArrowUp size={16} /> {tr("آوردن جلو", "إحضار للأمام", "Öne getir", "Bring front")}</button>
+                <button onClick={sendToBack} className="tool-wide"><ArrowDown size={16} /> {tr("فرستادن عقب", "إرسال للخلف", "Arkaya gönder", "Send back")}</button>
+                <button onClick={deleteSelected} className="tool-wide bg-red-500 text-white"><Trash2 size={16} /> {tr("حذف بخش", "حذف العنصر", "Öğeyi sil", "Delete")}</button>
               </div>
             </>
           ) : (
-            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
+            <div className="text-[var(--erp-muted)]">{tr("یک بخش را انتخاب کن.", "اختر عنصراً.", "Bir öğe seçin.", "Select an element.")}</div>
           )}
         </Panel>
       </div>

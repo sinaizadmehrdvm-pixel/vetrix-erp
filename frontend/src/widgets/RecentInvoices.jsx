@@ -4,17 +4,20 @@ import { useLanguage } from "../localization/useLanguage";
 
 const STATUS_LABELS = {
   fa: { paid: "تسویه شده", unpaid: "تسویه نشده", partial: "تسویه ناقص", draft: "پیش‌نویس", final: "نهایی" },
+  ar: { paid: "مدفوع", unpaid: "غير مدفوع", partial: "مدفوع جزئياً", draft: "مسودة", final: "نهائي" },
+  tr: { paid: "Ödendi", unpaid: "Ödenmedi", partial: "Kısmi ödendi", draft: "Taslak", final: "Nihai" },
   en: { paid: "Paid", unpaid: "Unpaid", partial: "Partially paid", draft: "Draft", final: "Final" },
 };
 
-function statusLabel(value, fa) {
+function statusLabel(value, language) {
   const raw = String(value || "").toLowerCase();
-  return (fa ? STATUS_LABELS.fa : STATUS_LABELS.en)[raw] || value || "-";
+  return (STATUS_LABELS[language] || STATUS_LABELS.en)[raw] || value || "-";
 }
 
 export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
-  const { t, n, money, dir } = useLanguage();
-  const fa = dir === "rtl";
+  const { t, n, money, dir, language } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   return (
     <div
@@ -43,7 +46,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
       >
         <h2 style={{ margin: 0 }}>{t("recentInvoices")}</h2>
         <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
-          {fa ? "مشاهده همه ←" : "View all →"}
+          {tr("مشاهده همه ←", "عرض الكل ←", "Tümünü gör →", "View all →")}
         </span>
       </Link>
 
@@ -56,7 +59,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
           {invoices.map((invoice) => {
             const customer = invoice.customer || invoice.customer_name || "-";
             const total = money(invoice.total || invoice.total_amount || 0);
-            const status = statusLabel(invoice.status, fa);
+            const status = statusLabel(invoice.status, language);
 
             return (
               <div
@@ -91,7 +94,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
                   </div>
                   <div style={{ minWidth: 0, textAlign: dir === "rtl" ? "right" : "left" }}>
                     <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {fa ? `فاکتور شماره ${n(invoice.id)}` : `Invoice #${n(invoice.id)}`}
+                      {tr(`فاکتور شماره ${n(invoice.id)}`, `الفاتورة رقم ${n(invoice.id)}`, `${n(invoice.id)} numaralı fatura`, `Invoice #${n(invoice.id)}`)}
                     </div>
                     <div style={{ fontSize: 13, color: "var(--erp-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {customer}

@@ -16,6 +16,8 @@ const WEEKDAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"
 export default function DayDetailsCard({ dateInfo }) {
   const { language, dir, n } = useLanguage();
   const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   if (!dateInfo) return null;
 
@@ -53,7 +55,7 @@ export default function DayDetailsCard({ dateInfo }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
         <Sparkles size={15} color="var(--erp-accent)" />
         <span style={{ fontSize: 12, fontWeight: 800, color: "var(--erp-muted)" }}>
-          {dateInfo.isToday ? (fa ? "امروز" : "Today") : fa ? "جزئیات روز" : "Day details"}
+          {dateInfo.isToday ? tr("امروز", "اليوم", "Bugün", "Today") : tr("جزئیات روز", "تفاصيل اليوم", "Gün ayrıntıları", "Day details")}
         </span>
       </div>
 
@@ -104,7 +106,7 @@ export default function DayDetailsCard({ dateInfo }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {occasion.holiday && (
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#fb7185" }}>
-                    {fa ? "تعطیل رسمی" : "Official holiday"}
+                    {tr("تعطیل رسمی", "عطلة رسمية", "Resmi tatil", "Official holiday")}
                   </span>
                 )}
                 <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.6 }}>{fa ? occasion.fa : occasion.en}</div>
