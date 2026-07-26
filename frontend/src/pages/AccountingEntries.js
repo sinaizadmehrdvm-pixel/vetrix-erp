@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { getAccountingChart } from "../services/accountingApi";
 import {
   cancelAccountingVoucher,
@@ -19,7 +20,8 @@ function h(tag, props, ...children) { return React.createElement(tag, props, ...
 function toNumber(value) { return Number(String(value ?? "0").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[^\d.-]/g, "")) || 0; }
 
 export default function AccountingEntries() {
-  const { language, dir, money, n } = useLanguage();
+  const { language, dir, money, n, date } = useLanguage();
+  const dateInputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-2xl p-3";
   const [accounts, setAccounts] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -137,8 +139,8 @@ export default function AccountingEntries() {
         h("option", { value: "draft" }, language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft"),
         h("option", { value: "all" }, language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All")
       ),
-      h("input", { type: "date", style: styles.input, value: filters.from_date, onChange: e => setFilters({ ...filters, from_date: e.target.value }) }),
-      h("input", { type: "date", style: styles.input, value: filters.to_date, onChange: e => setFilters({ ...filters, to_date: e.target.value }) }),
+      h(JalaliDateField, { className: dateInputClass, value: filters.from_date, onChange: iso => setFilters({ ...filters, from_date: iso }), fa: language === "fa", language }),
+      h(JalaliDateField, { className: dateInputClass, value: filters.to_date, onChange: iso => setFilters({ ...filters, to_date: iso }), fa: language === "fa", language }),
       h("select", { style: styles.input, value: filters.account_id, onChange: e => setFilters({ ...filters, account_id: e.target.value }) },
         h("option", { value: "" }, language === "fa" ? "همه حساب‌ها" : language === "ar" ? "جميع الحسابات" : language === "tr" ? "Tüm Hesaplar" : "All accounts"),
         accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${acc.code} - ${acc.name}`))
@@ -169,7 +171,7 @@ export default function AccountingEntries() {
       h("section", { style: styles.card },
         h("h2", { style: { color: "var(--erp-accent)", fontSize: 24, fontWeight: 900 } }, language === "fa" ? "ثبت سند جدید" : language === "ar" ? "سند جديد" : language === "tr" ? "Yeni Fiş" : "New Voucher"),
         h("div", { style: { display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, marginBottom: 16 } },
-          h("input", { type: "date", style: styles.input, value: form.voucher_date, onChange: e => setForm({ ...form, voucher_date: e.target.value }) }),
+          h(JalaliDateField, { className: dateInputClass, value: form.voucher_date, onChange: iso => setForm({ ...form, voucher_date: iso }), fa: language === "fa", language }),
           h("input", { style: styles.input, value: form.description, onChange: e => setForm({ ...form, description: e.target.value }), placeholder: language === "fa" ? "شرح سند" : language === "ar" ? "وصف السند" : language === "tr" ? "Fiş Açıklaması" : "Voucher description" })
         ),
         h("div", { style: { overflowX: "auto" } },
@@ -213,7 +215,7 @@ export default function AccountingEntries() {
             h("b", null, language === "fa" ? `سند ${n(v.voucher_no)}` : language === "ar" ? `سند ${n(v.voucher_no)}` : language === "tr" ? `Fiş ${v.voucher_no}` : `Voucher ${v.voucher_no}`),
             h("span", { style: { color: v.status === "posted" ? "#86efac" : v.status === "cancelled" ? "#fca5a5" : "#fde68a" } }, v.status)
           ),
-          h("div", { style: { color: "var(--erp-muted)", marginTop: 6 } }, v.voucher_date),
+          h("div", { style: { color: "var(--erp-muted)", marginTop: 6 } }, date(v.voucher_date)),
           h("div", { style: { color: "var(--erp-text)", marginTop: 6 } }, v.description || "-"),
           h("div", { style: { color: "var(--erp-accent)", marginTop: 6, fontWeight: 900 } }, money(v.total_debit || 0)),
           h("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" } },
@@ -240,7 +242,7 @@ export default function AccountingEntries() {
 
   const journalColumns = [
     { key: "voucher_no", label: language === "fa" ? "سند" : language === "ar" ? "السند" : language === "tr" ? "Fiş" : "Voucher", render: r => n(r.voucher_no) },
-    { key: "voucher_date", label: language === "fa" ? "تاریخ" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date" },
+    { key: "voucher_date", label: language === "fa" ? "تاریخ" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date", render: r => date(r.voucher_date) },
     { key: "account_code", label: language === "fa" ? "کد حساب" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code" },
     { key: "account_name", label: language === "fa" ? "نام حساب" : language === "ar" ? "الحساب" : language === "tr" ? "Hesap" : "Account" },
     { key: "line_description", label: language === "fa" ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description", render: r => r.line_description || r.voucher_description || "-" },

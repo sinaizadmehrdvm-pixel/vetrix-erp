@@ -3,13 +3,23 @@ import { toHijri, hijriToGregorian, HIJRI_MONTHS_AR } from "./hijri";
 
 moment.loadPersian({ dialect: "persian-modern" });
 
+// moment-jalaali's Persian dialect affects month/weekday *names* but not
+// the digit glyphs a numeric format token like jYYYY/jMM/jDD produces -
+// those come out as plain Latin digits (1405/05/04) even though every
+// other Persian-language number in this app (via the n() helper) renders
+// as ۱۴۰۵/۰۵/۰۴. Since toJalali() is only ever used to show a Persian
+// date, its output should always use Persian digits, not conditionally.
+export function toPersianDigits(value) {
+  return String(value).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+}
+
 export const toJalali = (date) => {
   if (!date) return "";
-  return moment(date).format("jYYYY/jMM/jDD");
+  return toPersianDigits(moment(date).format("jYYYY/jMM/jDD"));
 };
 
 export const todayJalali = () => {
-  return moment().format("jYYYY/jMM/jDD");
+  return toPersianDigits(moment().format("jYYYY/jMM/jDD"));
 };
 
 // Parses a "jYYYY/jMM/jDD" (or "-"-separated, Persian- or Latin-digit)

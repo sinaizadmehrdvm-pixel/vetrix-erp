@@ -3,6 +3,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 import { fixedJalaliOccasionFor, fixedHijriOccasionFor } from "../localization/occasions";
 import { toHijri, hijriToGregorian, daysInHijriMonth, addHijriMonths, HIJRI_MONTHS_AR } from "../utils/hijri";
+import { toPersianDigits } from "../utils/date";
 
 // moment-jalaali's loadPersian() (called once, in src/utils/date.js) quietly
 // switches moment's *global* default locale to Persian - so even plain
@@ -72,7 +73,7 @@ function buildJalaliMonth(cursor) {
       },
     });
   }
-  return { title: `${JALALI_MONTHS_FA[month]} ${year}`, weekdays: WEEKDAYS_FA, cells };
+  return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_FA, cells };
 }
 
 function buildGregorianMonth(cursor) {

@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { toJalali, todayJalali, fromJalali, toHijriText, todayHijri, fromHijriText } from './date';
 
 describe('toJalali', () => {
-  it('converts a Gregorian date string to jYYYY/jMM/jDD format', () => {
-    expect(toJalali('2024-03-20')).toBe('1403/01/01');
+  it('converts a Gregorian date string to jYYYY/jMM/jDD format using Persian digits', () => {
+    // Every other Persian-language number in this app renders with Persian
+    // digits via the n() helper - toJalali() is only ever used to display
+    // a Persian date, so its digits must match, not fall back to Latin.
+    expect(toJalali('2024-03-20')).toBe('۱۴۰۳/۰۱/۰۱');
   });
 
   it('returns an empty string when no date is given', () => {
@@ -14,8 +17,8 @@ describe('toJalali', () => {
 });
 
 describe('todayJalali', () => {
-  it('returns today in jYYYY/jMM/jDD format matching the digit pattern', () => {
-    expect(todayJalali()).toMatch(/^\d{4}\/\d{2}\/\d{2}$/);
+  it('returns today in Persian-digit jYYYY/jMM/jDD format', () => {
+    expect(todayJalali()).toMatch(/^[۰-۹]{4}\/[۰-۹]{2}\/[۰-۹]{2}$/);
   });
 });
 
