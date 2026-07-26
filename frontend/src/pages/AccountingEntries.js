@@ -175,7 +175,14 @@ export default function AccountingEntries() {
           h("input", { style: styles.input, value: form.description, onChange: e => setForm({ ...form, description: e.target.value }), placeholder: language === "fa" ? "شرح سند" : language === "ar" ? "وصف السند" : language === "tr" ? "Fiş Açıklaması" : "Voucher description" })
         ),
         h("div", { style: { overflowX: "auto" } },
-          h("table", { style: { width: "100%", borderCollapse: "collapse", minWidth: 760 } },
+          h("table", { style: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" } },
+            h("colgroup", null,
+              h("col", { style: { width: "30%" } }),
+              h("col", { style: { width: "28%" } }),
+              h("col", { style: { width: "15%" } }),
+              h("col", { style: { width: "15%" } }),
+              h("col", { style: { width: "48px" } })
+            ),
             h("thead", null, h("tr", null,
               h("th", { style: styles.th }, language === "fa" ? "حساب" : language === "ar" ? "الحساب" : language === "tr" ? "Hesap" : "Account"),
               h("th", { style: styles.th }, language === "fa" ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description"),
@@ -191,7 +198,7 @@ export default function AccountingEntries() {
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.description, onChange: e => patchLine(index, "description", e.target.value), placeholder: language === "fa" ? "شرح ردیف" : language === "ar" ? "وصف البند" : language === "tr" ? "Satır Açıklaması" : "Line description" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.debit, onChange: e => patchLine(index, "debit", e.target.value), placeholder: "0" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.credit, onChange: e => patchLine(index, "credit", e.target.value), placeholder: "0" })),
-              h("td", { style: { padding: 6 } }, h("button", { onClick: () => removeLine(index), style: { ...styles.btn, background: "#7f1d1d", color: "white" } }, "×"))
+              h("td", { style: { padding: 6, textAlign: "center" } }, h("button", { onClick: () => removeLine(index), style: { ...styles.btn, width: 32, height: 32, padding: 0, background: "#7f1d1d", color: "white" } }, "×"))
             )))
           )
         ),
