@@ -14,6 +14,11 @@ import {
   postAccountingVoucher,
 } from "../services/accountingEntriesApi";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
+
+const ACCOUNT_TYPE_FA = { asset: "دارایی", liability: "بدهی", equity: "سرمایه", revenue: "درآمد", expense: "هزینه", contra: "کاهنده" };
+const ACCOUNT_TYPE_AR = { asset: "الأصول", liability: "الالتزامات", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات", contra: "حساب مقابل" };
+const ACCOUNT_TYPE_TR = { asset: "Varlıklar", liability: "Yükümlülükler", equity: "Özkaynaklar", revenue: "Gelir", expense: "Giderler", contra: "Düzenleyici Hesap" };
 
 const emptyLine = { account_id: "", description: "", debit: "", credit: "" };
 function h(tag, props, ...children) { return React.createElement(tag, props, ...children); }
@@ -151,9 +156,9 @@ export default function AccountingEntries() {
 
   function summaryCards() {
     const cards = [
-      [language === "fa" ? "کل اسناد" : language === "ar" ? "السندات" : language === "tr" ? "Fişler" : "Vouchers", summary?.vouchers_count || 0],
-      [language === "fa" ? "قطعی" : language === "ar" ? "مرحّل" : language === "tr" ? "Kesinleşmiş" : "Posted", summary?.posted_count || 0],
-      [language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft", summary?.draft_count || 0],
+      [language === "fa" ? "کل اسناد" : language === "ar" ? "السندات" : language === "tr" ? "Fişler" : "Vouchers", n(summary?.vouchers_count || 0)],
+      [language === "fa" ? "قطعی" : language === "ar" ? "مرحّل" : language === "tr" ? "Kesinleşmiş" : "Posted", n(summary?.posted_count || 0)],
+      [language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft", n(summary?.draft_count || 0)],
       [language === "fa" ? "جمع بدهکار" : language === "ar" ? "إجمالي المدين" : language === "tr" ? "Toplam Borç" : "Total Debit", money(summary?.total_debit || 0)],
       [language === "fa" ? "جمع بستانکار" : language === "ar" ? "إجمالي الدائن" : language === "tr" ? "Toplam Alacak" : "Total Credit", money(summary?.total_credit || 0)],
       [language === "fa" ? "اختلاف" : language === "ar" ? "الفرق" : language === "tr" ? "Fark" : "Difference", money(summary?.difference || 0)],
@@ -250,7 +255,7 @@ export default function AccountingEntries() {
   const journalColumns = [
     { key: "voucher_no", label: language === "fa" ? "سند" : language === "ar" ? "السند" : language === "tr" ? "Fiş" : "Voucher", render: r => n(r.voucher_no) },
     { key: "voucher_date", label: language === "fa" ? "تاریخ" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date", render: r => date(r.voucher_date) },
-    { key: "account_code", label: language === "fa" ? "کد حساب" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code" },
+    { key: "account_code", label: language === "fa" ? "کد حساب" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code", render: r => language === "fa" ? toPersianDigits(r.account_code) : r.account_code },
     { key: "account_name", label: language === "fa" ? "نام حساب" : language === "ar" ? "الحساب" : language === "tr" ? "Hesap" : "Account" },
     { key: "line_description", label: language === "fa" ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description", render: r => r.line_description || r.voucher_description || "-" },
     { key: "debit", label: language === "fa" ? "بدهکار" : language === "ar" ? "مدين" : language === "tr" ? "Borç" : "Debit", render: r => money(r.debit || 0) },
@@ -263,9 +268,9 @@ export default function AccountingEntries() {
   ];
 
   const trialColumns = [
-    { key: "account_code", label: language === "fa" ? "کد حساب" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code" },
+    { key: "account_code", label: language === "fa" ? "کد حساب" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code", render: r => language === "fa" ? toPersianDigits(r.account_code) : r.account_code },
     { key: "account_name", label: language === "fa" ? "نام حساب" : language === "ar" ? "الحساب" : language === "tr" ? "Hesap" : "Account" },
-    { key: "account_type", label: language === "fa" ? "نوع" : language === "ar" ? "النوع" : language === "tr" ? "Tür" : "Type" },
+    { key: "account_type", label: language === "fa" ? "نوع" : language === "ar" ? "النوع" : language === "tr" ? "Tür" : "Type", render: r => (language === "fa" ? ACCOUNT_TYPE_FA : language === "ar" ? ACCOUNT_TYPE_AR : language === "tr" ? ACCOUNT_TYPE_TR : null)?.[r.account_type] || r.account_type },
     { key: "debit", label: language === "fa" ? "گردش بدهکار" : language === "ar" ? "حركة المدين" : language === "tr" ? "Borç Hareketi" : "Debit Turnover", render: r => money(r.debit || 0) },
     { key: "credit", label: language === "fa" ? "گردش بستانکار" : language === "ar" ? "حركة الدائن" : language === "tr" ? "Alacak Hareketi" : "Credit Turnover", render: r => money(r.credit || 0) },
     { key: "debit_balance", label: language === "fa" ? "مانده بدهکار" : language === "ar" ? "رصيد مدين" : language === "tr" ? "Borç Bakiyesi" : "Debit Balance", render: r => money(r.debit_balance || 0) },
