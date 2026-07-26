@@ -1169,14 +1169,15 @@ def reverse_invoice_stock(invoice_type: str, product: Product, quantity: float):
 
 
 def add_invoice_customer_entry(db: Session, invoice: Invoice):
+    invoice_no = localized_digits(invoice.id, "fa")
     if invoice.invoice_type == "sale":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice.id}", debit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice_no}", debit=invoice.total_amount)
     elif invoice.invoice_type == "buy":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice.id}", credit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice_no}", credit=invoice.total_amount)
     elif invoice.invoice_type == "return_sale":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice_no}", credit=invoice.total_amount)
     elif invoice.invoice_type == "return_buy":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice_no}", debit=invoice.total_amount)
 
 
 def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products, policy=None):
@@ -1186,7 +1187,7 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
         policy["decimal_places"],
         policy["rounding_mode"],
     )
-    description = f"ثبت خودکار فاکتور شماره {invoice.id}"
+    description = f"ثبت خودکار فاکتور شماره {localized_digits(invoice.id, 'fa')}"
     total = float(policy_money(invoice.total_amount))
     subtotal = float(policy_money(getattr(invoice, "subtotal", 0) or 0))
     discount = float(policy_money(

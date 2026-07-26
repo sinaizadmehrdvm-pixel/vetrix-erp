@@ -43,6 +43,7 @@ import {
 } from "recharts";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 
 import {
   downloadAuthenticatedFile,
@@ -63,6 +64,18 @@ import {
 } from "../storage/reports.store";
 
 const CHART_COLORS = ["#22d3ee", "#34d399", "#fbbf24", "#fb7185", "#a78bfa", "#60a5fa"];
+
+const SOURCE_TYPE_LABELS = {
+  fa: { opening_balance: "مانده اول دوره", invoice: "فاکتور", receipt: "دریافت", payment: "پرداخت" },
+  ar: { opening_balance: "الرصيد الافتتاحي", invoice: "فاتورة", receipt: "مقبوضات", payment: "مدفوعات" },
+  tr: { opening_balance: "Açılış bakiyesi", invoice: "Fatura", receipt: "Tahsilat", payment: "Ödeme" },
+  en: { opening_balance: "Opening balance", invoice: "Invoice", receipt: "Receipt", payment: "Payment" },
+};
+
+function sourceTypeLabel(value, language) {
+  const map = SOURCE_TYPE_LABELS[language] || SOURCE_TYPE_LABELS.en;
+  return map[value] || value || "-";
+}
 
 function toNumber(value) {
   return Number(
@@ -595,7 +608,7 @@ export default function Reports() {
                 <BarChart data={financialChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="name" stroke="#cbd5e1" />
-                  <YAxis stroke="#cbd5e1" />
+                  <YAxis stroke="#cbd5e1" tickFormatter={n} />
                   <Tooltip content={<ChartTooltip money={money} />} />
                   <Bar dataKey="value" fill="#22d3ee" radius={[12, 12, 0, 0]} />
                 </BarChart>
@@ -605,7 +618,7 @@ export default function Reports() {
             <ChartPanel title={tr("بدهکاران و بستانکاران", "المدينون والدائنون", "Borçlular ve alacaklılar", "Debtors & creditors")}>
               <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
-                  <Pie data={debtorCreditorData} dataKey="value" nameKey="name" outerRadius={110} label>
+                  <Pie data={debtorCreditorData} dataKey="value" nameKey="name" outerRadius={110} label={(entry) => n(entry.value)}>
                     {debtorCreditorData.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
                   </Pie>
                   <Tooltip content={<ChartTooltip money={money} />} />
@@ -645,7 +658,7 @@ export default function Reports() {
               <BarChart data={financialChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} />
                 <Tooltip content={<ChartTooltip money={money} />} />
                 <Bar dataKey="value" fill="#34d399" radius={[12, 12, 0, 0]} />
               </BarChart>
@@ -657,7 +670,7 @@ export default function Reports() {
               <AreaChart data={cashflowChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} />
                 <Tooltip content={<ChartTooltip money={money} />} />
                 <Area type="monotone" dataKey="value" stroke="#22d3ee" fill="#22d3ee55" />
               </AreaChart>
@@ -668,8 +681,8 @@ export default function Reports() {
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="month" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" />
+                <XAxis dataKey="month" stroke="#cbd5e1" tickFormatter={(m) => (language === "fa" ? toPersianDigits(m) : m)} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} />
                 <Tooltip content={<ChartTooltip money={money} />} />
                 <Line type="monotone" dataKey="receipts" stroke="#34d399" strokeWidth={3} />
                 <Line type="monotone" dataKey="payments" stroke="#fb7185" strokeWidth={3} />
@@ -682,7 +695,7 @@ export default function Reports() {
               <BarChart data={inventoryChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} />
                 <Tooltip content={<ChartTooltip money={money} />} />
                 <Bar dataKey="value" fill="#a78bfa" radius={[12, 12, 0, 0]} />
               </BarChart>
@@ -723,11 +736,11 @@ export default function Reports() {
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Panel title={tr("مطالبات از مشتریان", "المستحقات من العملاء", "Müşterilerden alacaklar", "Receivables from customers")}>
-            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} tr={tr} type="debtor" />)}
+            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} date={date} tr={tr} language={language} type="debtor" />)}
             {topDebtors.length === 0 && <Empty tr={tr} />}
           </Panel>
           <Panel title={tr("بدهی به تامین‌کنندگان / بستانکاران", "الديون للموردين / الدائنين", "Tedarikçi borçları / Alacaklılar", "Payables / Creditors")}>
-            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} tr={tr} type="creditor" />)}
+            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} date={date} tr={tr} language={language} type="creditor" />)}
             {topCreditors.length === 0 && <Empty tr={tr} />}
           </Panel>
         </div>
@@ -740,7 +753,7 @@ export default function Reports() {
               <BarChart data={productProfitChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} />
                 <Tooltip content={<ChartTooltip money={money} />} />
                 <Bar dataKey="profit" fill="#22d3ee" radius={[12, 12, 0, 0]} />
                 <Bar dataKey="revenue" fill="#34d399" radius={[12, 12, 0, 0]} />
@@ -775,7 +788,7 @@ export default function Reports() {
           </Panel>
 
           <Panel title={tr("تراکنش‌های اخیر", "المعاملات الأخيرة", "Son işlemler", "Recent transactions")}>
-            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} language={language} />)}
             {filteredTransactions.length === 0 && <Empty tr={tr} />}
           </Panel>
         </div>
@@ -790,7 +803,7 @@ export default function Reports() {
 
       {active === "transactions" && (
         <Panel title={tr("گزارش کامل تراکنش‌ها", "تقرير كامل بالمعاملات", "Tam işlem raporu", "Full transactions report")}>
-          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} language={language} />)}
           {filteredTransactions.length === 0 && <Empty tr={tr} />}
         </Panel>
       )}
@@ -882,20 +895,21 @@ function ReportLine({ label, value, strong, negative, color }) {
   );
 }
 
-function CustomerRow({ item, money, n, tr, type }) {
+function CustomerRow({ item, money, n, date, tr, language, type }) {
   const amount = type === "debtor" ? getDebtor(item) : getCreditor(item);
+  const phone = item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : "-";
   return (
     <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.phone || "-"}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1">{phone}</div>
         </div>
         <div className={`font-black ${type === "debtor" ? "text-red-300" : "text-green-300"}`}>{money(amount)}</div>
       </div>
       <div className="grid grid-cols-2 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
         <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")}: {n(item.invoice_count || 0)}</div>
-        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last")}: {item.last_transaction_date ? String(item.last_transaction_date).slice(0, 10) : "-"}</div>
+        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last")}: {item.last_transaction_date ? date(item.last_transaction_date) : "-"}</div>
       </div>
     </div>
   );
@@ -948,10 +962,11 @@ function InventoryRow({ item, money, n, tr }) {
   );
 }
 
-function TransactionRow({ item, money, date }) {
+function TransactionRow({ item, money, date, language }) {
   const debit = toNumber(item.debit);
   const credit = toNumber(item.credit);
   const isDebit = debit > 0;
+  const typeLabel = sourceTypeLabel(item.source_type, language);
   return (
     <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
@@ -959,8 +974,8 @@ function TransactionRow({ item, money, date }) {
           {isDebit ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
         </div>
         <div>
-          <div className="font-black text-[var(--erp-text)]">{item.description || item.source_type || "-"}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1 flex items-center gap-1"><CalendarClock size={13} />{date(item.created_at)} • {item.source_type || "-"}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.description || typeLabel}</div>
+          <div className="text-xs text-[var(--erp-muted)] mt-1 flex items-center gap-1"><CalendarClock size={13} />{date(item.created_at)} • {typeLabel}</div>
         </div>
       </div>
       <div className={`font-black ${isDebit ? "text-red-300" : "text-green-300"}`}>{money(isDebit ? debit : credit)}</div>
