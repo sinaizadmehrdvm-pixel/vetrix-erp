@@ -136,7 +136,9 @@ function normalizeNotifications(items, t) {
   });
 }
 
-function buildSmartAlerts({ fa, reports, stats }) {
+function buildSmartAlerts({ language, reports, stats }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const profit = reports?.profit_loss || {};
   const cash = reports?.cashflow || {};
   const invoices = reports?.invoice_summary || {};
@@ -154,11 +156,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "danger",
       icon: <Boxes size={18} />,
-      title: fa ? "هشدار موجودی کالا" : "Inventory alert",
-      text: fa
-        ? `${lowStock} کالا به حداقل موجودی رسیده‌اند.`
-        : `${lowStock} products are low in stock.`,
-      action: fa ? "بررسی انبار" : "Review inventory",
+      title: tr("هشدار موجودی کالا", "تنبيه المخزون", "Envanter uyarısı", "Inventory alert"),
+      text: tr(
+        `${lowStock} کالا به حداقل موجودی رسیده‌اند.`,
+        `${lowStock} منتجات وصلت إلى الحد الأدنى من المخزون.`,
+        `${lowStock} ürün minimum stok seviyesine ulaştı.`,
+        `${lowStock} products are low in stock.`
+      ),
+      action: tr("بررسی انبار", "مراجعة المخزون", "Envanteri incele", "Review inventory"),
       to: "/products",
     });
   }
@@ -167,11 +172,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "warning",
       icon: <ClipboardList size={18} />,
-      title: fa ? "فاکتورهای تسویه‌نشده" : "Unsettled invoices",
-      text: fa
-        ? `${openCount || 0} فاکتور باز با مبلغ قابل پیگیری وجود دارد.`
-        : `${openCount || 0} open invoices require follow-up.`,
-      action: fa ? "پیگیری مطالبات" : "Follow up",
+      title: tr("فاکتورهای تسویه‌نشده", "فواتير غير مسواة", "Ödenmemiş faturalar", "Unsettled invoices"),
+      text: tr(
+        `${openCount || 0} فاکتور باز با مبلغ قابل پیگیری وجود دارد.`,
+        `توجد ${openCount || 0} فاتورة مفتوحة تتطلب متابعة.`,
+        `${openCount || 0} açık fatura takip gerektiriyor.`,
+        `${openCount || 0} open invoices require follow-up.`
+      ),
+      action: tr("پیگیری مطالبات", "متابعة المستحقات", "Alacakları takip et", "Follow up"),
       to: "/invoices",
     });
   }
@@ -180,11 +188,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "danger",
       icon: <ArrowDownRight size={18} />,
-      title: fa ? "سود خالص منفی" : "Negative net profit",
-      text: fa
-        ? "هزینه‌ها یا خریدها بیشتر از فروش ثبت‌شده است."
-        : "Costs or purchases are higher than recorded sales.",
-      action: fa ? "تحلیل سود و زیان" : "Analyze P&L",
+      title: tr("سود خالص منفی", "صافي ربح سلبي", "Negatif net kâr", "Negative net profit"),
+      text: tr(
+        "هزینه‌ها یا خریدها بیشتر از فروش ثبت‌شده است.",
+        "المصروفات أو المشتريات أعلى من المبيعات المسجلة.",
+        "Giderler veya alışlar kaydedilen satışlardan yüksek.",
+        "Costs or purchases are higher than recorded sales."
+      ),
+      action: tr("تحلیل سود و زیان", "تحليل الأرباح والخسائر", "Kâr/zarar analizi", "Analyze P&L"),
       to: "/financial-statements",
     });
   }
@@ -193,11 +204,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "warning",
       icon: <Banknote size={18} />,
-      title: fa ? "جریان نقدی منفی" : "Negative cashflow",
-      text: fa
-        ? "پرداخت‌ها از دریافت‌ها بیشتر شده‌اند."
-        : "Payments are higher than receipts.",
-      action: fa ? "کنترل نقدینگی" : "Cash control",
+      title: tr("جریان نقدی منفی", "تدفق نقدي سلبي", "Negatif nakit akışı", "Negative cashflow"),
+      text: tr(
+        "پرداخت‌ها از دریافت‌ها بیشتر شده‌اند.",
+        "المدفوعات أصبحت أعلى من المقبوضات.",
+        "Ödemeler tahsilatlardan fazla oldu.",
+        "Payments are higher than receipts."
+      ),
+      action: tr("کنترل نقدینگی", "التحكم في السيولة", "Nakit kontrolü", "Cash control"),
       to: "/reports",
     });
   }
@@ -206,11 +220,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "info",
       icon: <Target size={18} />,
-      title: fa ? "فروش ثبت نشده" : "No sales recorded",
-      text: fa
-        ? "برای تحلیل دقیق، فاکتورهای فروش روزانه را ثبت کن."
-        : "Record daily sales invoices for better analysis.",
-      action: fa ? "ثبت فروش" : "Record sales",
+      title: tr("فروش ثبت نشده", "لا توجد مبيعات مسجلة", "Satış kaydedilmedi", "No sales recorded"),
+      text: tr(
+        "برای تحلیل دقیق، فاکتورهای فروش روزانه را ثبت کن.",
+        "لتحليل دقيق، سجّل فواتير المبيعات اليومية.",
+        "Daha doğru analiz için günlük satış faturalarını kaydedin.",
+        "Record daily sales invoices for better analysis."
+      ),
+      action: tr("ثبت فروش", "تسجيل مبيعات", "Satış kaydet", "Record sales"),
       to: "/invoices",
     });
   }
@@ -219,11 +236,14 @@ function buildSmartAlerts({ fa, reports, stats }) {
     alerts.push({
       level: "success",
       icon: <CheckCircle2 size={18} />,
-      title: fa ? "وضعیت سیستم پایدار است" : "System looks stable",
-      text: fa
-        ? "هشدار جدی در فروش، نقدینگی و موجودی دیده نشد."
-        : "No critical sales, cashflow or inventory alert was detected.",
-      action: fa ? "ادامه پایش" : "Keep monitoring",
+      title: tr("وضعیت سیستم پایدار است", "حالة النظام مستقرة", "Sistem durumu istikrarlı", "System looks stable"),
+      text: tr(
+        "هشدار جدی در فروش، نقدینگی و موجودی دیده نشد.",
+        "لم يتم رصد أي تنبيه جوهري في المبيعات أو السيولة أو المخزون.",
+        "Satış, nakit akışı ve envanterde kritik bir uyarı görülmedi.",
+        "No critical sales, cashflow or inventory alert was detected."
+      ),
+      action: tr("ادامه پایش", "مواصلة المراقبة", "İzlemeye devam et", "Keep monitoring"),
       to: "/reports",
     });
   }
@@ -248,18 +268,22 @@ function buildBusinessScore({ reports, stats }) {
   return Math.max(0, Math.min(100, score));
 }
 
-function buildQuickActions(fa) {
+function buildQuickActions(language) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return [
-    { title: fa ? "ثبت فاکتور فروش" : "New sale invoice", path: "/invoices", icon: <Receipt size={18} /> },
-    { title: fa ? "ثبت دریافت" : "New receipt", path: "/receipts", icon: <Wallet size={18} /> },
-    { title: fa ? "ثبت پرداخت" : "New payment", path: "/payments", icon: <CreditCard size={18} /> },
-    { title: fa ? "افزودن مشتری" : "Add customer", path: "/customers", icon: <Users size={18} /> },
-    { title: fa ? "گزارش‌های حرفه‌ای" : "Reports", path: "/reports", icon: <TrendingUp size={18} /> },
+    { title: tr("ثبت فاکتور فروش", "تسجيل فاتورة بيع", "Satış faturası oluştur", "New sale invoice"), path: "/invoices", icon: <Receipt size={18} /> },
+    { title: tr("ثبت دریافت", "تسجيل مقبوضات", "Tahsilat kaydet", "New receipt"), path: "/receipts", icon: <Wallet size={18} /> },
+    { title: tr("ثبت پرداخت", "تسجيل مدفوعات", "Ödeme kaydet", "New payment"), path: "/payments", icon: <CreditCard size={18} /> },
+    { title: tr("افزودن مشتری", "إضافة عميل", "Müşteri ekle", "Add customer"), path: "/customers", icon: <Users size={18} /> },
+    { title: tr("گزارش‌های حرفه‌ای", "تقارير احترافية", "Profesyonel raporlar", "Reports"), path: "/reports", icon: <TrendingUp size={18} /> },
   ];
 }
 
 export default function Dashboard() {
   const { t, n, money, time, dir, language } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
@@ -288,7 +312,7 @@ export default function Dashboard() {
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Dashboard loading error:", error);
-      setError(language === "fa" ? "خطا در دریافت اطلاعات داشبورد" : "Dashboard loading error");
+      setError(tr("خطا در دریافت اطلاعات داشبورد", "خطأ في تحميل بيانات لوحة التحكم", "Panel verileri yüklenirken hata oluştu", "Dashboard loading error"));
       setStats((prev) => prev || {});
     } finally {
       setLoading(false);
@@ -327,12 +351,11 @@ export default function Dashboard() {
   if (!dashboardData) {
     return (
       <div style={{ color: "var(--erp-text)", padding: 30, direction: dir }}>
-        {language === "fa" ? "در حال بارگذاری..." : "Loading..."}
+        {tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
       </div>
     );
   }
 
-  const fa = language === "fa";
   const profit = reports?.profit_loss || {};
   const cash = reports?.cashflow || {};
   const invoices = reports?.invoice_summary || {};
@@ -340,8 +363,8 @@ export default function Dashboard() {
   const inventory = reports?.inventory || {};
   const openInvoices = safeArray(reports?.open_invoices);
   const businessScore = buildBusinessScore({ reports, stats: dashboardData });
-  const smartAlerts = buildSmartAlerts({ fa, reports, stats: dashboardData });
-  const quickActions = buildQuickActions(fa);
+  const smartAlerts = buildSmartAlerts({ language, reports, stats: dashboardData });
+  const quickActions = buildQuickActions(language);
   const netProfit = toNumber(profit.net_profit ?? dashboardData.net_profit);
   const netSales = toNumber(profit.net_sales ?? dashboardData.total_revenue);
   const profitMargin = netSales > 0 ? (netProfit / netSales) * 100 : 0;
@@ -362,13 +385,16 @@ export default function Dashboard() {
             {t("dashboard")}
           </h1>
           <p className="text-[var(--erp-muted)]">
-            {fa
-              ? "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار"
-              : "Smart dashboard for sales, cashflow, profit, receivables, alerts and business growth"}
+            {tr(
+              "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار",
+              "لوحة تحكم ذكية للمبيعات والسيولة والأرباح والمستحقات والتنبيهات ونمو الأعمال",
+              "Satış, nakit akışı, kâr, alacaklar, uyarılar ve iş büyümesi için akıllı panel",
+              "Smart dashboard for sales, cashflow, profit, receivables, alerts and business growth"
+            )}
           </p>
           {lastUpdate && (
             <p className="text-xs text-[var(--erp-muted)] mt-2">
-              {fa ? "آخرین بروزرسانی: " : "Last update: "}
+              {tr("آخرین بروزرسانی: ", "آخر تحديث: ", "Son güncelleme: ", "Last update: ")}
 {time(lastUpdate)}
             </p>
           )}
@@ -384,7 +410,7 @@ export default function Dashboard() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-            {fa ? "به‌روزرسانی" : "Refresh"}
+            {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
         </div>
       </div>
@@ -398,7 +424,7 @@ export default function Dashboard() {
 
       <div className="mb-6 grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-5">
         <ExecutiveHero
-          fa={fa}
+          language={language}
           money={money}
           n={n}
           score={businessScore}
@@ -408,7 +434,7 @@ export default function Dashboard() {
           cashflow={toNumber(cash.net_cashflow)}
         />
 
-        <SmartAlertCenter fa={fa} alerts={smartAlerts} />
+        <SmartAlertCenter language={language} alerts={smartAlerts} />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 20, marginBottom: 20, flexWrap: "wrap", direction: dir }}>
@@ -417,24 +443,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <QuickActions fa={fa} actions={quickActions} />
+      <QuickActions language={language} actions={quickActions} />
 
       <ExportButtons />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginTop: 20, marginBottom: 30, direction: dir, alignItems: "stretch" }}>
-        <StatsCard to="/invoices" title={fa ? "فروش امروز" : "Sales today"} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="#22d3ee" />
-        <StatsCard to="/invoices" title={fa ? "فروش ماه" : "Sales this month"} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="#10b981" />
-        <StatsCard to="/invoices" title={fa ? "خرید ماه" : "Purchases this month"} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="#f59e0b" />
-        <StatsCard to="/receipts" title={fa ? "دریافت امروز" : "Receipts today"} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="#10b981" />
-        <StatsCard to="/payments" title={fa ? "پرداخت امروز" : "Payments today"} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="#ef4444" />
-        <StatsCard to="/reports" title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "#22d3ee" : "#ef4444"} />
-        <StatsCard to="/invoices" title={fa ? "فاکتورهای باز" : "Open invoices"} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="#f59e0b" />
-        <StatsCard to="/products" title={fa ? "کالاهای کم موجود" : "Low stock"} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
+        <StatsCard to="/invoices" title={tr("فروش امروز", "مبيعات اليوم", "Bugünkü satış", "Sales today")} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="#22d3ee" />
+        <StatsCard to="/invoices" title={tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales this month")} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="#10b981" />
+        <StatsCard to="/invoices" title={tr("خرید ماه", "مشتريات الشهر", "Aylık alış", "Purchases this month")} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="#f59e0b" />
+        <StatsCard to="/receipts" title={tr("دریافت امروز", "مقبوضات اليوم", "Bugünkü tahsilat", "Receipts today")} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="#10b981" />
+        <StatsCard to="/payments" title={tr("پرداخت امروز", "مدفوعات اليوم", "Bugünkü ödeme", "Payments today")} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="#ef4444" />
+        <StatsCard to="/reports" title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "#22d3ee" : "#ef4444"} />
+        <StatsCard to="/invoices" title={tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="#f59e0b" />
+        <StatsCard to="/products" title={tr("کالاهای کم موجود", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock")} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
       </div>
 
       <details className="group rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
         <summary className="cursor-pointer list-none rounded-2xl bg-[var(--erp-panel-solid)] px-4 py-3 text-[var(--erp-accent)] font-black flex items-center justify-between gap-3">
-          <span>{fa ? "نمایش جزئیات و تحلیل‌های بیشتر" : "Show more details and analytics"}</span>
+          <span>{tr("نمایش جزئیات و تحلیل‌های بیشتر", "عرض المزيد من التفاصيل والتحليلات", "Daha fazla ayrıntı ve analiz göster", "Show more details and analytics")}</span>
           <ChevronDown className="transition-transform group-open:rotate-180" size={20} />
         </summary>
         <div className="pt-4">
@@ -442,14 +468,14 @@ export default function Dashboard() {
         <StatsCard to="/invoices" title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="#6366f1" />
         <StatsCard to="/customers" title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="#10b981" />
         <StatsCard to="/products" title={t("products")} value={n(dashboardData.products_count || 0)} icon={<Package />} color="#f59e0b" />
-        <StatsCard to="/products" title={fa ? "ارزش موجودی" : "Inventory value"} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
+        <StatsCard to="/products" title={tr("ارزش موجودی", "قيمة المخزون", "Envanter değeri", "Inventory value")} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5">
         <div>
           <SalesChart data={dashboardData.sales_chart || []} />
         </div>
-        <BusinessPulse fa={fa} n={n} money={money} reports={reports} stats={dashboardData} />
+        <BusinessPulse language={language} n={n} money={money} reports={reports} stats={dashboardData} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,360px),1fr))", gap: 20, marginTop: 20, direction: dir }}>
@@ -472,9 +498,11 @@ export default function Dashboard() {
   );
 }
 
-function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmount, cashflow }) {
+function ExecutiveHero({ language, money, n, score, netProfit, profitMargin, openAmount, cashflow }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const scoreColor = score >= 75 ? "text-emerald-300" : score >= 45 ? "text-amber-300" : "text-rose-300";
-  const scoreLabel = score >= 75 ? (fa ? "عالی" : "Excellent") : score >= 45 ? (fa ? "نیازمند توجه" : "Needs attention") : (fa ? "بحرانی" : "Critical");
+  const scoreLabel = score >= 75 ? tr("عالی", "ممتاز", "Mükemmel", "Excellent") : score >= 45 ? tr("نیازمند توجه", "يحتاج إلى اهتمام", "Dikkat gerektiriyor", "Needs attention") : tr("بحرانی", "حرج", "Kritik", "Critical");
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 shadow-2xl">
@@ -485,7 +513,7 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
         <div>
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-2">
             <Gauge size={22} />
-            {fa ? "امتیاز سلامت کسب‌وکار" : "Business health score"}
+            {tr("امتیاز سلامت کسب‌وکار", "مؤشر سلامة الأعمال", "İş sağlığı skoru", "Business health score")}
           </div>
           <div className={`text-6xl font-black ${scoreColor}`}>{n(score)}</div>
           <div className="text-[var(--erp-muted)] mt-2">{scoreLabel}</div>
@@ -494,32 +522,28 @@ function ExecutiveHero({ fa, money, n, score, netProfit, profitMargin, openAmoun
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[320px]">
           <MiniKpi
             to="/reports"
-            fa={fa}
-            title={fa ? "سود خالص" : "Net profit"}
+            title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")}
             value={money(netProfit)}
             positive={netProfit >= 0}
             icon={<TrendingUp size={17} />}
           />
           <MiniKpi
             to="/reports"
-            fa={fa}
-            title={fa ? "حاشیه سود" : "Profit margin"}
+            title={tr("حاشیه سود", "هامش الربح", "Kâr marjı", "Profit margin")}
             value={`${n(profitMargin.toFixed(1))}%`}
             positive={profitMargin >= 0}
             icon={<Target size={17} />}
           />
           <MiniKpi
             to="/invoices"
-            fa={fa}
-            title={fa ? "مطالبات باز" : "Open receivables"}
+            title={tr("مطالبات باز", "المستحقات المفتوحة", "Açık alacaklar", "Open receivables")}
             value={money(openAmount)}
             positive={openAmount <= 0}
             icon={<Wallet size={17} />}
           />
           <MiniKpi
             to="/reports"
-            fa={fa}
-            title={fa ? "نقدینگی خالص" : "Net cashflow"}
+            title={tr("نقدینگی خالص", "صافي السيولة", "Net nakit akışı", "Net cashflow")}
             value={money(cashflow)}
             positive={cashflow >= 0}
             icon={<Banknote size={17} />}
@@ -552,16 +576,18 @@ function MiniKpi({ title, value, positive, icon, to }) {
   );
 }
 
-function SmartAlertCenter({ fa, alerts }) {
+function SmartAlertCenter({ language, alerts }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
     <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <BellRing />
-          {fa ? "مرکز هشدار هوشمند" : "Smart Alert Center"}
+          {tr("مرکز هشدار هوشمند", "مركز التنبيهات الذكية", "Akıllı Uyarı Merkezi", "Smart Alert Center")}
         </h2>
         <span className="text-xs rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] px-3 py-1">
-          {fa ? "زنده" : "Live"}
+          {tr("زنده", "مباشر", "Canlı", "Live")}
         </span>
       </div>
 
@@ -595,12 +621,14 @@ function SmartAlertCenter({ fa, alerts }) {
   );
 }
 
-function QuickActions({ fa, actions }) {
+function QuickActions({ language, actions }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
     <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5">
       <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
         <Sparkles size={20} />
-        {fa ? "دسترسی سریع عملیاتی" : "Quick actions"}
+        {tr("دسترسی سریع عملیاتی", "إجراءات سريعة", "Hızlı işlemler", "Quick actions")}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {actions.map((item, index) => (
@@ -618,35 +646,37 @@ function QuickActions({ fa, actions }) {
   );
 }
 
-function BusinessPulse({ fa, n, money, reports, stats }) {
+function BusinessPulse({ language, n, money, reports, stats }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const profit = reports?.profit_loss || {};
   const cash = reports?.cashflow || {};
   const inventory = reports?.inventory || {};
   const invoices = reports?.invoice_summary || {};
   const rows = [
     {
-      title: fa ? "رشد فروش" : "Sales growth",
+      title: tr("رشد فروش", "نمو المبيعات", "Satış büyümesi", "Sales growth"),
       value: money(profit.net_sales ?? stats.total_revenue ?? 0),
       icon: <ArrowUpRight size={18} />,
       color: "text-emerald-300",
       to: "/invoices",
     },
     {
-      title: fa ? "ریسک موجودی" : "Inventory risk",
+      title: tr("ریسک موجودی", "مخاطر المخزون", "Envanter riski", "Inventory risk"),
       value: n(inventory.low_stock_count ?? stats.low_stock ?? 0),
       icon: <ShieldAlert size={18} />,
       color: toNumber(inventory.low_stock_count ?? stats.low_stock) > 0 ? "text-rose-300" : "text-emerald-300",
       to: "/products",
     },
     {
-      title: fa ? "فاکتورهای باز" : "Open invoices",
+      title: tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices"),
       value: n(invoices.open_count || 0),
       icon: <Flame size={18} />,
       color: toNumber(invoices.open_count) > 0 ? "text-amber-300" : "text-emerald-300",
       to: "/invoices",
     },
     {
-      title: fa ? "نقدینگی ماه" : "Monthly cash",
+      title: tr("نقدینگی ماه", "سيولة الشهر", "Aylık nakit", "Monthly cash"),
       value: money(cash.net_cashflow || 0),
       icon: <UserRoundCheck size={18} />,
       color: toNumber(cash.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300",
@@ -657,7 +687,7 @@ function BusinessPulse({ fa, n, money, reports, stats }) {
   return (
     <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl h-full flex flex-col">
       <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">
-        {fa ? "نبض کسب‌وکار" : "Business pulse"}
+        {tr("نبض کسب‌وکار", "نبض الأعمال", "İş nabzı", "Business pulse")}
       </h2>
       <div className="flex-1 flex flex-col justify-between gap-3">
         {rows.map((row, index) => (
