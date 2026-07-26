@@ -20,12 +20,14 @@ function toNumber(value) {
   );
 }
 
-function formatDate(value, fa) {
+const DATE_LOCALES = { fa: "fa-IR-u-ca-persian", ar: "ar-AE", tr: "tr-TR", en: "en-US" };
+
+function formatDate(value, language) {
   if (!value) return "-";
   try {
     const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
+    return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.en, {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -35,42 +37,26 @@ function formatDate(value, fa) {
   }
 }
 
-function invoiceTypeLabel(type, fa) {
+function invoiceTypeLabel(type, language) {
   const key = String(type || "").toLowerCase();
-  const faMap = {
-    sale: "فروش",
-    buy: "خرید",
-    proforma: "پیش‌فاکتور",
-    return_sale: "مرجوعی فروش",
-    return_buy: "مرجوعی خرید",
+  const maps = {
+    fa: { sale: "فروش", buy: "خرید", proforma: "پیش‌فاکتور", return_sale: "مرجوعی فروش", return_buy: "مرجوعی خرید" },
+    ar: { sale: "بيع", buy: "شراء", proforma: "فاتورة أولية", return_sale: "مرتجع بيع", return_buy: "مرتجع شراء" },
+    tr: { sale: "Satış", buy: "Alış", proforma: "Proforma", return_sale: "Satış iadesi", return_buy: "Alış iadesi" },
+    en: { sale: "Sale", buy: "Buy", proforma: "Proforma", return_sale: "Sale return", return_buy: "Buy return" },
   };
-  const enMap = {
-    sale: "Sale",
-    buy: "Buy",
-    proforma: "Proforma",
-    return_sale: "Sale return",
-    return_buy: "Buy return",
-  };
-  return (fa ? faMap : enMap)[key] || type || "-";
+  return (maps[language] || maps.en)[key] || type || "-";
 }
 
-function statusLabel(status, fa) {
+function statusLabel(status, language) {
   const key = String(status || "").toLowerCase();
-  const faMap = {
-    paid: "تسویه شده",
-    unpaid: "تسویه نشده",
-    partial: "تسویه ناقص",
-    draft: "پیش‌نویس",
-    final: "نهایی",
+  const maps = {
+    fa: { paid: "تسویه شده", unpaid: "تسویه نشده", partial: "تسویه ناقص", draft: "پیش‌نویس", final: "نهایی" },
+    ar: { paid: "مدفوع", unpaid: "غير مدفوع", partial: "مدفوع جزئياً", draft: "مسودة", final: "نهائي" },
+    tr: { paid: "Ödendi", unpaid: "Ödenmedi", partial: "Kısmi ödendi", draft: "Taslak", final: "Nihai" },
+    en: { paid: "Paid", unpaid: "Unpaid", partial: "Partial", draft: "Draft", final: "Final" },
   };
-  const enMap = {
-    paid: "Paid",
-    unpaid: "Unpaid",
-    partial: "Partial",
-    draft: "Draft",
-    final: "Final",
-  };
-  return (fa ? faMap : enMap)[key] || status || "-";
+  return (maps[language] || maps.en)[key] || status || "-";
 }
 
 function normalizeInvoices(invoices) {
@@ -108,11 +94,16 @@ export default function CustomerFinancial({
   invoices = [],
   ledger = [],
   fa = true,
+  language,
   money = (v) => String(v ?? 0),
   n = (v) => String(v ?? ""),
   loading = false,
   onRefresh,
 }) {
+  const lang = language || (fa ? "fa" : "en");
+  const tr = (faText, arText, trText, enText) =>
+    lang === "fa" ? faText : lang === "ar" ? arText : lang === "tr" ? trText : enText;
+
   const [query, setQuery] = useState("");
   const [invoiceFilter, setInvoiceFilter] = useState("all");
 
@@ -191,12 +182,15 @@ export default function CustomerFinancial({
         <div>
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <Wallet />
-            {fa ? "پرونده مالی مشتری" : "Customer Financial Profile"}
+            {tr("پرونده مالی مشتری", "الملف المالي للعميل", "Müşteri finansal profili", "Customer Financial Profile")}
           </h2>
           <p className="text-[var(--erp-muted)] text-sm mt-2">
-            {fa
-              ? "خلاصه مالی، فاکتورها، مانده حساب، بدهی/بستانکاری و نمودار خرید مشتری"
-              : "Financial summary, invoices, balance, debit/credit and customer purchase chart"}
+            {tr(
+              "خلاصه مالی، فاکتورها، مانده حساب، بدهی/بستانکاری و نمودار خرید مشتری",
+              "ملخص مالي والفواتير والرصيد والمدين/الدائن ومخطط مشتريات العميل",
+              "Finansal özet, faturalar, bakiye, borç/alacak ve müşteri satın alma grafiği",
+              "Financial summary, invoices, balance, debit/credit and customer purchase chart"
+            )}
           </p>
         </div>
 
@@ -207,28 +201,28 @@ export default function CustomerFinancial({
           className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <FinancialCard icon={<Wallet />} title={fa ? "مانده حساب" : "Balance"} value={money(Math.abs(financial.balance))} hint={financial.balance > 0 ? (fa ? "بدهکار" : "Debtor") : financial.balance < 0 ? (fa ? "بستانکار" : "Creditor") : (fa ? "تسویه" : "Settled")} tone={financial.balance > 0 ? "rose" : financial.balance < 0 ? "emerald" : "cyan"} />
-        <FinancialCard icon={<ArrowUpRight />} title={fa ? "جمع فروش" : "Total sales"} value={money(financial.sales)} hint={fa ? "ارزش خرید مشتری" : "Customer purchase value"} tone="cyan" />
-        <FinancialCard icon={<FileText />} title={fa ? "تعداد فاکتور" : "Invoices"} value={n(financial.invoiceCount)} hint={`${fa ? "باز" : "Open"}: ${n(financial.openCount)}`} tone="amber" />
-        <FinancialCard icon={<CreditCard />} title={fa ? "فاکتورهای باز" : "Open amount"} value={money(financial.openAmount)} hint={fa ? "نیازمند پیگیری" : "Needs follow-up"} tone="rose" />
-        <FinancialCard icon={<ArrowDownRight />} title={fa ? "جمع بدهکار" : "Total debit"} value={money(financial.debit)} tone="rose" />
-        <FinancialCard icon={<ArrowUpRight />} title={fa ? "جمع بستانکار" : "Total credit"} value={money(financial.credit)} tone="emerald" />
-        <FinancialCard icon={<BarChart3 />} title={fa ? "میانگین فاکتور" : "Avg invoice"} value={money(financial.avgInvoice)} tone="cyan" />
-        <FinancialCard icon={<FileText />} title={fa ? "فاکتورهای تسویه" : "Paid invoices"} value={n(financial.paidCount)} tone="emerald" />
+        <FinancialCard icon={<Wallet />} title={tr("مانده حساب", "الرصيد", "Bakiye", "Balance")} value={money(Math.abs(financial.balance))} hint={financial.balance > 0 ? tr("بدهکار", "مدين", "Borçlu", "Debtor") : financial.balance < 0 ? tr("بستانکار", "دائن", "Alacaklı", "Creditor") : tr("تسویه", "مُسوّى", "Kapandı", "Settled")} tone={financial.balance > 0 ? "rose" : financial.balance < 0 ? "emerald" : "cyan"} />
+        <FinancialCard icon={<ArrowUpRight />} title={tr("جمع فروش", "إجمالي المبيعات", "Toplam satış", "Total sales")} value={money(financial.sales)} hint={tr("ارزش خرید مشتری", "قيمة مشتريات العميل", "Müşteri satın alma değeri", "Customer purchase value")} tone="cyan" />
+        <FinancialCard icon={<FileText />} title={tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")} value={n(financial.invoiceCount)} hint={`${tr("باز", "مفتوح", "Açık", "Open")}: ${n(financial.openCount)}`} tone="amber" />
+        <FinancialCard icon={<CreditCard />} title={tr("فاکتورهای باز", "المبلغ المفتوح", "Açık tutar", "Open amount")} value={money(financial.openAmount)} hint={tr("نیازمند پیگیری", "يتطلب متابعة", "Takip gerektirir", "Needs follow-up")} tone="rose" />
+        <FinancialCard icon={<ArrowDownRight />} title={tr("جمع بدهکار", "إجمالي المدين", "Toplam borç", "Total debit")} value={money(financial.debit)} tone="rose" />
+        <FinancialCard icon={<ArrowUpRight />} title={tr("جمع بستانکار", "إجمالي الدائن", "Toplam alacak", "Total credit")} value={money(financial.credit)} tone="emerald" />
+        <FinancialCard icon={<BarChart3 />} title={tr("میانگین فاکتور", "متوسط الفاتورة", "Ortalama fatura", "Avg invoice")} value={money(financial.avgInvoice)} tone="cyan" />
+        <FinancialCard icon={<FileText />} title={tr("فاکتورهای تسویه", "الفواتير المدفوعة", "Ödenen faturalar", "Paid invoices")} value={n(financial.paidCount)} tone="emerald" />
       </div>
 
       <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5 mb-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <BarChart3 size={20} />
-            {fa ? "نمودار آخرین فاکتورها" : "Recent invoices chart"}
+            {tr("نمودار آخرین فاکتورها", "مخطط آخر الفواتير", "Son faturalar grafiği", "Recent invoices chart")}
           </h3>
-          <span className="text-[var(--erp-muted)] text-sm">{fa ? "۸ فاکتور آخر" : "Last 8 invoices"}</span>
+          <span className="text-[var(--erp-muted)] text-sm">{tr("۸ فاکتور آخر", "آخر 8 فواتير", "Son 8 fatura", "Last 8 invoices")}</span>
         </div>
 
         <div className="h-52 flex items-end gap-3">
@@ -240,7 +234,7 @@ export default function CustomerFinancial({
               </div>
             ))
           ) : (
-            <div className="w-full text-center text-[var(--erp-muted)]">{fa ? "داده‌ای برای نمودار وجود ندارد." : "No chart data."}</div>
+            <div className="w-full text-center text-[var(--erp-muted)]">{tr("داده‌ای برای نمودار وجود ندارد.", "لا توجد بيانات للمخطط.", "Grafik verisi yok.", "No chart data.")}</div>
           )}
         </div>
       </div>
@@ -249,7 +243,7 @@ export default function CustomerFinancial({
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={20} />
-            {fa ? "فاکتورهای مشتری" : "Customer invoices"}
+            {tr("فاکتورهای مشتری", "فواتير العميل", "Müşteri faturaları", "Customer invoices")}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-[240px_180px] gap-3">
@@ -258,7 +252,7 @@ export default function CustomerFinancial({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={fa ? "جستجوی فاکتور..." : "Search invoices..."}
+                placeholder={tr("جستجوی فاکتور...", "بحث في الفواتير...", "Fatura ara...", "Search invoices...")}
                 className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-10 pl-4 py-3 outline-none border border-[var(--erp-border)]"
               />
             </div>
@@ -268,13 +262,13 @@ export default function CustomerFinancial({
               onChange={(e) => setInvoiceFilter(e.target.value)}
               className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
             >
-              <option value="all">{fa ? "همه" : "All"}</option>
-              <option value="sale">{fa ? "فروش" : "Sale"}</option>
-              <option value="buy">{fa ? "خرید" : "Buy"}</option>
-              <option value="proforma">{fa ? "پیش‌فاکتور" : "Proforma"}</option>
-              <option value="paid">{fa ? "تسویه شده" : "Paid"}</option>
-              <option value="unpaid">{fa ? "تسویه نشده" : "Unpaid"}</option>
-              <option value="partial">{fa ? "ناقص" : "Partial"}</option>
+              <option value="all">{tr("همه", "الكل", "Tümü", "All")}</option>
+              <option value="sale">{tr("فروش", "بيع", "Satış", "Sale")}</option>
+              <option value="buy">{tr("خرید", "شراء", "Alış", "Buy")}</option>
+              <option value="proforma">{tr("پیش‌فاکتور", "فاتورة أولية", "Proforma", "Proforma")}</option>
+              <option value="paid">{tr("تسویه شده", "مدفوع", "Ödendi", "Paid")}</option>
+              <option value="unpaid">{tr("تسویه نشده", "غير مدفوع", "Ödenmedi", "Unpaid")}</option>
+              <option value="partial">{tr("ناقص", "جزئي", "Kısmi", "Partial")}</option>
             </select>
           </div>
         </div>
@@ -283,12 +277,12 @@ export default function CustomerFinancial({
           <table className="w-full min-w-[850px] text-sm">
             <thead>
               <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                <th className="p-3 text-right">{fa ? "شماره" : "ID"}</th>
-                <th className="p-3 text-right">{fa ? "تاریخ" : "Date"}</th>
-                <th className="p-3 text-right">{fa ? "نوع" : "Type"}</th>
-                <th className="p-3 text-right">{fa ? "مبلغ" : "Amount"}</th>
-                <th className="p-3 text-right">{fa ? "باقی‌مانده" : "Remaining"}</th>
-                <th className="p-3 text-right">{fa ? "وضعیت" : "Status"}</th>
+                <th className="p-3 text-right">{tr("شماره", "الرقم", "No", "ID")}</th>
+                <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
+                <th className="p-3 text-right">{tr("نوع", "النوع", "Tür", "Type")}</th>
+                <th className="p-3 text-right">{tr("مبلغ", "المبلغ", "Tutar", "Amount")}</th>
+                <th className="p-3 text-right">{tr("باقی‌مانده", "المتبقي", "Kalan", "Remaining")}</th>
+                <th className="p-3 text-right">{tr("وضعیت", "الحالة", "Durum", "Status")}</th>
               </tr>
             </thead>
 
@@ -296,8 +290,8 @@ export default function CustomerFinancial({
               {filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
                   <td className="p-3 font-black text-[var(--erp-text)]">#{n(inv.id)}</td>
-                  <td className="p-3 text-[var(--erp-muted)]">{formatDate(inv.created_at, fa)}</td>
-                  <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, fa)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{formatDate(inv.created_at, lang)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, lang)}</td>
                   <td className="p-3 text-[var(--erp-accent)] font-black">{money(inv.total_amount)}</td>
                   <td className="p-3 text-amber-300 font-black">{money(inv.remaining_amount || 0)}</td>
                   <td className="p-3">
@@ -308,7 +302,7 @@ export default function CustomerFinancial({
                         ? "bg-amber-400/10 text-amber-300"
                         : "bg-rose-400/10 text-rose-300"
                     }`}>
-                      {statusLabel(inv.payment_status, fa)}
+                      {statusLabel(inv.payment_status, lang)}
                     </span>
                   </td>
                 </tr>
@@ -317,7 +311,7 @@ export default function CustomerFinancial({
               {filteredInvoices.length === 0 && (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-[var(--erp-muted)]">
-                    {fa ? "فاکتوری برای نمایش وجود ندارد." : "No invoices to show."}
+                    {tr("فاکتوری برای نمایش وجود ندارد.", "لا توجد فواتير لعرضها.", "Gösterilecek fatura yok.", "No invoices to show.")}
                   </td>
                 </tr>
               )}

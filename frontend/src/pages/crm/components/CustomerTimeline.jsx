@@ -25,14 +25,16 @@ function toNumber(value) {
   );
 }
 
-function formatDate(value, fa) {
+const DATE_LOCALES = { fa: "fa-IR-u-ca-persian", ar: "ar-AE", tr: "tr-TR", en: "en-US" };
+
+function formatDate(value, language) {
   if (!value) return "-";
 
   try {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
 
-    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
+    return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.en, {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -60,46 +62,37 @@ function getEventIcon(event) {
   return <MessageCircle size={18} />;
 }
 
-function getEventLabel(event, fa) {
+function getEventLabel(event, language) {
   const type = String(event?.type || event?.source || "activity").toLowerCase();
 
-  const labelsFa = {
-    invoice: "فاکتور",
-    payment: "پرداخت",
-    receipt: "دریافت",
-    accounting: "حسابداری",
-    call: "تماس",
-    sms: "پیامک",
-    whatsapp: "واتساپ",
-    email: "ایمیل",
-    task: "وظیفه",
-    note: "یادداشت",
-    meeting: "جلسه",
-    visit: "ویزیت",
-    loyalty: "باشگاه مشتریان",
-    customer: "مشتری",
-    activity: "فعالیت",
+  const labelSets = {
+    fa: {
+      invoice: "فاکتور", payment: "پرداخت", receipt: "دریافت", accounting: "حسابداری",
+      call: "تماس", sms: "پیامک", whatsapp: "واتساپ", email: "ایمیل", task: "وظیفه",
+      note: "یادداشت", meeting: "جلسه", visit: "ویزیت", loyalty: "باشگاه مشتریان",
+      customer: "مشتری", activity: "فعالیت",
+    },
+    ar: {
+      invoice: "فاتورة", payment: "دفعة", receipt: "إيصال", accounting: "محاسبة",
+      call: "مكالمة", sms: "رسالة نصية", whatsapp: "واتساب", email: "بريد إلكتروني", task: "مهمة",
+      note: "ملاحظة", meeting: "اجتماع", visit: "زيارة", loyalty: "برنامج الولاء",
+      customer: "عميل", activity: "نشاط",
+    },
+    tr: {
+      invoice: "Fatura", payment: "Ödeme", receipt: "Tahsilat", accounting: "Muhasebe",
+      call: "Arama", sms: "SMS", whatsapp: "WhatsApp", email: "E-posta", task: "Görev",
+      note: "Not", meeting: "Toplantı", visit: "Ziyaret", loyalty: "Sadakat programı",
+      customer: "Müşteri", activity: "Etkinlik",
+    },
+    en: {
+      invoice: "Invoice", payment: "Payment", receipt: "Receipt", accounting: "Accounting",
+      call: "Call", sms: "SMS", whatsapp: "WhatsApp", email: "Email", task: "Task",
+      note: "Note", meeting: "Meeting", visit: "Visit", loyalty: "Loyalty",
+      customer: "Customer", activity: "Activity",
+    },
   };
 
-  const labelsEn = {
-    invoice: "Invoice",
-    payment: "Payment",
-    receipt: "Receipt",
-    accounting: "Accounting",
-    call: "Call",
-    sms: "SMS",
-    whatsapp: "WhatsApp",
-    email: "Email",
-    task: "Task",
-    note: "Note",
-    meeting: "Meeting",
-    visit: "Visit",
-    loyalty: "Loyalty",
-    customer: "Customer",
-    activity: "Activity",
-  };
-
-  const labels = fa ? labelsFa : labelsEn;
+  const labels = labelSets[language] || labelSets.en;
   const foundKey = Object.keys(labels).find((key) => type.includes(key));
   return labels[foundKey] || event?.type || event?.source || labels.activity;
 }
@@ -135,6 +128,7 @@ function normalizeEvents(events) {
 export default function CustomerTimeline({
   events = [],
   fa = true,
+  language,
   money = (v) => String(v ?? 0),
   n = (v) => String(v ?? ""),
   loading = false,
@@ -142,6 +136,10 @@ export default function CustomerTimeline({
   onAddNote,
   onDeleteEvent,
 }) {
+  const lang = language || (fa ? "fa" : "en");
+  const tr = (faText, arText, trText, enText) =>
+    lang === "fa" ? faText : lang === "ar" ? arText : lang === "tr" ? trText : enText;
+
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [quickNote, setQuickNote] = useState("");
@@ -180,7 +178,7 @@ export default function CustomerTimeline({
     if (!quickNote.trim() || !onAddNote) return;
 
     await onAddNote({
-      title: fa ? "یادداشت سریع" : "Quick note",
+      title: tr("یادداشت سریع", "ملاحظة سريعة", "Hızlı not", "Quick note"),
       text: quickNote.trim(),
       note_type: "note",
       tags: "timeline,quick",
@@ -195,12 +193,15 @@ export default function CustomerTimeline({
         <div>
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <CalendarClock />
-            {fa ? "تایم‌لاین کامل مشتری" : "Customer Timeline"}
+            {tr("تایم‌لاین کامل مشتری", "الجدول الزمني الكامل للعميل", "Müşteri zaman çizelgesi", "Customer Timeline")}
           </h2>
           <p className="text-[var(--erp-muted)] text-sm mt-2">
-            {fa
-              ? "همه فاکتورها، پرداخت‌ها، تماس‌ها، یادداشت‌ها، وظایف و فعالیت‌های مشتری در یک مسیر زمانی"
-              : "Invoices, payments, calls, notes, tasks and customer activities in one timeline"}
+            {tr(
+              "همه فاکتورها، پرداخت‌ها، تماس‌ها، یادداشت‌ها، وظایف و فعالیت‌های مشتری در یک مسیر زمانی",
+              "جميع الفواتير والمدفوعات والمكالمات والملاحظات والمهام وأنشطة العميل في جدول زمني واحد",
+              "Tüm faturalar, ödemeler, aramalar, notlar, görevler ve müşteri etkinlikleri tek bir zaman çizelgesinde",
+              "Invoices, payments, calls, notes, tasks and customer activities in one timeline"
+            )}
           </p>
         </div>
 
@@ -211,15 +212,15 @@ export default function CustomerTimeline({
           className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <TimelineStat title={fa ? "کل رویدادها" : "Total"} value={n(stats.total)} />
-        <TimelineStat title={fa ? "فاکتور" : "Invoices"} value={n(stats.invoices)} />
-        <TimelineStat title={fa ? "مالی" : "Financial"} value={n(stats.financial)} />
-        <TimelineStat title={fa ? "CRM" : "CRM"} value={n(stats.crm)} />
+        <TimelineStat title={tr("کل رویدادها", "إجمالي الأحداث", "Toplam olay", "Total")} value={n(stats.total)} />
+        <TimelineStat title={tr("فاکتور", "الفواتير", "Faturalar", "Invoices")} value={n(stats.invoices)} />
+        <TimelineStat title={tr("مالی", "مالي", "Mali", "Financial")} value={n(stats.financial)} />
+        <TimelineStat title="CRM" value={n(stats.crm)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3 mb-4">
@@ -228,7 +229,7 @@ export default function CustomerTimeline({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={fa ? "جستجو در تایم‌لاین..." : "Search timeline..."}
+            placeholder={tr("جستجو در تایم‌لاین...", "بحث في الجدول الزمني...", "Zaman çizelgesinde ara...", "Search timeline...")}
             className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]"
           />
         </div>
@@ -238,13 +239,13 @@ export default function CustomerTimeline({
           onChange={(e) => setTypeFilter(e.target.value)}
           className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
         >
-          <option value="all">{fa ? "همه رویدادها" : "All events"}</option>
-          <option value="invoice">{fa ? "فاکتورها" : "Invoices"}</option>
-          <option value="payment">{fa ? "پرداخت / دریافت" : "Payments"}</option>
-          <option value="call">{fa ? "تماس‌ها" : "Calls"}</option>
-          <option value="task">{fa ? "وظایف" : "Tasks"}</option>
-          <option value="note">{fa ? "یادداشت‌ها" : "Notes"}</option>
-          <option value="loyalty">{fa ? "باشگاه مشتریان" : "Loyalty"}</option>
+          <option value="all">{tr("همه رویدادها", "جميع الأحداث", "Tüm olaylar", "All events")}</option>
+          <option value="invoice">{tr("فاکتورها", "الفواتير", "Faturalar", "Invoices")}</option>
+          <option value="payment">{tr("پرداخت / دریافت", "المدفوعات", "Ödemeler", "Payments")}</option>
+          <option value="call">{tr("تماس‌ها", "المكالمات", "Aramalar", "Calls")}</option>
+          <option value="task">{tr("وظایف", "المهام", "Görevler", "Tasks")}</option>
+          <option value="note">{tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes")}</option>
+          <option value="loyalty">{tr("باشگاه مشتریان", "برنامج الولاء", "Sadakat programı", "Loyalty")}</option>
         </select>
       </div>
 
@@ -253,7 +254,7 @@ export default function CustomerTimeline({
           <input
             value={quickNote}
             onChange={(e) => setQuickNote(e.target.value)}
-            placeholder={fa ? "یادداشت سریع برای این مشتری..." : "Quick note for this customer..."}
+            placeholder={tr("یادداشت سریع برای این مشتری...", "ملاحظة سريعة لهذا العميل...", "Bu müşteri için hızlı not...", "Quick note for this customer...")}
             className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
           />
           <button
@@ -262,7 +263,7 @@ export default function CustomerTimeline({
             className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center justify-center gap-2"
           >
             <Plus size={18} />
-            {fa ? "ثبت" : "Add"}
+            {tr("ثبت", "إضافة", "Ekle", "Add")}
           </button>
         </div>
       )}
@@ -286,13 +287,13 @@ export default function CustomerTimeline({
 
                     <div>
                       <div className="font-black text-[var(--erp-text)]">{event.title || "-"}</div>
-                      <div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(event.date, fa)}</div>
+                      <div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(event.date, lang)}</div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-black border ${getEventTone(event)}`}>
-                      {getEventLabel(event, fa)}
+                      {getEventLabel(event, lang)}
                     </span>
 
                     {onDeleteEvent && String(event.source).toLowerCase().includes("note") && (
@@ -324,7 +325,7 @@ export default function CustomerTimeline({
 
           {filtered.length === 0 && (
             <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">
-              {fa ? "رویدادی برای نمایش وجود ندارد." : "No events to show."}
+              {tr("رویدادی برای نمایش وجود ندارد.", "لا توجد أحداث لعرضها.", "Gösterilecek olay yok.", "No events to show.")}
             </div>
           )}
         </div>
