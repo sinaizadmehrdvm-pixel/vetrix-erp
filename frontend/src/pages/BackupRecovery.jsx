@@ -40,45 +40,61 @@ export default function BackupRecovery() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "پشتیبان‌گیری و بازیابی" : "Backup & Recovery",
+    title: fa ? "پشتیبان‌گیری و بازیابی" : language === "ar" ? "النسخ الاحتياطي والاستعادة" : language === "tr" ? "Yedekleme ve Kurtarma" : "Backup & Recovery",
     subtitle: fa
       ? "نسخه‌های معتبر دیتابیس با checksum و بازیابی اضطراری"
+      : language === "ar"
+      ? "لقطات قاعدة بيانات موثّقة بمجاميع اختبارية (checksum) واستعادة طوارئ"
+      : language === "tr"
+      ? "Sağlama toplamlı (checksum) doğrulanmış veritabanı anlık görüntüleri ve acil durum kurtarma"
       : "Verified database snapshots with checksums and emergency recovery",
-    denied: fa ? "این بخش فقط برای مدیر سیستم قابل دسترسی است." : "This area is restricted to administrators.",
-    create: fa ? "ایجاد بکاپ جدید" : "Create backup",
-    empty: fa ? "هنوز نسخه پشتیبانی وجود ندارد." : "No backups have been created.",
-    filename: fa ? "نام فایل" : "Filename",
-    createdAt: fa ? "زمان ایجاد" : "Created",
-    kind: fa ? "نوع" : "Type",
-    size: fa ? "حجم" : "Size",
-    integrity: fa ? "سلامت" : "Integrity",
+    denied: fa ? "این بخش فقط برای مدیر سیستم قابل دسترسی است." : language === "ar" ? "هذا القسم مقتصر على المسؤولين." : language === "tr" ? "Bu alan yalnızca yöneticilere açıktır." : "This area is restricted to administrators.",
+    create: fa ? "ایجاد بکاپ جدید" : language === "ar" ? "إنشاء نسخة احتياطية" : language === "tr" ? "Yedek oluştur" : "Create backup",
+    empty: fa ? "هنوز نسخه پشتیبانی وجود ندارد." : language === "ar" ? "لم يتم إنشاء أي نسخة احتياطية بعد." : language === "tr" ? "Henüz yedek oluşturulmadı." : "No backups have been created.",
+    filename: fa ? "نام فایل" : language === "ar" ? "اسم الملف" : language === "tr" ? "Dosya adı" : "Filename",
+    createdAt: fa ? "زمان ایجاد" : language === "ar" ? "تاريخ الإنشاء" : language === "tr" ? "Oluşturulma" : "Created",
+    kind: fa ? "نوع" : language === "ar" ? "النوع" : language === "tr" ? "Tür" : "Type",
+    size: fa ? "حجم" : language === "ar" ? "الحجم" : language === "tr" ? "Boyut" : "Size",
+    integrity: fa ? "سلامت" : language === "ar" ? "السلامة" : language === "tr" ? "Bütünlük" : "Integrity",
     checksum: "SHA-256",
-    actions: fa ? "عملیات" : "Actions",
-    verify: fa ? "بررسی" : "Verify",
-    download: fa ? "دانلود" : "Download",
-    rehearse: fa ? "آزمایش بازیابی" : "Test restore",
-    restore: fa ? "بازیابی" : "Restore",
-    restoreLocked: fa ? "ابتدا آزمایش بازیابی موفق را اجرا کنید" : "Run a successful restore test first",
-    remove: fa ? "حذف" : "Delete",
-    valid: fa ? "سالم" : "Valid",
-    invalid: fa ? "نامعتبر" : "Invalid",
-    notChecked: fa ? "بررسی‌نشده" : "Not checked",
+    actions: fa ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions",
+    verify: fa ? "بررسی" : language === "ar" ? "تحقّق" : language === "tr" ? "Doğrula" : "Verify",
+    download: fa ? "دانلود" : language === "ar" ? "تنزيل" : language === "tr" ? "İndir" : "Download",
+    rehearse: fa ? "آزمایش بازیابی" : language === "ar" ? "اختبار الاستعادة" : language === "tr" ? "Kurtarmayı test et" : "Test restore",
+    restore: fa ? "بازیابی" : language === "ar" ? "استعادة" : language === "tr" ? "Geri yükle" : "Restore",
+    restoreLocked: fa ? "ابتدا آزمایش بازیابی موفق را اجرا کنید" : language === "ar" ? "شغّل أولاً اختبار استعادة ناجحًا" : language === "tr" ? "Önce başarılı bir kurtarma testi çalıştırın" : "Run a successful restore test first",
+    remove: fa ? "حذف" : language === "ar" ? "حذف" : language === "tr" ? "Sil" : "Delete",
+    valid: fa ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Geçerli" : "Valid",
+    invalid: fa ? "نامعتبر" : language === "ar" ? "غير سليم" : language === "tr" ? "Geçersiz" : "Invalid",
+    notChecked: fa ? "بررسی‌نشده" : language === "ar" ? "لم يُتحقق منه" : language === "tr" ? "Kontrol edilmedi" : "Not checked",
     restoreWarning: fa
       ? "بازیابی، دیتابیس فعلی را جایگزین می‌کند. قبل از آن یک بکاپ اضطراری خودکار ساخته می‌شود."
+      : language === "ar"
+      ? "تستبدل الاستعادة قاعدة البيانات الحالية. يتم أولاً إنشاء نسخة احتياطية طارئة تلقائيًا."
+      : language === "tr"
+      ? "Geri yükleme mevcut veritabanının yerini alır. Önce otomatik bir acil durum yedeği oluşturulur."
       : "Restore replaces the current database. An emergency backup is created first.",
     rehearsalInfo: fa
       ? "بازیابی واقعی فقط پس از آزمایش موفق روی یک کپی موقت فعال می‌شود؛ دیتابیس جاری در آزمایش تغییر نمی‌کند."
+      : language === "ar"
+      ? "لا تُفعَّل الاستعادة الفعلية إلا بعد نجاح اختبار على نسخة مؤقتة؛ ولا تتأثر قاعدة البيانات الحالية بهذا الاختبار."
+      : language === "tr"
+      ? "Gerçek geri yükleme yalnızca geçici bir kopya üzerinde yapılan başarılı bir deneme sonrasında etkinleşir; test sırasında canlı veritabanı asla değiştirilmez."
       : "Real restore unlocks only after a successful rehearsal on a temporary copy; the live database is never changed by the test.",
     autoInfo: fa
       ? "در صورت فعال‌بودن «بکاپ خودکار» در تنظیمات، بعد از فعالیت سیستم و حداکثر هر ۲۴ ساعت یک snapshot ساخته می‌شود."
+      : language === "ar"
+      ? "عند تفعيل «النسخ الاحتياطي التلقائي» في الإعدادات، يؤدي نشاط النظام إلى إنشاء لقطة موثّقة واحدة على الأكثر كل 24 ساعة."
+      : language === "tr"
+      ? "Ayarlar'da «Otomatik Yedekleme» etkinleştirildiğinde, sistem etkinliği en fazla 24 saatte bir doğrulanmış anlık görüntü oluşturur."
       : "When Auto Backup is enabled in Settings, activity triggers at most one verified snapshot every 24 hours.",
   };
 
   const kindNames = {
-    manual: fa ? "دستی" : "Manual",
-    auto: fa ? "خودکار" : "Automatic",
-    pre: fa ? "اضطراری" : "Emergency",
-    pre_restore: fa ? "قبل از بازیابی" : "Pre-restore",
+    manual: fa ? "دستی" : language === "ar" ? "يدوي" : language === "tr" ? "Manuel" : "Manual",
+    auto: fa ? "خودکار" : language === "ar" ? "تلقائي" : language === "tr" ? "Otomatik" : "Automatic",
+    pre: fa ? "اضطراری" : language === "ar" ? "طارئ" : language === "tr" ? "Acil durum" : "Emergency",
+    pre_restore: fa ? "قبل از بازیابی" : language === "ar" ? "قبل الاستعادة" : language === "tr" ? "Geri yüklemeden önce" : "Pre-restore",
   };
 
   async function load(verify = false) {
@@ -109,7 +125,7 @@ export default function BackupRecovery() {
     setCreating(true);
     try {
       await createBackup();
-      toast.success(fa ? "بکاپ معتبر ایجاد شد." : "Verified backup created.");
+      toast.success(fa ? "بکاپ معتبر ایجاد شد." : language === "ar" ? "تم إنشاء نسخة احتياطية موثّقة." : language === "tr" ? "Doğrulanmış yedek oluşturuldu." : "Verified backup created.");
       await load(false);
     } catch (requestError) {
       toast.error(requestError.message);
@@ -127,8 +143,8 @@ export default function BackupRecovery() {
           backup.filename === item.filename ? result : backup,
         ),
       );
-      if (result.valid) toast.success(fa ? "سلامت بکاپ تأیید شد." : "Backup integrity verified.");
-      else toast.error(fa ? "بکاپ آسیب‌دیده است." : "Backup is corrupted.");
+      if (result.valid) toast.success(fa ? "سلامت بکاپ تأیید شد." : language === "ar" ? "تم التحقق من سلامة النسخة الاحتياطية." : language === "tr" ? "Yedek bütünlüğü doğrulandı." : "Backup integrity verified.");
+      else toast.error(fa ? "بکاپ آسیب‌دیده است." : language === "ar" ? "النسخة الاحتياطية تالفة." : language === "tr" ? "Yedek bozuk." : "Backup is corrupted.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -144,6 +160,10 @@ export default function BackupRecovery() {
       toast.success(
         fa
           ? `آزمایش بازیابی موفق بود؛ ${n(result.table_count)} جدول بررسی شد.`
+          : language === "ar"
+          ? `نجح اختبار الاستعادة؛ تم فحص ${n(result.table_count)} جدول.`
+          : language === "tr"
+          ? `Geri yükleme testi başarılı; ${n(result.table_count)} tablo kontrol edildi.`
           : `Restore test passed; ${n(result.table_count)} tables checked.`,
       );
     } catch (requestError) {
@@ -158,7 +178,7 @@ export default function BackupRecovery() {
     setBusy(item.filename);
     try {
       await downloadBackup(item.filename);
-      toast.success(fa ? "دانلود آغاز شد." : "Download started.");
+      toast.success(fa ? "دانلود آغاز شد." : language === "ar" ? "بدأ التنزيل." : language === "tr" ? "İndirme başladı." : "Download started.");
     } catch (requestError) {
       toast.error(requestError.message);
     } finally {
@@ -173,11 +193,11 @@ export default function BackupRecovery() {
     }
     const expected = `RESTORE ${item.filename}`;
     const entered = window.prompt(
-      `${copy.restoreWarning}\n\n${fa ? "برای تأیید دقیقاً وارد کنید:" : "Type exactly to confirm:"}\n${expected}`,
+      `${copy.restoreWarning}\n\n${fa ? "برای تأیید دقیقاً وارد کنید:" : language === "ar" ? "للتأكيد، أدخل بالضبط:" : language === "tr" ? "Onaylamak için tam olarak şunu yazın:" : "Type exactly to confirm:"}\n${expected}`,
     );
     if (entered === null) return;
     if (entered !== expected) {
-      toast.error(fa ? "عبارت تأیید صحیح نیست." : "Confirmation text does not match.");
+      toast.error(fa ? "عبارت تأیید صحیح نیست." : language === "ar" ? "نص التأكيد غير مطابق." : language === "tr" ? "Onay metni eşleşmiyor." : "Confirmation text does not match.");
       return;
     }
     setBusy(item.filename);
@@ -186,6 +206,10 @@ export default function BackupRecovery() {
       toast.success(
         fa
           ? `بازیابی انجام شد؛ بکاپ اضطراری: ${result.safety_backup}`
+          : language === "ar"
+          ? `اكتملت الاستعادة؛ النسخة الاحتياطية الوقائية: ${result.safety_backup}`
+          : language === "tr"
+          ? `Geri yükleme tamamlandı; güvenlik yedeği: ${result.safety_backup}`
           : `Restore completed; safety backup: ${result.safety_backup}`,
         { duration: 7000 },
       );
@@ -201,13 +225,17 @@ export default function BackupRecovery() {
     const confirmed = window.confirm(
       fa
         ? `بکاپ «${item.filename}» برای همیشه حذف شود؟`
+        : language === "ar"
+        ? `هل تريد حذف النسخة الاحتياطية «${item.filename}» نهائيًا؟`
+        : language === "tr"
+        ? `“${item.filename}” yedeği kalıcı olarak silinsin mi?`
         : `Permanently delete “${item.filename}”?`,
     );
     if (!confirmed) return;
     setBusy(item.filename);
     try {
       await deleteBackup(item.filename);
-      toast.success(fa ? "بکاپ حذف شد." : "Backup deleted.");
+      toast.success(fa ? "بکاپ حذف شد." : language === "ar" ? "تم حذف النسخة الاحتياطية." : language === "tr" ? "Yedek silindi." : "Backup deleted.");
       await load(false);
     } catch (requestError) {
       toast.error(requestError.message);
@@ -253,7 +281,7 @@ export default function BackupRecovery() {
         </div>
         <div style={{ display: "flex", gap: 9 }}>
           <button onClick={() => load(false)} disabled={loading} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 14px", background: "var(--erp-panel-solid)", color: "var(--erp-text)", fontWeight: 800, cursor: "pointer" }}>
-            <RefreshCw size={17} /> {fa ? "به‌روزرسانی" : "Refresh"}
+            <RefreshCw size={17} /> {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
           </button>
           <button onClick={create} disabled={creating} style={{ display: "flex", gap: 7, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03131d", fontWeight: 950, cursor: "pointer" }}>
             <HardDrive size={17} /> {creating ? "..." : copy.create}

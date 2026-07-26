@@ -48,7 +48,6 @@ function emptyFollowup() {
 
 export default function EnterpriseCRM() {
   const { language, dir, n, money } = useLanguage();
-  const fa = language === "fa";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("pipeline");
@@ -64,7 +63,7 @@ export default function EnterpriseCRM() {
       setData(res);
     } catch (error) {
       console.error(error);
-      setMessage(fa ? "خطا در دریافت اطلاعات CRM Enterprise" : "Failed to load Enterprise CRM");
+      setMessage(language === "fa" ? "خطا در دریافت اطلاعات CRM Enterprise" : language === "ar" ? "خطأ في تحميل بيانات CRM Enterprise" : language === "tr" ? "Enterprise CRM verileri yüklenirken hata oluştu" : "Failed to load Enterprise CRM");
     } finally {
       setLoading(false);
     }
@@ -91,7 +90,7 @@ export default function EnterpriseCRM() {
     if (!lead.name.trim()) return;
     await createEnterpriseLead(lead);
     setLead(emptyLead());
-    setMessage(fa ? "سرنخ جدید ثبت شد." : "Lead created.");
+    setMessage(language === "fa" ? "سرنخ جدید ثبت شد." : language === "ar" ? "تم تسجيل عميل محتمل جديد." : language === "tr" ? "Yeni potansiyel müşteri oluşturuldu." : "Lead created.");
     await load();
   }
 
@@ -100,7 +99,7 @@ export default function EnterpriseCRM() {
     if (!opportunity.title.trim()) return;
     await createEnterpriseOpportunity(opportunity);
     setOpportunity(emptyOpportunity());
-    setMessage(fa ? "فرصت فروش ثبت شد." : "Opportunity created.");
+    setMessage(language === "fa" ? "فرصت فروش ثبت شد." : language === "ar" ? "تم تسجيل الفرصة البيعية." : language === "tr" ? "Satış fırsatı oluşturuldu." : "Opportunity created.");
     await load();
   }
 
@@ -109,7 +108,7 @@ export default function EnterpriseCRM() {
     if (!followup.title.trim()) return;
     await createEnterpriseFollowup(followup);
     setFollowup(emptyFollowup());
-    setMessage(fa ? "پیگیری ثبت شد." : "Follow-up created.");
+    setMessage(language === "fa" ? "پیگیری ثبت شد." : language === "ar" ? "تم تسجيل المتابعة." : language === "tr" ? "Takip oluşturuldu." : "Follow-up created.");
     await load();
   }
 
@@ -137,35 +136,35 @@ export default function EnterpriseCRM() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
         <div>
           <h1 style={{ fontSize: 38, fontWeight: 950, color: "#22d3ee", margin: 0 }}>
-            {fa ? "CRM Enterprise هوشمند" : "Enterprise CRM AI"}
+            {language === "fa" ? "CRM Enterprise هوشمند" : language === "ar" ? "CRM Enterprise الذكي" : language === "tr" ? "Akıllı Enterprise CRM" : "Enterprise CRM AI"}
           </h1>
           <p style={{ color: "#94a3b8", marginTop: 8 }}>
-            {fa ? "مدیریت سرنخ، قیف فروش، امتیاز مشتری، ریسک ریزش و پیگیری‌ها" : "Leads, pipeline, customer scoring, churn risk and follow-ups"}
+            {language === "fa" ? "مدیریت سرنخ، قیف فروش، امتیاز مشتری، ریسک ریزش و پیگیری‌ها" : language === "ar" ? "إدارة العملاء المحتملين وقمع المبيعات ودرجة العميل ومخاطر التسرب والمتابعات" : language === "tr" ? "Potansiyel müşteri, satış hunisi, müşteri puanlama, kayıp riski ve takip yönetimi" : "Leads, pipeline, customer scoring, churn risk and follow-ups"}
           </p>
         </div>
         <button onClick={load} style={primaryButton("#22d3ee", "#071028")}>
-          <RefreshCw size={18} /> {loading ? (fa ? "در حال دریافت..." : "Loading...") : fa ? "به‌روزرسانی" : "Refresh"}
+          <RefreshCw size={18} /> {loading ? (language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...") : language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
         </button>
       </div>
 
       {message && <div style={noticeStyle}>{message}</div>}
 
       <div style={gridCards}>
-        <Kpi icon={<UsersRound />} label={fa ? "کل مشتریان" : "Customers"} value={n(summary.customers_count || 0)} color="#22d3ee" />
-        <Kpi icon={<Crown />} label={fa ? "VIP / طلایی" : "VIP / Gold"} value={n(summary.vip_count || 0)} color="#f59e0b" />
-        <Kpi icon={<AlertTriangle />} label={fa ? "ریسک ریزش" : "Churn risk"} value={n(summary.risk_count || 0)} color="#fb7185" />
-        <Kpi icon={<Wallet />} label={fa ? "بدهکاران" : "Debtors"} value={n(summary.debtors_count || 0)} color="#f97316" />
-        <Kpi icon={<Target />} label={fa ? "ارزش قیف فروش" : "Pipeline value"} value={money(summary.pipeline_value || 0)} color="#22c55e" />
-        <Kpi icon={<CalendarClock />} label={fa ? "پیگیری باز" : "Open follow-ups"} value={n(summary.open_followups || 0)} color="#a78bfa" />
+        <Kpi icon={<UsersRound />} label={language === "fa" ? "کل مشتریان" : language === "ar" ? "إجمالي العملاء" : language === "tr" ? "Toplam Müşteri" : "Customers"} value={n(summary.customers_count || 0)} color="#22d3ee" />
+        <Kpi icon={<Crown />} label={language === "fa" ? "VIP / طلایی" : language === "ar" ? "VIP / ذهبي" : language === "tr" ? "VIP / Altın" : "VIP / Gold"} value={n(summary.vip_count || 0)} color="#f59e0b" />
+        <Kpi icon={<AlertTriangle />} label={language === "fa" ? "ریسک ریزش" : language === "ar" ? "مخاطر التسرب" : language === "tr" ? "Kayıp riski" : "Churn risk"} value={n(summary.risk_count || 0)} color="#fb7185" />
+        <Kpi icon={<Wallet />} label={language === "fa" ? "بدهکاران" : language === "ar" ? "المدينون" : language === "tr" ? "Borçlular" : "Debtors"} value={n(summary.debtors_count || 0)} color="#f97316" />
+        <Kpi icon={<Target />} label={language === "fa" ? "ارزش قیف فروش" : language === "ar" ? "قيمة قمع المبيعات" : language === "tr" ? "Satış hunisi değeri" : "Pipeline value"} value={money(summary.pipeline_value || 0)} color="#22c55e" />
+        <Kpi icon={<CalendarClock />} label={language === "fa" ? "پیگیری باز" : language === "ar" ? "متابعات مفتوحة" : language === "tr" ? "Açık takipler" : "Open follow-ups"} value={n(summary.open_followups || 0)} color="#a78bfa" />
       </div>
 
       <div style={tabsStyle}>
         {[
-          ["pipeline", fa ? "قیف فروش" : "Pipeline"],
-          ["customers", fa ? "امتیاز مشتری" : "Customer Score"],
-          ["leads", fa ? "سرنخ‌ها" : "Leads"],
-          ["followups", fa ? "پیگیری‌ها" : "Follow-ups"],
-          ["ai", fa ? "پیشنهادهای AI" : "AI Suggestions"],
+          ["pipeline", language === "fa" ? "قیف فروش" : language === "ar" ? "قمع المبيعات" : language === "tr" ? "Satış hunisi" : "Pipeline"],
+          ["customers", language === "fa" ? "امتیاز مشتری" : language === "ar" ? "درجة العميل" : language === "tr" ? "Müşteri puanı" : "Customer Score"],
+          ["leads", language === "fa" ? "سرنخ‌ها" : language === "ar" ? "العملاء المحتملون" : language === "tr" ? "Potansiyel müşteriler" : "Leads"],
+          ["followups", language === "fa" ? "پیگیری‌ها" : language === "ar" ? "المتابعات" : language === "tr" ? "Takipler" : "Follow-ups"],
+          ["ai", language === "fa" ? "پیشنهادهای AI" : language === "ar" ? "اقتراحات الذكاء الاصطناعي" : language === "tr" ? "Yapay zeka önerileri" : "AI Suggestions"],
         ].map(([key, label]) => (
           <button key={key} onClick={() => setActiveTab(key)} style={tabButton(activeTab === key)}>{label}</button>
         ))}
@@ -173,19 +172,19 @@ export default function EnterpriseCRM() {
 
       {activeTab === "pipeline" && (
         <div style={sectionGrid}>
-          <Panel title={fa ? "ایجاد فرصت فروش" : "New opportunity"} icon={<Plus />}>
+          <Panel title={language === "fa" ? "ایجاد فرصت فروش" : language === "ar" ? "إنشاء فرصة بيعية" : language === "tr" ? "Yeni satış fırsatı" : "New opportunity"} icon={<Plus />}>
             <form onSubmit={submitOpportunity} style={{ display: "grid", gap: 10 }}>
-              <Input placeholder={fa ? "عنوان فرصت" : "Title"} value={opportunity.title} onChange={(v) => setOpportunity({ ...opportunity, title: v })} />
-              <Input placeholder={fa ? "ارزش" : "Value"} type="number" value={opportunity.value} onChange={(v) => setOpportunity({ ...opportunity, value: Number(v) })} />
-              <Input placeholder={fa ? "مسئول" : "Owner"} value={opportunity.owner} onChange={(v) => setOpportunity({ ...opportunity, owner: v })} />
+              <Input placeholder={language === "fa" ? "عنوان فرصت" : language === "ar" ? "عنوان الفرصة" : language === "tr" ? "Fırsat başlığı" : "Title"} value={opportunity.title} onChange={(v) => setOpportunity({ ...opportunity, title: v })} />
+              <Input placeholder={language === "fa" ? "ارزش" : language === "ar" ? "القيمة" : language === "tr" ? "Değer" : "Value"} type="number" value={opportunity.value} onChange={(v) => setOpportunity({ ...opportunity, value: Number(v) })} />
+              <Input placeholder={language === "fa" ? "مسئول" : language === "ar" ? "المسؤول" : language === "tr" ? "Sorumlu" : "Owner"} value={opportunity.owner} onChange={(v) => setOpportunity({ ...opportunity, owner: v })} />
               <select style={inputStyle} value={opportunity.stage} onChange={(e) => setOpportunity({ ...opportunity, stage: e.target.value })}>
                 {stages.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
-              <button style={primaryButton()}>{fa ? "ثبت فرصت" : "Create"}</button>
+              <button style={primaryButton()}>{language === "fa" ? "ثبت فرصت" : language === "ar" ? "إنشاء" : language === "tr" ? "Oluştur" : "Create"}</button>
             </form>
           </Panel>
           <div style={{ ...panelStyle, overflowX: "auto" }}>
-            <h2 style={panelTitle}><Target size={20} /> {fa ? "Sales Pipeline" : "Sales Pipeline"}</h2>
+            <h2 style={panelTitle}><Target size={20} /> {language === "fa" ? "Sales Pipeline" : language === "ar" ? "Sales Pipeline" : language === "tr" ? "Sales Pipeline" : "Sales Pipeline"}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(210px, 1fr))", gap: 12 }}>
               {stages.map((stage) => (
                 <div key={stage.key} style={{ background: "rgba(15,23,42,.72)", border: `1px solid ${STAGE_COLORS[stage.key]}55`, borderRadius: 18, padding: 12, minHeight: 280 }}>
@@ -209,28 +208,28 @@ export default function EnterpriseCRM() {
 
       {activeTab === "customers" && (
         <div style={sectionGrid}>
-          <Panel title={fa ? "مشتریان برتر" : "Top customers"} icon={<TrendingUp />}>
+          <Panel title={language === "fa" ? "مشتریان برتر" : language === "ar" ? "أفضل العملاء" : language === "tr" ? "En iyi müşteriler" : "Top customers"} icon={<TrendingUp />}>
             {topCustomers.map((c) => <CustomerScore key={c.customer_id} c={c} money={money} n={n} />)}
           </Panel>
-          <Panel title={fa ? "مشتریان در خطر" : "Risk customers"} icon={<AlertTriangle />}>
+          <Panel title={language === "fa" ? "مشتریان در خطر" : language === "ar" ? "عملاء معرضون للخطر" : language === "tr" ? "Riskli müşteriler" : "Risk customers"} icon={<AlertTriangle />}>
             {riskCustomers.slice(0, 10).map((c) => <CustomerScore key={c.customer_id} c={c} money={money} n={n} />)}
-            {!riskCustomers.length && <Empty fa={fa} />}
+            {!riskCustomers.length && <Empty language={language} />}
           </Panel>
         </div>
       )}
 
       {activeTab === "leads" && (
         <div style={sectionGrid}>
-          <Panel title={fa ? "ثبت سرنخ جدید" : "New lead"} icon={<Plus />}>
+          <Panel title={language === "fa" ? "ثبت سرنخ جدید" : language === "ar" ? "تسجيل عميل محتمل جديد" : language === "tr" ? "Yeni potansiyel müşteri" : "New lead"} icon={<Plus />}>
             <form onSubmit={submitLead} style={{ display: "grid", gap: 10 }}>
-              <Input placeholder={fa ? "نام" : "Name"} value={lead.name} onChange={(v) => setLead({ ...lead, name: v })} />
-              <Input placeholder={fa ? "موبایل" : "Phone"} value={lead.phone} onChange={(v) => setLead({ ...lead, phone: v })} />
-              <Input placeholder={fa ? "منبع جذب" : "Source"} value={lead.source} onChange={(v) => setLead({ ...lead, source: v })} />
-              <Input placeholder={fa ? "ارزش احتمالی" : "Value"} type="number" value={lead.value} onChange={(v) => setLead({ ...lead, value: Number(v) })} />
-              <button style={primaryButton()}>{fa ? "ثبت سرنخ" : "Create lead"}</button>
+              <Input placeholder={language === "fa" ? "نام" : language === "ar" ? "الاسم" : language === "tr" ? "Ad" : "Name"} value={lead.name} onChange={(v) => setLead({ ...lead, name: v })} />
+              <Input placeholder={language === "fa" ? "موبایل" : language === "ar" ? "الجوال" : language === "tr" ? "Cep telefonu" : "Phone"} value={lead.phone} onChange={(v) => setLead({ ...lead, phone: v })} />
+              <Input placeholder={language === "fa" ? "منبع جذب" : language === "ar" ? "مصدر الاكتساب" : language === "tr" ? "Kaynak" : "Source"} value={lead.source} onChange={(v) => setLead({ ...lead, source: v })} />
+              <Input placeholder={language === "fa" ? "ارزش احتمالی" : language === "ar" ? "القيمة المحتملة" : language === "tr" ? "Tahmini değer" : "Value"} type="number" value={lead.value} onChange={(v) => setLead({ ...lead, value: Number(v) })} />
+              <button style={primaryButton()}>{language === "fa" ? "ثبت سرنخ" : language === "ar" ? "إنشاء عميل محتمل" : language === "tr" ? "Potansiyel müşteri oluştur" : "Create lead"}</button>
             </form>
           </Panel>
-          <Panel title={fa ? "آخرین سرنخ‌ها" : "Latest leads"} icon={<Target />}>
+          <Panel title={language === "fa" ? "آخرین سرنخ‌ها" : language === "ar" ? "أحدث العملاء المحتملين" : language === "tr" ? "Son potansiyel müşteriler" : "Latest leads"} icon={<Target />}>
             {(data?.leads || []).map((l) => (
               <div key={l.id} style={cardMini}>
                 <b>{l.name}</b>
@@ -244,48 +243,48 @@ export default function EnterpriseCRM() {
 
       {activeTab === "followups" && (
         <div style={sectionGrid}>
-          <Panel title={fa ? "ثبت پیگیری" : "New follow-up"} icon={<CalendarClock />}>
+          <Panel title={language === "fa" ? "ثبت پیگیری" : language === "ar" ? "تسجيل متابعة" : language === "tr" ? "Yeni takip" : "New follow-up"} icon={<CalendarClock />}>
             <form onSubmit={submitFollowup} style={{ display: "grid", gap: 10 }}>
-              <Input placeholder={fa ? "عنوان پیگیری" : "Title"} value={followup.title} onChange={(v) => setFollowup({ ...followup, title: v })} />
+              <Input placeholder={language === "fa" ? "عنوان پیگیری" : language === "ar" ? "عنوان المتابعة" : language === "tr" ? "Takip başlığı" : "Title"} value={followup.title} onChange={(v) => setFollowup({ ...followup, title: v })} />
               <Input type="date" value={followup.due_date} onChange={(v) => setFollowup({ ...followup, due_date: v })} />
               <select style={inputStyle} value={followup.channel} onChange={(e) => setFollowup({ ...followup, channel: e.target.value })}>
-                <option value="call">{fa ? "تماس" : "Call"}</option>
-                <option value="meeting">{fa ? "جلسه" : "Meeting"}</option>
+                <option value="call">{language === "fa" ? "تماس" : language === "ar" ? "اتصال" : language === "tr" ? "Arama" : "Call"}</option>
+                <option value="meeting">{language === "fa" ? "جلسه" : language === "ar" ? "اجتماع" : language === "tr" ? "Toplantı" : "Meeting"}</option>
                 <option value="whatsapp">WhatsApp</option>
-                <option value="collection">{fa ? "وصول مطالبات" : "Collection"}</option>
+                <option value="collection">{language === "fa" ? "وصول مطالبات" : language === "ar" ? "تحصيل المستحقات" : language === "tr" ? "Alacak tahsilatı" : "Collection"}</option>
               </select>
-              <button style={primaryButton()}>{fa ? "ثبت پیگیری" : "Create follow-up"}</button>
+              <button style={primaryButton()}>{language === "fa" ? "ثبت پیگیری" : language === "ar" ? "إنشاء متابعة" : language === "tr" ? "Takip oluştur" : "Create follow-up"}</button>
             </form>
           </Panel>
-          <Panel title={fa ? "پیگیری‌های باز" : "Open follow-ups"} icon={<Phone />}>
+          <Panel title={language === "fa" ? "پیگیری‌های باز" : language === "ar" ? "المتابعات المفتوحة" : language === "tr" ? "Açık takipler" : "Open follow-ups"} icon={<Phone />}>
             {followups.map((f) => (
               <div key={f.id} style={cardMini}>
                 <b>{f.title}</b>
                 <span>{f.channel} • {f.due_date || "-"}</span>
-                <button onClick={() => doneFollowup(f.id)} style={{ ...primaryButton("#22c55e", "#071028"), padding: "8px 10px", marginTop: 8 }}><CheckCircle2 size={15} /> {fa ? "انجام شد" : "Done"}</button>
+                <button onClick={() => doneFollowup(f.id)} style={{ ...primaryButton("#22c55e", "#071028"), padding: "8px 10px", marginTop: 8 }}><CheckCircle2 size={15} /> {language === "fa" ? "انجام شد" : language === "ar" ? "تم" : language === "tr" ? "Tamamlandı" : "Done"}</button>
               </div>
             ))}
-            {!followups.length && <Empty fa={fa} />}
+            {!followups.length && <Empty language={language} />}
           </Panel>
         </div>
       )}
 
       {activeTab === "ai" && (
         <div style={sectionGrid}>
-          <Panel title={fa ? "پیشنهادهای هوشمند" : "AI Suggestions"} icon={<Brain />}>
+          <Panel title={language === "fa" ? "پیشنهادهای هوشمند" : language === "ar" ? "اقتراحات ذكية" : language === "tr" ? "Akıllı öneriler" : "AI Suggestions"} icon={<Brain />}>
             {suggestions.map((s, index) => (
               <div key={index} style={{ ...cardMini, borderColor: s.priority === "high" ? "rgba(248,113,113,.45)" : "rgba(34,211,238,.22)" }}>
                 <b>{s.title}</b>
                 <span>{s.message}</span>
               </div>
             ))}
-            {!suggestions.length && <Empty fa={fa} />}
+            {!suggestions.length && <Empty language={language} />}
           </Panel>
-          <Panel title={fa ? "منطق AI CRM" : "CRM AI Logic"} icon={<Brain />}>
+          <Panel title={language === "fa" ? "منطق AI CRM" : language === "ar" ? "منطق الذكاء الاصطناعي في CRM" : language === "tr" ? "CRM Yapay Zeka Mantığı" : "CRM AI Logic"} icon={<Brain />}>
             <ul style={{ color: "#cbd5e1", lineHeight: 2 }}>
-              <li>{fa ? "امتیاز مشتری بر اساس مبلغ فروش، تعداد خرید، تازگی خرید و مانده بدهی محاسبه می‌شود." : "Customer score is based on sales value, frequency, recency and balance."}</li>
-              <li>{fa ? "ریسک ریزش بر اساس فاصله آخرین خرید و وضعیت پرداخت تعیین می‌شود." : "Churn risk is based on purchase recency and payment status."}</li>
-              <li>{fa ? "پیشنهادهای مدیریتی برای تماس، وصول مطالبات و فروش مجدد تولید می‌شود." : "Management suggestions are generated for follow-up, collection and resell."}</li>
+              <li>{language === "fa" ? "امتیاز مشتری بر اساس مبلغ فروش، تعداد خرید، تازگی خرید و مانده بدهی محاسبه می‌شود." : language === "ar" ? "يتم احتساب درجة العميل بناءً على قيمة المبيعات وعدد المشتريات وحداثتها ورصيد الحساب." : language === "tr" ? "Müşteri puanı satış tutarı, satın alma sıklığı, güncelliği ve bakiyeye göre hesaplanır." : "Customer score is based on sales value, frequency, recency and balance."}</li>
+              <li>{language === "fa" ? "ریسک ریزش بر اساس فاصله آخرین خرید و وضعیت پرداخت تعیین می‌شود." : language === "ar" ? "يتم تحديد مخاطر التسرب بناءً على مدة آخر عملية شراء وحالة السداد." : language === "tr" ? "Kayıp riski, son satın alma süresi ve ödeme durumuna göre belirlenir." : "Churn risk is based on purchase recency and payment status."}</li>
+              <li>{language === "fa" ? "پیشنهادهای مدیریتی برای تماس، وصول مطالبات و فروش مجدد تولید می‌شود." : language === "ar" ? "يتم توليد اقتراحات إدارية للاتصال وتحصيل المستحقات وإعادة البيع." : language === "tr" ? "Arama, tahsilat ve yeniden satış için yönetimsel öneriler oluşturulur." : "Management suggestions are generated for follow-up, collection and resell."}</li>
             </ul>
           </Panel>
         </div>
@@ -330,8 +329,8 @@ function CustomerScore({ c, money, n }) {
   );
 }
 
-function Empty({ fa }) {
-  return <div style={{ color: "#94a3b8", padding: 18, textAlign: "center" }}>{fa ? "داده‌ای برای نمایش وجود ندارد." : "No data."}</div>;
+function Empty({ language }) {
+  return <div style={{ color: "#94a3b8", padding: 18, textAlign: "center" }}>{language === "fa" ? "داده‌ای برای نمایش وجود ندارد." : language === "ar" ? "لا توجد بيانات لعرضها." : language === "tr" ? "Gösterilecek veri yok." : "No data."}</div>;
 }
 
 const panelStyle = {

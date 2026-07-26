@@ -18,7 +18,6 @@ import { getFinancialStatements } from "../services/financialStatementsApi";
 
 export default function FinancialStatements() {
   const { language, dir, money, date, n } = useLanguage();
-  const fa = language === "fa";
   const [periods, setPeriods] = useState([]);
   const [periodId, setPeriodId] = useState("");
   const [data, setData] = useState(null);
@@ -27,42 +26,46 @@ export default function FinancialStatements() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "صورت‌های مالی استاندارد" : "Standard Financial Statements",
-    subtitle: fa
+    title: language === "fa" ? "صورت‌های مالی استاندارد" : language === "ar" ? "القوائم المالية القياسية" : language === "tr" ? "Standart Mali Tablolar" : "Standard Financial Statements",
+    subtitle: language === "fa"
       ? "ترازنامه، سود و زیان و گردش نقدی مستقیماً از دفتر کل قطعی"
+      : language === "ar"
+      ? "الميزانية العمومية وقائمة الدخل والتدفق النقدي مباشرة من دفتر الأستاذ المرحّل"
+      : language === "tr"
+      ? "Bilanço, gelir tablosu ve nakit akışı doğrudan kesinleşmiş büyük defterden"
       : "Balance sheet, income statement, and cash flow directly from the posted ledger",
-    allTime: fa ? "همه دوره‌ها" : "All periods",
-    balance: fa ? "ترازنامه" : "Balance Sheet",
-    income: fa ? "سود و زیان" : "Income Statement",
-    cash: fa ? "گردش نقدی" : "Cash Flow",
-    assets: fa ? "دارایی‌ها" : "Assets",
-    liabilities: fa ? "بدهی‌ها" : "Liabilities",
-    equity: fa ? "حقوق صاحبان سرمایه" : "Equity",
-    currentEarnings: fa ? "سود انباشته تا این دوره" : "Accumulated earnings",
-    periodIncome: fa ? "سود خالص دوره" : "Period net income",
-    totalAssets: fa ? "جمع دارایی‌ها" : "Total assets",
-    totalLiabilities: fa ? "جمع بدهی‌ها" : "Total liabilities",
-    totalEquity: fa ? "جمع حقوق صاحبان سرمایه" : "Total equity",
-    rightSide: fa ? "جمع بدهی و حقوق صاحبان سرمایه" : "Liabilities & equity",
-    revenue: fa ? "درآمدها" : "Revenue",
-    expenses: fa ? "هزینه‌ها" : "Expenses",
-    totalRevenue: fa ? "جمع درآمد" : "Total revenue",
-    totalExpenses: fa ? "جمع هزینه" : "Total expenses",
-    netIncome: fa ? "سود خالص" : "Net income",
-    openingCash: fa ? "مانده نقد ابتدای دوره" : "Opening cash",
-    inflows: fa ? "ورودی نقد" : "Cash inflows",
-    outflows: fa ? "خروجی نقد" : "Cash outflows",
-    netChange: fa ? "تغییر خالص نقد" : "Net change",
-    endingCash: fa ? "مانده نقد پایان دوره" : "Ending cash",
-    balanced: fa ? "معادله حسابداری تراز است" : "Accounting equation balanced",
-    unbalanced: fa ? "اختلاف در معادله حسابداری" : "Accounting equation difference",
-    posted: fa ? "اسناد قطعی مبنا" : "Posted vouchers",
-    refresh: fa ? "به‌روزرسانی" : "Refresh",
-    export: fa ? "خروجی CSV" : "CSV export",
-    print: fa ? "چاپ" : "Print",
-    account: fa ? "حساب" : "Account",
-    amount: fa ? "مبلغ" : "Amount",
-    noRows: fa ? "گردشی در این بخش وجود ندارد." : "No activity in this section.",
+    allTime: language === "fa" ? "همه دوره‌ها" : language === "ar" ? "جميع الفترات" : language === "tr" ? "Tüm Dönemler" : "All periods",
+    balance: language === "fa" ? "ترازنامه" : language === "ar" ? "الميزانية العمومية" : language === "tr" ? "Bilanço" : "Balance Sheet",
+    income: language === "fa" ? "سود و زیان" : language === "ar" ? "قائمة الدخل" : language === "tr" ? "Gelir Tablosu" : "Income Statement",
+    cash: language === "fa" ? "گردش نقدی" : language === "ar" ? "التدفق النقدي" : language === "tr" ? "Nakit Akışı" : "Cash Flow",
+    assets: language === "fa" ? "دارایی‌ها" : language === "ar" ? "الأصول" : language === "tr" ? "Varlıklar" : "Assets",
+    liabilities: language === "fa" ? "بدهی‌ها" : language === "ar" ? "الخصوم" : language === "tr" ? "Borçlar" : "Liabilities",
+    equity: language === "fa" ? "حقوق صاحبان سرمایه" : language === "ar" ? "حقوق الملكية" : language === "tr" ? "Özkaynaklar" : "Equity",
+    currentEarnings: language === "fa" ? "سود انباشته تا این دوره" : language === "ar" ? "الأرباح المتراكمة" : language === "tr" ? "Birikmiş Kârlar" : "Accumulated earnings",
+    periodIncome: language === "fa" ? "سود خالص دوره" : language === "ar" ? "صافي دخل الفترة" : language === "tr" ? "Dönem Net Geliri" : "Period net income",
+    totalAssets: language === "fa" ? "جمع دارایی‌ها" : language === "ar" ? "إجمالي الأصول" : language === "tr" ? "Toplam Varlıklar" : "Total assets",
+    totalLiabilities: language === "fa" ? "جمع بدهی‌ها" : language === "ar" ? "إجمالي الخصوم" : language === "tr" ? "Toplam Borçlar" : "Total liabilities",
+    totalEquity: language === "fa" ? "جمع حقوق صاحبان سرمایه" : language === "ar" ? "إجمالي حقوق الملكية" : language === "tr" ? "Toplam Özkaynaklar" : "Total equity",
+    rightSide: language === "fa" ? "جمع بدهی و حقوق صاحبان سرمایه" : language === "ar" ? "إجمالي الخصوم وحقوق الملكية" : language === "tr" ? "Borçlar ve Özkaynaklar" : "Liabilities & equity",
+    revenue: language === "fa" ? "درآمدها" : language === "ar" ? "الإيرادات" : language === "tr" ? "Gelirler" : "Revenue",
+    expenses: language === "fa" ? "هزینه‌ها" : language === "ar" ? "المصروفات" : language === "tr" ? "Giderler" : "Expenses",
+    totalRevenue: language === "fa" ? "جمع درآمد" : language === "ar" ? "إجمالي الإيرادات" : language === "tr" ? "Toplam Gelir" : "Total revenue",
+    totalExpenses: language === "fa" ? "جمع هزینه" : language === "ar" ? "إجمالي المصروفات" : language === "tr" ? "Toplam Gider" : "Total expenses",
+    netIncome: language === "fa" ? "سود خالص" : language === "ar" ? "صافي الدخل" : language === "tr" ? "Net Gelir" : "Net income",
+    openingCash: language === "fa" ? "مانده نقد ابتدای دوره" : language === "ar" ? "الرصيد النقدي الافتتاحي" : language === "tr" ? "Açılış Nakit Bakiyesi" : "Opening cash",
+    inflows: language === "fa" ? "ورودی نقد" : language === "ar" ? "التدفقات النقدية الداخلة" : language === "tr" ? "Nakit Girişleri" : "Cash inflows",
+    outflows: language === "fa" ? "خروجی نقد" : language === "ar" ? "التدفقات النقدية الخارجة" : language === "tr" ? "Nakit Çıkışları" : "Cash outflows",
+    netChange: language === "fa" ? "تغییر خالص نقد" : language === "ar" ? "صافي التغير" : language === "tr" ? "Net Değişim" : "Net change",
+    endingCash: language === "fa" ? "مانده نقد پایان دوره" : language === "ar" ? "الرصيد النقدي الختامي" : language === "tr" ? "Kapanış Nakit Bakiyesi" : "Ending cash",
+    balanced: language === "fa" ? "معادله حسابداری تراز است" : language === "ar" ? "المعادلة المحاسبية متوازنة" : language === "tr" ? "Muhasebe Denklemi Dengeli" : "Accounting equation balanced",
+    unbalanced: language === "fa" ? "اختلاف در معادله حسابداری" : language === "ar" ? "فرق في المعادلة المحاسبية" : language === "tr" ? "Muhasebe Denkleminde Fark" : "Accounting equation difference",
+    posted: language === "fa" ? "اسناد قطعی مبنا" : language === "ar" ? "المستندات المرحّلة الأساس" : language === "tr" ? "Kesinleşmiş Fişler" : "Posted vouchers",
+    refresh: language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh",
+    export: language === "fa" ? "خروجی CSV" : language === "ar" ? "تصدير CSV" : language === "tr" ? "CSV Dışa Aktar" : "CSV export",
+    print: language === "fa" ? "چاپ" : language === "ar" ? "طباعة" : language === "tr" ? "Yazdır" : "Print",
+    account: language === "fa" ? "حساب" : language === "ar" ? "الحساب" : language === "tr" ? "Hesap" : "Account",
+    amount: language === "fa" ? "مبلغ" : language === "ar" ? "المبلغ" : language === "tr" ? "Tutar" : "Amount",
+    noRows: language === "fa" ? "گردشی در این بخش وجود ندارد." : language === "ar" ? "لا يوجد نشاط في هذا القسم." : language === "tr" ? "Bu bölümde hareket yok." : "No activity in this section.",
   };
 
   async function load(nextPeriodId = periodId) {

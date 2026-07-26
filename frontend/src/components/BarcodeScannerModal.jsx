@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
+import { useLanguage } from "../localization/useLanguage";
 
 /**
  * Scans a barcode using the browser's native BarcodeDetector API over the
@@ -7,6 +8,7 @@ import { Camera, X } from "lucide-react";
  * (Firefox, Safari as of writing) it falls back to manual code entry.
  */
 export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
+  const { language } = useLanguage();
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const rafRef = useRef(null);
@@ -40,7 +42,15 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
         }
         scanLoop();
       } catch {
-        setError(fa ? "دسترسی به دوربین ممکن نشد." : "Couldn't access the camera.");
+        setError(
+          fa
+            ? "دسترسی به دوربین ممکن نشد."
+            : language === "ar"
+              ? "تعذّر الوصول إلى الكاميرا."
+              : language === "tr"
+                ? "Kameraya erişilemedi."
+                : "Couldn't access the camera."
+        );
       }
     }
 
@@ -65,7 +75,7 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [open, supported, onDetected, fa]);
+  }, [open, supported, onDetected, fa, language]);
 
   if (!open) return null;
 
@@ -74,7 +84,7 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
       <div className="w-full max-w-sm rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-black flex items-center gap-2">
-            <Camera size={18} /> {fa ? "اسکن بارکد" : "Scan barcode"}
+            <Camera size={18} /> {fa ? "اسکن بارکد" : language === "ar" ? "مسح الباركود" : language === "tr" ? "Barkod tara" : "Scan barcode"}
           </h3>
           <button onClick={onClose} className="text-[var(--erp-muted)] hover:text-[var(--erp-text)]">
             <X size={20} />
@@ -90,7 +100,11 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
           <p className="text-amber-300 text-sm mb-3">
             {fa
               ? "مرورگر شما از اسکن دوربینی پشتیبانی نمی‌کند. کد را دستی وارد کنید."
-              : "Your browser doesn't support camera scanning. Enter the code manually."}
+              : language === "ar"
+                ? "متصفحك لا يدعم المسح عبر الكاميرا. أدخل الرمز يدويًا."
+                : language === "tr"
+                  ? "Tarayıcınız kamera ile taramayı desteklemiyor. Kodu manuel olarak girin."
+                  : "Your browser doesn't support camera scanning. Enter the code manually."}
           </p>
         )}
 
@@ -103,12 +117,12 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
           <input
             autoFocus={!supported}
             className="w-full mb-3 p-3 rounded-xl bg-black/30 border border-white/10 outline-none"
-            placeholder={fa ? "یا کد را دستی وارد کنید" : "Or enter the code manually"}
+            placeholder={fa ? "یا کد را دستی وارد کنید" : language === "ar" ? "أو أدخل الرمز يدويًا" : language === "tr" ? "Ya da kodu manuel olarak girin" : "Or enter the code manually"}
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
           />
           <button type="submit" className="w-full rounded-xl bg-[var(--erp-accent)] text-black font-black py-3">
-            {fa ? "جستجو" : "Look up"}
+            {fa ? "جستجو" : language === "ar" ? "بحث" : language === "tr" ? "Ara" : "Look up"}
           </button>
         </form>
       </div>

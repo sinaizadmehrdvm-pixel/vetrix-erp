@@ -95,23 +95,27 @@ export default function Expenses() {
   });
 
   const label = {
-    title: fa ? "هزینه‌ها" : "Expenses",
-    subtitle: fa
+    title: language === "fa" ? "هزینه‌ها" : language === "ar" ? "المصروفات" : language === "tr" ? "Giderler" : "Expenses",
+    subtitle: language === "fa"
       ? "ثبت هزینه‌های کسب‌وکار و نمایش در گزارش سود و زیان"
+      : language === "ar"
+      ? "تسجيل مصروفات الأعمال وعرضها في قائمة الدخل"
+      : language === "tr"
+      ? "İşletme giderlerini kaydedin ve gelir tablosunda görüntüleyin"
       : "Business expense tracking",
-    expenseTitle: fa ? "عنوان هزینه" : "Expense title",
-    category: fa ? "دسته‌بندی" : "Category",
-    amount: fa ? "مبلغ" : "Amount",
-    date: fa ? "تاریخ شمسی" : "Date",
-    note: fa ? "توضیحات" : "Note",
-    add: fa ? "ثبت هزینه" : "Add expense",
-    search: fa ? "جستجوی عنوان، دسته‌بندی یا توضیحات..." : "Search...",
-    noData: fa ? "هنوز هزینه‌ای ثبت نشده است." : "No data",
-    refresh: fa ? "به‌روزرسانی" : "Refresh",
-    loading: fa ? "در حال دریافت..." : "Loading...",
-    totalExpenses: fa ? "جمع هزینه‌ها" : "Total expenses",
-    records: fa ? "تعداد رکورد" : "Records",
-    datePlaceholder: fa ? "۱۴۰۵/۰۳/۲۸" : "1405/03/28",
+    expenseTitle: language === "fa" ? "عنوان هزینه" : language === "ar" ? "عنوان المصروف" : language === "tr" ? "Gider Başlığı" : "Expense title",
+    category: language === "fa" ? "دسته‌بندی" : language === "ar" ? "التصنيف" : language === "tr" ? "Kategori" : "Category",
+    amount: language === "fa" ? "مبلغ" : language === "ar" ? "المبلغ" : language === "tr" ? "Tutar" : "Amount",
+    date: language === "fa" ? "تاریخ شمسی" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date",
+    note: language === "fa" ? "توضیحات" : language === "ar" ? "ملاحظة" : language === "tr" ? "Not" : "Note",
+    add: language === "fa" ? "ثبت هزینه" : language === "ar" ? "إضافة مصروف" : language === "tr" ? "Gider Ekle" : "Add expense",
+    search: language === "fa" ? "جستجوی عنوان، دسته‌بندی یا توضیحات..." : language === "ar" ? "بحث عن العنوان أو التصنيف أو الملاحظات..." : language === "tr" ? "Başlık, kategori veya not ara..." : "Search...",
+    noData: language === "fa" ? "هنوز هزینه‌ای ثبت نشده است." : language === "ar" ? "لا توجد بيانات" : language === "tr" ? "Veri yok" : "No data",
+    refresh: language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh",
+    loading: language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...",
+    totalExpenses: language === "fa" ? "جمع هزینه‌ها" : language === "ar" ? "إجمالي المصروفات" : language === "tr" ? "Toplam Giderler" : "Total expenses",
+    records: language === "fa" ? "تعداد رکورد" : language === "ar" ? "عدد السجلات" : language === "tr" ? "Kayıt Sayısı" : "Records",
+    datePlaceholder: language === "fa" ? "۱۴۰۵/۰۳/۲۸" : "1405/03/28",
   };
 
   async function load() {
@@ -128,9 +132,9 @@ export default function Expenses() {
       const cached = await getCache(EXPENSES_CACHE_KEY);
       if (Array.isArray(cached) && cached.length) {
         setExpenses(cached);
-        setError(fa ? "اتصال برقرار نیست؛ داده‌های ذخیره‌شده نمایش داده می‌شود." : "Offline; showing cached expenses.");
+        setError(language === "fa" ? "اتصال برقرار نیست؛ داده‌های ذخیره‌شده نمایش داده می‌شود." : language === "ar" ? "غير متصل؛ يتم عرض البيانات المخزّنة مؤقتًا." : language === "tr" ? "Çevrimdışı; önbelleğe alınmış veriler gösteriliyor." : "Offline; showing cached expenses.");
       } else {
-        setError(fa ? "خطا در دریافت هزینه‌ها" : "Error loading expenses");
+        setError(language === "fa" ? "خطا در دریافت هزینه‌ها" : language === "ar" ? "خطأ في تحميل المصروفات" : language === "tr" ? "Giderler yüklenirken hata oluştu" : "Error loading expenses");
       }
     } finally {
       setLoading(false);
@@ -148,7 +152,7 @@ export default function Expenses() {
     const amount = toNumber(form.amount);
 
     if (!form.title || amount <= 0) {
-      alert(fa ? "عنوان و مبلغ هزینه را وارد کن" : "Title & amount required");
+      alert(language === "fa" ? "عنوان و مبلغ هزینه را وارد کن" : language === "ar" ? "العنوان والمبلغ مطلوبان" : language === "tr" ? "Başlık ve tutar zorunludur" : "Title & amount required");
       return;
     }
 
@@ -192,7 +196,7 @@ export default function Expenses() {
       await setCache(EXPENSES_CACHE_KEY, next);
 
       setForm({ title: "", category: "", amount: "", expense_date: "", note: "" });
-      setError(fa ? "سرور در دسترس نبود؛ هزینه در حافظه آفلاین ذخیره شد." : "Server unavailable; expense saved offline.");
+      setError(language === "fa" ? "سرور در دسترس نبود؛ هزینه در حافظه آفلاین ذخیره شد." : language === "ar" ? "الخادم غير متاح؛ تم حفظ المصروف دون اتصال." : language === "tr" ? "Sunucuya ulaşılamadı; gider çevrimdışı kaydedildi." : "Server unavailable; expense saved offline.");
     }
   }
 
@@ -251,7 +255,7 @@ export default function Expenses() {
   }
 
   async function removeExpense(id) {
-    if (!confirm(fa ? "این هزینه حذف شود؟" : "Delete this expense?")) return;
+    if (!confirm(language === "fa" ? "این هزینه حذف شود؟" : language === "ar" ? "هل تريد حذف هذا المصروف؟" : language === "tr" ? "Bu gider silinsin mi?" : "Delete this expense?")) return;
 
     try {
       await deleteExpense(id);
@@ -261,7 +265,7 @@ export default function Expenses() {
       const filtered = expenses.filter((item) => String(item.id) !== String(id));
       setExpenses(filtered);
       await setCache(EXPENSES_CACHE_KEY, filtered);
-      setError(fa ? "سرور در دسترس نبود؛ هزینه فقط از حافظه آفلاین حذف شد." : "Server unavailable; expense removed from offline cache only.");
+      setError(language === "fa" ? "سرور در دسترس نبود؛ هزینه فقط از حافظه آفلاین حذف شد." : language === "ar" ? "الخادم غير متاح؛ تمت إزالة المصروف من الذاكرة المؤقتة دون اتصال فقط." : language === "tr" ? "Sunucuya ulaşılamadı; gider yalnızca çevrimdışı önbellekten kaldırıldı." : "Server unavailable; expense removed from offline cache only.");
     }
   }
 
@@ -298,8 +302,12 @@ export default function Expenses() {
 
       {countPending(expenses) > 0 && (
         <div className="bg-amber-500/15 border border-amber-400/30 text-amber-100 rounded-2xl p-4 text-sm">
-          {fa
+          {language === "fa"
             ? `${toPersianDigits(countPending(expenses))} هزینه آفلاین در انتظار همگام‌سازی است.`
+            : language === "ar"
+            ? `${countPending(expenses)} مصروف غير متصل بانتظار المزامنة.`
+            : language === "tr"
+            ? `${countPending(expenses)} çevrimdışı gider senkronizasyon bekliyor.`
             : `${countPending(expenses)} offline expense(s) waiting to sync.`}
         </div>
       )}
@@ -436,7 +444,7 @@ export default function Expenses() {
                     <h3 className="font-bold text-lg">
                       {faText(expense.title, fa)}
                       {expense.pending_sync && (
-                        <span className="mx-2 text-xs text-amber-300">{fa ? "آفلاین" : "Offline"}</span>
+                        <span className="mx-2 text-xs text-amber-300">{language === "fa" ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline"}</span>
                       )}
                     </h3>
 

@@ -136,7 +136,15 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
   return (
     <aside
       id="erp-primary-navigation"
-      aria-label={fa ? "منوی اصلی" : "Primary navigation"}
+      aria-label={
+        fa
+          ? "منوی اصلی"
+          : language === "ar"
+          ? "التنقل الرئيسي"
+          : language === "tr"
+          ? "Ana gezinme"
+          : "Primary navigation"
+      }
       className={`erp-sidebar ${mobileOpen ? "is-open" : ""}`}
       style={{
         width: compact ? 86 : 280,
@@ -159,8 +167,24 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
             type="button"
             onClick={() => setTheme(isLight ? "midnight" : "light")}
             className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
-            title={fa ? (isLight ? "حالت شب" : "حالت روز") : (isLight ? "Switch to dark mode" : "Switch to light mode")}
-            aria-label={fa ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز") : (isLight ? "Switch to dark mode" : "Switch to light mode")}
+            title={
+              fa
+                ? (isLight ? "حالت شب" : "حالت روز")
+                : language === "ar"
+                ? (isLight ? "التبديل إلى الوضع الداكن" : "التبديل إلى الوضع الفاتح")
+                : language === "tr"
+                ? (isLight ? "Karanlık moda geç" : "Aydınlık moda geç")
+                : (isLight ? "Switch to dark mode" : "Switch to light mode")
+            }
+            aria-label={
+              fa
+                ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز")
+                : language === "ar"
+                ? (isLight ? "التبديل إلى الوضع الداكن" : "التبديل إلى الوضع الفاتح")
+                : language === "tr"
+                ? (isLight ? "Karanlık moda geç" : "Aydınlık moda geç")
+                : (isLight ? "Switch to dark mode" : "Switch to light mode")
+            }
           >
             {isLight ? <Moon size={20} /> : <Sun size={20} />}
           </button>
@@ -168,8 +192,24 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
             type="button"
             onClick={() => setCompact((value) => !value)}
             className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
-            title={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
-            aria-label={fa ? "جمع‌کردن منو" : "Toggle compact menu"}
+            title={
+              fa
+                ? "جمع‌کردن منو"
+                : language === "ar"
+                ? "تبديل القائمة المدمجة"
+                : language === "tr"
+                ? "Kompakt menüyü aç/kapat"
+                : "Toggle compact menu"
+            }
+            aria-label={
+              fa
+                ? "جمع‌کردن منو"
+                : language === "ar"
+                ? "تبديل القائمة المدمجة"
+                : language === "tr"
+                ? "Kompakt menüyü aç/kapat"
+                : "Toggle compact menu"
+            }
           >
             {compact ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
@@ -184,13 +224,42 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={fa ? "جستجو در امکانات…" : "Search features…"}
-            aria-label={fa ? "جستجو در منوی برنامه" : "Search application menu"}
+            placeholder={
+              fa
+                ? "جستجو در امکانات…"
+                : language === "ar"
+                ? "البحث في الميزات…"
+                : language === "tr"
+                ? "Özelliklerde ara…"
+                : "Search features…"
+            }
+            aria-label={
+              fa
+                ? "جستجو در منوی برنامه"
+                : language === "ar"
+                ? "البحث في قائمة التطبيق"
+                : language === "tr"
+                ? "Uygulama menüsünde ara"
+                : "Search application menu"
+            }
             className="min-w-0 flex-1 border-0 bg-transparent outline-none"
             style={{ color: "var(--erp-text)" }}
           />
           {query && (
-            <button type="button" onClick={() => setQuery("")} aria-label={fa ? "پاک‌کردن جستجو" : "Clear search"} className="p-1">
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label={
+                fa
+                  ? "پاک‌کردن جستجو"
+                  : language === "ar"
+                  ? "مسح البحث"
+                  : language === "tr"
+                  ? "Aramayı temizle"
+                  : "Clear search"
+              }
+              className="p-1"
+            >
               <X size={16} />
             </button>
           )}
@@ -256,7 +325,13 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         {!compact && (
           <div className="mt-3 rounded-2xl p-3 text-xs erp-surface" style={{ color: "var(--erp-muted)" }}>
             <BriefcaseBusiness className="erp-accent mb-2" size={18} />
-            {fa ? "گروه‌ها را فقط هنگام نیاز باز کن؛ همه امکانات همچنان در دسترس‌اند." : "Open groups only when needed; every feature remains available."}
+            {fa
+              ? "گروه‌ها را فقط هنگام نیاز باز کن؛ همه امکانات همچنان در دسترس‌اند."
+              : language === "ar"
+              ? "افتح المجموعات فقط عند الحاجة؛ تبقى جميع الميزات متاحة دائمًا."
+              : language === "tr"
+              ? "Grupları yalnızca gerektiğinde açın; tüm özellikler her zaman kullanılabilir kalır."
+              : "Open groups only when needed; every feature remains available."}
           </div>
         )}
 

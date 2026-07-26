@@ -37,26 +37,30 @@ export default function SystemHealth() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "سلامت سیستم و آمادگی تولید" : "System Health & Production Readiness",
+    title: fa ? "سلامت سیستم و آمادگی تولید" : language === "ar" ? "سلامة النظام والجاهزية للإنتاج" : language === "tr" ? "Sistem Sağlığı ve Üretime Hazırlık" : "System Health & Production Readiness",
     subtitle: fa
       ? "کنترل یکپارچگی مالی، امنیت، دیتابیس، انبار و قابلیت بازیابی"
+      : language === "ar"
+      ? "فحوصات التكامل للمالية والأمان وقاعدة البيانات والمخزون والاستعادة"
+      : language === "tr"
+      ? "Finans, güvenlik, veritabanı, stok ve kurtarma için bütünlük kontrolleri"
       : "Integrity checks for finance, security, database, inventory, and recovery",
-    denied: fa ? "این بخش فقط برای مدیر سیستم قابل مشاهده است." : "This area is restricted to administrators.",
-    healthy: fa ? "سیستم سالم است" : "System healthy",
-    degraded: fa ? "سیستم دارای هشدار است" : "System has warnings",
-    critical: fa ? "نیاز به اقدام فوری" : "Immediate action required",
-    passed: fa ? "موفق" : "Passed",
-    warnings: fa ? "هشدار" : "Warnings",
-    failures: fa ? "خطا" : "Failures",
-    checks: fa ? "کنترل" : "Checks",
-    lastCheck: fa ? "آخرین بررسی" : "Last checked",
-    refresh: fa ? "بررسی مجدد" : "Run checks",
-    noData: fa ? "اطلاعات سلامت دریافت نشد." : "No health data available.",
-    database: fa ? "دیتابیس" : "Database",
-    accounting: fa ? "حسابداری" : "Accounting",
-    inventory: fa ? "انبار" : "Inventory",
-    security: fa ? "امنیت" : "Security",
-    recovery: fa ? "بازیابی" : "Recovery",
+    denied: fa ? "این بخش فقط برای مدیر سیستم قابل مشاهده است." : language === "ar" ? "هذا القسم مقتصر على المسؤولين." : language === "tr" ? "Bu alan yalnızca yöneticilere açıktır." : "This area is restricted to administrators.",
+    healthy: fa ? "سیستم سالم است" : language === "ar" ? "النظام يعمل بشكل سليم" : language === "tr" ? "Sistem sağlıklı" : "System healthy",
+    degraded: fa ? "سیستم دارای هشدار است" : language === "ar" ? "النظام يحتوي على تحذيرات" : language === "tr" ? "Sistemde uyarılar var" : "System has warnings",
+    critical: fa ? "نیاز به اقدام فوری" : language === "ar" ? "يلزم اتخاذ إجراء فوري" : language === "tr" ? "Acil işlem gerekiyor" : "Immediate action required",
+    passed: fa ? "موفق" : language === "ar" ? "ناجح" : language === "tr" ? "Başarılı" : "Passed",
+    warnings: fa ? "هشدار" : language === "ar" ? "تحذيرات" : language === "tr" ? "Uyarılar" : "Warnings",
+    failures: fa ? "خطا" : language === "ar" ? "أخطاء" : language === "tr" ? "Hatalar" : "Failures",
+    checks: fa ? "کنترل" : language === "ar" ? "الفحوصات" : language === "tr" ? "Kontroller" : "Checks",
+    lastCheck: fa ? "آخرین بررسی" : language === "ar" ? "آخر فحص" : language === "tr" ? "Son kontrol" : "Last checked",
+    refresh: fa ? "بررسی مجدد" : language === "ar" ? "إجراء الفحوصات" : language === "tr" ? "Kontrolleri çalıştır" : "Run checks",
+    noData: fa ? "اطلاعات سلامت دریافت نشد." : language === "ar" ? "لا تتوفر بيانات عن سلامة النظام." : language === "tr" ? "Sistem sağlığı verisi mevcut değil." : "No health data available.",
+    database: fa ? "دیتابیس" : language === "ar" ? "قاعدة البيانات" : language === "tr" ? "Veritabanı" : "Database",
+    accounting: fa ? "حسابداری" : language === "ar" ? "المحاسبة" : language === "tr" ? "Muhasebe" : "Accounting",
+    inventory: fa ? "انبار" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Inventory",
+    security: fa ? "امنیت" : language === "ar" ? "الأمان" : language === "tr" ? "Güvenlik" : "Security",
+    recovery: fa ? "بازیابی" : language === "ar" ? "الاستعادة" : language === "tr" ? "Kurtarma" : "Recovery",
   };
 
   async function load() {
@@ -167,7 +171,7 @@ export default function SystemHealth() {
                   </h2>
                   <div style={{ display: "grid", gap: 9 }}>
                     {checks.map((check) => (
-                      <CheckRow key={check.id} check={check} fa={fa} />
+                      <CheckRow key={check.id} check={check} language={language} />
                     ))}
                   </div>
                 </article>
@@ -177,7 +181,7 @@ export default function SystemHealth() {
 
           <section style={{ ...card, padding: 18, marginTop: 17 }}>
             <h2 style={{ margin: "0 0 13px", color: "var(--erp-accent-2)", display: "flex", gap: 8, alignItems: "center" }}>
-              <FileClock size={20} /> {fa ? "شاخص‌های عملیاتی" : "Operational metrics"}
+              <FileClock size={20} /> {fa ? "شاخص‌های عملیاتی" : language === "ar" ? "المؤشرات التشغيلية" : language === "tr" ? "Operasyonel metrikler" : "Operational metrics"}
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 9 }}>
               {Object.entries(health.metrics || {}).map(([key, value]) => (
@@ -203,11 +207,12 @@ function Summary({ label, value, color }) {
   );
 }
 
-function CheckRow({ check, fa }) {
+function CheckRow({ check, language }) {
+  const fa = language === "fa";
   const config = {
-    pass: { color: "#86efac", icon: CheckCircle2, label: fa ? "سالم" : "Pass" },
-    warn: { color: "#fde68a", icon: AlertTriangle, label: fa ? "هشدار" : "Warning" },
-    fail: { color: "#fca5a5", icon: TriangleAlert, label: fa ? "خطا" : "Failure" },
+    pass: { color: "#86efac", icon: CheckCircle2, label: fa ? "سالم" : language === "ar" ? "ناجح" : language === "tr" ? "Geçti" : "Pass" },
+    warn: { color: "#fde68a", icon: AlertTriangle, label: fa ? "هشدار" : language === "ar" ? "تحذير" : language === "tr" ? "Uyarı" : "Warning" },
+    fail: { color: "#fca5a5", icon: TriangleAlert, label: fa ? "خطا" : language === "ar" ? "فشل" : language === "tr" ? "Başarısız" : "Failure" },
   }[check.status];
   const Icon = config.icon;
   return (

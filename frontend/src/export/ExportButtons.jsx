@@ -18,7 +18,16 @@ export default function ExportButtons() {
         await downloadAuthenticatedFile(`/export/invoices-pdf?language=${language}`, "vetrix_invoices.pdf");
       }
     } catch (error) {
-      toast.error(error.message || (fa ? "دانلود انجام نشد." : "Download failed."));
+      toast.error(
+        error.message ||
+          (fa
+            ? "دانلود انجام نشد."
+            : language === "ar"
+            ? "فشل التنزيل."
+            : language === "tr"
+            ? "İndirme başarısız oldu."
+            : "Download failed.")
+      );
     } finally {
       setBusy("");
     }

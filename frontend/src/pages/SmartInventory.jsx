@@ -24,7 +24,7 @@ function levelClass(level) {
   return "bg-emerald-500/10 border-emerald-400/20 text-emerald-200";
 }
 
-function levelLabel(level, fa) {
+function levelLabel(level, language) {
   const mapFa = {
     critical: "بحرانی",
     danger: "پرریسک",
@@ -32,6 +32,22 @@ function levelLabel(level, fa) {
     slow: "کندفروش",
     dead_stock: "راکد",
     safe: "ایمن",
+  };
+  const mapAr = {
+    critical: "حرج",
+    danger: "مخاطر عالية",
+    warning: "تحذير",
+    slow: "بطيء الحركة",
+    dead_stock: "مخزون راكد",
+    safe: "آمن",
+  };
+  const mapTr = {
+    critical: "Kritik",
+    danger: "Yüksek risk",
+    warning: "Uyarı",
+    slow: "Yavaş hareket eden",
+    dead_stock: "Ölü stok",
+    safe: "Güvenli",
   };
   const mapEn = {
     critical: "Critical",
@@ -41,12 +57,12 @@ function levelLabel(level, fa) {
     dead_stock: "Dead stock",
     safe: "Safe",
   };
-  return fa ? mapFa[level] || level : mapEn[level] || level;
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[level] || level;
 }
 
 export default function SmartInventory() {
   const { language, dir, money, n } = useLanguage();
-  const fa = language === "fa";
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +79,7 @@ export default function SmartInventory() {
       setData(res);
     } catch (err) {
       console.error("Smart inventory loading error", err);
-      setError(fa ? "خطا در دریافت اطلاعات انبار هوشمند" : "Smart inventory loading error");
+      setError(language === "fa" ? "خطا در دریافت اطلاعات انبار هوشمند" : language === "ar" ? "خطأ في تحميل بيانات المخزون الذكي" : language === "tr" ? "Akıllı stok verileri yüklenirken hata oluştu" : "Smart inventory loading error");
     } finally {
       setLoading(false);
     }
@@ -105,11 +121,15 @@ export default function SmartInventory() {
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3">
             <Warehouse />
-            {fa ? "انبار هوشمند" : "Smart Inventory"}
+            {language === "fa" ? "انبار هوشمند" : language === "ar" ? "المخزون الذكي" : language === "tr" ? "Akıllı Stok" : "Smart Inventory"}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa
+            {language === "fa"
               ? "پیش‌بینی کمبود موجودی، کالای راکد، سفارش مجدد و تحلیل ABC"
+              : language === "ar"
+              ? "توقع نفاد المخزون، المخزون الراكد، خطة إعادة الطلب وتحليل ABC"
+              : language === "tr"
+              ? "Stok tükenme tahmini, ölü stok, yeniden sipariş planı ve ABC analizi"
               : "Stockout forecast, dead stock, reorder plan and ABC analysis"}
           </p>
         </div>
@@ -121,7 +141,7 @@ export default function SmartInventory() {
           className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
         </button>
       </div>
 
@@ -133,10 +153,10 @@ export default function SmartInventory() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <KpiCard icon={<Boxes />} title={fa ? "تعداد کالا" : "Products"} value={n(summary.products_count || 0)} color="cyan" />
-        <KpiCard icon={<ShieldAlert />} title={fa ? "ریسک کمبود" : "Stockout risk"} value={n(summary.low_stock_count || 0)} color="rose" />
-        <KpiCard icon={<ClipboardList />} title={fa ? "نیاز به سفارش" : "Need reorder"} value={n(summary.reorder_count || 0)} color="amber" />
-        <KpiCard icon={<TrendingUp />} title={fa ? "ارزش فروش موجودی" : "Stock sell value"} value={money(summary.stock_value_sell || 0)} color="emerald" />
+        <KpiCard icon={<Boxes />} title={language === "fa" ? "تعداد کالا" : language === "ar" ? "عدد المنتجات" : language === "tr" ? "Ürün Sayısı" : "Products"} value={n(summary.products_count || 0)} color="cyan" />
+        <KpiCard icon={<ShieldAlert />} title={language === "fa" ? "ریسک کمبود" : language === "ar" ? "مخاطر نفاد المخزون" : language === "tr" ? "Stok tükenme riski" : "Stockout risk"} value={n(summary.low_stock_count || 0)} color="rose" />
+        <KpiCard icon={<ClipboardList />} title={language === "fa" ? "نیاز به سفارش" : language === "ar" ? "بحاجة لإعادة الطلب" : language === "tr" ? "Yeniden sipariş gerekli" : "Need reorder"} value={n(summary.reorder_count || 0)} color="amber" />
+        <KpiCard icon={<TrendingUp />} title={language === "fa" ? "ارزش فروش موجودی" : language === "ar" ? "قيمة بيع المخزون" : language === "tr" ? "Stok satış değeri" : "Stock sell value"} value={money(summary.stock_value_sell || 0)} color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5 mb-5">
@@ -144,38 +164,38 @@ export default function SmartInventory() {
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
             <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
               <Brain />
-              {fa ? "تحلیل هوشمند انبار" : "Inventory intelligence"}
+              {language === "fa" ? "تحلیل هوشمند انبار" : language === "ar" ? "ذكاء المخزون" : language === "tr" ? "Stok zekası" : "Inventory intelligence"}
             </h2>
             <div className="relative min-w-[260px]">
               <Search className="absolute top-3 right-3 text-[var(--erp-muted)]" size={18} />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={fa ? "جستجوی کالا، برند، کد..." : "Search product, brand, code..."}
+                placeholder={language === "fa" ? "جستجوی کالا، برند، کد..." : language === "ar" ? "بحث عن منتج أو علامة تجارية أو رمز..." : language === "tr" ? "Ürün, marka, kod ara..." : "Search product, brand, code..."}
                 className="w-full bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl py-3 pr-10 pl-4 outline-none text-[var(--erp-text)]"
               />
             </div>
           </div>
 
           <div className="flex gap-2 flex-wrap mb-4">
-            <TabButton active={tab === "reorder"} onClick={() => setTab("reorder")} label={fa ? "برنامه سفارش" : "Reorder"} />
-            <TabButton active={tab === "low"} onClick={() => setTab("low")} label={fa ? "کمبود" : "Low stock"} />
-            <TabButton active={tab === "dead"} onClick={() => setTab("dead")} label={fa ? "راکد" : "Dead stock"} />
-            <TabButton active={tab === "abcA"} onClick={() => setTab("abcA")} label={fa ? "کلاس A" : "ABC A"} />
-            <TabButton active={tab === "all"} onClick={() => setTab("all")} label={fa ? "همه کالاها" : "All"} />
+            <TabButton active={tab === "reorder"} onClick={() => setTab("reorder")} label={language === "fa" ? "برنامه سفارش" : language === "ar" ? "إعادة الطلب" : language === "tr" ? "Yeniden Sipariş" : "Reorder"} />
+            <TabButton active={tab === "low"} onClick={() => setTab("low")} label={language === "fa" ? "کمبود" : language === "ar" ? "مخزون منخفض" : language === "tr" ? "Düşük Stok" : "Low stock"} />
+            <TabButton active={tab === "dead"} onClick={() => setTab("dead")} label={language === "fa" ? "راکد" : language === "ar" ? "مخزون راكد" : language === "tr" ? "Ölü Stok" : "Dead stock"} />
+            <TabButton active={tab === "abcA"} onClick={() => setTab("abcA")} label={language === "fa" ? "کلاس A" : language === "ar" ? "فئة A" : language === "tr" ? "ABC A" : "ABC A"} />
+            <TabButton active={tab === "all"} onClick={() => setTab("all")} label={language === "fa" ? "همه کالاها" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"} />
           </div>
 
           <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
             <table className="w-full text-sm min-w-[980px]">
               <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
                 <tr>
-                  <th className="p-3 text-right">{fa ? "کالا" : "Product"}</th>
-                  <th className="p-3">{fa ? "موجودی" : "Stock"}</th>
-                  <th className="p-3">{fa ? "فروش ۹۰ روز" : "90d sales"}</th>
-                  <th className="p-3">{fa ? "دوام موجودی" : "Days left"}</th>
-                  <th className="p-3">{fa ? "سفارش پیشنهادی" : "Suggested reorder"}</th>
+                  <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
+                  <th className="p-3">{language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}</th>
+                  <th className="p-3">{language === "fa" ? "فروش ۹۰ روز" : language === "ar" ? "مبيعات 90 يومًا" : language === "tr" ? "90 günlük satış" : "90d sales"}</th>
+                  <th className="p-3">{language === "fa" ? "دوام موجودی" : language === "ar" ? "الأيام المتبقية" : language === "tr" ? "Kalan gün" : "Days left"}</th>
+                  <th className="p-3">{language === "fa" ? "سفارش پیشنهادی" : language === "ar" ? "إعادة الطلب المقترحة" : language === "tr" ? "Önerilen yeniden sipariş" : "Suggested reorder"}</th>
                   <th className="p-3">ABC</th>
-                  <th className="p-3">{fa ? "وضعیت" : "Status"}</th>
+                  <th className="p-3">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,19 +207,19 @@ export default function SmartInventory() {
                     </td>
                     <td className="p-3 text-center font-bold">{n(item.stock || 0)} {item.unit || ""}</td>
                     <td className="p-3 text-center">{n(item.net_qty_90d || 0)}</td>
-                    <td className="p-3 text-center">{item.days_left == null ? "-" : `${n(item.days_left)} ${fa ? "روز" : "days"}`}</td>
+                    <td className="p-3 text-center">{item.days_left == null ? "-" : `${n(item.days_left)} ${language === "fa" ? "روز" : language === "ar" ? "يومًا" : language === "tr" ? "gün" : "days"}`}</td>
                     <td className="p-3 text-center font-black text-amber-300">{n(item.suggested_reorder_qty || 0)}</td>
                     <td className="p-3 text-center"><span className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">{item.abc_class || "C"}</span></td>
                     <td className="p-3 text-center">
                       <span className={`px-3 py-1 rounded-full border text-xs font-black ${levelClass(item.risk_level)}`}>
-                        {levelLabel(item.risk_level, fa)}
+                        {levelLabel(item.risk_level, language)}
                       </span>
                     </td>
                   </tr>
                 )) : (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-[var(--erp-muted)]">
-                      {loading ? (fa ? "در حال دریافت..." : "Loading...") : (fa ? "داده‌ای برای نمایش وجود ندارد." : "No data.")}
+                      {loading ? (language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...") : (language === "fa" ? "داده‌ای برای نمایش وجود ندارد." : language === "ar" ? "لا توجد بيانات لعرضها." : language === "tr" ? "Gösterilecek veri yok." : "No data.")}
                     </td>
                   </tr>
                 )}
@@ -212,7 +232,7 @@ export default function SmartInventory() {
           <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
             <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
               <PackageCheck />
-              {fa ? "پیشنهادهای عملیاتی" : "Actionable insights"}
+              {language === "fa" ? "پیشنهادهای عملیاتی" : language === "ar" ? "رؤى قابلة للتنفيذ" : language === "tr" ? "Uygulanabilir öngörüler" : "Actionable insights"}
             </h2>
             <div className="space-y-3">
               {safeArray(data?.insights).map((insight, index) => (
@@ -226,10 +246,10 @@ export default function SmartInventory() {
           </div>
 
           <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
-            <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">{fa ? "تحلیل ABC" : "ABC analysis"}</h2>
-            <AbcRow fa={fa} n={n} label="A" items={safeArray(data?.abc?.A)} desc={fa ? "کالاهای حیاتی و پرفروش" : "Critical high-value items"} />
-            <AbcRow fa={fa} n={n} label="B" items={safeArray(data?.abc?.B)} desc={fa ? "کالاهای متوسط" : "Medium-value items"} />
-            <AbcRow fa={fa} n={n} label="C" items={safeArray(data?.abc?.C)} desc={fa ? "کالاهای کم‌اثر" : "Low-impact items"} />
+            <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">{language === "fa" ? "تحلیل ABC" : language === "ar" ? "تحليل ABC" : language === "tr" ? "ABC analizi" : "ABC analysis"}</h2>
+            <AbcRow language={language} n={n} label="A" items={safeArray(data?.abc?.A)} desc={language === "fa" ? "کالاهای حیاتی و پرفروش" : language === "ar" ? "أصناف حرجة عالية القيمة" : language === "tr" ? "Kritik yüksek değerli ürünler" : "Critical high-value items"} />
+            <AbcRow language={language} n={n} label="B" items={safeArray(data?.abc?.B)} desc={language === "fa" ? "کالاهای متوسط" : language === "ar" ? "أصناف متوسطة القيمة" : language === "tr" ? "Orta değerli ürünler" : "Medium-value items"} />
+            <AbcRow language={language} n={n} label="C" items={safeArray(data?.abc?.C)} desc={language === "fa" ? "کالاهای کم‌اثر" : language === "ar" ? "أصناف منخفضة الأثر" : language === "tr" ? "Düşük etkili ürünler" : "Low-impact items"} />
           </div>
         </div>
       </div>
@@ -270,14 +290,14 @@ function TabButton({ active, onClick, label }) {
   );
 }
 
-function AbcRow({ label, items, desc, fa, n }) {
+function AbcRow({ label, items, desc, language, n }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-[var(--erp-border)] py-3 last:border-b-0">
       <div>
         <div className="font-black text-[var(--erp-text)]">{label}</div>
         <div className="text-xs text-[var(--erp-muted)]">{desc}</div>
       </div>
-      <div className="text-[var(--erp-accent)] font-black">{n(items.length)} {fa ? "کالا" : "items"}</div>
+      <div className="text-[var(--erp-accent)] font-black">{n(items.length)} {language === "fa" ? "کالا" : language === "ar" ? "عنصر" : language === "tr" ? "ürün" : "items"}</div>
     </div>
   );
 }

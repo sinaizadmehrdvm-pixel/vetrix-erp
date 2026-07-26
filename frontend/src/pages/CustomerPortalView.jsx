@@ -9,7 +9,6 @@ import { invoiceTypeLabel, paymentStatusLabel } from "../localization/helpers";
 export default function CustomerPortalView() {
   const { token } = useParams();
   const { language, dir, money, n } = useLanguage();
-  const fa = language === "fa";
   const [customer, setCustomer] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [ledger, setLedger] = useState(null);
@@ -18,7 +17,14 @@ export default function CustomerPortalView() {
   const [payingId, setPayingId] = useState(null);
   const [payError, setPayError] = useState("");
 
-  const invalidLinkMessage = fa ? "این لینک دیگر معتبر نیست." : "This link is no longer valid.";
+  const invalidLinkMessage =
+    language === "fa"
+      ? "این لینک دیگر معتبر نیست."
+      : language === "ar"
+      ? "هذا الرابط لم يعد صالحًا."
+      : language === "tr"
+      ? "Bu bağlantının süresi doldu."
+      : "This link is no longer valid.";
 
   useEffect(() => {
     let active = true;
@@ -63,7 +69,17 @@ export default function CustomerPortalView() {
         body: JSON.stringify({ invoice_id: invoiceId }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.detail || (fa ? "شروع پرداخت ممکن نشد." : "Could not start the payment."));
+      if (!res.ok)
+        throw new Error(
+          data?.detail ||
+            (language === "fa"
+              ? "شروع پرداخت ممکن نشد."
+              : language === "ar"
+              ? "تعذّر بدء عملية الدفع."
+              : language === "tr"
+              ? "Ödeme başlatılamadı."
+              : "Could not start the payment.")
+        );
       window.location.assign(data.redirect_url);
     } catch (err) {
       setPayError(err.message);
@@ -74,7 +90,7 @@ export default function CustomerPortalView() {
   if (loading) {
     return (
       <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
-        {fa ? "در حال بارگذاری..." : "Loading..."}
+        {language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}
       </div>
     );
   }
@@ -95,7 +111,7 @@ export default function CustomerPortalView() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "Vetrix ERP — پرتال مشتری" : "Vetrix ERP — Customer Portal"}</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{language === "fa" ? "Vetrix ERP — پرتال مشتری" : language === "ar" ? "Vetrix ERP — بوابة العميل" : language === "tr" ? "Vetrix ERP — Müşteri Portalı" : "Vetrix ERP — Customer Portal"}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
@@ -107,20 +123,20 @@ export default function CustomerPortalView() {
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
-            <Wallet size={18} /> {fa ? "مانده حساب" : "Account balance"}
+            <Wallet size={18} /> {language === "fa" ? "مانده حساب" : language === "ar" ? "رصيد الحساب" : language === "tr" ? "Hesap bakiyesi" : "Account balance"}
           </div>
           <div className="text-3xl font-black">{money(customer.balance)}</div>
         </section>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
           <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-            <FileText size={18} /> {fa ? "فاکتورها" : "Invoices"}
+            <FileText size={18} /> {language === "fa" ? "فاکتورها" : language === "ar" ? "الفواتير" : language === "tr" ? "Faturalar" : "Invoices"}
           </div>
           {payError && (
             <p className="text-rose-300 text-sm mb-3">{payError}</p>
           )}
           {invoices.length === 0 ? (
-            <p className="text-[var(--erp-muted)]">{fa ? "هنوز فاکتوری ثبت نشده است." : "No invoices yet."}</p>
+            <p className="text-[var(--erp-muted)]">{language === "fa" ? "هنوز فاکتوری ثبت نشده است." : language === "ar" ? "لا توجد فواتير مسجّلة بعد." : language === "tr" ? "Henüz kayıtlı fatura yok." : "No invoices yet."}</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice) => (
@@ -129,8 +145,8 @@ export default function CustomerPortalView() {
                   className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3"
                 >
                   <div>
-                    <div className="font-bold">#{n(invoice.id)} — {invoiceTypeLabel(invoice.invoice_type, fa)}</div>
-                    <div className="text-xs text-[var(--erp-muted)]">{paymentStatusLabel(invoice.payment_status, fa)}</div>
+                    <div className="font-bold">#{n(invoice.id)} — {invoiceTypeLabel(invoice.invoice_type, language)}</div>
+                    <div className="text-xs text-[var(--erp-muted)]">{paymentStatusLabel(invoice.payment_status, language)}</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="font-black text-[var(--erp-accent)]">{money(invoice.total_amount)}</div>
@@ -141,7 +157,7 @@ export default function CustomerPortalView() {
                         className="px-3 py-2 rounded-xl bg-emerald-400 text-slate-950 font-black text-sm flex items-center gap-1 disabled:opacity-60"
                       >
                         <CreditCard size={14} />
-                        {payingId === invoice.id ? "..." : (fa ? "پرداخت" : "Pay now")}
+                        {payingId === invoice.id ? "..." : (language === "fa" ? "پرداخت" : language === "ar" ? "ادفع الآن" : language === "tr" ? "Şimdi öde" : "Pay now")}
                       </button>
                     )}
                   </div>
@@ -154,10 +170,10 @@ export default function CustomerPortalView() {
         {ledger && (
           <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
             <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-4">
-              <Wallet size={18} /> {fa ? "صورت‌حساب" : "Statement"}
+              <Wallet size={18} /> {language === "fa" ? "صورت‌حساب" : language === "ar" ? "كشف الحساب" : language === "tr" ? "Hesap ekstresi" : "Statement"}
             </div>
             {ledger.entries.length === 0 ? (
-              <p className="text-[var(--erp-muted)]">{fa ? "هنوز تراکنشی ثبت نشده است." : "No transactions yet."}</p>
+              <p className="text-[var(--erp-muted)]">{language === "fa" ? "هنوز تراکنشی ثبت نشده است." : language === "ar" ? "لا توجد معاملات مسجّلة بعد." : language === "tr" ? "Henüz kayıtlı işlem yok." : "No transactions yet."}</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-auto pr-1">
                 {ledger.entries.map((entry, index) => (

@@ -7,7 +7,6 @@ import { getAgingReport } from "../services/agingApi";
 
 export default function AgingReport() {
   const { language, dir, money, date, n } = useLanguage();
-  const fa = language === "fa";
   const [asOf, setAsOf] = useState("");
   const [termsDays, setTermsDays] = useState(30);
   const [data, setData] = useState(null);
@@ -16,32 +15,32 @@ export default function AgingReport() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "سررسید مطالبات و بدهی‌ها" : "Receivables & Payables Aging",
-    subtitle: fa ? "مانده باز فاکتورها، تأخیر وصول و کنترل سقف اعتبار طرف‌حساب‌ها" : "Open invoices, overdue exposure, and party credit-limit control",
-    asOf: fa ? "گزارش تا تاریخ" : "As of",
-    terms: fa ? "مهلت پرداخت (روز)" : "Payment terms (days)",
-    refresh: fa ? "به‌روزرسانی" : "Refresh",
-    export: fa ? "خروجی CSV" : "CSV export",
-    print: fa ? "چاپ" : "Print",
-    receivable: fa ? "مطالبات" : "Receivables",
-    payable: fa ? "بدهی‌ها" : "Payables",
-    net: fa ? "خالص وضعیت" : "Net position",
-    overdue: fa ? "مطالبات سررسیدگذشته" : "Overdue receivables",
-    all: fa ? "همه" : "All",
-    current: fa ? "جاری" : "Current",
-    "1_30": fa ? "۱ تا ۳۰ روز" : "1–30 days",
-    "31_60": fa ? "۳۱ تا ۶۰ روز" : "31–60 days",
-    "61_90": fa ? "۶۱ تا ۹۰ روز" : "61–90 days",
-    over_90: fa ? "بیش از ۹۰ روز" : "Over 90 days",
-    invoice: fa ? "فاکتور" : "Invoice",
-    party: fa ? "طرف‌حساب" : "Party",
-    due: fa ? "سررسید" : "Due date",
-    age: fa ? "روز تأخیر" : "Days overdue",
-    total: fa ? "مبلغ فاکتور" : "Invoice total",
-    settled: fa ? "تسویه‌شده" : "Settled",
-    outstanding: fa ? "مانده باز" : "Outstanding",
-    noRows: fa ? "مانده بازی در این بخش وجود ندارد." : "No open balance in this view.",
-    creditWarning: fa ? "عبور از سقف اعتبار" : "Over credit limit",
+    title: language === "fa" ? "سررسید مطالبات و بدهی‌ها" : language === "ar" ? "أعمار الذمم المدينة والدائنة" : language === "tr" ? "Alacak ve Borç Yaşlandırma" : "Receivables & Payables Aging",
+    subtitle: language === "fa" ? "مانده باز فاکتورها، تأخیر وصول و کنترل سقف اعتبار طرف‌حساب‌ها" : language === "ar" ? "الفواتير المفتوحة، التأخر في التحصيل، ومراقبة حد الائتمان للأطراف" : language === "tr" ? "Açık faturalar, tahsilat gecikmesi ve cari kredi limiti kontrolü" : "Open invoices, overdue exposure, and party credit-limit control",
+    asOf: language === "fa" ? "گزارش تا تاریخ" : language === "ar" ? "حتى تاريخ" : language === "tr" ? "Tarih itibarıyla" : "As of",
+    terms: language === "fa" ? "مهلت پرداخت (روز)" : language === "ar" ? "مهلة السداد (أيام)" : language === "tr" ? "Ödeme Vadesi (gün)" : "Payment terms (days)",
+    refresh: language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh",
+    export: language === "fa" ? "خروجی CSV" : language === "ar" ? "تصدير CSV" : language === "tr" ? "CSV Dışa Aktar" : "CSV export",
+    print: language === "fa" ? "چاپ" : language === "ar" ? "طباعة" : language === "tr" ? "Yazdır" : "Print",
+    receivable: language === "fa" ? "مطالبات" : language === "ar" ? "الذمم المدينة" : language === "tr" ? "Alacaklar" : "Receivables",
+    payable: language === "fa" ? "بدهی‌ها" : language === "ar" ? "الذمم الدائنة" : language === "tr" ? "Borçlar" : "Payables",
+    net: language === "fa" ? "خالص وضعیت" : language === "ar" ? "صافي المركز" : language === "tr" ? "Net Pozisyon" : "Net position",
+    overdue: language === "fa" ? "مطالبات سررسیدگذشته" : language === "ar" ? "الذمم المدينة المتأخرة" : language === "tr" ? "Vadesi Geçmiş Alacaklar" : "Overdue receivables",
+    all: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All",
+    current: language === "fa" ? "جاری" : language === "ar" ? "جارٍ" : language === "tr" ? "Güncel" : "Current",
+    "1_30": language === "fa" ? "۱ تا ۳۰ روز" : language === "ar" ? "1–30 يومًا" : language === "tr" ? "1–30 gün" : "1–30 days",
+    "31_60": language === "fa" ? "۳۱ تا ۶۰ روز" : language === "ar" ? "31–60 يومًا" : language === "tr" ? "31–60 gün" : "31–60 days",
+    "61_90": language === "fa" ? "۶۱ تا ۹۰ روز" : language === "ar" ? "61–90 يومًا" : language === "tr" ? "61–90 gün" : "61–90 days",
+    over_90: language === "fa" ? "بیش از ۹۰ روز" : language === "ar" ? "أكثر من 90 يومًا" : language === "tr" ? "90 günden fazla" : "Over 90 days",
+    invoice: language === "fa" ? "فاکتور" : language === "ar" ? "الفاتورة" : language === "tr" ? "Fatura" : "Invoice",
+    party: language === "fa" ? "طرف‌حساب" : language === "ar" ? "الطرف" : language === "tr" ? "Cari" : "Party",
+    due: language === "fa" ? "سررسید" : language === "ar" ? "تاريخ الاستحقاق" : language === "tr" ? "Vade Tarihi" : "Due date",
+    age: language === "fa" ? "روز تأخیر" : language === "ar" ? "أيام التأخير" : language === "tr" ? "Gecikme (gün)" : "Days overdue",
+    total: language === "fa" ? "مبلغ فاکتور" : language === "ar" ? "إجمالي الفاتورة" : language === "tr" ? "Fatura Tutarı" : "Invoice total",
+    settled: language === "fa" ? "تسویه‌شده" : language === "ar" ? "المسدد" : language === "tr" ? "Kapatılan" : "Settled",
+    outstanding: language === "fa" ? "مانده باز" : language === "ar" ? "الرصيد المستحق" : language === "tr" ? "Açık Bakiye" : "Outstanding",
+    noRows: language === "fa" ? "مانده بازی در این بخش وجود ندارد." : language === "ar" ? "لا يوجد رصيد مفتوح في هذا العرض." : language === "tr" ? "Bu görünümde açık bakiye yok." : "No open balance in this view.",
+    creditWarning: language === "fa" ? "عبور از سقف اعتبار" : language === "ar" ? "تجاوز حد الائتمان" : language === "tr" ? "Kredi Limiti Aşıldı" : "Over credit limit",
   };
 
   async function load() {

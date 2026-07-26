@@ -19,7 +19,6 @@ const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-
 
 export default function Warehouses() {
   const { dir, language, n } = useLanguage();
-  const fa = language === "fa";
 
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
@@ -65,13 +64,13 @@ export default function Warehouses() {
   async function handleCreate(event) {
     event.preventDefault();
     if (!name.trim()) {
-      toast.error(fa ? "نام انبار را وارد کنید." : "Enter a warehouse name.");
+      toast.error(language === "fa" ? "نام انبار را وارد کنید." : language === "ar" ? "أدخل اسم المستودع." : language === "tr" ? "Depo adını girin." : "Enter a warehouse name.");
       return;
     }
     setCreating(true);
     try {
       await createWarehouse({ name: name.trim(), code });
-      toast.success(fa ? "انبار ساخته شد." : "Warehouse created.");
+      toast.success(language === "fa" ? "انبار ساخته شد." : language === "ar" ? "تم إنشاء المستودع." : language === "tr" ? "Depo oluşturuldu." : "Warehouse created.");
       setName("");
       setCode("");
       await loadAll();
@@ -85,7 +84,7 @@ export default function Warehouses() {
   async function handleDeactivate(id) {
     try {
       await deactivateWarehouse(id);
-      toast.success(fa ? "انبار غیرفعال شد." : "Warehouse deactivated.");
+      toast.success(language === "fa" ? "انبار غیرفعال شد." : language === "ar" ? "تم إلغاء تفعيل المستودع." : language === "tr" ? "Depo devre dışı bırakıldı." : "Warehouse deactivated.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -123,11 +122,11 @@ export default function Warehouses() {
   async function handleTransfer(event) {
     event.preventDefault();
     if (!transferProductId || !fromWarehouseId || !toWarehouseId) {
-      toast.error(fa ? "همه فیلدها را پر کنید." : "Fill in all fields.");
+      toast.error(language === "fa" ? "همه فیلدها را پر کنید." : language === "ar" ? "يرجى تعبئة جميع الحقول." : language === "tr" ? "Lütfen tüm alanları doldurun." : "Fill in all fields.");
       return;
     }
     if (fromWarehouseId === toWarehouseId) {
-      toast.error(fa ? "انبار مبدا و مقصد باید متفاوت باشند." : "Source and destination must differ.");
+      toast.error(language === "fa" ? "انبار مبدا و مقصد باید متفاوت باشند." : language === "ar" ? "يجب أن يختلف المستودع المصدر عن المستودع الوجهة." : language === "tr" ? "Kaynak ve hedef depo farklı olmalıdır." : "Source and destination must differ.");
       return;
     }
     setTransferring(true);
@@ -139,7 +138,7 @@ export default function Warehouses() {
         quantity: Number(quantity),
         note,
       });
-      toast.success(fa ? "انتقال انجام شد." : "Transfer completed.");
+      toast.success(language === "fa" ? "انتقال انجام شد." : language === "ar" ? "تم إتمام النقل." : language === "tr" ? "Transfer tamamlandı." : "Transfer completed.");
       setQuantity("");
       setNote("");
       if (String(transferProductId) === String(breakdownProductId)) {
@@ -156,37 +155,37 @@ export default function Warehouses() {
     <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
         <WarehouseIcon className="text-[var(--erp-accent)]" />
-        {fa ? "شعبه‌ها و انبارهای متعدد" : "Multi-branch warehouses"}
+        {language === "fa" ? "شعبه‌ها و انبارهای متعدد" : language === "ar" ? "الفروع والمستودعات المتعددة" : language === "tr" ? "Çoklu şube ve depolar" : "Multi-branch warehouses"}
       </h1>
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Plus size={18} /> {fa ? "ساخت انبار/شعبه جدید" : "Create a new warehouse/branch"}
+          <Plus size={18} /> {language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}
         </h2>
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
             className={inputClass + " mb-0"}
-            placeholder={fa ? "نام انبار (مثلاً «شعبه شمال»)" : "Warehouse name (e.g. \"North branch\")"}
+            placeholder={language === "fa" ? "نام انبار (مثلاً «شعبه شمال»)" : language === "ar" ? "اسم المستودع (مثال: «الفرع الشمالي»)" : language === "tr" ? "Depo adı (örn. \"Kuzey şubesi\")" : "Warehouse name (e.g. \"North branch\")"}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <input
             className={inputClass + " mb-0"}
-            placeholder={fa ? "کد (اختیاری)" : "Code (optional)"}
+            placeholder={language === "fa" ? "کد (اختیاری)" : language === "ar" ? "الرمز (اختياري)" : language === "tr" ? "Kod (isteğe bağlı)" : "Code (optional)"}
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
           <button type="submit" disabled={creating} className={buttonClass}>
             <Plus size={16} />
-            {creating ? (fa ? "در حال ساخت..." : "Creating...") : (fa ? "ساخت" : "Create")}
+            {creating ? (language === "fa" ? "در حال ساخت..." : language === "ar" ? "جارٍ الإنشاء..." : language === "tr" ? "Oluşturuluyor..." : "Creating...") : (language === "fa" ? "ساخت" : language === "ar" ? "إنشاء" : language === "tr" ? "Oluştur" : "Create")}
           </button>
         </form>
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "لیست انبارها" : "Warehouses"}</h2>
+        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "لیست انبارها" : language === "ar" ? "المستودعات" : language === "tr" ? "Depolar" : "Warehouses"}</h2>
         {loading ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
         ) : (
           <div className="space-y-2">
             {warehouses.map((w) => (
@@ -196,12 +195,12 @@ export default function Warehouses() {
                     {w.name}
                     {w.is_default && (
                       <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-glow)] text-[var(--erp-accent)]">
-                        {fa ? "پیش‌فرض" : "Default"}
+                        {language === "fa" ? "پیش‌فرض" : language === "ar" ? "افتراضي" : language === "tr" ? "Varsayılan" : "Default"}
                       </span>
                     )}
                     {!w.active && (
                       <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-red-500/15 text-red-200">
-                        {fa ? "غیرفعال" : "Inactive"}
+                        {language === "fa" ? "غیرفعال" : language === "ar" ? "غير نشط" : language === "tr" ? "Pasif" : "Inactive"}
                       </span>
                     )}
                   </div>
@@ -212,7 +211,7 @@ export default function Warehouses() {
                     onClick={() => handleDeactivate(w.id)}
                     className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1"
                   >
-                    <ShieldOff size={14} /> {fa ? "غیرفعال کردن" : "Deactivate"}
+                    <ShieldOff size={14} /> {language === "fa" ? "غیرفعال کردن" : language === "ar" ? "إلغاء التفعيل" : language === "tr" ? "Devre Dışı Bırak" : "Deactivate"}
                   </button>
                 )}
               </div>
@@ -223,7 +222,7 @@ export default function Warehouses() {
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <ArrowRightLeft size={18} /> {fa ? "انتقال موجودی بین انبارها" : "Transfer stock between warehouses"}
+          <ArrowRightLeft size={18} /> {language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}
         </h2>
         <form onSubmit={handleTransfer} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <select
@@ -231,7 +230,7 @@ export default function Warehouses() {
             value={transferProductId}
             onChange={(e) => setTransferProductId(e.target.value)}
           >
-            <option value="">{fa ? "انتخاب کالا..." : "Select product..."}</option>
+            <option value="">{language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..."}</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -240,43 +239,43 @@ export default function Warehouses() {
             type="number"
             min="0"
             className={inputClass}
-            placeholder={fa ? "تعداد" : "Quantity"}
+            placeholder={language === "fa" ? "تعداد" : language === "ar" ? "الكمية" : language === "tr" ? "Miktar" : "Quantity"}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
           />
           <select className={inputClass} value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>
-            <option value="">{fa ? "از انبار..." : "From warehouse..."}</option>
+            <option value="">{language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..."}</option>
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
           <select className={inputClass} value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>
-            <option value="">{fa ? "به انبار..." : "To warehouse..."}</option>
+            <option value="">{language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..."}</option>
             {activeWarehouses.map((w) => (
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
           <textarea
             className={inputClass + " md:col-span-2"}
-            placeholder={fa ? "یادداشت (اختیاری)" : "Note (optional)"}
+            placeholder={language === "fa" ? "یادداشت (اختیاری)" : language === "ar" ? "ملاحظة (اختياري)" : language === "tr" ? "Not (isteğe bağlı)" : "Note (optional)"}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
           <button type="submit" disabled={transferring} className={buttonClass}>
             <ArrowRightLeft size={16} />
-            {transferring ? (fa ? "در حال انتقال..." : "Transferring...") : (fa ? "انتقال" : "Transfer")}
+            {transferring ? (language === "fa" ? "در حال انتقال..." : language === "ar" ? "جارٍ النقل..." : language === "tr" ? "Transfer ediliyor..." : "Transferring...") : (language === "fa" ? "انتقال" : language === "ar" ? "نقل" : language === "tr" ? "Transfer" : "Transfer")}
           </button>
         </form>
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "موجودی هر کالا به تفکیک انبار" : "Stock breakdown per product"}</h2>
+        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}</h2>
         <select
           className={inputClass}
           value={breakdownProductId}
           onChange={(e) => void loadBreakdown(e.target.value)}
         >
-          <option value="">{fa ? "انتخاب کالا..." : "Select product..."}</option>
+          <option value="">{language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..."}</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
@@ -284,7 +283,7 @@ export default function Warehouses() {
         {breakdown && (
           <div className="space-y-2 mt-3">
             <p className="text-sm text-[var(--erp-muted)]">
-              {fa ? "مجموع کل: " : "Total: "}{n(breakdown.total)}
+              {language === "fa" ? "مجموع کل: " : language === "ar" ? "الإجمالي: " : language === "tr" ? "Toplam: " : "Total: "}{n(breakdown.total)}
             </p>
             {breakdown.by_warehouse.map((row) => (
               <div key={row.warehouse_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
@@ -297,20 +296,20 @@ export default function Warehouses() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "کالاهای هر انبار" : "Products by warehouse"}</h2>
+        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}</h2>
         <select
           className={inputClass}
           value={browseWarehouseId}
           onChange={(e) => void loadWarehouseItems(e.target.value)}
         >
-          <option value="">{fa ? "انتخاب انبار..." : "Select warehouse..."}</option>
+          <option value="">{language === "fa" ? "انتخاب انبار..." : language === "ar" ? "اختيار المستودع..." : language === "tr" ? "Depo seçin..." : "Select warehouse..."}</option>
           {warehouses.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
         </select>
         {warehouseItems && (
           warehouseItems.items.length === 0 ? (
-            <p className="text-[var(--erp-muted)] mt-3">{fa ? "کالایی در این انبار نیست." : "No stock in this warehouse."}</p>
+            <p className="text-[var(--erp-muted)] mt-3">{language === "fa" ? "کالایی در این انبار نیست." : language === "ar" ? "لا يوجد مخزون في هذا المستودع." : language === "tr" ? "Bu depoda stok yok." : "No stock in this warehouse."}</p>
           ) : (
             <div className="space-y-2 mt-3">
               {warehouseItems.items.map((item) => (

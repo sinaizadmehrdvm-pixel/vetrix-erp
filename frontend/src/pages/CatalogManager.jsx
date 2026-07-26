@@ -23,20 +23,24 @@ const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-
 const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || "").replace(/\D/g, "");
 const TELEGRAM_BOT = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "").replace(/^@/, "");
 
-function orderMessageTemplate(catalog, fa) {
+function orderMessageTemplate(catalog, language) {
   const url = `${window.location.origin}/catalog/${catalog.token}`;
-  return fa
+  return language === "fa"
     ? `کاتالوگ «${catalog.title}» را ببینید: ${url}\n\nبرای سفارش از طریق همین گفتگو، این پیام را با کد کالا و تعداد ویرایش کرده و ارسال کنید:\nORDER ${catalog.id}\n2x <کد کالا>\n1x <کد کالا>`
+    : language === "ar"
+    ? `تصفّح كتالوج "${catalog.title}": ${url}\n\nللطلب مباشرة من هذه المحادثة، عدّل هذه الرسالة برموز المنتجات والكميات وأرسلها:\nORDER ${catalog.id}\n2x <رمز المنتج>\n1x <رمز المنتج>`
+    : language === "tr"
+    ? `"${catalog.title}" kataloğuna göz atın: ${url}\n\nBu sohbetten sipariş vermek için, bu mesajı ürün kodları ve miktarlarla düzenleyip gönderin:\nORDER ${catalog.id}\n2x <ürün kodu>\n1x <ürün kodu>`
     : `Browse the "${catalog.title}" catalog: ${url}\n\nTo order right from this chat, edit this message with product codes and quantities and send it:\nORDER ${catalog.id}\n2x <product code>\n1x <product code>`;
 }
 
-function whatsappShareUrl(catalog, fa) {
-  const text = encodeURIComponent(orderMessageTemplate(catalog, fa));
+function whatsappShareUrl(catalog, language) {
+  const text = encodeURIComponent(orderMessageTemplate(catalog, language));
   return WHATSAPP_NUMBER ? `https://wa.me/${WHATSAPP_NUMBER}?text=${text}` : `https://wa.me/?text=${text}`;
 }
 
-function telegramShareUrl(catalog, fa) {
-  const text = encodeURIComponent(orderMessageTemplate(catalog, fa));
+function telegramShareUrl(catalog, language) {
+  const text = encodeURIComponent(orderMessageTemplate(catalog, language));
   if (TELEGRAM_BOT) return `https://t.me/${TELEGRAM_BOT}?text=${text}`;
   const url = encodeURIComponent(`${window.location.origin}/catalog/${catalog.token}`);
   return `https://t.me/share/url?url=${url}&text=${text}`;
@@ -44,7 +48,6 @@ function telegramShareUrl(catalog, fa) {
 
 export default function CatalogManager() {
   const { dir, language, money, n } = useLanguage();
-  const fa = language === "fa";
 
   const [products, setProducts] = useState([]);
   const [catalogs, setCatalogs] = useState([]);
@@ -99,11 +102,11 @@ export default function CatalogManager() {
   async function handleCreate(event) {
     event.preventDefault();
     if (!title.trim()) {
-      toast.error(fa ? "عنوان کاتالوگ را وارد کنید." : "Enter a catalog title.");
+      toast.error(language === "fa" ? "عنوان کاتالوگ را وارد کنید." : language === "ar" ? "أدخل عنوان الكتالوج." : language === "tr" ? "Katalog başlığını girin." : "Enter a catalog title.");
       return;
     }
     if (mode === "custom" && selectedIds.length === 0) {
-      toast.error(fa ? "حداقل یک کالا انتخاب کنید." : "Select at least one product.");
+      toast.error(language === "fa" ? "حداقل یک کالا انتخاب کنید." : language === "ar" ? "اختر منتجًا واحدًا على الأقل." : language === "tr" ? "En az bir ürün seçin." : "Select at least one product.");
       return;
     }
     setCreating(true);
@@ -116,7 +119,7 @@ export default function CatalogManager() {
         in_stock_only: mode === "category" ? inStockOnly : false,
         product_ids: mode === "custom" ? selectedIds : null,
       });
-      toast.success(fa ? "کاتالوگ ساخته شد." : "Catalog created.");
+      toast.success(language === "fa" ? "کاتالوگ ساخته شد." : language === "ar" ? "تم إنشاء الكتالوج." : language === "tr" ? "Katalog oluşturuldu." : "Catalog created.");
       setTitle("");
       setSelectedIds([]);
       await loadAll();
@@ -132,16 +135,16 @@ export default function CatalogManager() {
     const url = `${window.location.origin}/catalog/${token}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success(fa ? "لینک کپی شد." : "Link copied.");
+      toast.success(language === "fa" ? "لینک کپی شد." : language === "ar" ? "تم نسخ الرابط." : language === "tr" ? "Bağlantı kopyalandı." : "Link copied.");
     } catch {
-      toast.error(fa ? "کپی خودکار ممکن نشد." : "Couldn't copy automatically.");
+      toast.error(language === "fa" ? "کپی خودکار ممکن نشد." : language === "ar" ? "تعذّر النسخ تلقائيًا." : language === "tr" ? "Otomatik kopyalama başarısız oldu." : "Couldn't copy automatically.");
     }
   }
 
   async function handleRevoke(id) {
     try {
       await revokeCatalogLink(id);
-      toast.success(fa ? "کاتالوگ غیرفعال شد." : "Catalog disabled.");
+      toast.success(language === "fa" ? "کاتالوگ غیرفعال شد." : language === "ar" ? "تم تعطيل الكتالوج." : language === "tr" ? "Katalog devre dışı bırakıldı." : "Catalog disabled.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -151,7 +154,7 @@ export default function CatalogManager() {
   async function handleReactivate(id) {
     try {
       await reactivateCatalogLink(id);
-      toast.success(fa ? "کاتالوگ دوباره فعال شد." : "Catalog reactivated.");
+      toast.success(language === "fa" ? "کاتالوگ دوباره فعال شد." : language === "ar" ? "تم إعادة تفعيل الكتالوج." : language === "tr" ? "Katalog yeniden etkinleştirildi." : "Catalog reactivated.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -169,7 +172,7 @@ export default function CatalogManager() {
   async function handleConvert(id) {
     try {
       await markCatalogOrderConverted(id);
-      toast.success(fa ? "به عنوان تبدیل‌شده علامت خورد." : "Marked as converted.");
+      toast.success(language === "fa" ? "به عنوان تبدیل‌شده علامت خورد." : language === "ar" ? "تم وضع علامة كمحوَّل." : language === "tr" ? "Dönüştürüldü olarak işaretlendi." : "Marked as converted.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -179,7 +182,7 @@ export default function CatalogManager() {
   async function handleReject(id) {
     try {
       await rejectCatalogOrder(id);
-      toast.success(fa ? "سفارش رد شد." : "Order rejected.");
+      toast.success(language === "fa" ? "سفارش رد شد." : language === "ar" ? "تم رفض الطلب." : language === "tr" ? "Sipariş reddedildi." : "Order rejected.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -190,17 +193,17 @@ export default function CatalogManager() {
     <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
         <BookOpen className="text-[var(--erp-accent)]" />
-        {fa ? "کاتالوگ دیجیتال و چاپی" : "Digital & print catalog"}
+        {language === "fa" ? "کاتالوگ دیجیتال و چاپی" : language === "ar" ? "الكتالوج الرقمي والمطبوع" : language === "tr" ? "Dijital ve basılı katalog" : "Digital & print catalog"}
       </h1>
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Plus size={18} /> {fa ? "ساخت کاتالوگ جدید" : "Create a new catalog"}
+          <Plus size={18} /> {language === "fa" ? "ساخت کاتالوگ جدید" : language === "ar" ? "إنشاء كتالوج جديد" : language === "tr" ? "Yeni katalog oluştur" : "Create a new catalog"}
         </h2>
         <form onSubmit={handleCreate}>
           <input
             className={inputClass}
-            placeholder={fa ? "عنوان کاتالوگ (مثلاً «مجموعه تابستانی»)" : "Catalog title (e.g. \"Summer collection\")"}
+            placeholder={language === "fa" ? "عنوان کاتالوگ (مثلاً «مجموعه تابستانی»)" : language === "ar" ? "عنوان الكتالوج (مثلاً «تشكيلة الصيف»)" : language === "tr" ? "Katalog başlığı (örn. \"Yaz koleksiyonu\")" : "Catalog title (e.g. \"Summer collection\")"}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -211,20 +214,20 @@ export default function CatalogManager() {
               onClick={() => setMode("category")}
               className={`flex-1 rounded-xl py-2 font-bold ${mode === "category" ? "bg-[var(--erp-accent)] text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
-              {fa ? "بر اساس گروه کالایی" : "By category"}
+              {language === "fa" ? "بر اساس گروه کالایی" : language === "ar" ? "حسب التصنيف" : language === "tr" ? "Kategoriye göre" : "By category"}
             </button>
             <button
               type="button"
               onClick={() => setMode("custom")}
               className={`flex-1 rounded-xl py-2 font-bold ${mode === "custom" ? "bg-[var(--erp-accent)] text-black" : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]"}`}
             >
-              {fa ? "انتخاب دلخواه کالا" : "Custom selection"}
+              {language === "fa" ? "انتخاب دلخواه کالا" : language === "ar" ? "اختيار مخصص للمنتجات" : language === "tr" ? "Özel ürün seçimi" : "Custom selection"}
             </button>
           </div>
 
           {mode === "category" ? (
             <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">{fa ? "همه گروه‌ها" : "All categories"}</option>
+              <option value="">{language === "fa" ? "همه گروه‌ها" : language === "ar" ? "كل التصنيفات" : language === "tr" ? "Tüm kategoriler" : "All categories"}</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -233,7 +236,7 @@ export default function CatalogManager() {
             <div className="mb-3">
               <input
                 className={inputClass}
-                placeholder={fa ? "جستجوی کالا..." : "Search products..."}
+                placeholder={language === "fa" ? "جستجوی کالا..." : language === "ar" ? "بحث عن منتجات..." : language === "tr" ? "Ürün ara..." : "Search products..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -260,23 +263,25 @@ export default function CatalogManager() {
           {mode === "category" && (
             <label className="flex items-center gap-2 mb-4 text-sm text-[var(--erp-muted)]">
               <input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} />
-              {fa ? "فقط کالاهای موجود" : "In-stock products only"}
+              {language === "fa" ? "فقط کالاهای موجود" : language === "ar" ? "المنتجات المتوفرة فقط" : language === "tr" ? "Yalnızca stoktaki ürünler" : "In-stock products only"}
             </label>
           )}
 
           <button type="submit" disabled={creating} className={buttonClass}>
             <Sparkles size={16} />
-            {creating ? (fa ? "در حال ساخت..." : "Creating...") : (fa ? "ساخت کاتالوگ" : "Create catalog")}
+            {creating
+              ? (language === "fa" ? "در حال ساخت..." : language === "ar" ? "جارٍ الإنشاء..." : language === "tr" ? "Oluşturuluyor..." : "Creating...")
+              : (language === "fa" ? "ساخت کاتالوگ" : language === "ar" ? "إنشاء الكتالوج" : language === "tr" ? "Katalog oluştur" : "Create catalog")}
           </button>
         </form>
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "کاتالوگ‌های ساخته‌شده" : "Your catalogs"}</h2>
+        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "کاتالوگ‌های ساخته‌شده" : language === "ar" ? "كتالوجاتك" : language === "tr" ? "Kataloglarınız" : "Your catalogs"}</h2>
         {loading ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
         ) : catalogs.length === 0 ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "هنوز کاتالوگی نساخته‌اید." : "No catalogs yet."}</p>
+          <p className="text-[var(--erp-muted)]">{language === "fa" ? "هنوز کاتالوگی نساخته‌اید." : language === "ar" ? "لا توجد كتالوجات بعد." : language === "tr" ? "Henüz katalog yok." : "No catalogs yet."}</p>
         ) : (
           <div className="space-y-3">
             {catalogs.map((catalog) => (
@@ -284,19 +289,21 @@ export default function CatalogManager() {
                 <div>
                   <div className="font-bold">{catalog.title}</div>
                   <div className="text-xs text-[var(--erp-muted)]">
-                    {n(catalog.product_count)} {fa ? "کالا" : "products"} •{" "}
-                    {catalog.enabled ? (fa ? "فعال" : "Active") : (fa ? "غیرفعال" : "Disabled")}
+                    {n(catalog.product_count)} {language === "fa" ? "کالا" : language === "ar" ? "منتج" : language === "tr" ? "ürün" : "products"} •{" "}
+                    {catalog.enabled
+                      ? (language === "fa" ? "فعال" : language === "ar" ? "نشط" : language === "tr" ? "Aktif" : "Active")
+                      : (language === "fa" ? "غیرفعال" : language === "ar" ? "معطّل" : language === "tr" ? "Devre dışı" : "Disabled")}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {catalog.enabled && (
                     <button onClick={() => copyLink(catalog.token)} className="px-3 py-2 rounded-xl bg-indigo-500/20 text-indigo-200 text-sm font-bold flex items-center gap-1">
-                      <Copy size={14} /> {fa ? "کپی لینک" : "Copy link"}
+                      <Copy size={14} /> {language === "fa" ? "کپی لینک" : language === "ar" ? "نسخ الرابط" : language === "tr" ? "Bağlantıyı kopyala" : "Copy link"}
                     </button>
                   )}
                   {catalog.enabled && (
                     <a
-                      href={whatsappShareUrl(catalog, fa)}
+                      href={whatsappShareUrl(catalog, language)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-200 text-sm font-bold flex items-center gap-1"
@@ -306,7 +313,7 @@ export default function CatalogManager() {
                   )}
                   {catalog.enabled && (
                     <a
-                      href={telegramShareUrl(catalog, fa)}
+                      href={telegramShareUrl(catalog, language)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-2 rounded-xl bg-sky-500/20 text-sky-200 text-sm font-bold flex items-center gap-1"
@@ -319,11 +326,11 @@ export default function CatalogManager() {
                   </button>
                   {catalog.enabled ? (
                     <button onClick={() => handleRevoke(catalog.id)} className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1">
-                      <ShieldOff size={14} /> {fa ? "غیرفعال" : "Disable"}
+                      <ShieldOff size={14} /> {language === "fa" ? "غیرفعال" : language === "ar" ? "تعطيل" : language === "tr" ? "Devre dışı bırak" : "Disable"}
                     </button>
                   ) : (
                     <button onClick={() => handleReactivate(catalog.id)} className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-200 text-sm font-bold">
-                      {fa ? "فعال‌سازی" : "Reactivate"}
+                      {language === "fa" ? "فعال‌سازی" : language === "ar" ? "إعادة التفعيل" : language === "tr" ? "Yeniden etkinleştir" : "Reactivate"}
                     </button>
                   )}
                 </div>
@@ -334,9 +341,9 @@ export default function CatalogManager() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "سفارش‌های دریافتی از کاتالوگ" : "Catalog orders"}</h2>
+        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "سفارش‌های دریافتی از کاتالوگ" : language === "ar" ? "طلبات الكتالوج" : language === "tr" ? "Katalog siparişleri" : "Catalog orders"}</h2>
         {orders.length === 0 ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "سفارشی دریافت نشده است." : "No orders yet."}</p>
+          <p className="text-[var(--erp-muted)]">{language === "fa" ? "سفارشی دریافت نشده است." : language === "ar" ? "لا توجد طلبات بعد." : language === "tr" ? "Henüz sipariş yok." : "No orders yet."}</p>
         ) : (
           <div className="space-y-3">
             {orders.map((order) => (
@@ -349,9 +356,9 @@ export default function CatalogManager() {
                   <span className="text-xs font-bold px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">
                     {
                       {
-                        pending: fa ? "در انتظار" : "Pending",
-                        converted: fa ? "تبدیل شده" : "Converted",
-                        rejected: fa ? "رد شده" : "Rejected",
+                        pending: language === "fa" ? "در انتظار" : language === "ar" ? "قيد الانتظار" : language === "tr" ? "Beklemede" : "Pending",
+                        converted: language === "fa" ? "تبدیل شده" : language === "ar" ? "تم التحويل" : language === "tr" ? "Dönüştürüldü" : "Converted",
+                        rejected: language === "fa" ? "رد شده" : language === "ar" ? "مرفوض" : language === "tr" ? "Reddedildi" : "Rejected",
                       }[order.status] || order.status
                     }
                   </span>
@@ -364,10 +371,10 @@ export default function CatalogManager() {
                 {order.status === "pending" && (
                   <div className="flex gap-2 mt-3">
                     <button onClick={() => handleConvert(order.id)} className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-200 text-sm font-bold">
-                      {fa ? "تبدیل به فاکتور" : "Mark converted"}
+                      {language === "fa" ? "تبدیل به فاکتور" : language === "ar" ? "وضع علامة كمحوَّل" : language === "tr" ? "Dönüştürüldü işaretle" : "Mark converted"}
                     </button>
                     <button onClick={() => handleReject(order.id)} className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold">
-                      {fa ? "رد کردن" : "Reject"}
+                      {language === "fa" ? "رد کردن" : language === "ar" ? "رفض" : language === "tr" ? "Reddet" : "Reject"}
                     </button>
                   </div>
                 )}
@@ -378,14 +385,18 @@ export default function CatalogManager() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-2">{fa ? "گزارش سفارش‌های چت (واتساپ/تلگرام)" : "Chat order log (WhatsApp/Telegram)"}</h2>
+        <h2 className="text-lg font-bold mb-2">{language === "fa" ? "گزارش سفارش‌های چت (واتساپ/تلگرام)" : language === "ar" ? "سجل طلبات الدردشة (واتساب/تيليجرام)" : language === "tr" ? "Sohbet sipariş günlüğü (WhatsApp/Telegram)" : "Chat order log (WhatsApp/Telegram)"}</h2>
         <p className="text-sm text-[var(--erp-muted)] mb-4">
-          {fa
+          {language === "fa"
             ? "مشتریان می‌توانند با ارسال پیام «ORDER» به شماره واتساپ یا ربات تلگرام کسب‌وکار شما، مستقیماً سفارش ثبت کنند. هر پیام دریافتی این‌جا ثبت می‌شود، چه سفارش ساخته شود چه نه."
+            : language === "ar"
+            ? "يمكن للعملاء تقديم طلب عبر إرسال رسالة \"ORDER\" إلى رقم واتساب أو بوت تيليجرام الخاص بعملك. يتم تسجيل كل رسالة واردة هنا، سواء تحوّلت إلى طلب أم لا."
+            : language === "tr"
+            ? "Müşteriler, işletmenizin WhatsApp numarasına veya Telegram botuna \"ORDER\" mesajı göndererek sipariş verebilir. Sipariş olup olmadığına bakılmaksızın gelen her mesaj burada kaydedilir."
             : "Customers can place an order by texting an \"ORDER\" message to your business WhatsApp number or Telegram bot. Every inbound message is logged here, whether or not it turned into an order."}
         </p>
         {messages.length === 0 ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "هنوز پیامی دریافت نشده است." : "No chat messages received yet."}</p>
+          <p className="text-[var(--erp-muted)]">{language === "fa" ? "هنوز پیامی دریافت نشده است." : language === "ar" ? "لم يتم استلام أي رسائل بعد." : language === "tr" ? "Henüz sohbet mesajı alınmadı." : "No chat messages received yet."}</p>
         ) : (
           <div className="space-y-2">
             {messages.map((m) => (
@@ -406,9 +417,9 @@ export default function CatalogManager() {
                 >
                   {
                     {
-                      created: fa ? "ثبت شد" : "Created",
-                      rejected: fa ? "رد شد" : "Rejected",
-                    }[m.status] || (fa ? "در انتظار" : "Pending")
+                      created: language === "fa" ? "ثبت شد" : language === "ar" ? "تم الإنشاء" : language === "tr" ? "Oluşturuldu" : "Created",
+                      rejected: language === "fa" ? "رد شد" : language === "ar" ? "مرفوض" : language === "tr" ? "Reddedildi" : "Rejected",
+                    }[m.status] || (language === "fa" ? "در انتظار" : language === "ar" ? "قيد الانتظار" : language === "tr" ? "Beklemede" : "Pending")
                   }
                   {m.catalog_order_id ? ` #${n(m.catalog_order_id)}` : ""}
                 </span>

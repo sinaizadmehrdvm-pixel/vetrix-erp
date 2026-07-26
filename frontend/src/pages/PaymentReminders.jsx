@@ -33,9 +33,29 @@ const STATUS_LABELS_EN = {
   skipped_no_email: "No email",
 };
 
+const STATUS_LABELS_AR = {
+  sent: "تم الإرسال",
+  failed: "فشل",
+  skipped_not_configured: "غير مُهيّأ",
+  skipped_no_email: "بدون بريد إلكتروني",
+};
+
+const STATUS_LABELS_TR = {
+  sent: "Gönderildi",
+  failed: "Başarısız",
+  skipped_not_configured: "Yapılandırılmadı",
+  skipped_no_email: "E-posta yok",
+};
+
+function statusLabelsFor(language) {
+  if (language === "fa") return STATUS_LABELS_FA;
+  if (language === "ar") return STATUS_LABELS_AR;
+  if (language === "tr") return STATUS_LABELS_TR;
+  return STATUS_LABELS_EN;
+}
+
 export default function PaymentReminders() {
   const { dir, language, money, n } = useLanguage();
-  const fa = language === "fa";
 
   const [status, setStatus] = useState(null);
   const [overdue, setOverdue] = useState([]);
@@ -71,7 +91,15 @@ export default function PaymentReminders() {
     try {
       const result = await sendPaymentReminderNow(invoiceId);
       if (result.status === "sent") {
-        toast.success(fa ? "یادآوری ارسال شد." : "Reminder sent.");
+        toast.success(
+          language === "fa"
+            ? "یادآوری ارسال شد."
+            : language === "ar"
+            ? "تم إرسال التذكير."
+            : language === "tr"
+            ? "Hatırlatma gönderildi."
+            : "Reminder sent."
+        );
       } else {
         toast(result.detail || result.status, { icon: "⚠️" });
       }
@@ -87,7 +115,13 @@ export default function PaymentReminders() {
     <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
         <BellRing className="text-[var(--erp-accent)]" />
-        {fa ? "یادآوری خودکار پرداخت‌های معوق" : "Automated overdue payment reminders"}
+        {language === "fa"
+          ? "یادآوری خودکار پرداخت‌های معوق"
+          : language === "ar"
+          ? "تذكير تلقائي بالمدفوعات المتأخرة"
+          : language === "tr"
+          ? "Gecikmiş ödemeler için otomatik hatırlatma"
+          : "Automated overdue payment reminders"}
       </h1>
 
       {status && (
@@ -99,25 +133,49 @@ export default function PaymentReminders() {
               }`}
             >
               {status.smtp_configured
-                ? (fa ? "ایمیل پیکربندی شده" : "Email is configured")
-                : (fa ? "ایمیل پیکربندی نشده" : "Email is not configured")}
+                ? language === "fa"
+                  ? "ایمیل پیکربندی شده"
+                  : language === "ar"
+                  ? "البريد الإلكتروني مُهيّأ"
+                  : language === "tr"
+                  ? "E-posta yapılandırıldı"
+                  : "Email is configured"
+                : language === "fa"
+                ? "ایمیل پیکربندی نشده"
+                : language === "ar"
+                ? "البريد الإلكتروني غير مُهيّأ"
+                : language === "tr"
+                ? "E-posta yapılandırılmadı"
+                : "Email is not configured"}
             </span>
             <span className="text-[var(--erp-muted)]">
-              {fa
+              {language === "fa"
                 ? `آستانه معوقگی: ${status.overdue_days_threshold} روز`
+                : language === "ar"
+                ? `عتبة التأخر: ${status.overdue_days_threshold} يوم`
+                : language === "tr"
+                ? `Gecikme eşiği: ${status.overdue_days_threshold} gün`
                 : `Overdue threshold: ${status.overdue_days_threshold} day(s)`}
             </span>
             <span className="text-[var(--erp-muted)]">
-              {fa
+              {language === "fa"
                 ? `فاصله بین یادآوری‌ها: ${status.cooldown_days} روز`
+                : language === "ar"
+                ? `الفاصل بين التذكيرات: ${status.cooldown_days} يوم`
+                : language === "tr"
+                ? `Hatırlatmalar arası bekleme: ${status.cooldown_days} gün`
                 : `Cooldown between reminders: ${status.cooldown_days} day(s)`}
             </span>
           </div>
           {!status.smtp_configured && (
             <p className="text-xs text-[var(--erp-muted)] mt-3 flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-300 flex-shrink-0" />
-              {fa
+              {language === "fa"
                 ? "بدون تنظیم SMTP، یادآوری‌ها فقط ثبت می‌شوند و ایمیلی ارسال نمی‌شود."
+                : language === "ar"
+                ? "بدون تهيئة SMTP، يتم تسجيل التذكيرات فقط ولا يُرسل أي بريد إلكتروني."
+                : language === "tr"
+                ? "SMTP yapılandırılmadan hatırlatmalar yalnızca kaydedilir, e-posta gönderilmez."
                 : "Without SMTP configuration, reminders are only logged - no email is actually sent."}
             </p>
           )}
@@ -125,11 +183,35 @@ export default function PaymentReminders() {
       )}
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "فاکتورهای معوق" : "Overdue invoices"}</h2>
+        <h2 className="text-lg font-bold mb-4">
+          {language === "fa"
+            ? "فاکتورهای معوق"
+            : language === "ar"
+            ? "الفواتير المتأخرة"
+            : language === "tr"
+            ? "Gecikmiş faturalar"
+            : "Overdue invoices"}
+        </h2>
         {loading ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">
+            {language === "fa"
+              ? "در حال بارگذاری..."
+              : language === "ar"
+              ? "جارٍ التحميل..."
+              : language === "tr"
+              ? "Yükleniyor..."
+              : "Loading..."}
+          </p>
         ) : overdue.length === 0 ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "فاکتور معوقی وجود ندارد." : "No overdue invoices."}</p>
+          <p className="text-[var(--erp-muted)]">
+            {language === "fa"
+              ? "فاکتور معوقی وجود ندارد."
+              : language === "ar"
+              ? "لا توجد فواتير متأخرة."
+              : language === "tr"
+              ? "Gecikmiş fatura yok."
+              : "No overdue invoices."}
+          </p>
         ) : (
           <div className="space-y-2">
             {overdue.map((item) => (
@@ -144,7 +226,21 @@ export default function PaymentReminders() {
                   className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
                 >
                   <Send size={14} />
-                  {sendingId === item.invoice_id ? (fa ? "در حال ارسال..." : "Sending...") : (fa ? "ارسال یادآوری" : "Send reminder")}
+                  {sendingId === item.invoice_id
+                    ? language === "fa"
+                      ? "در حال ارسال..."
+                      : language === "ar"
+                      ? "جارٍ الإرسال..."
+                      : language === "tr"
+                      ? "Gönderiliyor..."
+                      : "Sending..."
+                    : language === "fa"
+                    ? "ارسال یادآوری"
+                    : language === "ar"
+                    ? "إرسال تذكير"
+                    : language === "tr"
+                    ? "Hatırlatma gönder"
+                    : "Send reminder"}
                 </button>
               </div>
             ))}
@@ -153,9 +249,25 @@ export default function PaymentReminders() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{fa ? "گزارش یادآوری‌ها" : "Reminder log"}</h2>
+        <h2 className="text-lg font-bold mb-4">
+          {language === "fa"
+            ? "گزارش یادآوری‌ها"
+            : language === "ar"
+            ? "سجل التذكيرات"
+            : language === "tr"
+            ? "Hatırlatma günlüğü"
+            : "Reminder log"}
+        </h2>
         {log.length === 0 ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "هنوز یادآوری ثبت نشده است." : "No reminders logged yet."}</p>
+          <p className="text-[var(--erp-muted)]">
+            {language === "fa"
+              ? "هنوز یادآوری ثبت نشده است."
+              : language === "ar"
+              ? "لم يتم تسجيل أي تذكير بعد."
+              : language === "tr"
+              ? "Henüz hatırlatma kaydedilmedi."
+              : "No reminders logged yet."}
+          </p>
         ) : (
           <div className="space-y-2">
             {log.map((entry) => (
@@ -166,7 +278,7 @@ export default function PaymentReminders() {
                   {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {entry.detail}</span>}
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-[var(--erp-muted)]"}`}>
-                  {(fa ? STATUS_LABELS_FA : STATUS_LABELS_EN)[entry.status] || entry.status}
+                  {statusLabelsFor(language)[entry.status] || entry.status}
                 </span>
               </div>
             ))}

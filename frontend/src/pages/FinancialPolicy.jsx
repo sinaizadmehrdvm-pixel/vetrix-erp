@@ -22,7 +22,6 @@ function businessDate(timeZone) {
 
 export default function FinancialPolicy() {
   const { language, dir, country, currency, decimalPlaces, roundingMode, date, n, countries, countryProfile } = useLanguage();
-  const fa = language === "fa";
   const today = businessDate(countryProfile.timeZone);
   const [policies, setPolicies] = useState([]);
   const [active, setActive] = useState(null);
@@ -44,33 +43,33 @@ export default function FinancialPolicy() {
     tax_percent: 0,
   });
   const text = useMemo(() => ({
-    title: fa ? "سیاست مالی تأییدشده" : "Verified Financial Policy",
-    subtitle: fa ? "نسخه‌بندی و کنترل اعشار، ارز و روش گردکردن اسناد مالی" : "Version and govern currency, precision, and rounding for financial documents",
-    active: fa ? "سیاست فعال" : "Active policy",
-    compatibility: fa ? "حالت سازگاری قدیمی؛ هنوز سیاستی تأیید نشده است." : "Compatibility mode; no verified policy is active yet.",
-    create: fa ? "ساخت نسخه پیش‌نویس" : "Create draft version",
-    version: fa ? "شناسه نسخه" : "Version identifier",
-    country: fa ? "کد کشور" : "Country code",
-    currency: fa ? "کد ارز" : "Currency code",
-    decimals: fa ? "تعداد اعشار" : "Decimal places",
-    rounding: fa ? "روش گردکردن" : "Rounding mode",
-    effective: fa ? "تاریخ اجرای سیاست" : "Policy effective date",
-    calendar: fa ? "تقویم اصلی" : "Primary calendar",
-    timeZone: fa ? "منطقه زمانی" : "Time zone",
-    firstDay: fa ? "اولین روز هفته" : "First weekday",
-    fiscalStart: fa ? "شروع سال مالی" : "Fiscal year start",
-    measurement: fa ? "سیستم اندازه‌گیری" : "Measurement system",
-    taxRate: fa ? "نرخ مالیات تأییدشده" : "Verified tax rate",
-    save: fa ? "ذخیره پیش‌نویس" : "Save draft",
-    history: fa ? "نسخه‌ها و سوابق" : "Versions and history",
-    status: fa ? "وضعیت" : "Status",
-    verify: fa ? "یادداشت تأیید مدیر" : "Administrator verification note",
-    activate: fa ? "تأیید و فعال‌سازی" : "Verify and activate",
-    empty: fa ? "هنوز نسخه‌ای ثبت نشده است." : "No policy versions have been created.",
-    warning: fa ? "فعال‌سازی فقط روی اسناد جدید از تاریخ اجرا اثر دارد و اسناد تاریخی را بازنویسی نمی‌کند. مقادیر قانونی و مالیاتی باید توسط حسابدار واجد صلاحیت کشور مربوطه کنترل شوند." : "Activation affects only new documents from the effective date and never rewrites historical records. Statutory and tax values must be checked by a qualified accountant in the relevant country.",
-    created: fa ? "پیش‌نویس ساخته شد." : "Draft policy created.",
-    activated: fa ? "سیاست مالی فعال شد." : "Financial policy activated.",
-  }), [fa]);
+    title: language === "fa" ? "سیاست مالی تأییدشده" : language === "ar" ? "السياسة المالية المعتمدة" : language === "tr" ? "Onaylı Mali Politika" : "Verified Financial Policy",
+    subtitle: language === "fa" ? "نسخه‌بندی و کنترل اعشار، ارز و روش گردکردن اسناد مالی" : language === "ar" ? "إصدار ومراقبة العملة، الدقة العشرية، وطريقة التقريب للمستندات المالية" : language === "tr" ? "Mali belgeler için para birimi, ondalık hassasiyet ve yuvarlama yönteminin sürümlenmesi ve kontrolü" : "Version and govern currency, precision, and rounding for financial documents",
+    active: language === "fa" ? "سیاست فعال" : language === "ar" ? "السياسة الفعالة" : language === "tr" ? "Aktif Politika" : "Active policy",
+    compatibility: language === "fa" ? "حالت سازگاری قدیمی؛ هنوز سیاستی تأیید نشده است." : language === "ar" ? "وضع التوافق القديم؛ لا توجد سياسة معتمدة نشطة بعد." : language === "tr" ? "Uyumluluk modu; henüz onaylı bir politika etkin değil." : "Compatibility mode; no verified policy is active yet.",
+    create: language === "fa" ? "ساخت نسخه پیش‌نویس" : language === "ar" ? "إنشاء نسخة مسودة" : language === "tr" ? "Taslak Sürüm Oluştur" : "Create draft version",
+    version: language === "fa" ? "شناسه نسخه" : language === "ar" ? "معرّف النسخة" : language === "tr" ? "Sürüm Tanımlayıcısı" : "Version identifier",
+    country: language === "fa" ? "کد کشور" : language === "ar" ? "رمز الدولة" : language === "tr" ? "Ülke Kodu" : "Country code",
+    currency: language === "fa" ? "کد ارز" : language === "ar" ? "رمز العملة" : language === "tr" ? "Para Birimi Kodu" : "Currency code",
+    decimals: language === "fa" ? "تعداد اعشار" : language === "ar" ? "عدد الخانات العشرية" : language === "tr" ? "Ondalık Basamak Sayısı" : "Decimal places",
+    rounding: language === "fa" ? "روش گردکردن" : language === "ar" ? "طريقة التقريب" : language === "tr" ? "Yuvarlama Yöntemi" : "Rounding mode",
+    effective: language === "fa" ? "تاریخ اجرای سیاست" : language === "ar" ? "تاريخ سريان السياسة" : language === "tr" ? "Politika Yürürlük Tarihi" : "Policy effective date",
+    calendar: language === "fa" ? "تقویم اصلی" : language === "ar" ? "التقويم الأساسي" : language === "tr" ? "Ana Takvim" : "Primary calendar",
+    timeZone: language === "fa" ? "منطقه زمانی" : language === "ar" ? "المنطقة الزمنية" : language === "tr" ? "Saat Dilimi" : "Time zone",
+    firstDay: language === "fa" ? "اولین روز هفته" : language === "ar" ? "أول يوم في الأسبوع" : language === "tr" ? "Haftanın İlk Günü" : "First weekday",
+    fiscalStart: language === "fa" ? "شروع سال مالی" : language === "ar" ? "بداية السنة المالية" : language === "tr" ? "Mali Yıl Başlangıcı" : "Fiscal year start",
+    measurement: language === "fa" ? "سیستم اندازه‌گیری" : language === "ar" ? "نظام القياس" : language === "tr" ? "Ölçüm Sistemi" : "Measurement system",
+    taxRate: language === "fa" ? "نرخ مالیات تأییدشده" : language === "ar" ? "معدل الضريبة المعتمد" : language === "tr" ? "Onaylı Vergi Oranı" : "Verified tax rate",
+    save: language === "fa" ? "ذخیره پیش‌نویس" : language === "ar" ? "حفظ المسودة" : language === "tr" ? "Taslağı Kaydet" : "Save draft",
+    history: language === "fa" ? "نسخه‌ها و سوابق" : language === "ar" ? "الإصدارات والسجل" : language === "tr" ? "Sürümler ve Geçmiş" : "Versions and history",
+    status: language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status",
+    verify: language === "fa" ? "یادداشت تأیید مدیر" : language === "ar" ? "ملاحظة تحقق المدير" : language === "tr" ? "Yönetici Doğrulama Notu" : "Administrator verification note",
+    activate: language === "fa" ? "تأیید و فعال‌سازی" : language === "ar" ? "التحقق والتفعيل" : language === "tr" ? "Doğrula ve Etkinleştir" : "Verify and activate",
+    empty: language === "fa" ? "هنوز نسخه‌ای ثبت نشده است." : language === "ar" ? "لم يتم إنشاء أي نسخة من السياسة بعد." : language === "tr" ? "Henüz politika sürümü oluşturulmadı." : "No policy versions have been created.",
+    warning: language === "fa" ? "فعال‌سازی فقط روی اسناد جدید از تاریخ اجرا اثر دارد و اسناد تاریخی را بازنویسی نمی‌کند. مقادیر قانونی و مالیاتی باید توسط حسابدار واجد صلاحیت کشور مربوطه کنترل شوند." : language === "ar" ? "التفعيل يؤثر فقط على المستندات الجديدة من تاريخ السريان ولا يعيد كتابة السجلات التاريخية أبدًا. يجب التحقق من القيم القانونية والضريبية من قبل محاسب مؤهل في الدولة المعنية." : language === "tr" ? "Etkinleştirme yalnızca yürürlük tarihinden itibaren yeni belgeleri etkiler ve geçmiş kayıtları asla yeniden yazmaz. Yasal ve vergisel değerler ilgili ülkede yetkili bir muhasebeci tarafından kontrol edilmelidir." : "Activation affects only new documents from the effective date and never rewrites historical records. Statutory and tax values must be checked by a qualified accountant in the relevant country.",
+    created: language === "fa" ? "پیش‌نویس ساخته شد." : language === "ar" ? "تم إنشاء المسودة." : language === "tr" ? "Taslak politika oluşturuldu." : "Draft policy created.",
+    activated: language === "fa" ? "سیاست مالی فعال شد." : language === "ar" ? "تم تفعيل السياسة المالية." : language === "tr" ? "Mali politika etkinleştirildi." : "Financial policy activated.",
+  }), [language]);
 
   async function load() {
     setLoading(true);
@@ -138,7 +137,7 @@ export default function FinancialPolicy() {
         <div style={{ width: 58, height: 58, borderRadius: 18, display: "grid", placeItems: "center", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><ShieldCheck size={31} /></div>
         <div><h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(28px,4vw,40px)" }}>{text.title}</h1><p style={{ margin: "6px 0 0", color: "var(--erp-muted)" }}>{text.subtitle}</p></div>
       </div>
-      <button onClick={load} disabled={loading} className="erp-surface erp-accent" style={{ borderRadius: 14, padding: "11px 15px", fontWeight: 900, display: "flex", gap: 8, alignItems: "center" }}><RefreshCw size={17} />{loading ? "..." : (fa ? "به‌روزرسانی" : "Refresh")}</button>
+      <button onClick={load} disabled={loading} className="erp-surface erp-accent" style={{ borderRadius: 14, padding: "11px 15px", fontWeight: 900, display: "flex", gap: 8, alignItems: "center" }}><RefreshCw size={17} />{loading ? "..." : (language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh")}</button>
     </header>
 
     <div style={{ ...card, padding: 18, marginBottom: 15, borderColor: active?.verified ? "rgba(34,197,94,.45)" : "rgba(245,158,11,.45)" }}>
@@ -170,7 +169,7 @@ export default function FinancialPolicy() {
             measurement_system: profile.measurementSystem,
             version: `${profile.code}-${today}`,
           });
-        }} style={input}>{countries.map(item => <option key={item.code} value={item.code}>{fa ? item.name.fa : item.name.en}</option>)}</select></label>
+        }} style={input}>{countries.map(item => <option key={item.code} value={item.code}>{language === "fa" ? item.name.fa : item.name.en}</option>)}</select></label>
         <label>{text.currency}<input required minLength={3} maxLength={3} value={draft.currency_code} onChange={e => setDraft({ ...draft, currency_code: e.target.value.toUpperCase() })} style={input} /></label>
         <label>{text.decimals}<select value={draft.decimal_places} onChange={e => setDraft({ ...draft, decimal_places: e.target.value })} style={input}>{[0,1,2,3,4].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
         <label>{text.rounding}<select value={draft.rounding_mode} onChange={e => setDraft({ ...draft, rounding_mode: e.target.value })} style={input}><option value="half_up">half_up</option><option value="half_even">half_even</option><option value="down">down</option><option value="up">up</option></select></label>

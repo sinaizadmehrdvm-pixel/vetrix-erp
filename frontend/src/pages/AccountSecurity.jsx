@@ -58,7 +58,7 @@ export default function AccountSecurity() {
       setRecoveryCodes(data.recovery_codes);
       setSetupState(null);
       setEnabled(true);
-      toast.success(fa ? "احراز هویت دومرحله‌ای فعال شد." : "Two-factor authentication is enabled.");
+      toast.success(fa ? "احراز هویت دومرحله‌ای فعال شد." : language === "ar" ? "تم تفعيل المصادقة الثنائية." : language === "tr" ? "İki adımlı doğrulama etkinleştirildi." : "Two-factor authentication is enabled.");
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -73,7 +73,7 @@ export default function AccountSecurity() {
       await disableTotp(disableForm.password, disableForm.code.trim());
       setEnabled(false);
       setDisableForm({ password: "", code: "" });
-      toast.success(fa ? "احراز هویت دومرحله‌ای غیرفعال شد." : "Two-factor authentication is disabled.");
+      toast.success(fa ? "احراز هویت دومرحله‌ای غیرفعال شد." : language === "ar" ? "تم تعطيل المصادقة الثنائية." : language === "tr" ? "İki adımlı doğrulama devre dışı bırakıldı." : "Two-factor authentication is disabled.");
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -84,18 +84,18 @@ export default function AccountSecurity() {
   async function handlePasswordChange(event) {
     event.preventDefault();
     if (passwordForm.new_password.length < 12) {
-      toast.error(fa ? "رمز عبور جدید باید حداقل ۱۲ نویسه باشد." : "New password must be at least 12 characters.");
+      toast.error(fa ? "رمز عبور جدید باید حداقل ۱۲ نویسه باشد." : language === "ar" ? "يجب أن تتكون كلمة المرور الجديدة من 12 حرفًا على الأقل." : language === "tr" ? "Yeni şifre en az 12 karakter olmalıdır." : "New password must be at least 12 characters.");
       return;
     }
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      toast.error(fa ? "تکرار رمز عبور مطابقت ندارد." : "Password confirmation does not match.");
+      toast.error(fa ? "تکرار رمز عبور مطابقت ندارد." : language === "ar" ? "تأكيد كلمة المرور غير مطابق." : language === "tr" ? "Şifre tekrarı eşleşmiyor." : "Password confirmation does not match.");
       return;
     }
     setPasswordBusy(true);
     try {
       await changePassword(passwordForm.current_password, passwordForm.new_password);
       setPasswordForm({ current_password: "", new_password: "", confirm_password: "" });
-      toast.success(fa ? "رمز عبور تغییر کرد." : "Password changed.");
+      toast.success(fa ? "رمز عبور تغییر کرد." : language === "ar" ? "تم تغيير كلمة المرور." : language === "tr" ? "Şifre değiştirildi." : "Password changed.");
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -107,19 +107,19 @@ export default function AccountSecurity() {
     <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
         <ShieldCheck className="text-[var(--erp-accent)]" />
-        {fa ? "امنیت حساب کاربری" : "Account security"}
+        {fa ? "امنیت حساب کاربری" : language === "ar" ? "أمان الحساب" : language === "tr" ? "Hesap güvenliği" : "Account security"}
       </h1>
 
       <section className={card}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <KeyRound size={18} />
-          {fa ? "تغییر رمز عبور" : "Change password"}
+          {fa ? "تغییر رمز عبور" : language === "ar" ? "تغيير كلمة المرور" : language === "tr" ? "Şifreyi değiştir" : "Change password"}
         </h2>
         <form onSubmit={handlePasswordChange}>
           <input
             type="password"
             autoComplete="current-password"
-            placeholder={fa ? "رمز عبور فعلی" : "Current password"}
+            placeholder={fa ? "رمز عبور فعلی" : language === "ar" ? "كلمة المرور الحالية" : language === "tr" ? "Mevcut şifre" : "Current password"}
             value={passwordForm.current_password}
             onChange={(event) => setPasswordForm({ ...passwordForm, current_password: event.target.value })}
             className={input}
@@ -128,7 +128,7 @@ export default function AccountSecurity() {
           <input
             type="password"
             autoComplete="new-password"
-            placeholder={fa ? "رمز عبور جدید" : "New password"}
+            placeholder={fa ? "رمز عبور جدید" : language === "ar" ? "كلمة المرور الجديدة" : language === "tr" ? "Yeni şifre" : "New password"}
             value={passwordForm.new_password}
             onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })}
             className={input}
@@ -138,7 +138,7 @@ export default function AccountSecurity() {
           <input
             type="password"
             autoComplete="new-password"
-            placeholder={fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
+            placeholder={fa ? "تکرار رمز عبور جدید" : language === "ar" ? "تأكيد كلمة المرور الجديدة" : language === "tr" ? "Yeni şifreyi onayla" : "Confirm new password"}
             value={passwordForm.confirm_password}
             onChange={(event) => setPasswordForm({ ...passwordForm, confirm_password: event.target.value })}
             className={input}
@@ -146,7 +146,9 @@ export default function AccountSecurity() {
             required
           />
           <button type="submit" disabled={passwordBusy} className={primaryButton}>
-            {passwordBusy ? (fa ? "در حال تغییر..." : "Changing...") : (fa ? "تغییر رمز عبور" : "Change password")}
+            {passwordBusy
+              ? (fa ? "در حال تغییر..." : language === "ar" ? "جارٍ التغيير..." : language === "tr" ? "Değiştiriliyor..." : "Changing...")
+              : (fa ? "تغییر رمز عبور" : language === "ar" ? "تغيير كلمة المرور" : language === "tr" ? "Şifreyi değiştir" : "Change password")}
           </button>
         </form>
       </section>
@@ -154,16 +156,20 @@ export default function AccountSecurity() {
       <section className={card}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <ShieldPlus size={18} />
-          {fa ? "احراز هویت دومرحله‌ای (TOTP)" : "Two-factor authentication (TOTP)"}
+          {fa ? "احراز هویت دومرحله‌ای (TOTP)" : language === "ar" ? "المصادقة الثنائية (TOTP)" : language === "tr" ? "İki adımlı doğrulama (TOTP)" : "Two-factor authentication (TOTP)"}
         </h2>
 
         {loadingStatus ? (
-          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</p>
+          <p className="text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
         ) : recoveryCodes ? (
           <div>
             <p className="mb-3 text-emerald-300 font-bold">
               {fa
                 ? "این کدهای بازیابی را همین حالا در جایی امن ذخیره کنید. هرکدام فقط یک‌بار قابل استفاده است."
+                : language === "ar"
+                ? "احفظ رموز الاسترداد هذه في مكان آمن الآن. يمكن استخدام كل رمز مرة واحدة فقط."
+                : language === "tr"
+                ? "Bu kurtarma kodlarını şimdi güvenli bir yerde saklayın. Her biri yalnızca bir kez kullanılabilir."
                 : "Save these recovery codes somewhere safe now. Each one can be used only once."}
             </p>
             <div className="grid grid-cols-2 gap-2 font-mono text-sm mb-4">
@@ -172,17 +178,17 @@ export default function AccountSecurity() {
               ))}
             </div>
             <button className={primaryButton} onClick={() => setRecoveryCodes(null)}>
-              {fa ? "ذخیره کردم" : "I've saved these"}
+              {fa ? "ذخیره کردم" : language === "ar" ? "لقد حفظتها" : language === "tr" ? "Kaydettim" : "I've saved these"}
             </button>
           </div>
         ) : enabled ? (
           <div>
-            <p className="mb-4 text-emerald-300">{fa ? "احراز هویت دومرحله‌ای فعال است." : "Two-factor authentication is enabled."}</p>
+            <p className="mb-4 text-emerald-300">{fa ? "احراز هویت دومرحله‌ای فعال است." : language === "ar" ? "المصادقة الثنائية مفعّلة." : language === "tr" ? "İki adımlı doğrulama etkin." : "Two-factor authentication is enabled."}</p>
             <form onSubmit={handleDisable}>
               <input
                 type="password"
                 autoComplete="current-password"
-                placeholder={fa ? "رمز عبور فعلی" : "Current password"}
+                placeholder={fa ? "رمز عبور فعلی" : language === "ar" ? "كلمة المرور الحالية" : language === "tr" ? "Mevcut şifre" : "Current password"}
                 value={disableForm.password}
                 onChange={(event) => setDisableForm({ ...disableForm, password: event.target.value })}
                 className={input}
@@ -190,7 +196,7 @@ export default function AccountSecurity() {
               />
               <input
                 inputMode="numeric"
-                placeholder={fa ? "کد تأیید یا کد بازیابی" : "Authenticator or recovery code"}
+                placeholder={fa ? "کد تأیید یا کد بازیابی" : language === "ar" ? "رمز المصادقة أو رمز الاسترداد" : language === "tr" ? "Doğrulayıcı veya kurtarma kodu" : "Authenticator or recovery code"}
                 value={disableForm.code}
                 onChange={(event) => setDisableForm({ ...disableForm, code: event.target.value })}
                 className={input}
@@ -202,7 +208,9 @@ export default function AccountSecurity() {
                 className="rounded-xl bg-red-500/90 text-white font-black px-5 py-3 disabled:opacity-60 flex items-center gap-2"
               >
                 <ShieldOff size={16} />
-                {busy ? (fa ? "در حال غیرفعال‌سازی..." : "Disabling...") : (fa ? "غیرفعال کردن" : "Disable 2FA")}
+                {busy
+                  ? (fa ? "در حال غیرفعال‌سازی..." : language === "ar" ? "جارٍ التعطيل..." : language === "tr" ? "Devre dışı bırakılıyor..." : "Disabling...")
+                  : (fa ? "غیرفعال کردن" : language === "ar" ? "تعطيل المصادقة الثنائية" : language === "tr" ? "2FA'yı devre dışı bırak" : "Disable 2FA")}
               </button>
             </form>
           </div>
@@ -211,6 +219,10 @@ export default function AccountSecurity() {
             <p className="mb-3 text-[var(--erp-muted)]">
               {fa
                 ? "کد QR را با Google Authenticator یا برنامه مشابه اسکن کنید، سپس کد شش‌رقمی را وارد کنید."
+                : language === "ar"
+                ? "امسح رمز QR باستخدام Google Authenticator أو تطبيق مشابه، ثم أدخل الرمز المكوّن من ستة أرقام."
+                : language === "tr"
+                ? "QR kodunu Google Authenticator veya benzeri bir uygulamayla tarayın, ardından altı haneli kodu girin."
                 : "Scan the QR code with Google Authenticator (or similar), then enter the 6-digit code."}
             </p>
             <img src={setupState.qr_code} alt="TOTP QR code" className="mb-3 rounded-xl bg-white p-2 w-48 h-48" />
@@ -218,7 +230,7 @@ export default function AccountSecurity() {
             <form onSubmit={handleVerify}>
               <input
                 inputMode="numeric"
-                placeholder={fa ? "کد شش‌رقمی" : "6-digit code"}
+                placeholder={fa ? "کد شش‌رقمی" : language === "ar" ? "رمز مكوّن من ستة أرقام" : language === "tr" ? "6 haneli kod" : "6-digit code"}
                 value={verifyCode}
                 onChange={(event) => setVerifyCode(event.target.value)}
                 className={input}
@@ -226,7 +238,9 @@ export default function AccountSecurity() {
                 autoFocus
               />
               <button type="submit" disabled={busy} className={primaryButton}>
-                {busy ? (fa ? "در حال تأیید..." : "Verifying...") : (fa ? "تأیید و فعال‌سازی" : "Verify & enable")}
+                {busy
+                  ? (fa ? "در حال تأیید..." : language === "ar" ? "جارٍ التحقق..." : language === "tr" ? "Doğrulanıyor..." : "Verifying...")
+                  : (fa ? "تأیید و فعال‌سازی" : language === "ar" ? "تحقق وتفعيل" : language === "tr" ? "Doğrula ve etkinleştir" : "Verify & enable")}
               </button>
             </form>
           </div>
@@ -235,10 +249,16 @@ export default function AccountSecurity() {
             <p className="mb-4 text-[var(--erp-muted)]">
               {fa
                 ? "احراز هویت دومرحله‌ای فعال نیست. با فعال‌سازی، ورود به حساب علاوه بر رمز عبور به یک کد یک‌بارمصرف نیز نیاز خواهد داشت."
+                : language === "ar"
+                ? "المصادقة الثنائية غير مفعّلة. عند تفعيلها، سيتطلب تسجيل الدخول رمزًا لمرة واحدة بالإضافة إلى كلمة المرور في كل مرة."
+                : language === "tr"
+                ? "İki adımlı doğrulama kapalı. Etkinleştirildiğinde, her girişte şifrenize ek olarak tek kullanımlık bir kod gerekecektir."
                 : "Two-factor authentication is off. Enabling it requires a one-time code in addition to your password at every login."}
             </p>
             <button onClick={handleStartSetup} disabled={busy} className={primaryButton}>
-              {busy ? (fa ? "در حال آماده‌سازی..." : "Preparing...") : (fa ? "فعال‌سازی احراز هویت دومرحله‌ای" : "Enable two-factor authentication")}
+              {busy
+                ? (fa ? "در حال آماده‌سازی..." : language === "ar" ? "جارٍ التحضير..." : language === "tr" ? "Hazırlanıyor..." : "Preparing...")
+                : (fa ? "فعال‌سازی احراز هویت دومرحله‌ای" : language === "ar" ? "تفعيل المصادقة الثنائية" : language === "tr" ? "İki adımlı doğrulamayı etkinleştir" : "Enable two-factor authentication")}
             </button>
           </div>
         )}

@@ -131,24 +131,28 @@ export default function Settings() {
   const [message, setMessage] = useState("");
 
   const label = {
-    title: fa ? "تنظیمات" : "Settings",
+    title: fa ? "تنظیمات" : language === "ar" ? "الإعدادات" : language === "tr" ? "Ayarlar" : "Settings",
     subtitle: fa
       ? "مدیریت اطلاعات شرکت، فاکتور، مالیات، ظاهر، لوگو و تنظیمات اصلی سیستم"
+      : language === "ar"
+      ? "إدارة معلومات الشركة والفواتير والضرائب والمظهر والشعار وإعدادات النظام الأساسية"
+      : language === "tr"
+      ? "Şirket bilgilerini, faturaları, vergiyi, temayı, logoyu ve temel sistem ayarlarını yönetin"
       : "Manage company info, invoices, tax, theme, logo and core settings",
-    language: fa ? "زبان سیستم" : "System Language",
-    company: fa ? "اطلاعات شرکت" : "Company Information",
-    media: fa ? "لوگو، مهر و امضا" : "Logo, Stamp & Signature",
-    invoice: fa ? "تنظیمات فاکتور" : "Invoice Settings",
-    finance: fa ? "تنظیمات مالی" : "Financial Settings",
-    appearance: fa ? "ظاهر برنامه" : "Appearance",
-    backupSms: fa ? "بکاپ و پیامک" : "Backup & SMS",
-    save: fa ? "ذخیره تنظیمات" : "Save Settings",
-    refresh: fa ? "دریافت مجدد" : "Refresh",
-    saving: fa ? "در حال ذخیره..." : "Saving...",
-    loading: fa ? "در حال دریافت..." : "Loading...",
-    saved: fa ? "تنظیمات با موفقیت ذخیره شد." : "Settings saved successfully.",
-    error: fa ? "خطا در دریافت یا ذخیره تنظیمات." : "Error loading or saving settings.",
-    imageSelect: fa ? "انتخاب تصویر" : "Choose image",
+    language: fa ? "زبان سیستم" : language === "ar" ? "لغة النظام" : language === "tr" ? "Sistem Dili" : "System Language",
+    company: fa ? "اطلاعات شرکت" : language === "ar" ? "معلومات الشركة" : language === "tr" ? "Şirket Bilgileri" : "Company Information",
+    media: fa ? "لوگو، مهر و امضا" : language === "ar" ? "الشعار والختم والتوقيع" : language === "tr" ? "Logo, Kaşe ve İmza" : "Logo, Stamp & Signature",
+    invoice: fa ? "تنظیمات فاکتور" : language === "ar" ? "إعدادات الفاتورة" : language === "tr" ? "Fatura Ayarları" : "Invoice Settings",
+    finance: fa ? "تنظیمات مالی" : language === "ar" ? "الإعدادات المالية" : language === "tr" ? "Mali Ayarlar" : "Financial Settings",
+    appearance: fa ? "ظاهر برنامه" : language === "ar" ? "المظهر" : language === "tr" ? "Görünüm" : "Appearance",
+    backupSms: fa ? "بکاپ و پیامک" : language === "ar" ? "النسخ الاحتياطي والرسائل النصية" : language === "tr" ? "Yedekleme ve SMS" : "Backup & SMS",
+    save: fa ? "ذخیره تنظیمات" : language === "ar" ? "حفظ الإعدادات" : language === "tr" ? "Ayarları Kaydet" : "Save Settings",
+    refresh: fa ? "دریافت مجدد" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh",
+    saving: fa ? "در حال ذخیره..." : language === "ar" ? "جارٍ الحفظ..." : language === "tr" ? "Kaydediliyor..." : "Saving...",
+    loading: fa ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...",
+    saved: fa ? "تنظیمات با موفقیت ذخیره شد." : language === "ar" ? "تم حفظ الإعدادات بنجاح." : language === "tr" ? "Ayarlar başarıyla kaydedildi." : "Settings saved successfully.",
+    error: fa ? "خطا در دریافت یا ذخیره تنظیمات." : language === "ar" ? "حدث خطأ أثناء تحميل الإعدادات أو حفظها." : language === "tr" ? "Ayarlar yüklenirken veya kaydedilirken hata oluştu." : "Error loading or saving settings.",
+    imageSelect: fa ? "انتخاب تصویر" : language === "ar" ? "اختيار صورة" : language === "tr" ? "Görsel seç" : "Choose image",
   };
 
   async function loadSettings() {
@@ -236,12 +240,12 @@ export default function Settings() {
       setField(key, base64);
     } catch (error) {
       console.error("Image compress error:", error);
-      alert(fa ? "خطا در پردازش تصویر" : "Image processing error");
+      alert(fa ? "خطا در پردازش تصویر" : language === "ar" ? "خطأ في معالجة الصورة" : language === "tr" ? "Görsel işleme hatası" : "Image processing error");
     }
   }
 
   return (
-    <div dir={dir || (fa ? "rtl" : "ltr")} className="space-y-6">
+    <div dir={dir || (fa || language === "ar" ? "rtl" : "ltr")} className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1>
@@ -288,8 +292,16 @@ export default function Settings() {
           </select>
 
           <InfoCard
-            title={fa ? "حالت فعلی" : "Current Mode"}
-            value={fa ? "فارسی، راست‌به‌چپ، اعداد فارسی" : "English, left-to-right, English numbers"}
+            title={fa ? "حالت فعلی" : language === "ar" ? "الوضع الحالي" : language === "tr" ? "Mevcut Mod" : "Current Mode"}
+            value={
+              fa
+                ? "فارسی، راست‌به‌چپ، اعداد فارسی"
+                : language === "ar"
+                ? "العربية، من اليمين إلى اليسار، أرقام عربية"
+                : language === "tr"
+                ? "Türkçe, soldan sağa, Latin rakamları"
+                : "English, left-to-right, English numbers"
+            }
           />
         </div>
       </Section>

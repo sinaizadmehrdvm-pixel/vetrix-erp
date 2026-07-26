@@ -40,34 +40,38 @@ export default function AuditTrail() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "مرکز حسابرسی و امنیت" : "Audit & Security Center",
+    title: fa ? "مرکز حسابرسی و امنیت" : language === "ar" ? "مركز التدقيق والأمان" : language === "tr" ? "Denetim ve Güvenlik Merkezi" : "Audit & Security Center",
     subtitle: fa
       ? "سابقه زنجیره‌ای و قابل‌راستی‌آزمایی تمام تغییرات حساس سیستم"
+      : language === "ar"
+      ? "سجل قابل للتحقق ومرتبط بتسلسل تجزئة لكل تغيير حساس في النظام"
+      : language === "tr"
+      ? "Sistemdeki her hassas değişikliğin doğrulanabilir, hash zincirine dayalı geçmişi"
       : "A verifiable hash-chained history of every sensitive system change",
-    valid: fa ? "زنجیره حسابرسی سالم است" : "Audit chain is valid",
-    broken: fa ? "هشدار: سابقه حسابرسی دست‌کاری شده است" : "Warning: audit history was altered",
-    checked: fa ? "رویداد بررسی‌شده" : "events verified",
-    denied: fa ? "این بخش فقط برای مدیر سیستم قابل مشاهده است." : "This area is restricted to administrators.",
-    actor: fa ? "کاربر" : "Actor",
-    action: fa ? "عملیات" : "Action",
-    resource: fa ? "مسیر / منبع" : "Path / resource",
-    result: fa ? "نتیجه" : "Result",
-    all: fa ? "همه" : "All",
-    success: fa ? "موفق" : "Success",
-    failed: fa ? "ناموفق" : "Failed",
-    from: fa ? "از تاریخ" : "From",
-    to: fa ? "تا تاریخ" : "To",
-    apply: fa ? "اعمال فیلتر" : "Apply filters",
-    reset: fa ? "پاک‌کردن" : "Reset",
-    dateTime: fa ? "زمان" : "Date & time",
-    role: fa ? "نقش" : "Role",
-    method: fa ? "متد" : "Method",
-    status: fa ? "کد وضعیت" : "Status",
-    ip: fa ? "نشانی IP" : "IP address",
-    requestId: fa ? "شناسه رویداد" : "Event ID",
-    empty: fa ? "رویدادی با این فیلتر یافت نشد." : "No events match these filters.",
-    showing: fa ? "نمایش" : "Showing",
-    of: fa ? "از" : "of",
+    valid: fa ? "زنجیره حسابرسی سالم است" : language === "ar" ? "سلسلة التدقيق سليمة" : language === "tr" ? "Denetim zinciri geçerli" : "Audit chain is valid",
+    broken: fa ? "هشدار: سابقه حسابرسی دست‌کاری شده است" : language === "ar" ? "تحذير: تم التلاعب بسجل التدقيق" : language === "tr" ? "Uyarı: denetim geçmişi değiştirilmiş" : "Warning: audit history was altered",
+    checked: fa ? "رویداد بررسی‌شده" : language === "ar" ? "حدثًا تم التحقق منها" : language === "tr" ? "olay doğrulandı" : "events verified",
+    denied: fa ? "این بخش فقط برای مدیر سیستم قابل مشاهده است." : language === "ar" ? "هذا القسم مقتصر على المسؤولين." : language === "tr" ? "Bu alan yalnızca yöneticilere açıktır." : "This area is restricted to administrators.",
+    actor: fa ? "کاربر" : language === "ar" ? "الفاعل" : language === "tr" ? "Kullanıcı" : "Actor",
+    action: fa ? "عملیات" : language === "ar" ? "الإجراء" : language === "tr" ? "İşlem" : "Action",
+    resource: fa ? "مسیر / منبع" : language === "ar" ? "المسار / المورد" : language === "tr" ? "Yol / Kaynak" : "Path / resource",
+    result: fa ? "نتیجه" : language === "ar" ? "النتيجة" : language === "tr" ? "Sonuç" : "Result",
+    all: fa ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All",
+    success: fa ? "موفق" : language === "ar" ? "ناجح" : language === "tr" ? "Başarılı" : "Success",
+    failed: fa ? "ناموفق" : language === "ar" ? "فاشل" : language === "tr" ? "Başarısız" : "Failed",
+    from: fa ? "از تاریخ" : language === "ar" ? "من تاريخ" : language === "tr" ? "Başlangıç" : "From",
+    to: fa ? "تا تاریخ" : language === "ar" ? "إلى تاريخ" : language === "tr" ? "Bitiş" : "To",
+    apply: fa ? "اعمال فیلتر" : language === "ar" ? "تطبيق الفلاتر" : language === "tr" ? "Filtreleri uygula" : "Apply filters",
+    reset: fa ? "پاک‌کردن" : language === "ar" ? "إعادة تعيين" : language === "tr" ? "Sıfırla" : "Reset",
+    dateTime: fa ? "زمان" : language === "ar" ? "التاريخ والوقت" : language === "tr" ? "Tarih ve saat" : "Date & time",
+    role: fa ? "نقش" : language === "ar" ? "الدور" : language === "tr" ? "Rol" : "Role",
+    method: fa ? "متد" : language === "ar" ? "الطريقة" : language === "tr" ? "Yöntem" : "Method",
+    status: fa ? "کد وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status",
+    ip: fa ? "نشانی IP" : language === "ar" ? "عنوان IP" : language === "tr" ? "IP adresi" : "IP address",
+    requestId: fa ? "شناسه رویداد" : language === "ar" ? "معرف الحدث" : language === "tr" ? "Olay kimliği" : "Event ID",
+    empty: fa ? "رویدادی با این فیلتر یافت نشد." : language === "ar" ? "لا توجد أحداث مطابقة لهذه الفلاتر." : language === "tr" ? "Bu filtrelerle eşleşen olay bulunamadı." : "No events match these filters.",
+    showing: fa ? "نمایش" : language === "ar" ? "عرض" : language === "tr" ? "Gösteriliyor" : "Showing",
+    of: fa ? "از" : language === "ar" ? "من" : language === "tr" ? "/" : "of",
   };
 
   async function load(nextPage = page, nextFilters = applied) {
@@ -125,6 +129,10 @@ export default function AuditTrail() {
   const actionLabel = (action) => {
     const labels = fa
       ? { create: "ایجاد", update: "ویرایش", delete: "حذف", close: "بستن", reopen: "بازگشایی", post: "قطعی‌کردن", cancel: "ابطال", convert: "تبدیل", toggle: "تغییر وضعیت" }
+      : language === "ar"
+      ? { create: "إنشاء", update: "تعديل", delete: "حذف", close: "إغلاق", reopen: "إعادة فتح", post: "ترحيل", cancel: "إلغاء", convert: "تحويل", toggle: "تغيير الحالة" }
+      : language === "tr"
+      ? { create: "Oluşturma", update: "Güncelleme", delete: "Silme", close: "Kapatma", reopen: "Yeniden açma", post: "Kesinleştirme", cancel: "İptal", convert: "Dönüştürme", toggle: "Durum değiştirme" }
       : {};
     return labels[action] || action;
   };
@@ -170,7 +178,7 @@ export default function AuditTrail() {
           </div>
         </div>
         <button onClick={() => load()} disabled={loading} style={{ display: "flex", gap: 8, alignItems: "center", border: 0, borderRadius: 13, padding: "11px 15px", background: "var(--erp-glow)", color: "var(--erp-accent)", fontWeight: 900, cursor: "pointer" }}>
-          <RefreshCw size={17} /> {loading ? "..." : fa ? "به‌روزرسانی" : "Refresh"}
+          <RefreshCw size={17} /> {loading ? "..." : fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
         </button>
       </header>
 

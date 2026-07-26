@@ -63,11 +63,11 @@ export default function PricingTiers() {
   async function handleCreate(event) {
     event.preventDefault();
     if (!productId) {
-      toast.error(fa ? "یک کالا انتخاب کنید." : "Select a product.");
+      toast.error(language === "fa" ? "یک کالا انتخاب کنید." : language === "ar" ? "اختر منتجًا." : language === "tr" ? "Bir ürün seçin." : "Select a product.");
       return;
     }
     if (!minQuantity || !unitPrice) {
-      toast.error(fa ? "حداقل تعداد و قیمت را وارد کنید." : "Enter a minimum quantity and unit price.");
+      toast.error(language === "fa" ? "حداقل تعداد و قیمت را وارد کنید." : language === "ar" ? "أدخل الحد الأدنى للكمية وسعر الوحدة." : language === "tr" ? "Minimum miktar ve birim fiyatı girin." : "Enter a minimum quantity and unit price.");
       return;
     }
     setCreating(true);
@@ -78,7 +78,7 @@ export default function PricingTiers() {
         unit_price: Number(unitPrice),
         customer_group: customerGroup || null,
       });
-      toast.success(fa ? "پله قیمتی اضافه شد." : "Price tier added.");
+      toast.success(language === "fa" ? "پله قیمتی اضافه شد." : language === "ar" ? "تمت إضافة الشريحة السعرية." : language === "tr" ? "Fiyat kademesi eklendi." : "Price tier added.");
       setMinQuantity("");
       setUnitPrice("");
       setCustomerGroup("");
@@ -93,7 +93,7 @@ export default function PricingTiers() {
   async function handleDelete(id) {
     try {
       await deletePriceTier(id);
-      toast.success(fa ? "پله قیمتی حذف شد." : "Price tier removed.");
+      toast.success(language === "fa" ? "پله قیمتی حذف شد." : language === "ar" ? "تم حذف الشريحة السعرية." : language === "tr" ? "Fiyat kademesi silindi." : "Price tier removed.");
       await loadTiers(productId);
     } catch (err) {
       toast.error(err.message);
@@ -104,12 +104,12 @@ export default function PricingTiers() {
     <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
       <h1 className="text-2xl font-black flex items-center gap-2">
         <Layers className="text-[var(--erp-accent)]" />
-        {fa ? "قیمت‌گذاری پلکانی و عمده‌فروشی" : "Tiered & wholesale pricing"}
+        {language === "fa" ? "قیمت‌گذاری پلکانی و عمده‌فروشی" : language === "ar" ? "التسعير المتدرج والجملة" : language === "tr" ? "Kademeli ve toptan fiyatlandırma" : "Tiered & wholesale pricing"}
       </h1>
 
       <section className={cardClass}>
         <label className="block text-sm text-[var(--erp-muted)] mb-2">
-          {fa ? "انتخاب کالا" : "Select product"}
+          {language === "fa" ? "انتخاب کالا" : language === "ar" ? "اختيار المنتج" : language === "tr" ? "Ürün Seç" : "Select product"}
         </label>
         <select
           className={inputClass}
@@ -117,7 +117,7 @@ export default function PricingTiers() {
           onChange={(e) => setProductId(e.target.value)}
           disabled={loading}
         >
-          <option value="">{fa ? "یک کالا انتخاب کنید..." : "Choose a product..."}</option>
+          <option value="">{language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..."}</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
@@ -125,7 +125,7 @@ export default function PricingTiers() {
 
         {selectedProduct && (
           <p className="text-sm text-[var(--erp-muted)] mb-4">
-            {fa ? "قیمت پایه: " : "Base price: "}{money(selectedProduct.sell_price || selectedProduct.price || 0)}
+            {language === "fa" ? "قیمت پایه: " : language === "ar" ? "السعر الأساسي: " : language === "tr" ? "Taban fiyat: " : "Base price: "}{money(selectedProduct.sell_price || selectedProduct.price || 0)}
           </p>
         )}
 

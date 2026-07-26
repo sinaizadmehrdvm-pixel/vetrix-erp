@@ -10,29 +10,28 @@ function Field({ label, children }) { return <div className="space-y-2"><label c
 
 export default function Warehouse() {
   const { language, n, dir, date } = useLanguage();
-  const fa = language === "fa";
   const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ warehouse: fa ? "انبار اصلی" : "Main Warehouse", product_id: "", quantity: "", movement_type: "in", movement_date: "", note: "" });
+  const [form, setForm] = useState({ warehouse: language === "fa" ? "انبار اصلی" : language === "ar" ? "المستودع الرئيسي" : language === "tr" ? "Ana Depo" : "Main Warehouse", product_id: "", quantity: "", movement_type: "in", movement_date: "", note: "" });
 
   const label = {
-    title: fa ? "انبار" : "Warehouse",
-    subtitle: fa ? "مدیریت موجودی کالاها، ورود، خروج و اصلاح موجودی" : "Manage product stock, stock-in, stock-out and adjustments",
-    warehouse: fa ? "نام انبار" : "Warehouse name",
-    product: fa ? "انتخاب کالا" : "Select product",
-    quantity: fa ? "تعداد" : "Quantity",
-    type: fa ? "نوع حرکت" : "Movement type",
-    date: fa ? "تاریخ" : "Date",
-    note: fa ? "توضیحات" : "Note",
-    in: fa ? "ورود به انبار" : "Stock In",
-    out: fa ? "خروج از انبار" : "Stock Out",
-    adjustment: fa ? "اصلاح موجودی نهایی" : "Set final stock",
-    save: fa ? "ثبت حرکت انبار" : "Save stock movement",
-    noData: fa ? "حرکت انباری ثبت نشده است" : "No warehouse movement yet",
-    search: fa ? "جستجوی کالا، انبار یا توضیحات..." : "Search product, warehouse or note...",
+    title: language === "fa" ? "انبار" : language === "ar" ? "المستودع" : language === "tr" ? "Depo" : "Warehouse",
+    subtitle: language === "fa" ? "مدیریت موجودی کالاها، ورود، خروج و اصلاح موجودی" : language === "ar" ? "إدارة مخزون المنتجات: الإدخال والإخراج وتسوية المخزون" : language === "tr" ? "Ürün stoğunu, giriş, çıkış ve stok düzeltmelerini yönetin" : "Manage product stock, stock-in, stock-out and adjustments",
+    warehouse: language === "fa" ? "نام انبار" : language === "ar" ? "اسم المستودع" : language === "tr" ? "Depo Adı" : "Warehouse name",
+    product: language === "fa" ? "انتخاب کالا" : language === "ar" ? "اختيار المنتج" : language === "tr" ? "Ürün Seç" : "Select product",
+    quantity: language === "fa" ? "تعداد" : language === "ar" ? "الكمية" : language === "tr" ? "Miktar" : "Quantity",
+    type: language === "fa" ? "نوع حرکت" : language === "ar" ? "نوع الحركة" : language === "tr" ? "Hareket Türü" : "Movement type",
+    date: language === "fa" ? "تاریخ" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date",
+    note: language === "fa" ? "توضیحات" : language === "ar" ? "ملاحظات" : language === "tr" ? "Not" : "Note",
+    in: language === "fa" ? "ورود به انبار" : language === "ar" ? "إدخال مخزون" : language === "tr" ? "Depoya Giriş" : "Stock In",
+    out: language === "fa" ? "خروج از انبار" : language === "ar" ? "إخراج مخزون" : language === "tr" ? "Depodan Çıkış" : "Stock Out",
+    adjustment: language === "fa" ? "اصلاح موجودی نهایی" : language === "ar" ? "تسوية المخزون النهائي" : language === "tr" ? "Nihai Stoğu Ayarla" : "Set final stock",
+    save: language === "fa" ? "ثبت حرکت انبار" : language === "ar" ? "حفظ حركة المخزون" : language === "tr" ? "Stok Hareketini Kaydet" : "Save stock movement",
+    noData: language === "fa" ? "حرکت انباری ثبت نشده است" : language === "ar" ? "لا توجد حركة مخزون مسجلة بعد" : language === "tr" ? "Henüz depo hareketi kaydedilmedi" : "No warehouse movement yet",
+    search: language === "fa" ? "جستجوی کالا، انبار یا توضیحات..." : language === "ar" ? "بحث عن منتج أو مستودع أو ملاحظة..." : language === "tr" ? "Ürün, depo veya not ara..." : "Search product, warehouse or note...",
   };
 
   async function load() {
@@ -41,7 +40,7 @@ export default function Warehouse() {
       const [p, m] = await Promise.all([getProducts(), getStockMovements()]);
       setProducts(Array.isArray(p) ? p : []);
       setMovements(Array.isArray(m) ? m : []);
-    } catch (e) { console.error(e); setError(fa ? "خطا در دریافت اطلاعات انبار" : "Error loading warehouse data"); }
+    } catch (e) { console.error(e); setError(language === "fa" ? "خطا در دریافت اطلاعات انبار" : language === "ar" ? "خطأ في تحميل بيانات المستودع" : language === "tr" ? "Depo verileri yüklenirken hata oluştu" : "Error loading warehouse data"); }
     finally { setLoading(false); }
   }
   const stableLoad = useStableCallback(load);
@@ -52,13 +51,13 @@ export default function Warehouse() {
   }, [language, stableLoad]);
 
   async function addMovement() {
-    if (!form.product_id || !form.quantity) { alert(fa ? "کالا و تعداد را وارد کن" : "Select product and quantity"); return; }
+    if (!form.product_id || !form.quantity) { alert(language === "fa" ? "کالا و تعداد را وارد کن" : language === "ar" ? "اختر المنتج والكمية" : language === "tr" ? "Ürün ve miktar seçin" : "Select product and quantity"); return; }
     try {
       const result = await createStockMovement({ ...form, product_id: Number(form.product_id), quantity: toNumber(form.quantity) });
       if (result?.status === "error") throw new Error(result.message);
-      setForm({ warehouse: fa ? "انبار اصلی" : "Main Warehouse", product_id: "", quantity: "", movement_type: "in", movement_date: "", note: "" });
+      setForm({ warehouse: language === "fa" ? "انبار اصلی" : language === "ar" ? "المستودع الرئيسي" : language === "tr" ? "Ana Depo" : "Main Warehouse", product_id: "", quantity: "", movement_type: "in", movement_date: "", note: "" });
       await load();
-    } catch (e) { alert(e.message || (fa ? "خطا در ثبت حرکت انبار" : "Error saving movement")); }
+    } catch (e) { alert(e.message || (language === "fa" ? "خطا در ثبت حرکت انبار" : language === "ar" ? "خطأ في حفظ حركة المخزون" : language === "tr" ? "Hareket kaydedilirken hata oluştu" : "Error saving movement")); }
   }
 
   const filtered = useMemo(() => movements.filter(x => [x.product_name, x.warehouse, x.note, x.movement_type].join(" ").toLowerCase().includes(search.toLowerCase())), [movements, search]);
@@ -69,19 +68,19 @@ export default function Warehouse() {
   function movementLabel(type) { return type === "in" ? label.in : type === "out" ? label.out : label.adjustment; }
 
   return <div dir={dir} style={{ direction: dir }} className="space-y-6">
-    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1><p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p></div><button onClick={load} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"><RefreshCw size={18}/>{fa ? "به‌روزرسانی" : "Refresh"}</button></div>
+    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.title}</h1><p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p></div><button onClick={load} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"><RefreshCw size={18}/>{language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}</button></div>
     {error && <div className="bg-red-500/15 border border-red-400/30 text-red-200 rounded-2xl p-4 flex items-center gap-2"><AlertTriangle size={20}/>{error}</div>}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5"><Stat icon={<Boxes/>} title={fa ? "تعداد کالا" : "Products"} value={n(products.length)}/><Stat icon={<PackageCheck/>} title={fa ? "موجودی کل" : "Total stock"} value={n(totalStock)}/><Stat icon={<AlertTriangle/>} title={fa ? "کالاهای کم‌موجودی" : "Low stock"} value={n(lowStock)} danger={lowStock>0}/></div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-5"><Stat icon={<Boxes/>} title={language === "fa" ? "تعداد کالا" : language === "ar" ? "عدد المنتجات" : language === "tr" ? "Ürün Sayısı" : "Products"} value={n(products.length)}/><Stat icon={<PackageCheck/>} title={language === "fa" ? "موجودی کل" : language === "ar" ? "إجمالي المخزون" : language === "tr" ? "Toplam Stok" : "Total stock"} value={n(totalStock)}/><Stat icon={<AlertTriangle/>} title={language === "fa" ? "کالاهای کم‌موجودی" : language === "ar" ? "مخزون منخفض" : language === "tr" ? "Düşük Stok" : "Low stock"} value={n(lowStock)} danger={lowStock>0}/></div>
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
       <Field label={label.warehouse}><input className={inputClass} value={form.warehouse} onChange={e=>setForm({...form, warehouse:e.target.value})}/></Field>
-      <Field label={label.product}><select className={inputClass} value={form.product_id} onChange={e=>setForm({...form, product_id:e.target.value})}><option value="">{label.product}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name} | {fa ? "موجودی" : "Stock"}: {n(p.stock||0)}</option>)}</select></Field>
+      <Field label={label.product}><select className={inputClass} value={form.product_id} onChange={e=>setForm({...form, product_id:e.target.value})}><option value="">{label.product}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name} | {language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}: {n(p.stock||0)}</option>)}</select></Field>
       <Field label={label.quantity}><input type="number" className={inputClass} value={form.quantity} onChange={e=>setForm({...form, quantity:e.target.value})} placeholder="0"/></Field>
       <Field label={label.type}><select className={inputClass} value={form.movement_type} onChange={e=>setForm({...form, movement_type:e.target.value})}><option value="in">{label.in}</option><option value="out">{label.out}</option><option value="adjustment">{label.adjustment}</option></select></Field>
       <Field label={label.date}><input type="date" className={inputClass} value={form.movement_date} onChange={e=>setForm({...form, movement_date:e.target.value})}/></Field>
       <Field label={label.note}><input className={inputClass} value={form.note} onChange={e=>setForm({...form, note:e.target.value})} placeholder={label.note}/></Field>
     </div><button onClick={addMovement} className="mt-5 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18}/>{label.save}</button></div>
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"/></div>
-    {loading ? <div className="text-[var(--erp-muted)]">{fa ? "در حال دریافت..." : "Loading..."}</div> : filtered.length === 0 ? <div className="text-[var(--erp-muted)] flex items-center gap-2"><PackageCheck size={18}/>{label.noData}</div> : <div className="space-y-3">{filtered.map(item=><div key={item.id} className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">{movementIcon(item.movement_type)}</div><div><h3 className="font-black">{item.product_name || item.product_id}</h3><p className="text-[var(--erp-muted)] text-sm">{item.warehouse || "-"} | {movementLabel(item.movement_type)} | {item.movement_date ? date(item.movement_date) : "-"}</p>{item.note && <p className="text-[var(--erp-muted)] text-xs mt-1">{item.note}</p>}</div></div><strong className="text-[var(--erp-accent)] text-xl">{n(item.quantity)}</strong></div>)}</div>}
+    {loading ? <div className="text-[var(--erp-muted)]">{language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</div> : filtered.length === 0 ? <div className="text-[var(--erp-muted)] flex items-center gap-2"><PackageCheck size={18}/>{label.noData}</div> : <div className="space-y-3">{filtered.map(item=><div key={item.id} className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">{movementIcon(item.movement_type)}</div><div><h3 className="font-black">{item.product_name || item.product_id}</h3><p className="text-[var(--erp-muted)] text-sm">{item.warehouse || "-"} | {movementLabel(item.movement_type)} | {item.movement_date ? date(item.movement_date) : "-"}</p>{item.note && <p className="text-[var(--erp-muted)] text-xs mt-1">{item.note}</p>}</div></div><strong className="text-[var(--erp-accent)] text-xl">{n(item.quantity)}</strong></div>)}</div>}
     </div>
   </div>;
 }

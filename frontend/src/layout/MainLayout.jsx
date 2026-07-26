@@ -9,7 +9,14 @@ export default function MainLayout() {
   const { dir, language } = useLanguage();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const menuButtonRef = useRef(null);
-  const menuLabel = language === "fa" ? "بازکردن منوی اصلی" : "Open main navigation";
+  const menuLabel =
+    language === "fa"
+      ? "بازکردن منوی اصلی"
+      : language === "ar"
+      ? "فتح القائمة الرئيسية"
+      : language === "tr"
+      ? "Ana menüyü aç"
+      : "Open main navigation";
 
   useEffect(() => {
     if (!navigationOpen) return undefined;
@@ -31,7 +38,13 @@ export default function MainLayout() {
   return (
     <div className="erp-layout" dir={dir}>
       <a className="erp-skip-link" href="#main-content">
-        {language === "fa" ? "پرش به محتوای اصلی" : "Skip to main content"}
+        {language === "fa"
+          ? "پرش به محتوای اصلی"
+          : language === "ar"
+          ? "الانتقال إلى المحتوى الرئيسي"
+          : language === "tr"
+          ? "Ana içeriğe geç"
+          : "Skip to main content"}
       </a>
       <button
         ref={menuButtonRef}
@@ -43,7 +56,15 @@ export default function MainLayout() {
         aria-controls="erp-primary-navigation"
       >
         <Menu size={22} aria-hidden="true" />
-        <span>{language === "fa" ? "منو" : "Menu"}</span>
+        <span>
+          {language === "fa"
+            ? "منو"
+            : language === "ar"
+            ? "القائمة"
+            : language === "tr"
+            ? "Menü"
+            : "Menu"}
+        </span>
       </button>
 
       {navigationOpen && (
@@ -51,7 +72,15 @@ export default function MainLayout() {
           type="button"
           className="erp-sidebar-backdrop"
           onClick={() => closeNavigation({ restoreFocus: true })}
-          aria-label={language === "fa" ? "بستن منو" : "Close navigation"}
+          aria-label={
+            language === "fa"
+              ? "بستن منو"
+              : language === "ar"
+              ? "إغلاق القائمة"
+              : language === "tr"
+              ? "Menüyü kapat"
+              : "Close navigation"
+          }
         />
       )}
 

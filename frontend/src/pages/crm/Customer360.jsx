@@ -32,19 +32,25 @@ function toNumber(value) {
 }
 
 
-function riskLabel(risk, fa) {
+function riskLabel(risk, language) {
   const mapFa = { low: "کم", medium: "متوسط", high: "زیاد", critical: "بحرانی" };
+  const mapAr = { low: "منخفض", medium: "متوسط", high: "مرتفع", critical: "حرج" };
+  const mapTr = { low: "Düşük", medium: "Orta", high: "Yüksek", critical: "Kritik" };
   const mapEn = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
-  return fa ? mapFa[risk] || risk || "-" : mapEn[risk] || risk || "-";
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[risk] || risk || "-";
 }
 
-function levelLabel(level, fa) {
+function levelLabel(level, language) {
   const mapFa = { VIP: "VIP", Platinum: "پلاتینیوم", Gold: "طلایی", Silver: "نقره‌ای", Bronze: "برنزی" };
+  const mapAr = { VIP: "VIP", Platinum: "بلاتيني", Gold: "ذهبي", Silver: "فضي", Bronze: "برونزي" };
+  const mapTr = { VIP: "VIP", Platinum: "Platin", Gold: "Altın", Silver: "Gümüş", Bronze: "Bronz" };
   const mapEn = { VIP: "VIP", Platinum: "Platinum", Gold: "Gold", Silver: "Silver", Bronze: "Bronze" };
-  return fa ? mapFa[level] || level || "-" : mapEn[level] || level || "-";
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[level] || level || "-";
 }
 
-function actionLabel(action, fa) {
+function actionLabel(action, language) {
   const mapFa = {
     urgent_call: "تماس فوری",
     payment_followup: "پیگیری پرداخت",
@@ -52,6 +58,22 @@ function actionLabel(action, fa) {
     regular_followup: "پیگیری معمول",
     cross_sell: "پیشنهاد فروش مکمل",
     vip_retention: "حفظ مشتری VIP",
+  };
+  const mapAr = {
+    urgent_call: "اتصال فوري",
+    payment_followup: "متابعة الدفع",
+    loyalty_offer: "عرض ولاء",
+    regular_followup: "متابعة اعتيادية",
+    cross_sell: "بيع تكميلي",
+    vip_retention: "الاحتفاظ بعميل VIP",
+  };
+  const mapTr = {
+    urgent_call: "Acil arama",
+    payment_followup: "Ödeme takibi",
+    loyalty_offer: "Sadakat teklifi",
+    regular_followup: "Rutin takip",
+    cross_sell: "Çapraz satış",
+    vip_retention: "VIP müşteri koruma",
   };
   const mapEn = {
     urgent_call: "Urgent call",
@@ -61,22 +83,22 @@ function actionLabel(action, fa) {
     cross_sell: "Cross-sell",
     vip_retention: "VIP retention",
   };
-  return fa ? mapFa[action] || action || "-" : mapEn[action] || action || "-";
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[action] || action || "-";
 }
 
 const tabs = [
-  { id: "overview", fa: "نمای کلی", en: "Overview" },
-  { id: "financial", fa: "مالی", en: "Financial" },
-  { id: "timeline", fa: "تایم‌لاین", en: "Timeline" },
-  { id: "tasks", fa: "وظایف", en: "Tasks" },
-  { id: "files", fa: "فایل‌ها", en: "Files" },
-  { id: "ai", fa: "هوش فروش", en: "AI" },
+  { id: "overview", fa: "نمای کلی", ar: "نظرة عامة", tr: "Genel bakış", en: "Overview" },
+  { id: "financial", fa: "مالی", ar: "مالي", tr: "Finansal", en: "Financial" },
+  { id: "timeline", fa: "تایم‌لاین", ar: "الجدول الزمني", tr: "Zaman çizelgesi", en: "Timeline" },
+  { id: "tasks", fa: "وظایف", ar: "المهام", tr: "Görevler", en: "Tasks" },
+  { id: "files", fa: "فایل‌ها", ar: "الملفات", tr: "Dosyalar", en: "Files" },
+  { id: "ai", fa: "هوش فروش", ar: "ذكاء المبيعات", tr: "Satış zekası", en: "AI" },
 ];
 
 export default function Customer360() {
   const { id } = useParams();
   const { language, dir, money, n, date } = useLanguage();
-  const fa = language === "fa";
 
   const [activeTab, setActiveTab] = useState("overview");
   const [data, setData] = useState(null);
@@ -128,7 +150,15 @@ async function fetchCustomerFiles(customerId) {
       setLedger(Array.isArray(maybeLedger) ? maybeLedger : []);
     } catch (error) {
       console.error("CRM Customer 360 loading error:", error);
-      setMessage(fa ? "خطا در دریافت اطلاعات CRM. بک‌اند را ری‌استارت کن." : "CRM loading error. Restart backend.");
+      setMessage(
+        language === "fa"
+          ? "خطا در دریافت اطلاعات CRM. بک‌اند را ری‌استارت کن."
+          : language === "ar"
+          ? "خطأ في تحميل بيانات CRM. أعد تشغيل الخادم الخلفي."
+          : language === "tr"
+          ? "CRM verileri yüklenirken hata oluştu. Sunucuyu yeniden başlatın."
+          : "CRM loading error. Restart backend."
+      );
     } finally {
       setLoading(false);
     }
@@ -151,7 +181,7 @@ async function fetchCustomerFiles(customerId) {
 
   async function removeNote(note) {
     if (!note?.id) return;
-    if (!window.confirm(fa ? "یادداشت حذف شود؟" : "Delete note?")) return;
+    if (!window.confirm(language === "fa" ? "یادداشت حذف شود؟" : language === "ar" ? "هل تريد حذف الملاحظة؟" : language === "tr" ? "Not silinsin mi?" : "Delete note?")) return;
     await deleteCrmNote(note.id);
     await loadCustomer360();
   }
@@ -168,7 +198,7 @@ async function fetchCustomerFiles(customerId) {
   }
 
   async function removeTask(taskId) {
-    if (!window.confirm(fa ? "وظیفه حذف شود؟" : "Delete task?")) return;
+    if (!window.confirm(language === "fa" ? "وظیفه حذف شود؟" : language === "ar" ? "هل تريد حذف المهمة؟" : language === "tr" ? "Görev silinsin mi?" : "Delete task?")) return;
     await deleteCrmTask(taskId);
     await loadCustomer360();
   }
@@ -187,7 +217,7 @@ async function fetchCustomerFiles(customerId) {
     if (points <= 0) return;
     await redeemCrmCustomerPoints(id, {
       points,
-      note: fa ? "تبدیل امتیاز به اعتبار هدیه" : "Redeemed loyalty points",
+      note: language === "fa" ? "تبدیل امتیاز به اعتبار هدیه" : language === "ar" ? "استبدال النقاط برصيد هدية" : language === "tr" ? "Puanlar hediye bakiyesine dönüştürüldü" : "Redeemed loyalty points",
     });
     setRedeemPointsValue("");
     await loadCustomer360();
@@ -213,12 +243,12 @@ async function fetchCustomerFiles(customerId) {
       throw new Error(txt || "Upload failed");
     }
 
-    setMessage(fa ? "فایل با موفقیت آپلود شد." : "File uploaded.");
+    setMessage(language === "fa" ? "فایل با موفقیت آپلود شد." : language === "ar" ? "تم رفع الملف بنجاح." : language === "tr" ? "Dosya başarıyla yüklendi." : "File uploaded.");
     await loadCustomer360();
   }
 
   async function deleteCustomerFile(fileId) {
-    if (!window.confirm(fa ? "فایل حذف شود؟" : "Delete file?")) return;
+    if (!window.confirm(language === "fa" ? "فایل حذف شود؟" : language === "ar" ? "هل تريد حذف الملف؟" : language === "tr" ? "Dosya silinsin mi?" : "Delete file?")) return;
 
     const res = await fetch(`${API_BASE}/api/crm/files/${fileId}`, {
       method: "DELETE",
@@ -227,7 +257,7 @@ async function fetchCustomerFiles(customerId) {
 
     if (!res.ok) throw new Error("Delete failed");
 
-    setMessage(fa ? "فایل حذف شد." : "File deleted.");
+    setMessage(language === "fa" ? "فایل حذف شد." : language === "ar" ? "تم حذف الملف." : language === "tr" ? "Dosya silindi." : "File deleted.");
     await loadCustomer360();
   }
 
@@ -251,7 +281,7 @@ async function fetchCustomerFiles(customerId) {
       id: `note-${note.id}`,
       type: note.note_type || "note",
       source: "note",
-      title: note.title || (fa ? "یادداشت" : "Note"),
+      title: note.title || (language === "fa" ? "یادداشت" : language === "ar" ? "ملاحظة" : language === "tr" ? "Not" : "Note"),
       description: note.text || "",
       created_at: note.created_at,
     }));
@@ -267,16 +297,24 @@ async function fetchCustomerFiles(customerId) {
     }));
 
     return [...timeline, ...noteEvents, ...taskEvents];
-  }, [timeline, notes, tasks, fa]);
+  }, [timeline, notes, tasks, language]);
 
   if (!customer) {
     return (
       <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] p-8">
         <Link to="/customers" className="text-[var(--erp-accent)] font-bold">
-          {fa ? "بازگشت به طرف‌حساب‌ها" : "Back to customers"}
+          {language === "fa" ? "بازگشت به طرف‌حساب‌ها" : language === "ar" ? "العودة إلى الأطراف" : language === "tr" ? "Carilere dön" : "Back to customers"}
         </Link>
         <div className="mt-6">
-          {loading ? (fa ? "در حال بارگذاری..." : "Loading...") : message || (fa ? "اطلاعاتی یافت نشد." : "No data found.")}
+          {loading
+            ? language === "fa"
+              ? "در حال بارگذاری..."
+              : language === "ar"
+              ? "جارٍ التحميل..."
+              : language === "tr"
+              ? "Yükleniyor..."
+              : "Loading..."
+            : message || (language === "fa" ? "اطلاعاتی یافت نشد." : language === "ar" ? "لم يتم العثور على بيانات." : language === "tr" ? "Veri bulunamadı." : "No data found.")}
         </div>
       </div>
     );
@@ -313,14 +351,18 @@ async function fetchCustomerFiles(customerId) {
         <div>
           <Link to="/customers" className="inline-flex items-center gap-2 text-[var(--erp-accent)] font-bold mb-4">
             <ArrowLeft size={18} />
-            {fa ? "بازگشت به طرف‌حساب‌ها" : "Back to customers"}
+            {language === "fa" ? "بازگشت به طرف‌حساب‌ها" : language === "ar" ? "العودة إلى الأطراف" : language === "tr" ? "Carilere dön" : "Back to customers"}
           </Link>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
-            {fa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Enterprise"}
+            {language === "fa" ? "پرونده ۳۶۰ درجه طرف‌حساب" : language === "ar" ? "ملف الطرف 360 درجة" : language === "tr" ? "360 Derece Cari Profili" : "Customer 360 Enterprise"}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa
+            {language === "fa"
               ? "پرونده کامل مالی، CRM، وفاداری، فایل‌ها، وظایف، تایم‌لاین و هوش فروش مشتری"
+              : language === "ar"
+              ? "ملف موحّد للمالية وCRM والولاء والملفات والمهام والجدول الزمني وذكاء المبيعات"
+              : language === "tr"
+              ? "Birleşik finans, CRM, sadakat, dosyalar, görevler, zaman çizelgesi ve satış zekası"
               : "Unified finance, CRM, loyalty, files, tasks, timeline and sales intelligence"}
           </p>
         </div>
@@ -331,7 +373,7 @@ async function fetchCustomerFiles(customerId) {
           className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
         </button>
       </div>
 

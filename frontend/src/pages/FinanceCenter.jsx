@@ -42,16 +42,22 @@ function toNumber(value) {
   );
 }
 
-function accountTypeLabel(type, fa) {
+function accountTypeLabel(type, language) {
   const mapFa = { cash: "صندوق", bank: "بانک", wallet: "کیف پول", card: "کارت", other: "سایر" };
+  const mapAr = { cash: "الصندوق", bank: "البنك", wallet: "المحفظة", card: "البطاقة", other: "أخرى" };
+  const mapTr = { cash: "Kasa", bank: "Banka", wallet: "Cüzdan", card: "Kart", other: "Diğer" };
   const mapEn = { cash: "Cash", bank: "Bank", wallet: "Wallet", card: "Card", other: "Other" };
-  return fa ? mapFa[type] || type : mapEn[type] || type;
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[type] || type;
 }
 
-function transactionTypeLabel(type, fa) {
+function transactionTypeLabel(type, language) {
   const mapFa = { income: "دریافت", expense: "پرداخت", transfer: "انتقال" };
+  const mapAr = { income: "مقبوضات", expense: "مدفوعات", transfer: "تحويل" };
+  const mapTr = { income: "Tahsilat", expense: "Ödeme", transfer: "Transfer" };
   const mapEn = { income: "Income", expense: "Expense", transfer: "Transfer" };
-  return fa ? mapFa[type] || type : mapEn[type] || type;
+  const map = language === "fa" ? mapFa : language === "ar" ? mapAr : language === "tr" ? mapTr : mapEn;
+  return map[type] || type;
 }
 
 function typeIcon(type) {
@@ -123,8 +129,12 @@ export default function FinanceCenter() {
       setTransactions(demoTransactions);
       setSummary(null);
       setMessage(
-        fa
+        language === "fa"
           ? "فعلاً API مرکز مالی فعال نیست؛ صفحه در حالت نمایشی اجرا شده است."
+          : language === "ar"
+          ? "واجهة برمجة مركز المالية غير مفعّلة بعد؛ الصفحة تعمل في وضع العرض التوضيحي."
+          : language === "tr"
+          ? "Finans Merkezi API'si henüz etkin değil; sayfa demo modunda çalışıyor."
           : "Finance API is not active yet; running in demo mode."
       );
     } finally {
@@ -173,7 +183,7 @@ export default function FinanceCenter() {
 
   async function createAccount() {
     if (!accountForm.name.trim()) {
-      setMessage(fa ? "نام حساب را وارد کن." : "Enter account name.");
+      setMessage(language === "fa" ? "نام حساب را وارد کن." : language === "ar" ? "أدخل اسم الحساب." : language === "tr" ? "Hesap adını girin." : "Enter account name.");
       return;
     }
 
@@ -203,19 +213,19 @@ export default function FinanceCenter() {
 
       setShowAccountForm(false);
       setAccountForm({ name: "", type: "cash", opening_balance: "" });
-      setMessage(fa ? "حساب مالی ثبت شد." : "Account created.");
+      setMessage(language === "fa" ? "حساب مالی ثبت شد." : language === "ar" ? "تم إنشاء الحساب." : language === "tr" ? "Hesap oluşturuldu." : "Account created.");
     } catch (error) {
-      setMessage(error.message || (fa ? "خطا در ثبت حساب" : "Account error"));
+      setMessage(error.message || (language === "fa" ? "خطا در ثبت حساب" : language === "ar" ? "خطأ في إنشاء الحساب" : language === "tr" ? "Hesap oluşturma hatası" : "Account error"));
     }
   }
 
   async function createTransaction() {
     if (!transactionForm.account_id && accounts.length > 0) {
-      setMessage(fa ? "حساب مالی را انتخاب کن." : "Select an account.");
+      setMessage(language === "fa" ? "حساب مالی را انتخاب کن." : language === "ar" ? "اختر حسابًا." : language === "tr" ? "Bir hesap seçin." : "Select an account.");
       return;
     }
     if (toNumber(transactionForm.amount) <= 0) {
-      setMessage(fa ? "مبلغ معتبر وارد کن." : "Enter a valid amount.");
+      setMessage(language === "fa" ? "مبلغ معتبر وارد کن." : language === "ar" ? "أدخل مبلغًا صحيحًا." : language === "tr" ? "Geçerli bir tutar girin." : "Enter a valid amount.");
       return;
     }
 
@@ -241,7 +251,7 @@ export default function FinanceCenter() {
               payload.type === "transfer"
                 ? `${account?.name || "-"} ← ${toAccount?.name || "-"}`
                 : account?.name || "-",
-            description: payload.description || transactionTypeLabel(payload.type, fa),
+            description: payload.description || transactionTypeLabel(payload.type, language),
             created_at: new Date().toISOString(),
           },
           ...prev,
@@ -280,9 +290,9 @@ export default function FinanceCenter() {
         amount: "",
         description: "",
       });
-      setMessage(fa ? "تراکنش ثبت شد." : "Transaction created.");
+      setMessage(language === "fa" ? "تراکنش ثبت شد." : language === "ar" ? "تم إنشاء المعاملة." : language === "tr" ? "İşlem oluşturuldu." : "Transaction created.");
     } catch (error) {
-      setMessage(error.message || (fa ? "خطا در ثبت تراکنش" : "Transaction error"));
+      setMessage(error.message || (language === "fa" ? "خطا در ثبت تراکنش" : language === "ar" ? "خطأ في إنشاء المعاملة" : language === "tr" ? "İşlem oluşturma hatası" : "Transaction error"));
     }
   }
 

@@ -65,6 +65,10 @@ export default function Login() {
           setError(
             fa
               ? "ارتباط با سرویس Vetrix برقرار نشد. چند ثانیه بعد دوباره تلاش کنید."
+              : language === "ar"
+              ? "تعذّر الاتصال بخدمة Vetrix. يُرجى إعادة المحاولة خلال ثوانٍ قليلة."
+              : language === "tr"
+              ? "Vetrix hizmetine ulaşılamıyor. Birkaç saniye sonra tekrar deneyin."
               : "Vetrix service is not reachable. Retry in a few seconds.",
           );
         }
@@ -92,7 +96,13 @@ export default function Login() {
     } catch (loginError) {
       setError(
         loginError?.message ||
-          (fa ? "نام کاربری یا رمز عبور صحیح نیست." : "Invalid username or password."),
+          (fa
+            ? "نام کاربری یا رمز عبور صحیح نیست."
+            : language === "ar"
+            ? "اسم المستخدم أو كلمة المرور غير صحيحة."
+            : language === "tr"
+            ? "Kullanıcı adı veya parola hatalı."
+            : "Invalid username or password."),
       );
     } finally {
       setSubmitting(false);
@@ -114,7 +124,13 @@ export default function Login() {
     } catch (totpError) {
       setError(
         totpError?.message ||
-          (fa ? "کد وارد شده صحیح نیست." : "That code isn't valid."),
+          (fa
+            ? "کد وارد شده صحیح نیست."
+            : language === "ar"
+            ? "الرمز المُدخل غير صالح."
+            : language === "tr"
+            ? "Girilen kod geçerli değil."
+            : "That code isn't valid."),
       );
     } finally {
       setSubmitting(false);
@@ -125,11 +141,27 @@ export default function Login() {
     event.preventDefault();
     setError("");
     if (passwordChange.new_password.length < 12) {
-      setError(fa ? "رمز عبور جدید باید حداقل ۱۲ نویسه باشد." : "New password must contain at least 12 characters.");
+      setError(
+        fa
+          ? "رمز عبور جدید باید حداقل ۱۲ نویسه باشد."
+          : language === "ar"
+          ? "يجب أن تتكوّن كلمة المرور الجديدة من 12 حرفًا على الأقل."
+          : language === "tr"
+          ? "Yeni parola en az 12 karakter içermelidir."
+          : "New password must contain at least 12 characters.",
+      );
       return;
     }
     if (passwordChange.new_password !== passwordChange.confirm_password) {
-      setError(fa ? "تکرار رمز عبور جدید مطابقت ندارد." : "New password confirmation does not match.");
+      setError(
+        fa
+          ? "تکرار رمز عبور جدید مطابقت ندارد."
+          : language === "ar"
+          ? "تأكيد كلمة المرور الجديدة غير متطابق."
+          : language === "tr"
+          ? "Yeni parola onayı eşleşmiyor."
+          : "New password confirmation does not match.",
+      );
       return;
     }
     setSubmitting(true);
@@ -137,7 +169,16 @@ export default function Login() {
       await changePassword(passwordChange.current_password, passwordChange.new_password);
       navigate("/", { replace: true });
     } catch (changeError) {
-      setError(changeError?.message || (fa ? "تغییر رمز عبور انجام نشد." : "Password change failed."));
+      setError(
+        changeError?.message ||
+          (fa
+            ? "تغییر رمز عبور انجام نشد."
+            : language === "ar"
+            ? "فشل تغيير كلمة المرور."
+            : language === "tr"
+            ? "Parola değişikliği başarısız oldu."
+            : "Password change failed."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -147,11 +188,27 @@ export default function Login() {
     event.preventDefault();
     setError("");
     if (setup.password.length < 10) {
-      setError(fa ? "رمز عبور باید حداقل ۱۰ کاراکتر باشد." : "Password must contain at least 10 characters.");
+      setError(
+        fa
+          ? "رمز عبور باید حداقل ۱۰ کاراکتر باشد."
+          : language === "ar"
+          ? "يجب أن تتكوّن كلمة المرور من 10 أحرف على الأقل."
+          : language === "tr"
+          ? "Parola en az 10 karakter içermelidir."
+          : "Password must contain at least 10 characters.",
+      );
       return;
     }
     if (setup.password !== setup.confirm_password) {
-      setError(fa ? "تکرار رمز عبور مطابقت ندارد." : "Password confirmation does not match.");
+      setError(
+        fa
+          ? "تکرار رمز عبور مطابقت ندارد."
+          : language === "ar"
+          ? "تأكيد كلمة المرور غير متطابق."
+          : language === "tr"
+          ? "Parola onayı eşleşmiyor."
+          : "Password confirmation does not match.",
+      );
       return;
     }
     setSubmitting(true);
@@ -173,7 +230,16 @@ export default function Login() {
       await login(setup.username.trim(), setup.password);
       navigate("/", { replace: true });
     } catch (setupError) {
-      setError(setupError?.message || (fa ? "ساخت مدیر انجام نشد." : "Administrator setup failed."));
+      setError(
+        setupError?.message ||
+          (fa
+            ? "ساخت مدیر انجام نشد."
+            : language === "ar"
+            ? "فشل إعداد المسؤول."
+            : language === "tr"
+            ? "Yönetici kurulumu başarısız oldu."
+            : "Administrator setup failed."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -212,8 +278,20 @@ export default function Login() {
           <div className="relative flex items-center justify-between gap-3 mb-2">
             <h1 className="text-2xl sm:text-3xl font-black text-[var(--erp-text)]">
               {mode === "setup"
-                ? fa ? "راه‌اندازی اولیه" : "First-run setup"
-                : fa ? "خوش آمدید" : "Welcome back"}
+                ? fa
+                  ? "راه‌اندازی اولیه"
+                  : language === "ar"
+                  ? "الإعداد الأولي"
+                  : language === "tr"
+                  ? "İlk kurulum"
+                  : "First-run setup"
+                : fa
+                ? "خوش آمدید"
+                : language === "ar"
+                ? "مرحبًا بعودتك"
+                : language === "tr"
+                ? "Tekrar hoş geldiniz"
+                : "Welcome back"}
             </h1>
             <span className="rounded-full bg-[var(--erp-glow)] border border-[var(--erp-border)] px-3 py-1 text-xs font-bold text-[var(--erp-accent)] whitespace-nowrap">
               v{version}
@@ -223,9 +301,17 @@ export default function Login() {
             {mode === "setup"
               ? fa
                 ? "راه‌اندازی امن و ساخت مدیر اولیه"
+                : language === "ar"
+                ? "إعداد أولي آمن وإنشاء المسؤول"
+                : language === "tr"
+                ? "Güvenli ilk kurulum ve yönetici oluşturma"
                 : "Secure first-run administrator setup"
               : fa
                 ? "سیستم حرفه‌ای حسابداری و مدیریت"
+                : language === "ar"
+                ? "نظام محاسبي وإداري احترافي"
+                : language === "tr"
+                ? "Profesyonel Muhasebe Sistemi"
                 : "Professional Accounting System"}
           </p>
 
@@ -245,7 +331,15 @@ export default function Login() {
                 >
                   <ShieldCheck size={42} />
                 </motion.div>
-                <div>{fa ? "در حال بررسی نصب..." : "Checking installation..."}</div>
+                <div>
+                  {fa
+                    ? "در حال بررسی نصب..."
+                    : language === "ar"
+                    ? "جارٍ التحقق من التثبيت..."
+                    : language === "tr"
+                    ? "Kurulum kontrol ediliyor..."
+                    : "Checking installation..."}
+                </div>
               </motion.div>
             )}
 
