@@ -42,8 +42,10 @@ import {
   Area,
 } from "recharts";
 
+import moment from "moment-jalaali";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
+import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
 
 import {
   downloadAuthenticatedFile,
@@ -75,6 +77,37 @@ const SOURCE_TYPE_LABELS = {
 function sourceTypeLabel(value, language) {
   const map = SOURCE_TYPE_LABELS[language] || SOURCE_TYPE_LABELS.en;
   return map[value] || value || "-";
+}
+
+const JALALI_MONTHS_FA = [
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+];
+const GREGORIAN_MONTHS_TR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const GREGORIAN_MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// The dataset buckets transactions by Gregorian calendar month ("2026-07"),
+// so charts must translate each bucket into the calendar the active
+// language actually uses (Jalali for fa, Hijri for ar) rather than just
+// swapping the Gregorian digits to Persian glyphs - a bucket label is a
+// month name, not a number, and staying on the Gregorian calendar while
+// every other date in the app switches would be inconsistent.
+function formatMonthLabel(monthKey, language) {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ""));
+  if (!match) return monthKey;
+  const [, y, m] = match;
+  const midMonth = new Date(Number(y), Number(m) - 1, 15);
+
+  if (language === "fa") {
+    const jm = moment(midMonth);
+    return `${JALALI_MONTHS_FA[jm.jMonth()]} ${toPersianDigits(jm.jYear())}`;
+  }
+  if (language === "ar") {
+    const h = toHijri(midMonth.getFullYear(), midMonth.getMonth() + 1, midMonth.getDate());
+    return `${HIJRI_MONTHS_AR[h.month - 1]} ${h.year}`;
+  }
+  const names = language === "tr" ? GREGORIAN_MONTHS_TR : GREGORIAN_MONTHS_EN;
+  return `${names[Number(m) - 1]} ${y}`;
 }
 
 function toNumber(value) {
@@ -608,9 +641,9 @@ export default function Reports() {
                 <BarChart data={financialChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="name" stroke="#cbd5e1" />
-                  <YAxis stroke="#cbd5e1" tickFormatter={n} />
+                  <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
                   <Tooltip content={<ChartTooltip money={money} />} />
-                  <Bar dataKey="value" fill="#22d3ee" radius={[12, 12, 0, 0]} />
+                  <Bar dataKey="value" name={tr("مقدار", "القيمة", "Değer", "Value")} fill="#22d3ee" radius={[12, 12, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartPanel>
@@ -658,9 +691,9 @@ export default function Reports() {
               <BarChart data={financialChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" tickFormatter={n} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
                 <Tooltip content={<ChartTooltip money={money} />} />
-                <Bar dataKey="value" fill="#34d399" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="value" name={tr("مقدار", "القيمة", "Değer", "Value")} fill="#34d399" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartPanel>
@@ -670,9 +703,9 @@ export default function Reports() {
               <AreaChart data={cashflowChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" tickFormatter={n} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
                 <Tooltip content={<ChartTooltip money={money} />} />
-                <Area type="monotone" dataKey="value" stroke="#22d3ee" fill="#22d3ee55" />
+                <Area type="monotone" dataKey="value" name={tr("مقدار", "القيمة", "Değer", "Value")} stroke="#22d3ee" fill="#22d3ee55" />
               </AreaChart>
             </ResponsiveContainer>
           </ChartPanel>
@@ -681,11 +714,11 @@ export default function Reports() {
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="month" stroke="#cbd5e1" tickFormatter={(m) => (language === "fa" ? toPersianDigits(m) : m)} />
-                <YAxis stroke="#cbd5e1" tickFormatter={n} />
-                <Tooltip content={<ChartTooltip money={money} />} />
-                <Line type="monotone" dataKey="receipts" stroke="#34d399" strokeWidth={3} />
-                <Line type="monotone" dataKey="payments" stroke="#fb7185" strokeWidth={3} />
+                <XAxis dataKey="month" stroke="#cbd5e1" tickFormatter={(m) => formatMonthLabel(m, language)} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
+                <Tooltip content={<ChartTooltip money={money} />} labelFormatter={(m) => formatMonthLabel(m, language)} />
+                <Line type="monotone" dataKey="receipts" name={tr("دریافت", "المقبوضات", "Tahsilat", "Receipts")} stroke="#34d399" strokeWidth={3} />
+                <Line type="monotone" dataKey="payments" name={tr("پرداخت", "المدفوعات", "Ödemeler", "Payments")} stroke="#fb7185" strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           </ChartPanel>
@@ -695,9 +728,9 @@ export default function Reports() {
               <BarChart data={inventoryChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" tickFormatter={n} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
                 <Tooltip content={<ChartTooltip money={money} />} />
-                <Bar dataKey="value" fill="#a78bfa" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="value" name={tr("مقدار", "القيمة", "Değer", "Value")} fill="#a78bfa" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartPanel>
@@ -753,10 +786,10 @@ export default function Reports() {
               <BarChart data={productProfitChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="name" stroke="#cbd5e1" />
-                <YAxis stroke="#cbd5e1" tickFormatter={n} />
+                <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
                 <Tooltip content={<ChartTooltip money={money} />} />
-                <Bar dataKey="profit" fill="#22d3ee" radius={[12, 12, 0, 0]} />
-                <Bar dataKey="revenue" fill="#34d399" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="profit" name={tr("سود", "الربح", "Kâr", "Profit")} fill="#22d3ee" radius={[12, 12, 0, 0]} />
+                <Bar dataKey="revenue" name={tr("درآمد", "الإيراد", "Gelir", "Revenue")} fill="#34d399" radius={[12, 12, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartPanel>

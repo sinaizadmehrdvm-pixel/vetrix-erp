@@ -109,6 +109,7 @@ export default function SalesChart({ data = [] }) {
               stroke="var(--erp-muted)"
               tickFormatter={(value) => n(value)}
               tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
+              width={80}
             />
 
             <Tooltip
