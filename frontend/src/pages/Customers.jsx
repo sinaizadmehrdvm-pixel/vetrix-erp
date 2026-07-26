@@ -1047,7 +1047,7 @@ export default function Customers() {
                           className="px-3 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl flex items-center gap-1"
                         >
                           <Eye size={15} />
-                          {fa ? "پرونده 360°" : "360° Profile"}
+                          {fa ? "پرونده ۳۶۰°" : "360° Profile"}
                         </Link>
 
                         <button
