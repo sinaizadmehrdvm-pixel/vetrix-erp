@@ -37,7 +37,8 @@ function currentYearForm() {
 export default function FiscalPeriods() {
   const { user } = useAuth();
   const { language, dir, date, money, n } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const isAdmin = user?.role === "admin";
   const [periods, setPeriods] = useState([]);
   const [form, setForm] = useState(currentYearForm);
@@ -47,36 +48,48 @@ export default function FiscalPeriods() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "مدیریت دوره‌های مالی" : "Fiscal Period Management",
-    subtitle: fa
-      ? "ایجاد سال مالی، کنترل تراز اسناد و قفل عملیات دوره‌های بسته"
-      : "Create fiscal years, verify voucher balance, and lock closed-period activity",
-    refresh: fa ? "به‌روزرسانی" : "Refresh",
-    newPeriod: fa ? "ایجاد دوره مالی جدید" : "Create a Fiscal Period",
-    name: fa ? "نام دوره" : "Period name",
-    start: fa ? "تاریخ شروع" : "Start date",
-    end: fa ? "تاریخ پایان" : "End date",
-    create: fa ? "ایجاد دوره" : "Create period",
-    open: fa ? "باز" : "Open",
-    closed: fa ? "بسته" : "Closed",
-    close: fa ? "بستن دوره" : "Close period",
-    reopen: fa ? "بازگشایی دوره" : "Reopen period",
-    vouchers: fa ? "تعداد اسناد" : "Vouchers",
-    debit: fa ? "جمع بدهکار" : "Total debit",
-    credit: fa ? "جمع بستانکار" : "Total credit",
-    difference: fa ? "اختلاف" : "Difference",
-    balanced: fa ? "تراز" : "Balanced",
-    unbalanced: fa ? "دارای اختلاف" : "Out of balance",
-    empty: fa ? "هنوز دوره مالی ایجاد نشده است." : "No fiscal periods have been created.",
-    adminOnly: fa
-      ? "ایجاد، بستن و بازگشایی دوره فقط برای مدیر سیستم فعال است."
-      : "Only administrators can create, close, or reopen fiscal periods.",
-    closeWarning: fa
-      ? "پس از بستن دوره، ثبت، تغییر یا حذف اسناد آن ممکن نیست. دوره بسته شود؟"
-      : "Closing locks voucher creation, changes, and deletion in this period. Continue?",
-    reopenWarning: fa
-      ? "با بازگشایی، عملیات مالی این دوره دوباره فعال می‌شود. ادامه می‌دهید؟"
-      : "Reopening enables financial activity in this period again. Continue?",
+    title: tr("مدیریت دوره‌های مالی", "إدارة الفترات المالية", "Mali Dönem Yönetimi", "Fiscal Period Management"),
+    subtitle: tr(
+      "ایجاد سال مالی، کنترل تراز اسناد و قفل عملیات دوره‌های بسته",
+      "إنشاء سنة مالية، والتحقق من توازن المستندات، وقفل نشاط الفترات المغلقة",
+      "Mali yıl oluşturma, belge dengesini kontrol etme ve kapalı dönem işlemlerini kilitleme",
+      "Create fiscal years, verify voucher balance, and lock closed-period activity"
+    ),
+    refresh: tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh"),
+    newPeriod: tr("ایجاد دوره مالی جدید", "إنشاء فترة مالية جديدة", "Yeni mali dönem oluştur", "Create a Fiscal Period"),
+    name: tr("نام دوره", "اسم الفترة", "Dönem adı", "Period name"),
+    start: tr("تاریخ شروع", "تاريخ البدء", "Başlangıç tarihi", "Start date"),
+    end: tr("تاریخ پایان", "تاريخ الانتهاء", "Bitiş tarihi", "End date"),
+    create: tr("ایجاد دوره", "إنشاء الفترة", "Dönem oluştur", "Create period"),
+    open: tr("باز", "مفتوحة", "Açık", "Open"),
+    closed: tr("بسته", "مغلقة", "Kapalı", "Closed"),
+    close: tr("بستن دوره", "إغلاق الفترة", "Dönemi kapat", "Close period"),
+    reopen: tr("بازگشایی دوره", "إعادة فتح الفترة", "Dönemi yeniden aç", "Reopen period"),
+    vouchers: tr("تعداد اسناد", "عدد المستندات", "Belge sayısı", "Vouchers"),
+    debit: tr("جمع بدهکار", "إجمالي المدين", "Toplam borç", "Total debit"),
+    credit: tr("جمع بستانکار", "إجمالي الدائن", "Toplam alacak", "Total credit"),
+    difference: tr("اختلاف", "الفرق", "Fark", "Difference"),
+    balanced: tr("تراز", "متوازن", "Dengeli", "Balanced"),
+    unbalanced: tr("دارای اختلاف", "غير متوازن", "Dengesiz", "Out of balance"),
+    empty: tr("هنوز دوره مالی ایجاد نشده است.", "لم يتم إنشاء أي فترة مالية بعد.", "Henüz mali dönem oluşturulmadı.", "No fiscal periods have been created."),
+    adminOnly: tr(
+      "ایجاد، بستن و بازگشایی دوره فقط برای مدیر سیستم فعال است.",
+      "إنشاء الفترات وإغلاقها وإعادة فتحها متاح فقط لمدير النظام.",
+      "Dönem oluşturma, kapatma ve yeniden açma yalnızca sistem yöneticisi içindir.",
+      "Only administrators can create, close, or reopen fiscal periods."
+    ),
+    closeWarning: tr(
+      "پس از بستن دوره، ثبت، تغییر یا حذف اسناد آن ممکن نیست. دوره بسته شود؟",
+      "بعد إغلاق الفترة، لا يمكن تسجيل أو تعديل أو حذف مستنداتها. هل تريد إغلاق الفترة؟",
+      "Dönem kapatıldıktan sonra belge oluşturma, değiştirme veya silme mümkün değildir. Dönem kapatılsın mı?",
+      "Closing locks voucher creation, changes, and deletion in this period. Continue?"
+    ),
+    reopenWarning: tr(
+      "با بازگشایی، عملیات مالی این دوره دوباره فعال می‌شود. ادامه می‌دهید؟",
+      "بإعادة الفتح، سيتم تفعيل النشاط المالي لهذه الفترة مرة أخرى. هل تريد المتابعة؟",
+      "Yeniden açıldığında bu dönemin mali işlemleri tekrar etkinleşir. Devam edilsin mi?",
+      "Reopening enables financial activity in this period again. Continue?"
+    ),
   };
 
   async function load() {
@@ -86,7 +99,7 @@ export default function FiscalPeriods() {
       const data = await getFiscalPeriods();
       setPeriods(Array.isArray(data) ? data : []);
     } catch (requestError) {
-      setError(requestError.message || (fa ? "خطا در دریافت دوره‌ها" : "Unable to load periods"));
+      setError(requestError.message || tr("خطا در دریافت دوره‌ها", "خطأ في تحميل الفترات", "Dönemler yüklenirken hata oluştu", "Unable to load periods"));
     } finally {
       setLoading(false);
     }
@@ -117,17 +130,17 @@ export default function FiscalPeriods() {
     event.preventDefault();
     if (!isAdmin || creating) return;
     if (!form.name.trim() || !form.start_date || !form.end_date) {
-      toast.error(fa ? "همه فیلدها الزامی هستند." : "All fields are required.");
+      toast.error(tr("همه فیلدها الزامی هستند.", "جميع الحقول مطلوبة.", "Tüm alanlar zorunludur.", "All fields are required."));
       return;
     }
     if (form.end_date < form.start_date) {
-      toast.error(fa ? "تاریخ پایان باید بعد از شروع باشد." : "End date must be after start date.");
+      toast.error(tr("تاریخ پایان باید بعد از شروع باشد.", "يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء.", "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.", "End date must be after start date."));
       return;
     }
     setCreating(true);
     try {
       await createFiscalPeriod({ ...form, name: form.name.trim() });
-      toast.success(fa ? "دوره مالی ایجاد شد." : "Fiscal period created.");
+      toast.success(tr("دوره مالی ایجاد شد.", "تم إنشاء الفترة المالية.", "Mali dönem oluşturuldu.", "Fiscal period created."));
       setForm(currentYearForm());
       await load();
     } catch (requestError) {
@@ -144,9 +157,12 @@ export default function FiscalPeriods() {
       let warning = action === "close" ? copy.closeWarning : copy.reopenWarning;
       if (action === "close") {
         const preview = await getFiscalClosingPreview(period.id);
-        warning += fa
-          ? `\n\nسود/زیان خالص: ${money(preview.net_income)}\nحساب‌های قابل بستن: ${n(preview.accounts.length)}`
-          : `\n\nNet income/loss: ${money(preview.net_income)}\nAccounts to close: ${n(preview.accounts.length)}`;
+        warning += tr(
+          `\n\nسود/زیان خالص: ${money(preview.net_income)}\nحساب‌های قابل بستن: ${n(preview.accounts.length)}`,
+          `\n\nصافي الربح/الخسارة: ${money(preview.net_income)}\nالحسابات القابلة للإغلاق: ${n(preview.accounts.length)}`,
+          `\n\nNet kâr/zarar: ${money(preview.net_income)}\nKapatılacak hesaplar: ${n(preview.accounts.length)}`,
+          `\n\nNet income/loss: ${money(preview.net_income)}\nAccounts to close: ${n(preview.accounts.length)}`
+        );
       }
       if (!window.confirm(warning)) {
         setBusyId(null);
@@ -156,8 +172,8 @@ export default function FiscalPeriods() {
       else await reopenFiscalPeriod(period.id);
       toast.success(
         action === "close"
-          ? fa ? "دوره مالی بسته شد." : "Fiscal period closed."
-          : fa ? "دوره مالی بازگشایی شد." : "Fiscal period reopened.",
+          ? tr("دوره مالی بسته شد.", "تم إغلاق الفترة المالية.", "Mali dönem kapatıldı.", "Fiscal period closed.")
+          : tr("دوره مالی بازگشایی شد.", "تم إعادة فتح الفترة المالية.", "Mali dönem yeniden açıldı.", "Fiscal period reopened."),
       );
       await load();
     } catch (requestError) {
@@ -220,8 +236,8 @@ export default function FiscalPeriods() {
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 22 }}>
         {[
-          [CalendarDays, fa ? "کل دوره‌ها" : "Periods", n(periods.length), "var(--erp-accent)"],
-          [UnlockKeyhole, fa ? "دوره‌های باز" : "Open periods", n(totals.open), "#86efac"],
+          [CalendarDays, tr("کل دوره‌ها", "إجمالي الفترات", "Toplam dönemler", "Periods"), n(periods.length), "var(--erp-accent)"],
+          [UnlockKeyhole, tr("دوره‌های باز", "الفترات المفتوحة", "Açık dönemler", "Open periods"), n(totals.open), "#86efac"],
           [FileText, copy.vouchers, n(totals.vouchers), "#c4b5fd"],
           [Scale, copy.difference, money(Math.abs(totals.debit - totals.credit)), Math.abs(totals.debit - totals.credit) < 0.01 ? "#86efac" : "#fca5a5"],
         ].map(([Icon, label, value, color]) => (

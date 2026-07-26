@@ -46,24 +46,43 @@ const emptyForm = {
 const inputClass =
   "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all min-h-[58px]";
 
-const faReasons = {
-  invoice_payment: "بابت فاکتور",
-  advance: "علی‌الحساب",
-  debt_settlement: "تسویه بدهی",
-  service_fee: "هزینه خدمات",
-  salary: "حقوق / دستمزد",
-  rent: "اجاره",
-  other: "سایر",
-};
-
-const enReasons = {
-  invoice_payment: "Invoice payment",
-  advance: "Advance payment",
-  debt_settlement: "Debt settlement",
-  service_fee: "Service fee",
-  salary: "Salary",
-  rent: "Rent",
-  other: "Other",
+const REASON_LABELS = {
+  fa: {
+    invoice_payment: "بابت فاکتور",
+    advance: "علی‌الحساب",
+    debt_settlement: "تسویه بدهی",
+    service_fee: "هزینه خدمات",
+    salary: "حقوق / دستمزد",
+    rent: "اجاره",
+    other: "سایر",
+  },
+  ar: {
+    invoice_payment: "مقابل فاتورة",
+    advance: "دفعة مقدمة",
+    debt_settlement: "تسوية دين",
+    service_fee: "رسوم خدمة",
+    salary: "راتب / أجر",
+    rent: "إيجار",
+    other: "أخرى",
+  },
+  tr: {
+    invoice_payment: "Fatura karşılığı",
+    advance: "Avans ödemesi",
+    debt_settlement: "Borç kapatma",
+    service_fee: "Hizmet ücreti",
+    salary: "Maaş / ücret",
+    rent: "Kira",
+    other: "Diğer",
+  },
+  en: {
+    invoice_payment: "Invoice payment",
+    advance: "Advance payment",
+    debt_settlement: "Debt settlement",
+    service_fee: "Service fee",
+    salary: "Salary",
+    rent: "Rent",
+    other: "Other",
+  },
 };
 
 function toEnglishDigits(value) {
@@ -91,9 +110,8 @@ function todayByLanguage() {
 }
 
 function getReasonLabel(reason, language) {
-  return language === "fa"
-    ? faReasons[reason] || reason || "-"
-    : enReasons[reason] || reason || "-";
+  const map = REASON_LABELS[language] || REASON_LABELS.en;
+  return map[reason] || reason || "-";
 }
 
 function normalizeParty(party = {}) {
@@ -140,7 +158,8 @@ function normalizeTransaction(item = {}) {
 
 export default function Transactions() {
   const { t, money, language, dir, date } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   const [transactions, setTransactions] = useState([]);
   const [parties, setParties] = useState([]);
@@ -192,9 +211,12 @@ export default function Transactions() {
 
       setOfflineMode(true);
       setMessage(
-        fa
-          ? "اتصال به سرور برقرار نشد؛ تراکنش‌ها از حافظه آفلاین نمایش داده شدند."
-          : "Server unavailable; transactions loaded from offline cache."
+        tr(
+          "اتصال به سرور برقرار نشد؛ تراکنش‌ها از حافظه آفلاین نمایش داده شدند.",
+          "تعذّر الاتصال بالخادم؛ يتم عرض المعاملات من الذاكرة المؤقتة دون اتصال.",
+          "Sunucuya bağlanılamadı; işlemler çevrimdışı önbellekten gösteriliyor.",
+          "Server unavailable; transactions loaded from offline cache."
+        )
       );
     } finally {
       setLoading(false);
@@ -224,7 +246,7 @@ export default function Transactions() {
     const map = {
       cash: t("cash"),
       card: t("card"),
-      pos: fa ? "کارتخوان" : "POS",
+      pos: tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS"),
       bank: t("bank"),
       cheque: t("cheque"),
     };
@@ -234,13 +256,13 @@ export default function Transactions() {
 
   function transactionTypeLabel(item) {
     if (item.type === "income" || item.source_type === "receipt") {
-      return fa ? "دریافت" : "Receipt";
+      return tr("دریافت", "مقبوضات", "Tahsilat", "Receipt");
     }
     if (item.type === "outcome" || item.source_type === "payment") {
-      return fa ? "پرداخت" : "Payment";
+      return tr("پرداخت", "مدفوعات", "Ödeme", "Payment");
     }
-    if (item.source_type === "invoice") return fa ? "فاکتور" : "Invoice";
-    if (item.source_type === "opening_balance") return fa ? "مانده اول دوره" : "Opening balance";
+    if (item.source_type === "invoice") return tr("فاکتور", "فاتورة", "Fatura", "Invoice");
+    if (item.source_type === "opening_balance") return tr("مانده اول دوره", "الرصيد الافتتاحي", "Açılış bakiyesi", "Opening balance");
     return item.source_type || "-";
   }
 
@@ -309,14 +331,14 @@ export default function Transactions() {
 
   async function saveTransaction() {
     if (!form.party_id || !form.amount) {
-      alert(fa ? "طرف‌حساب و مبلغ را وارد کن" : "Enter party and amount");
+      alert(tr("طرف‌حساب و مبلغ را وارد کن", "أدخل الطرف والمبلغ", "Cari ve tutarı girin", "Enter party and amount"));
       return;
     }
 
     const amount = toNumber(form.amount);
 
     if (amount <= 0) {
-      alert(fa ? "مبلغ معتبر نیست" : "Invalid amount");
+      alert(tr("مبلغ معتبر نیست", "المبلغ غير صالح", "Geçersiz tutar", "Invalid amount"));
       return;
     }
 
@@ -328,23 +350,26 @@ export default function Transactions() {
         : await createTransaction(payload);
 
       if (result?.status === "error") {
-        throw new Error(result.message || (fa ? "خطا در ثبت تراکنش" : "Transaction error"));
+        throw new Error(result.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Transaction error"));
       }
 
       resetForm();
       await load();
     } catch (error) {
       console.error("Save transaction error:", error);
-      alert(error.message || (fa ? "خطا در ثبت تراکنش" : "Error saving transaction"));
+      alert(error.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Error saving transaction"));
     }
   }
 
   function editTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
       alert(
-        fa
-          ? "فقط دریافت و پرداخت دستی قابل ویرایش است. فاکتور یا مانده اول دوره باید از صفحه خودش ویرایش شود."
-          : "Only manual receipts/payments can be edited. Edit invoices or opening balances from their own pages."
+        tr(
+          "فقط دریافت و پرداخت دستی قابل ویرایش است. فاکتور یا مانده اول دوره باید از صفحه خودش ویرایش شود.",
+          "يمكن تعديل المقبوضات والمدفوعات اليدوية فقط. يجب تعديل الفاتورة أو الرصيد الافتتاحي من صفحته الخاصة.",
+          "Yalnızca manuel tahsilat/ödeme düzenlenebilir. Fatura veya açılış bakiyesi kendi sayfasından düzenlenmelidir.",
+          "Only manual receipts/payments can be edited. Edit invoices or opening balances from their own pages."
+        )
       );
       return;
     }
@@ -367,14 +392,17 @@ export default function Transactions() {
   async function removeTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
       alert(
-        fa
-          ? "این رکورد از فاکتور یا مانده اول دوره ساخته شده و از این صفحه حذف نمی‌شود."
-          : "This record is generated from invoice/opening balance and cannot be deleted here."
+        tr(
+          "این رکورد از فاکتور یا مانده اول دوره ساخته شده و از این صفحه حذف نمی‌شود.",
+          "تم إنشاء هذا السجل من فاتورة أو رصيد افتتاحي ولا يمكن حذفه من هذه الصفحة.",
+          "Bu kayıt bir faturadan veya açılış bakiyesinden oluşturuldu ve bu sayfadan silinemez.",
+          "This record is generated from invoice/opening balance and cannot be deleted here."
+        )
       );
       return;
     }
 
-    const ok = window.confirm(fa ? "آیا از حذف تراکنش مطمئنی؟" : "Delete this transaction?");
+    const ok = window.confirm(tr("آیا از حذف تراکنش مطمئنی؟", "هل أنت متأكد من حذف المعاملة؟", "İşlemi silmek istediğinizden emin misiniz?", "Delete this transaction?"));
     if (!ok) return;
 
     try {
@@ -387,7 +415,7 @@ export default function Transactions() {
       await load();
     } catch (error) {
       console.error("Delete transaction error:", error);
-      alert(error.message || (fa ? "خطا در حذف تراکنش" : "Error deleting transaction"));
+      alert(error.message || tr("خطا در حذف تراکنش", "خطأ في حذف المعاملة", "İşlem silinirken hata oluştu", "Error deleting transaction"));
     }
   }
 
@@ -395,7 +423,7 @@ export default function Transactions() {
     try {
       await openAuthenticatedDocument(`/print/transaction/${item.id}`);
     } catch (error) {
-      alert(error.message || (fa ? "خطا در دریافت رسید" : "Receipt loading error"));
+      alert(error.message || tr("خطا در دریافت رسید", "خطأ في تحميل الإيصال", "Fiş alınırken hata oluştu", "Receipt loading error"));
     }
   }
 
@@ -414,9 +442,12 @@ export default function Transactions() {
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">{t("transactions")}</h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa
-              ? "ثبت دریافت و پرداخت، مشاهده گردش حساب و چاپ رسید"
-              : "Create receipts/payments, review cashflow and print receipts"}
+            {tr(
+              "ثبت دریافت و پرداخت، مشاهده گردش حساب و چاپ رسید",
+              "تسجيل المقبوضات والمدفوعات، ومراجعة حركة الحساب، وطباعة الإيصال",
+              "Tahsilat ve ödeme kaydı, hesap hareketlerini görüntüleme ve fiş yazdırma",
+              "Create receipts/payments, review cashflow and print receipts"
+            )}
           </p>
         </div>
 
@@ -426,7 +457,7 @@ export default function Transactions() {
           className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
@@ -445,19 +476,19 @@ export default function Transactions() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <SummaryCard
-          title={fa ? "جمع دریافت" : "Total receipts"}
+          title={tr("جمع دریافت", "إجمالي المقبوضات", "Toplam tahsilat", "Total receipts")}
           value={money(totalIncome)}
           icon={<ArrowDownCircle size={28} />}
           color="#22c55e"
         />
         <SummaryCard
-          title={fa ? "جمع پرداخت" : "Total payments"}
+          title={tr("جمع پرداخت", "إجمالي المدفوعات", "Toplam ödeme", "Total payments")}
           value={money(totalOutcome)}
           icon={<ArrowUpCircle size={28} />}
           color="#ef4444"
         />
         <SummaryCard
-          title={fa ? "خالص نقدی" : "Net cash"}
+          title={tr("خالص نقدی", "صافي النقد", "Net nakit", "Net cash")}
           value={money(balance)}
           icon={<Wallet size={28} />}
           color="var(--erp-accent)"
@@ -478,8 +509,8 @@ export default function Transactions() {
             onChange={(e) => setForm({ ...form, type: e.target.value })}
             className={inputClass}
           >
-            <option value="income">{fa ? "دریافت" : "Receipt"}</option>
-            <option value="outcome">{fa ? "پرداخت" : "Payment"}</option>
+            <option value="income">{tr("دریافت", "مقبوضات", "Tahsilat", "Receipt")}</option>
+            <option value="outcome">{tr("پرداخت", "مدفوعات", "Ödeme", "Payment")}</option>
           </select>
 
           <select
@@ -487,7 +518,7 @@ export default function Transactions() {
             onChange={(e) => setForm({ ...form, reason: e.target.value })}
             className={inputClass}
           >
-            {Object.keys(faReasons).map((key) => (
+            {Object.keys(REASON_LABELS.fa).map((key) => (
               <option key={key} value={key}>
                 {getReasonLabel(key, language)}
               </option>
@@ -501,12 +532,8 @@ export default function Transactions() {
           >
             <option value="">
               {form.type === "income"
-                ? fa
-                  ? "انتخاب پرداخت‌کننده"
-                  : "Select payer"
-                : fa
-                ? "انتخاب دریافت‌کننده"
-                : "Select receiver"}
+                ? tr("انتخاب پرداخت‌کننده", "اختر الدافع", "Ödeyeni seçin", "Select payer")
+                : tr("انتخاب دریافت‌کننده", "اختر المستلم", "Alıcıyı seçin", "Select receiver")}
             </option>
 
             {parties.map((party) => (
@@ -519,7 +546,7 @@ export default function Transactions() {
           <input
             type="text"
             inputMode="numeric"
-            value={fa ? toPersianDigits(form.amount) : form.amount}
+            value={language === "fa" ? toPersianDigits(form.amount) : form.amount}
             onChange={(e) =>
               setForm({
                 ...form,
@@ -536,7 +563,7 @@ export default function Transactions() {
             className={inputClass}
           >
             <option value="cash">{t("cash")}</option>
-            <option value="pos">{fa ? "کارتخوان" : "POS"}</option>
+            <option value="pos">{tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS")}</option>
             <option value="card">{t("card")}</option>
             <option value="bank">{t("bank")}</option>
             <option value="cheque">{t("cheque")}</option>
@@ -545,16 +572,16 @@ export default function Transactions() {
           <input
             type="text"
             inputMode="numeric"
-            value={fa ? toPersianDigits(form.invoice_id) : form.invoice_id}
+            value={language === "fa" ? toPersianDigits(form.invoice_id) : form.invoice_id}
             onChange={(e) => setForm({ ...form, invoice_id: cleanNumber(e.target.value) })}
-            placeholder={fa ? "شماره فاکتور مرتبط (اختیاری)" : "Linked invoice ID (optional)"}
+            placeholder={tr("شماره فاکتور مرتبط (اختیاری)", "رقم الفاتورة المرتبطة (اختياري)", "İlişkili fatura no (isteğe bağlı)", "Linked invoice ID (optional)")}
             className={inputClass}
           />
 
           <JalaliDateField
             value={form.date}
             onChange={(isoDate) => setForm({ ...form, date: isoDate })}
-            fa={fa}
+            fa={language === "fa"}
             className={inputClass}
           />
         </div>
@@ -562,7 +589,7 @@ export default function Transactions() {
         <textarea
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder={fa ? "توضیحات تکمیلی" : "Additional description"}
+          placeholder={tr("توضیحات تکمیلی", "وصف إضافي", "Ek açıklama", "Additional description")}
           className={`${inputClass} w-full mt-3`}
           rows={3}
         />
@@ -585,7 +612,7 @@ export default function Transactions() {
             }}
           >
             {editingId ? <Save size={18} /> : <Plus size={18} />}
-            {editingId ? (fa ? "ذخیره ویرایش" : "Save Edit") : t("addTransaction")}
+            {editingId ? tr("ذخیره ویرایش", "حفظ التعديل", "Düzenlemeyi kaydet", "Save Edit") : t("addTransaction")}
           </button>
 
           {editingId && (
@@ -595,7 +622,7 @@ export default function Transactions() {
               className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
               <X size={18} />
-              {fa ? "لغو ویرایش" : "Cancel Edit"}
+              {tr("لغو ویرایش", "إلغاء التعديل", "Düzenlemeyi iptal et", "Cancel Edit")}
             </button>
           )}
         </div>
@@ -620,7 +647,7 @@ export default function Transactions() {
         </div>
 
         {loading ? (
-          <p style={{ color: "var(--erp-muted)" }}>{fa ? "در حال دریافت..." : "Loading..."}</p>
+          <p style={{ color: "var(--erp-muted)" }}>{tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</p>
         ) : filteredTransactions.length === 0 ? (
           <p style={{ color: "var(--erp-muted)" }}>{t("noData")}</p>
         ) : (
@@ -629,11 +656,11 @@ export default function Transactions() {
               <thead>
                 <tr style={{ color: "var(--erp-accent)" }}>
                   <th className="p-3 text-start">{t("transactionType")}</th>
-                  <th className="p-3 text-start">{fa ? "بابت" : "Reason"}</th>
+                  <th className="p-3 text-start">{tr("بابت", "السبب", "Sebep", "Reason")}</th>
                   <th className="p-3 text-start">{t("party")}</th>
                   <th className="p-3 text-start">{t("method")}</th>
                   <th className="p-3 text-start">{t("amount")}</th>
-                  <th className="p-3 text-start">{fa ? "مانده بعد" : "Balance after"}</th>
+                  <th className="p-3 text-start">{tr("مانده بعد", "الرصيد بعد", "Sonraki bakiye", "Balance after")}</th>
                   <th className="p-3 text-start">{t("date")}</th>
                   <th className="p-3 text-start">{t("actions")}</th>
                 </tr>
@@ -676,7 +703,7 @@ export default function Transactions() {
                         <button
                           type="button"
                           onClick={() => editTransaction(item)}
-                          title={fa ? "ویرایش" : "Edit"}
+                          title={tr("ویرایش", "تعديل", "Düzenle", "Edit")}
                           style={{
                             width: 38,
                             height: 38,
@@ -693,7 +720,7 @@ export default function Transactions() {
                         <button
                           type="button"
                           onClick={() => printTransactionReceipt(item)}
-                          title={fa ? "چاپ رسید" : "Print receipt"}
+                          title={tr("چاپ رسید", "طباعة الإيصال", "Fişi yazdır", "Print receipt")}
                           style={{
                             width: 38,
                             height: 38,
@@ -710,7 +737,7 @@ export default function Transactions() {
                         <button
                           type="button"
                           onClick={() => removeTransaction(item)}
-                          title={fa ? "حذف" : "Delete"}
+                          title={tr("حذف", "حذف", "Sil", "Delete")}
                           style={{
                             width: 38,
                             height: 38,
