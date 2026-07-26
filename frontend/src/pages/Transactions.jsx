@@ -708,6 +708,9 @@ export default function Transactions() {
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
                             background: "var(--erp-glow)",
@@ -725,6 +728,9 @@ export default function Transactions() {
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
                             background: "var(--erp-glow)",
@@ -742,6 +748,9 @@ export default function Transactions() {
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
                             background: "rgba(239,68,68,0.18)",
