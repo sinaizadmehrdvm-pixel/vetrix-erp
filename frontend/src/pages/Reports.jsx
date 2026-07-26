@@ -44,7 +44,7 @@ import {
 
 import moment from "moment-jalaali";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits } from "../localization/helpers";
+import { toPersianDigits, paymentStatusLabel } from "../localization/helpers";
 import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
 
 import {
@@ -803,7 +803,7 @@ export default function Reports() {
 
       {active === "invoices" && (
         <Panel title={tr("فاکتورهای باز و تسویه نشده", "الفواتير المفتوحة وغير المسواة", "Açık ve ödenmemiş faturalar", "Open and unsettled invoices")}>
-          {openInvoices.map((inv) => <Row key={inv.id} title={`${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${inv.settlement_status || inv.payment_status || "-"}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
+          {openInvoices.map((inv) => <Row key={inv.id} title={`${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${paymentStatusLabel(inv.settlement_status || inv.payment_status, language)}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
           {openInvoices.length === 0 && <Empty tr={tr} />}
         </Panel>
       )}
