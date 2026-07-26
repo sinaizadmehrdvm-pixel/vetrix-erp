@@ -112,7 +112,7 @@ function downloadCsv(filename, rows) {
     )
     .join("\n");
 
-  const blob = new Blob(["\uFEFF" + csv], {
+  const blob = new Blob(["﻿" + csv], {
     type: "text/csv;charset=utf-8;",
   });
 
@@ -133,7 +133,8 @@ function normalizeMonthKey(value) {
 
 export default function Reports() {
   const { language, money, n, dir, date } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   const [stats, setStats] = useState({});
   const [overview, setOverview] = useState({});
@@ -204,22 +205,28 @@ export default function Reports() {
           applyReportData(cached.data);
           setOfflineMode(true);
           setError(
-            fa
-              ? "اتصال به سرور برقرار نشد؛ گزارش‌ها از حافظه آفلاین نمایش داده شدند."
-              : "Server unavailable; reports are loaded from offline cache."
+            tr(
+              "اتصال به سرور برقرار نشد؛ گزارش‌ها از حافظه آفلاین نمایش داده شدند.",
+              "تعذّر الاتصال بالخادم؛ يتم عرض التقارير من الذاكرة المؤقتة دون اتصال.",
+              "Sunucuya bağlanılamadı; raporlar çevrimdışı önbellekten gösteriliyor.",
+              "Server unavailable; reports are loaded from offline cache."
+            )
           );
         } else {
           setError(
             err.message ||
-              (fa
-                ? "خطا در دریافت گزارش‌ها و کش آفلاین موجود نیست"
-                : "Error loading reports and no offline cache found")
+              tr(
+                "خطا در دریافت گزارش‌ها و کش آفلاین موجود نیست",
+                "خطأ في تحميل التقارير ولا توجد نسخة مؤقتة غير متصلة",
+                "Raporlar alınamadı ve çevrimdışı önbellek yok",
+                "Error loading reports and no offline cache found"
+              )
           );
         }
       } catch (cacheErr) {
         console.error("Offline reports cache error", cacheErr);
         setError(
-          err.message || (fa ? "خطا در دریافت گزارش‌ها" : "Error loading reports")
+          err.message || tr("خطا در دریافت گزارش‌ها", "خطأ في تحميل التقارير", "Raporlar yüklenirken hata oluştu", "Error loading reports")
         );
       }
     } finally {
@@ -327,22 +334,22 @@ export default function Reports() {
 
   const financialChartData = useMemo(() => {
     return [
-      { name: fa ? "فروش" : "Sales", value: toNumber(profit.net_sales ?? stats?.total_revenue) },
-      { name: fa ? "خرید" : "Purchases", value: toNumber(profit.net_purchases ?? stats?.total_purchases) },
-      { name: fa ? "هزینه" : "Expenses", value: toNumber(profit.expenses ?? stats?.total_expenses ?? fallbackTotals.expensesTotal) },
-      { name: fa ? "سود" : "Profit", value: toNumber(profit.net_profit ?? stats?.net_profit) },
+      { name: tr("فروش", "المبيعات", "Satış", "Sales"), value: toNumber(profit.net_sales ?? stats?.total_revenue) },
+      { name: tr("خرید", "المشتريات", "Alış", "Purchases"), value: toNumber(profit.net_purchases ?? stats?.total_purchases) },
+      { name: tr("هزینه", "المصروفات", "Gider", "Expenses"), value: toNumber(profit.expenses ?? stats?.total_expenses ?? fallbackTotals.expensesTotal) },
+      { name: tr("سود", "الربح", "Kâr", "Profit"), value: toNumber(profit.net_profit ?? stats?.net_profit) },
     ];
-  }, [fa, profit, stats, fallbackTotals.expensesTotal]);
+  }, [tr, profit, stats, fallbackTotals.expensesTotal]);
 
   const cashflowChartData = useMemo(() => {
     return [
-      { name: fa ? "دریافت امروز" : "Receipt today", value: toNumber(cashflow.receipt_today) },
-      { name: fa ? "پرداخت امروز" : "Payment today", value: toNumber(cashflow.payment_today) },
-      { name: fa ? "دریافت ماه" : "Receipt month", value: toNumber(cashflow.receipt_month) },
-      { name: fa ? "پرداخت ماه" : "Payment month", value: toNumber(cashflow.payment_month) },
-      { name: fa ? "خالص" : "Net", value: toNumber(cashflow.net_cashflow) },
+      { name: tr("دریافت امروز", "المقبوضات اليوم", "Bugünkü tahsilat", "Receipt today"), value: toNumber(cashflow.receipt_today) },
+      { name: tr("پرداخت امروز", "المدفوعات اليوم", "Bugünkü ödeme", "Payment today"), value: toNumber(cashflow.payment_today) },
+      { name: tr("دریافت ماه", "مقبوضات الشهر", "Aylık tahsilat", "Receipt month"), value: toNumber(cashflow.receipt_month) },
+      { name: tr("پرداخت ماه", "مدفوعات الشهر", "Aylık ödeme", "Payment month"), value: toNumber(cashflow.payment_month) },
+      { name: tr("خالص", "الصافي", "Net", "Net"), value: toNumber(cashflow.net_cashflow) },
     ];
-  }, [fa, cashflow]);
+  }, [tr, cashflow]);
 
   const monthlySalesData = useMemo(() => {
     const map = new Map();
@@ -362,10 +369,10 @@ export default function Reports() {
 
   const debtorCreditorData = useMemo(() => {
     return [
-      { name: fa ? "بدهکاران" : "Debtors", value: fallbackTotals.debtors },
-      { name: fa ? "بستانکاران" : "Creditors", value: fallbackTotals.creditors },
+      { name: tr("بدهکاران", "المدينون", "Borçlular", "Debtors"), value: fallbackTotals.debtors },
+      { name: tr("بستانکاران", "الدائنون", "Alacaklılar", "Creditors"), value: fallbackTotals.creditors },
     ];
-  }, [fa, fallbackTotals.debtors, fallbackTotals.creditors]);
+  }, [tr, fallbackTotals.debtors, fallbackTotals.creditors]);
 
   const inventoryChartData = useMemo(() => {
     return inventoryProducts
@@ -386,7 +393,7 @@ export default function Reports() {
           name: p.name,
           barcode: p.barcode || p.code || "",
           brand: p.brand || "",
-          unit: p.unit || (fa ? "عدد" : "pcs"),
+          unit: p.unit || tr("عدد", "قطعة", "adet", "pcs"),
           stock: toNumber(p.stock),
           buy_price: getProductBuyPrice(p),
           sell_price: getProductSellPrice(p),
@@ -411,7 +418,7 @@ export default function Reports() {
         margin_percent: toNumber(p.margin_percent),
       }))
       .sort((a, b) => b.profit - a.profit);
-  }, [productProfit, products, fa]);
+  }, [productProfit, products, tr]);
 
   const productProfitChartData = useMemo(() => {
     return productProfitRows
@@ -421,16 +428,16 @@ export default function Reports() {
   }, [productProfitRows]);
 
   const tabs = [
-    ["summary", fa ? "خلاصه مدیریتی" : "Summary"],
-    ["charts", fa ? "نمودارهای مدیریتی" : "Executive charts"],
-    ["profit", fa ? "سود و زیان" : "Profit & loss"],
-    ["trial", fa ? "تراز آزمایشی" : "Trial balance"],
-    ["customers", fa ? "مطالبات و بدهی‌ها" : "Receivables"],
-    ["products", fa ? "سود کالا" : "Product profit"],
-    ["invoices", fa ? "فاکتورهای باز" : "Open invoices"],
-    ["cash", fa ? "دریافت و پرداخت" : "Cashflow"],
-    ["inventory", fa ? "موجودی کالا" : "Inventory"],
-    ["transactions", fa ? "تراکنش‌ها" : "Transactions"],
+    ["summary", tr("خلاصه مدیریتی", "الملخص الإداري", "Yönetici özeti", "Summary")],
+    ["charts", tr("نمودارهای مدیریتی", "الرسوم البيانية الإدارية", "Yönetici grafikleri", "Executive charts")],
+    ["profit", tr("سود و زیان", "الأرباح والخسائر", "Kâr ve zarar", "Profit & loss")],
+    ["trial", tr("تراز آزمایشی", "ميزان المراجعة", "Mizan", "Trial balance")],
+    ["customers", tr("مطالبات و بدهی‌ها", "المستحقات والديون", "Alacaklar ve borçlar", "Receivables")],
+    ["products", tr("سود کالا", "ربح المنتج", "Ürün kârı", "Product profit")],
+    ["invoices", tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")],
+    ["cash", tr("دریافت و پرداخت", "المقبوضات والمدفوعات", "Tahsilat ve ödeme", "Cashflow")],
+    ["inventory", tr("موجودی کالا", "المخزون", "Envanter", "Inventory")],
+    ["transactions", tr("تراکنش‌ها", "المعاملات", "İşlemler", "Transactions")],
   ];
 
   function exportCurrentCsv() {
@@ -498,7 +505,7 @@ export default function Reports() {
         isPdf ? "vetrix_invoices.pdf" : "vetrix_invoices.xlsx"
       );
     } catch (downloadError) {
-      setError(downloadError.message || (fa ? "خطا در دریافت خروجی" : "Export download error"));
+      setError(downloadError.message || tr("خطا در دریافت خروجی", "خطأ في تنزيل التصدير", "Dışa aktarma indirme hatası", "Export download error"));
     }
   }
 
@@ -507,29 +514,32 @@ export default function Reports() {
       <div className="flex items-start justify-between gap-4 flex-wrap no-print">
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
-            {fa ? "گزارش‌های حرفه‌ای مدیریتی و حسابداری" : "Professional Management & Accounting Reports"}
+            {tr("گزارش‌های حرفه‌ای مدیریتی و حسابداری", "تقارير إدارية ومحاسبية احترافية", "Profesyonel yönetim ve muhasebe raporları", "Professional Management & Accounting Reports")}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa
-              ? "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی"
-              : "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"}
+            {tr(
+              "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی",
+              "تقارير متكاملة: الأرباح والخسائر، ميزان المراجعة، المستحقات، الديون، التدفق النقدي، ربح المنتج والمخزون",
+              "Eksiksiz ERP raporları: kâr/zarar, mizan, alacaklar, borçlar, nakit akışı, ürün kârı ve envanter",
+              "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"
+            )}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
           <button type="button" onClick={exportCurrentCsv} className="px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
             <Download size={18} />
-            {fa ? "خروجی CSV" : "CSV Export"}
+            {tr("خروجی CSV", "تصدير CSV", "CSV dışa aktar", "CSV Export")}
           </button>
 
           <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]">
             <Printer size={18} />
-            {fa ? "چاپ" : "Print"}
+            {tr("چاپ", "طباعة", "Yazdır", "Print")}
           </button>
 
           <button type="button" onClick={load} disabled={loading} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60">
             <RefreshCw size={18} />
-            {loading ? (fa ? "در حال دریافت..." : "Loading...") : fa ? "به‌روزرسانی" : "Refresh"}
+            {loading ? tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...") : tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
         </div>
       </div>
@@ -542,24 +552,24 @@ export default function Reports() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <ReportCard icon={<TrendingUp />} title={fa ? "فروش خالص" : "Net sales"} value={money(profit.net_sales ?? stats?.total_revenue ?? 0)} color="text-green-300" />
-        <ReportCard icon={<TrendingDown />} title={fa ? "خرید خالص" : "Net purchases"} value={money(profit.net_purchases ?? stats?.total_purchases ?? 0)} color="text-red-300" />
-        <ReportCard icon={<Wallet />} title={fa ? "هزینه‌ها" : "Expenses"} value={money(profit.expenses ?? stats?.total_expenses ?? fallbackTotals.expensesTotal)} color="text-amber-300" />
-        <ReportCard icon={<BarChart3 />} title={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit ?? stats?.net_profit ?? 0)} color={toNumber(profit.net_profit ?? stats?.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
+        <ReportCard icon={<TrendingUp />} title={tr("فروش خالص", "صافي المبيعات", "Net satış", "Net sales")} value={money(profit.net_sales ?? stats?.total_revenue ?? 0)} color="text-green-300" />
+        <ReportCard icon={<TrendingDown />} title={tr("خرید خالص", "صافي المشتريات", "Net alış", "Net purchases")} value={money(profit.net_purchases ?? stats?.total_purchases ?? 0)} color="text-red-300" />
+        <ReportCard icon={<Wallet />} title={tr("هزینه‌ها", "المصروفات", "Giderler", "Expenses")} value={money(profit.expenses ?? stats?.total_expenses ?? fallbackTotals.expensesTotal)} color="text-amber-300" />
+        <ReportCard icon={<BarChart3 />} title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(profit.net_profit ?? stats?.net_profit ?? 0)} color={toNumber(profit.net_profit ?? stats?.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <ReportCard icon={<Users />} title={fa ? "جمع بدهکاران" : "Total debtors"} value={money(fallbackTotals.debtors)} color="text-red-300" />
-        <ReportCard icon={<Users />} title={fa ? "جمع بستانکاران" : "Total creditors"} value={money(fallbackTotals.creditors)} color="text-green-300" />
-        <ReportCard icon={<Package />} title={fa ? "ارزش موجودی فروش" : "Inventory sale value"} value={money(inventory.inventory_value ?? fallbackTotals.stockValue)} hint={fa ? `ارزش خرید: ${money(fallbackTotals.buyStockValue)}` : `Buy value: ${money(fallbackTotals.buyStockValue)}`} color="text-[var(--erp-accent)]" />
-        <ReportCard icon={<Receipt />} title={fa ? "فاکتورهای باز" : "Open invoices"} value={n(invoiceSummary.open_count || openInvoices.length || 0)} hint={money(invoiceSummary.open_amount || 0)} color="text-amber-300" />
+        <ReportCard icon={<Users />} title={tr("جمع بدهکاران", "إجمالي المدينين", "Toplam borçlular", "Total debtors")} value={money(fallbackTotals.debtors)} color="text-red-300" />
+        <ReportCard icon={<Users />} title={tr("جمع بستانکاران", "إجمالي الدائنين", "Toplam alacaklılar", "Total creditors")} value={money(fallbackTotals.creditors)} color="text-green-300" />
+        <ReportCard icon={<Package />} title={tr("ارزش موجودی فروش", "قيمة المخزون البيعية", "Envanter satış değeri", "Inventory sale value")} value={money(inventory.inventory_value ?? fallbackTotals.stockValue)} hint={`${tr("ارزش خرید", "قيمة الشراء", "Alış değeri", "Buy value")}: ${money(fallbackTotals.buyStockValue)}`} color="text-[var(--erp-accent)]" />
+        <ReportCard icon={<Receipt />} title={tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")} value={n(invoiceSummary.open_count || openInvoices.length || 0)} hint={money(invoiceSummary.open_amount || 0)} color="text-amber-300" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <ReportCard icon={<Trophy />} title={fa ? "سود کالاها" : "Product profit"} value={money(productProfitRows.reduce((s, p) => s + toNumber(p.profit), 0))} hint={fa ? `${n(productProfitRows.length)} کالا` : `${n(productProfitRows.length)} products`} color="text-[var(--erp-accent)]" />
-        <ReportCard icon={<Boxes />} title={fa ? "کالاهای کم‌موجودی" : "Low stock"} value={n(lowStockProducts.length)} color={lowStockProducts.length ? "text-amber-300" : "text-green-300"} />
-        <ReportCard icon={<Banknote />} title={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
-        <ReportCard icon={<Activity />} title={fa ? "تراکنش‌ها" : "Transactions"} value={n(transactions.length)} hint={fa ? "دریافت و پرداخت" : "Receipts & payments"} color="text-[var(--erp-accent)]" />
+        <ReportCard icon={<Trophy />} title={tr("سود کالاها", "ربح المنتجات", "Ürün kârı", "Product profit")} value={money(productProfitRows.reduce((s, p) => s + toNumber(p.profit), 0))} hint={`${n(productProfitRows.length)} ${tr("کالا", "منتج", "ürün", "products")}`} color="text-[var(--erp-accent)]" />
+        <ReportCard icon={<Boxes />} title={tr("کالاهای کم‌موجودی", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock")} value={n(lowStockProducts.length)} color={lowStockProducts.length ? "text-amber-300" : "text-green-300"} />
+        <ReportCard icon={<Banknote />} title={tr("خالص نقدی", "صافي النقد", "Net nakit akışı", "Net cashflow")} value={money(cashflow.net_cashflow || 0)} color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
+        <ReportCard icon={<Activity />} title={tr("تراکنش‌ها", "المعاملات", "İşlemler", "Transactions")} value={n(transactions.length)} hint={tr("دریافت و پرداخت", "المقبوضات والمدفوعات", "Tahsilat ve ödeme", "Receipts & payments")} color="text-[var(--erp-accent)]" />
       </div>
 
       <div className="flex gap-2 flex-wrap bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-3 no-print">
@@ -573,14 +583,14 @@ export default function Reports() {
       {(active === "cash" || active === "transactions" || active === "customers") && (
         <div className="flex items-center gap-2 bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 no-print">
           <Search size={18} className="text-[var(--erp-accent)]" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={fa ? "جستجو..." : "Search..."} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("جستجو...", "بحث...", "Ara...", "Search...")} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
         </div>
       )}
 
       {active === "summary" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <ChartPanel title={fa ? "تحلیل مالی کل" : "Financial analysis"}>
+            <ChartPanel title={tr("تحلیل مالی کل", "التحليل المالي الشامل", "Genel finansal analiz", "Financial analysis")}>
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={financialChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -592,7 +602,7 @@ export default function Reports() {
               </ResponsiveContainer>
             </ChartPanel>
 
-            <ChartPanel title={fa ? "بدهکاران و بستانکاران" : "Debtors & creditors"}>
+            <ChartPanel title={tr("بدهکاران و بستانکاران", "المدينون والدائنون", "Borçlular ve alacaklılar", "Debtors & creditors")}>
               <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
                   <Pie data={debtorCreditorData} dataKey="value" nameKey="name" outerRadius={110} label>
@@ -605,24 +615,24 @@ export default function Reports() {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Panel title={fa ? "بدهکاران برتر" : "Top debtors"}>
+            <Panel title={tr("بدهکاران برتر", "أكبر المدينين", "En büyük borçlular", "Top debtors")}>
               {topDebtors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getDebtor(c))} color="text-red-300" />)}
-              {topDebtors.length === 0 && <Empty fa={fa} />}
+              {topDebtors.length === 0 && <Empty tr={tr} />}
             </Panel>
 
-            <Panel title={fa ? "بستانکاران برتر" : "Top creditors"}>
+            <Panel title={tr("بستانکاران برتر", "أكبر الدائنين", "En büyük alacaklılar", "Top creditors")}>
               {topCreditors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getCreditor(c))} color="text-green-300" />)}
-              {topCreditors.length === 0 && <Empty fa={fa} />}
+              {topCreditors.length === 0 && <Empty tr={tr} />}
             </Panel>
 
-            <Panel title={fa ? "هشدار فاکتورهای باز" : "Open invoice alerts"}>
-              {openInvoices.slice(0, 10).map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={date(inv.created_at)} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-              {openInvoices.length === 0 && <Empty fa={fa} />}
+            <Panel title={tr("هشدار فاکتورهای باز", "تنبيهات الفواتير المفتوحة", "Açık fatura uyarıları", "Open invoice alerts")}>
+              {openInvoices.slice(0, 10).map((inv) => <Row key={inv.id} title={`${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(inv.id)}`} subtitle={date(inv.created_at)} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
+              {openInvoices.length === 0 && <Empty tr={tr} />}
             </Panel>
 
-            <Panel title={fa ? "کالاهای کم‌موجودی" : "Low stock products"}>
-              {lowStockProducts.slice(0, 10).map((p) => <Row key={p.id} title={p.name} subtitle={`${p.barcode || p.code || "-"} • ${fa ? "حداقل" : "Min"}: ${n(p.min_stock || 0)}`} value={n(p.stock || 0)} color="text-amber-300" />)}
-              {lowStockProducts.length === 0 && <Empty fa={fa} />}
+            <Panel title={tr("کالاهای کم‌موجودی", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock products")}>
+              {lowStockProducts.slice(0, 10).map((p) => <Row key={p.id} title={p.name} subtitle={`${p.barcode || p.code || "-"} • ${tr("حداقل", "الحد الأدنى", "Min", "Min")}: ${n(p.min_stock || 0)}`} value={n(p.stock || 0)} color="text-amber-300" />)}
+              {lowStockProducts.length === 0 && <Empty tr={tr} />}
             </Panel>
           </div>
         </div>
@@ -630,7 +640,7 @@ export default function Reports() {
 
       {active === "charts" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <ChartPanel title={fa ? "نمودار سود و زیان" : "Profit & loss chart"}>
+          <ChartPanel title={tr("نمودار سود و زیان", "مخطط الأرباح والخسائر", "Kâr ve zarar grafiği", "Profit & loss chart")}>
             <ResponsiveContainer width="100%" height={340}>
               <BarChart data={financialChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -642,7 +652,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </ChartPanel>
 
-          <ChartPanel title={fa ? "نمودار دریافت و پرداخت" : "Cashflow chart"}>
+          <ChartPanel title={tr("نمودار دریافت و پرداخت", "مخطط المقبوضات والمدفوعات", "Tahsilat ve ödeme grafiği", "Cashflow chart")}>
             <ResponsiveContainer width="100%" height={340}>
               <AreaChart data={cashflowChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -654,7 +664,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </ChartPanel>
 
-          <ChartPanel title={fa ? "روند ماهانه دریافت و پرداخت" : "Monthly cash trend"}>
+          <ChartPanel title={tr("روند ماهانه دریافت و پرداخت", "الاتجاه الشهري للمقبوضات والمدفوعات", "Aylık nakit trendi", "Monthly cash trend")}>
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -667,7 +677,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </ChartPanel>
 
-          <ChartPanel title={fa ? "ارزش موجودی برتر" : "Top inventory value"}>
+          <ChartPanel title={tr("ارزش موجودی برتر", "أعلى قيمة مخزون", "En yüksek envanter değeri", "Top inventory value")}>
             <ResponsiveContainer width="100%" height={340}>
               <BarChart data={inventoryChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -682,48 +692,50 @@ export default function Reports() {
       )}
 
       {active === "profit" && (
-        <Panel title={fa ? "صورت سود و زیان" : "Profit and loss"}>
-          <ReportLine label={fa ? "فروش" : "Sales"} value={money(profit.sales || 0)} />
-          <ReportLine label={fa ? "کسر: مرجوعی فروش" : "Less: sales returns"} value={money(profit.sales_returns || 0)} negative />
-          <ReportLine label={fa ? "فروش خالص" : "Net sales"} value={money(profit.net_sales || 0)} strong />
-          <ReportLine label={fa ? "خرید" : "Purchases"} value={money(profit.purchases || 0)} />
-          <ReportLine label={fa ? "کسر: مرجوعی خرید" : "Less: purchase returns"} value={money(profit.purchase_returns || 0)} negative />
-          <ReportLine label={fa ? "خرید خالص" : "Net purchases"} value={money(profit.net_purchases || 0)} strong />
-          <ReportLine label={fa ? "سود ناخالص" : "Gross profit"} value={money(profit.gross_profit || 0)} strong />
-          <ReportLine label={fa ? "هزینه‌ها" : "Expenses"} value={money(profit.expenses ?? fallbackTotals.expensesTotal)} negative />
-          <ReportLine label={fa ? "سود خالص" : "Net profit"} value={money(profit.net_profit || 0)} strong color={toNumber(profit.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
+        <Panel title={tr("صورت سود و زیان", "بيان الأرباح والخسائر", "Kâr ve zarar tablosu", "Profit and loss")}>
+          <ReportLine label={tr("فروش", "المبيعات", "Satış", "Sales")} value={money(profit.sales || 0)} />
+          <ReportLine label={tr("کسر: مرجوعی فروش", "ناقص: مرتجعات المبيعات", "Eksi: satış iadeleri", "Less: sales returns")} value={money(profit.sales_returns || 0)} negative />
+          <ReportLine label={tr("فروش خالص", "صافي المبيعات", "Net satış", "Net sales")} value={money(profit.net_sales || 0)} strong />
+          <ReportLine label={tr("خرید", "المشتريات", "Alış", "Purchases")} value={money(profit.purchases || 0)} />
+          <ReportLine label={tr("کسر: مرجوعی خرید", "ناقص: مرتجعات المشتريات", "Eksi: alış iadeleri", "Less: purchase returns")} value={money(profit.purchase_returns || 0)} negative />
+          <ReportLine label={tr("خرید خالص", "صافي المشتريات", "Net alış", "Net purchases")} value={money(profit.net_purchases || 0)} strong />
+          <ReportLine label={tr("سود ناخالص", "إجمالي الربح", "Brüt kâr", "Gross profit")} value={money(profit.gross_profit || 0)} strong />
+          <ReportLine label={tr("هزینه‌ها", "المصروفات", "Giderler", "Expenses")} value={money(profit.expenses ?? fallbackTotals.expensesTotal)} negative />
+          <ReportLine label={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(profit.net_profit || 0)} strong color={toNumber(profit.net_profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
         </Panel>
       )}
 
       {active === "trial" && (
-        <Panel title={fa ? "تراز آزمایشی" : "Trial balance"}>
+        <Panel title={tr("تراز آزمایشی", "ميزان المراجعة", "Mizan", "Trial balance")}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ReportCard icon={<Scale />} title={fa ? "جمع بدهکار" : "Total debit"} value={money(trial.total_debit || 0)} color="text-red-300" />
-            <ReportCard icon={<Scale />} title={fa ? "جمع بستانکار" : "Total credit"} value={money(trial.total_credit || 0)} color="text-green-300" />
-            <ReportCard icon={<Scale />} title={fa ? "اختلاف" : "Difference"} value={money(Math.abs(toNumber(trial.difference)))} color={trial.is_balanced ? "text-[var(--erp-accent)]" : "text-amber-300"} />
+            <ReportCard icon={<Scale />} title={tr("جمع بدهکار", "إجمالي المدين", "Toplam borç", "Total debit")} value={money(trial.total_debit || 0)} color="text-red-300" />
+            <ReportCard icon={<Scale />} title={tr("جمع بستانکار", "إجمالي الدائن", "Toplam alacak", "Total credit")} value={money(trial.total_credit || 0)} color="text-green-300" />
+            <ReportCard icon={<Scale />} title={tr("اختلاف", "الفرق", "Fark", "Difference")} value={money(Math.abs(toNumber(trial.difference)))} color={trial.is_balanced ? "text-[var(--erp-accent)]" : "text-amber-300"} />
           </div>
           <div className={`mt-4 p-4 rounded-2xl ${trial.is_balanced ? "bg-emerald-500/10 text-emerald-200" : "bg-amber-500/10 text-amber-200"}`}>
-            {trial.is_balanced ? (fa ? "تراز آزمایشی برابر است." : "Trial balance is balanced.") : (fa ? "تراز آزمایشی اختلاف دارد." : "Trial balance has a difference.")}
+            {trial.is_balanced
+              ? tr("تراز آزمایشی برابر است.", "ميزان المراجعة متوازن.", "Mizan dengeli.", "Trial balance is balanced.")
+              : tr("تراز آزمایشی اختلاف دارد.", "يوجد فرق في ميزان المراجعة.", "Mizanda fark var.", "Trial balance has a difference.")}
           </div>
         </Panel>
       )}
 
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Panel title={fa ? "مطالبات از مشتریان" : "Receivables from customers"}>
-            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="debtor" />)}
-            {topDebtors.length === 0 && <Empty fa={fa} />}
+          <Panel title={tr("مطالبات از مشتریان", "المستحقات من العملاء", "Müşterilerden alacaklar", "Receivables from customers")}>
+            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} tr={tr} type="debtor" />)}
+            {topDebtors.length === 0 && <Empty tr={tr} />}
           </Panel>
-          <Panel title={fa ? "بدهی به تامین‌کنندگان / بستانکاران" : "Payables / Creditors"}>
-            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} fa={fa} type="creditor" />)}
-            {topCreditors.length === 0 && <Empty fa={fa} />}
+          <Panel title={tr("بدهی به تامین‌کنندگان / بستانکاران", "الديون للموردين / الدائنين", "Tedarikçi borçları / Alacaklılar", "Payables / Creditors")}>
+            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} tr={tr} type="creditor" />)}
+            {topCreditors.length === 0 && <Empty tr={tr} />}
           </Panel>
         </div>
       )}
 
       {active === "products" && (
         <div className="space-y-6">
-          <ChartPanel title={fa ? "سودآورترین کالاها" : "Most profitable products"}>
+          <ChartPanel title={tr("سودآورترین کالاها", "أكثر المنتجات ربحية", "En kârlı ürünler", "Most profitable products")}>
             <ResponsiveContainer width="100%" height={360}>
               <BarChart data={productProfitChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -736,50 +748,50 @@ export default function Reports() {
             </ResponsiveContainer>
           </ChartPanel>
 
-          <Panel title={fa ? "گزارش سود هر کالا" : "Product profit report"}>
-            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
-            {productProfitRows.length === 0 && <Empty fa={fa} />}
+          <Panel title={tr("گزارش سود هر کالا", "تقرير ربح كل منتج", "Ürün kârı raporu", "Product profit report")}>
+            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} tr={tr} />)}
+            {productProfitRows.length === 0 && <Empty tr={tr} />}
           </Panel>
         </div>
       )}
 
       {active === "invoices" && (
-        <Panel title={fa ? "فاکتورهای باز و تسویه نشده" : "Open and unsettled invoices"}>
-          {openInvoices.map((inv) => <Row key={inv.id} title={`${fa ? "فاکتور" : "Invoice"} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${inv.settlement_status || inv.payment_status || "-"}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-          {openInvoices.length === 0 && <Empty fa={fa} />}
+        <Panel title={tr("فاکتورهای باز و تسویه نشده", "الفواتير المفتوحة وغير المسواة", "Açık ve ödenmemiş faturalar", "Open and unsettled invoices")}>
+          {openInvoices.map((inv) => <Row key={inv.id} title={`${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${inv.settlement_status || inv.payment_status || "-"}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
+          {openInvoices.length === 0 && <Empty tr={tr} />}
         </Panel>
       )}
 
       {active === "cash" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Panel title={fa ? "جریان نقدی" : "Cashflow"}>
-            <ReportLine label={fa ? "کل دریافت" : "Total receipts"} value={money(cashflow.receipt_total || 0)} strong />
-            <ReportLine label={fa ? "کل پرداخت" : "Total payments"} value={money(cashflow.payment_total || 0)} negative />
-            <ReportLine label={fa ? "خالص نقدی" : "Net cashflow"} value={money(cashflow.net_cashflow || 0)} strong color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
-            <ReportLine label={fa ? "دریافت امروز" : "Receipts today"} value={money(cashflow.receipt_today || 0)} />
-            <ReportLine label={fa ? "پرداخت امروز" : "Payments today"} value={money(cashflow.payment_today || 0)} />
-            <ReportLine label={fa ? "دریافت ماه" : "Receipts this month"} value={money(cashflow.receipt_month || 0)} />
-            <ReportLine label={fa ? "پرداخت ماه" : "Payments this month"} value={money(cashflow.payment_month || 0)} />
+          <Panel title={tr("جریان نقدی", "التدفق النقدي", "Nakit akışı", "Cashflow")}>
+            <ReportLine label={tr("کل دریافت", "إجمالي المقبوضات", "Toplam tahsilat", "Total receipts")} value={money(cashflow.receipt_total || 0)} strong />
+            <ReportLine label={tr("کل پرداخت", "إجمالي المدفوعات", "Toplam ödeme", "Total payments")} value={money(cashflow.payment_total || 0)} negative />
+            <ReportLine label={tr("خالص نقدی", "صافي النقد", "Net nakit akışı", "Net cashflow")} value={money(cashflow.net_cashflow || 0)} strong color={toNumber(cashflow.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"} />
+            <ReportLine label={tr("دریافت امروز", "المقبوضات اليوم", "Bugünkü tahsilat", "Receipts today")} value={money(cashflow.receipt_today || 0)} />
+            <ReportLine label={tr("پرداخت امروز", "المدفوعات اليوم", "Bugünkü ödeme", "Payments today")} value={money(cashflow.payment_today || 0)} />
+            <ReportLine label={tr("دریافت ماه", "مقبوضات هذا الشهر", "Bu ayki tahsilat", "Receipts this month")} value={money(cashflow.receipt_month || 0)} />
+            <ReportLine label={tr("پرداخت ماه", "مدفوعات هذا الشهر", "Bu ayki ödeme", "Payments this month")} value={money(cashflow.payment_month || 0)} />
           </Panel>
 
-          <Panel title={fa ? "تراکنش‌های اخیر" : "Recent transactions"}>
-            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
-            {filteredTransactions.length === 0 && <Empty fa={fa} />}
+          <Panel title={tr("تراکنش‌های اخیر", "المعاملات الأخيرة", "Son işlemler", "Recent transactions")}>
+            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+            {filteredTransactions.length === 0 && <Empty tr={tr} />}
           </Panel>
         </div>
       )}
 
       {active === "inventory" && (
-        <Panel title={fa ? "گزارش پیشرفته موجودی کالا" : "Advanced inventory report"}>
-          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} fa={fa} />)}
-          {inventoryProducts.length === 0 && <Empty fa={fa} />}
+        <Panel title={tr("گزارش پیشرفته موجودی کالا", "تقرير مخزون متقدم", "Gelişmiş envanter raporu", "Advanced inventory report")}>
+          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} tr={tr} />)}
+          {inventoryProducts.length === 0 && <Empty tr={tr} />}
         </Panel>
       )}
 
       {active === "transactions" && (
-        <Panel title={fa ? "گزارش کامل تراکنش‌ها" : "Full transactions report"}>
-          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} fa={fa} />)}
-          {filteredTransactions.length === 0 && <Empty fa={fa} />}
+        <Panel title={tr("گزارش کامل تراکنش‌ها", "تقرير كامل بالمعاملات", "Tam işlem raporu", "Full transactions report")}>
+          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} />)}
+          {filteredTransactions.length === 0 && <Empty tr={tr} />}
         </Panel>
       )}
 
@@ -788,18 +800,18 @@ export default function Reports() {
           <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] flex items-center justify-center">
             <BarChart3 className="text-[var(--erp-accent)]" />
           </div>
-          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{fa ? "خروجی فاکتورها" : "Invoice Exports"}</h2>
+          <h2 className="text-2xl font-black text-[var(--erp-accent)]">{tr("خروجی فاکتورها", "تصدير الفواتير", "Fatura dışa aktarma", "Invoice Exports")}</h2>
         </div>
 
         <div className="flex flex-wrap gap-4">
           <button type="button" onClick={() => downloadInvoiceExport("pdf")} className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             <FileText size={18} />
-            {fa ? "دانلود PDF" : "Download PDF"}
+            {tr("دانلود PDF", "تنزيل PDF", "PDF indir", "Download PDF")}
           </button>
 
           <button type="button" onClick={() => downloadInvoiceExport("excel")} className="px-5 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
             <FileSpreadsheet size={18} />
-            {fa ? "دانلود Excel" : "Download Excel"}
+            {tr("دانلود Excel", "تنزيل Excel", "Excel indir", "Download Excel")}
           </button>
         </div>
       </div>
@@ -870,7 +882,7 @@ function ReportLine({ label, value, strong, negative, color }) {
   );
 }
 
-function CustomerRow({ item, money, n, fa, type }) {
+function CustomerRow({ item, money, n, tr, type }) {
   const amount = type === "debtor" ? getDebtor(item) : getCreditor(item);
   return (
     <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
@@ -882,14 +894,14 @@ function CustomerRow({ item, money, n, fa, type }) {
         <div className={`font-black ${type === "debtor" ? "text-red-300" : "text-green-300"}`}>{money(amount)}</div>
       </div>
       <div className="grid grid-cols-2 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{fa ? "تعداد فاکتور" : "Invoices"}: {n(item.invoice_count || 0)}</div>
-        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{fa ? "آخرین تراکنش" : "Last"}: {item.last_transaction_date ? String(item.last_transaction_date).slice(0, 10) : "-"}</div>
+        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")}: {n(item.invoice_count || 0)}</div>
+        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last")}: {item.last_transaction_date ? String(item.last_transaction_date).slice(0, 10) : "-"}</div>
       </div>
     </div>
   );
 }
 
-function ProductProfitRow({ item, money, n, fa }) {
+function ProductProfitRow({ item, money, n, tr }) {
   const profitPositive = toNumber(item.profit) >= 0;
   return (
     <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
@@ -901,19 +913,19 @@ function ProductProfitRow({ item, money, n, fa }) {
         <div className={`font-black ${profitPositive ? "text-[var(--erp-accent)]" : "text-red-300"}`}>{money(item.profit)}</div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <MiniStat label={fa ? "فروش" : "Sold"} value={n(item.sold_qty || 0)} />
-        <MiniStat label={fa ? "مرجوعی" : "Return"} value={n(item.returned_qty || 0)} />
-        <MiniStat label={fa ? "درآمد" : "Revenue"} value={money(item.revenue || 0)} />
-        <MiniStat label={fa ? "هزینه" : "Cost"} value={money(item.cost || 0)} />
-        <MiniStat label={fa ? "حاشیه" : "Margin"} value={`${n(Number(item.margin_percent || 0).toFixed(1))}%`} />
+        <MiniStat label={tr("فروش", "المباع", "Satılan", "Sold")} value={n(item.sold_qty || 0)} />
+        <MiniStat label={tr("مرجوعی", "المرتجع", "İade", "Return")} value={n(item.returned_qty || 0)} />
+        <MiniStat label={tr("درآمد", "الإيراد", "Gelir", "Revenue")} value={money(item.revenue || 0)} />
+        <MiniStat label={tr("هزینه", "التكلفة", "Maliyet", "Cost")} value={money(item.cost || 0)} />
+        <MiniStat label={tr("حاشیه", "الهامش", "Marj", "Margin")} value={`${n(Number(item.margin_percent || 0).toFixed(1))}%`} />
       </div>
     </div>
   );
 }
 
-function InventoryRow({ item, money, n, fa }) {
+function InventoryRow({ item, money, n, tr }) {
   const status = item.stock_status || "normal";
-  const statusLabel = status === "critical" ? (fa ? "بحرانی" : "Critical") : status === "warning" ? (fa ? "هشدار" : "Warning") : (fa ? "نرمال" : "Normal");
+  const statusLabel = status === "critical" ? tr("بحرانی", "حرج", "Kritik", "Critical") : status === "warning" ? tr("هشدار", "تحذير", "Uyarı", "Warning") : tr("نرمال", "طبيعي", "Normal", "Normal");
   const statusClass = status === "critical" ? "text-red-300 bg-red-500/10" : status === "warning" ? "text-amber-300 bg-amber-500/10" : "text-green-300 bg-green-500/10";
 
   return (
@@ -926,11 +938,11 @@ function InventoryRow({ item, money, n, fa }) {
         <div className={`px-3 py-1 rounded-xl font-black ${statusClass}`}>{statusLabel}</div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <MiniStat label={fa ? "موجودی" : "Stock"} value={n(item.stock || 0)} />
-        <MiniStat label={fa ? "حداقل" : "Min"} value={n(item.min_stock || 0)} />
-        <MiniStat label={fa ? "ارزش فروش" : "Sale value"} value={money(item.value || 0)} />
-        <MiniStat label={fa ? "ارزش خرید" : "Buy value"} value={money(item.buy_value || 0)} />
-        <MiniStat label={fa ? "واحد" : "Unit"} value={item.unit || "-"} />
+        <MiniStat label={tr("موجودی", "المخزون", "Stok", "Stock")} value={n(item.stock || 0)} />
+        <MiniStat label={tr("حداقل", "الحد الأدنى", "Min", "Min")} value={n(item.min_stock || 0)} />
+        <MiniStat label={tr("ارزش فروش", "قيمة البيع", "Satış değeri", "Sale value")} value={money(item.value || 0)} />
+        <MiniStat label={tr("ارزش خرید", "قيمة الشراء", "Alış değeri", "Buy value")} value={money(item.buy_value || 0)} />
+        <MiniStat label={tr("واحد", "الوحدة", "Birim", "Unit")} value={item.unit || "-"} />
       </div>
     </div>
   );
@@ -980,6 +992,6 @@ function ChartTooltip({ active, payload, label, money }) {
   );
 }
 
-function Empty({ fa }) {
-  return <div className="text-[var(--erp-muted)]">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>;
+function Empty({ tr }) {
+  return <div className="text-[var(--erp-muted)]">{tr("داده‌ای وجود ندارد.", "لا توجد بيانات.", "Veri yok.", "No data.")}</div>;
 }
