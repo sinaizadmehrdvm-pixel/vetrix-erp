@@ -65,16 +65,16 @@ function toNumber(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function faText(value, fa) {
+function faText(value, language) {
   if (value === null || value === undefined) return "";
-  return fa ? toPersianDigits(String(value)) : String(value);
+  return language === "fa" ? toPersianDigits(String(value)) : String(value);
 }
 
-function normalizeNumberInput(value, fa) {
+function normalizeNumberInput(value, language) {
   const cleaned = toEnglishDigits(String(value || ""))
     .replace(/[,،]/g, "")
     .replace(/[^\d.-]/g, "");
-  return fa ? toPersianDigits(cleaned) : cleaned;
+  return language === "fa" ? toPersianDigits(cleaned) : cleaned;
 }
 
 function Field({ label, hint, icon, children }) {
@@ -97,64 +97,86 @@ export default function Invoices() {
   const navigate = useNavigate();
 
   const label = {
-    invoiceSystem: fa ? "سیستم فاکتور حرفه‌ای" : "Professional Invoice System",
+    invoiceSystem: fa ? "سیستم فاکتور حرفه‌ای" : language === "ar" ? "نظام الفواتير الاحترافي" : language === "tr" ? "Profesyonel Fatura Sistemi" : "Professional Invoice System",
     subtitle: fa
       ? "ثبت فاکتور فروش، خرید، پیش‌فاکتور، مرجوعی، مالیات، تخفیف، حمل، QR و چاپ حرفه‌ای"
+      : language === "ar"
+      ? "إنشاء فواتير بيع وشراء وفواتير أولية ومرتجعات، مع الضريبة والخصم والشحن ورمز QR وطباعة احترافية"
+      : language === "tr"
+      ? "Satış, alış, proforma ve iade faturaları oluşturun; vergi, indirim, kargo, QR kod ve profesyonel yazdırma desteğiyle"
       : "Create sales, purchase, proforma, returns, tax, discount, shipping, QR and professional print",
-    invoiceInfo: fa ? "اطلاعات اصلی فاکتور" : "Main invoice information",
-    invoiceType: fa ? "نوع فاکتور" : "Invoice type",
-    customer: fa ? "طرف حساب / مشتری" : "Customer / Account",
-    selectCustomer: fa ? "طرف حساب را انتخاب کن" : "Select customer",
-    paymentStatus: fa ? "وضعیت پرداخت" : "Payment status",
-    unpaid: fa ? "پرداخت نشده" : "Unpaid",
-    partial: fa ? "پرداخت جزئی" : "Partial",
-    paid: fa ? "تسویه شده" : "Paid",
-    shippingCost: fa ? "هزینه حمل" : "Shipping cost",
-    shippingHint: fa ? "اگر هزینه حمل نداری خالی بگذار" : "Leave blank if there is no shipping cost",
-    discountPercent: fa ? "درصد تخفیف" : "Discount percent",
-    taxPercent: fa ? "درصد مالیات" : "Tax percent",
-    invoiceQR: fa ? "QR فاکتور فعال باشد" : "Enable invoice QR",
-    qrHint: fa ? "برای چاپ و رهگیری فاکتور استفاده می‌شود" : "Used for invoice print and tracking",
-    itemsTitle: fa ? "ردیف‌های کالا / خدمات" : "Items / Services rows",
-    item: fa ? "کالا / خدمات" : "Item / Service",
-    selectProduct: fa ? "کالا را انتخاب کن" : "Select product",
-    quantity: fa ? "تعداد" : "Quantity",
-    unitPrice: fa ? "قیمت واحد" : "Unit price",
-    rowTotal: fa ? "جمع ردیف" : "Row total",
-    remove: fa ? "حذف ردیف" : "Remove row",
-    addItem: fa ? "افزودن ردیف جدید" : "Add new row",
-    notesPlaceholder: fa ? "توضیحات تکمیلی، شرایط پرداخت، آدرس ارسال یا هر نکته مهم..." : "Extra notes...",
-    createInvoice: fa ? "ثبت فاکتور" : "Create invoice",
-    saveInvoice: fa ? "ذخیره ویرایش فاکتور" : "Save invoice edit",
-    cancelEdit: fa ? "لغو ویرایش" : "Cancel edit",
-    refresh: fa ? "به‌روزرسانی اطلاعات" : "Refresh data",
-    grandTotal: fa ? "مبلغ نهایی" : "Grand total",
-    summaryTitle: fa ? "خلاصه مالی فاکتور" : "Invoice financial summary",
-    invoicesList: fa ? "لیست فاکتورها" : "Invoices list",
-    id: fa ? "شناسه" : "ID",
-    total: fa ? "مبلغ کل" : "Total",
-    status: fa ? "وضعیت" : "Status",
-    printInvoice: fa ? "چاپ فاکتور" : "Print invoice",
-    edit: fa ? "ویرایش" : "Edit",
-    delete: fa ? "حذف" : "Delete",
-    final: fa ? "نهایی" : "Final",
-    emptyCustomers: fa ? "ابتدا از بخش طرف‌حساب‌ها مشتری تعریف کن" : "Create a customer first",
-    emptyProducts: fa ? "ابتدا از بخش کالاها، کالا تعریف کن" : "Create a product first",
-    noInvoices: fa ? "هنوز فاکتوری ثبت نشده است" : "No invoice has been created yet",
-    loading: fa ? "در حال دریافت اطلاعات..." : "Loading data...",
-    chooseCustomerAlert: fa ? "لطفاً طرف حساب را انتخاب کن" : "Please select customer",
-    chooseProductAlert: fa ? "حداقل یک کالا با تعداد معتبر انتخاب کن" : "Please add at least one valid product",
-    createdAlert: fa ? "فاکتور با موفقیت ثبت شد" : "Invoice created successfully",
-    savedOffline: fa ? "سرور در دسترس نبود؛ فاکتور در حافظه آفلاین ذخیره شد." : "Server unavailable; invoice saved offline.",
-    loadedOffline: fa ? "اتصال به سرور برقرار نشد؛ اطلاعات فاکتورها از حافظه آفلاین نمایش داده شد." : "Server unavailable; invoices loaded from offline cache.",
-    createError: fa ? "خطا در ثبت فاکتور" : "Error creating invoice",
-    saleInvoice: fa ? "فاکتور فروش" : "Sales invoice",
-    buyInvoice: fa ? "فاکتور خرید" : "Purchase invoice",
-    proformaInvoice: fa ? "پیش‌فاکتور" : "Proforma invoice",
-    returnSaleInvoice: fa ? "برگشت از فروش" : "Sales return",
-    returnBuyInvoice: fa ? "برگشت از خرید" : "Purchase return",
-    stock: fa ? "موجودی" : "Stock",
-    offline: fa ? "آفلاین" : "Offline",
+    invoiceInfo: fa ? "اطلاعات اصلی فاکتور" : language === "ar" ? "المعلومات الأساسية للفاتورة" : language === "tr" ? "Fatura Temel Bilgileri" : "Main invoice information",
+    invoiceType: fa ? "نوع فاکتور" : language === "ar" ? "نوع الفاتورة" : language === "tr" ? "Fatura Türü" : "Invoice type",
+    customer: fa ? "طرف حساب / مشتری" : language === "ar" ? "الطرف / العميل" : language === "tr" ? "Cari / Müşteri" : "Customer / Account",
+    selectCustomer: fa ? "طرف حساب را انتخاب کن" : language === "ar" ? "اختر الطرف" : language === "tr" ? "Cari Seç" : "Select customer",
+    paymentStatus: fa ? "وضعیت پرداخت" : language === "ar" ? "حالة السداد" : language === "tr" ? "Ödeme Durumu" : "Payment status",
+    unpaid: fa ? "پرداخت نشده" : language === "ar" ? "غير مسدد" : language === "tr" ? "Ödenmedi" : "Unpaid",
+    partial: fa ? "پرداخت جزئی" : language === "ar" ? "مسدد جزئيًا" : language === "tr" ? "Kısmi Ödendi" : "Partial",
+    paid: fa ? "تسویه شده" : language === "ar" ? "مسدد" : language === "tr" ? "Ödendi" : "Paid",
+    shippingCost: fa ? "هزینه حمل" : language === "ar" ? "تكلفة الشحن" : language === "tr" ? "Kargo Ücreti" : "Shipping cost",
+    shippingHint: fa ? "اگر هزینه حمل نداری خالی بگذار" : language === "ar" ? "اتركه فارغًا إذا لم تكن هناك تكلفة شحن" : language === "tr" ? "Kargo ücreti yoksa boş bırakın" : "Leave blank if there is no shipping cost",
+    discountPercent: fa ? "درصد تخفیف" : language === "ar" ? "نسبة الخصم" : language === "tr" ? "İskonto Oranı" : "Discount percent",
+    taxPercent: fa ? "درصد مالیات" : language === "ar" ? "نسبة الضريبة" : language === "tr" ? "Vergi Oranı" : "Tax percent",
+    invoiceQR: fa ? "QR فاکتور فعال باشد" : language === "ar" ? "تفعيل رمز QR للفاتورة" : language === "tr" ? "Fatura QR Kodunu Etkinleştir" : "Enable invoice QR",
+    qrHint: fa ? "برای چاپ و رهگیری فاکتور استفاده می‌شود" : language === "ar" ? "يُستخدم لطباعة الفاتورة وتتبعها" : language === "tr" ? "Fatura yazdırma ve takibi için kullanılır" : "Used for invoice print and tracking",
+    itemsTitle: fa ? "ردیف‌های کالا / خدمات" : language === "ar" ? "بنود الأصناف / الخدمات" : language === "tr" ? "Ürün / Hizmet Kalemleri" : "Items / Services rows",
+    item: fa ? "کالا / خدمات" : language === "ar" ? "الصنف / الخدمة" : language === "tr" ? "Kalem / Hizmet" : "Item / Service",
+    selectProduct: fa ? "کالا را انتخاب کن" : language === "ar" ? "اختر المنتج" : language === "tr" ? "Ürün Seç" : "Select product",
+    quantity: fa ? "تعداد" : language === "ar" ? "الكمية" : language === "tr" ? "Miktar" : "Quantity",
+    unitPrice: fa ? "قیمت واحد" : language === "ar" ? "سعر الوحدة" : language === "tr" ? "Birim Fiyat" : "Unit price",
+    rowTotal: fa ? "جمع ردیف" : language === "ar" ? "إجمالي البند" : language === "tr" ? "Satır Toplamı" : "Row total",
+    remove: fa ? "حذف ردیف" : language === "ar" ? "حذف البند" : language === "tr" ? "Satırı Kaldır" : "Remove row",
+    addItem: fa ? "افزودن ردیف جدید" : language === "ar" ? "إضافة بند جديد" : language === "tr" ? "Yeni Kalem Ekle" : "Add new row",
+    notesPlaceholder: fa
+      ? "توضیحات تکمیلی، شرایط پرداخت، آدرس ارسال یا هر نکته مهم..."
+      : language === "ar"
+      ? "ملاحظات إضافية، شروط الدفع، عنوان التسليم أو أي تفاصيل مهمة..."
+      : language === "tr"
+      ? "Ek notlar, ödeme koşulları, teslimat adresi veya diğer önemli bilgiler..."
+      : "Extra notes...",
+    createInvoice: fa ? "ثبت فاکتور" : language === "ar" ? "إنشاء فاتورة" : language === "tr" ? "Fatura Oluştur" : "Create invoice",
+    saveInvoice: fa ? "ذخیره ویرایش فاکتور" : language === "ar" ? "حفظ تعديل الفاتورة" : language === "tr" ? "Fatura Düzenlemesini Kaydet" : "Save invoice edit",
+    cancelEdit: fa ? "لغو ویرایش" : language === "ar" ? "إلغاء التعديل" : language === "tr" ? "Düzenlemeyi İptal Et" : "Cancel edit",
+    refresh: fa ? "به‌روزرسانی اطلاعات" : language === "ar" ? "تحديث البيانات" : language === "tr" ? "Verileri Yenile" : "Refresh data",
+    grandTotal: fa ? "مبلغ نهایی" : language === "ar" ? "المبلغ الإجمالي" : language === "tr" ? "Genel Toplam" : "Grand total",
+    summaryTitle: fa ? "خلاصه مالی فاکتور" : language === "ar" ? "الملخص المالي للفاتورة" : language === "tr" ? "Fatura Mali Özeti" : "Invoice financial summary",
+    invoicesList: fa ? "لیست فاکتورها" : language === "ar" ? "قائمة الفواتير" : language === "tr" ? "Fatura Listesi" : "Invoices list",
+    id: fa ? "شناسه" : language === "ar" ? "الرقم" : language === "tr" ? "No" : "ID",
+    total: fa ? "مبلغ کل" : language === "ar" ? "الإجمالي" : language === "tr" ? "Toplam" : "Total",
+    status: fa ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status",
+    printInvoice: fa ? "چاپ فاکتور" : language === "ar" ? "طباعة الفاتورة" : language === "tr" ? "Faturayı Yazdır" : "Print invoice",
+    edit: fa ? "ویرایش" : language === "ar" ? "تعديل" : language === "tr" ? "Düzenle" : "Edit",
+    delete: fa ? "حذف" : language === "ar" ? "حذف" : language === "tr" ? "Sil" : "Delete",
+    final: fa ? "نهایی" : language === "ar" ? "نهائي" : language === "tr" ? "Kesin" : "Final",
+    emptyCustomers: fa ? "ابتدا از بخش طرف‌حساب‌ها مشتری تعریف کن" : language === "ar" ? "أنشئ عميلًا أولاً من قسم الأطراف" : language === "tr" ? "Önce Cariler bölümünden bir müşteri oluşturun" : "Create a customer first",
+    emptyProducts: fa ? "ابتدا از بخش کالاها، کالا تعریف کن" : language === "ar" ? "أنشئ منتجًا أولاً من قسم المنتجات" : language === "tr" ? "Önce Ürünler bölümünden bir ürün oluşturun" : "Create a product first",
+    noInvoices: fa ? "هنوز فاکتوری ثبت نشده است" : language === "ar" ? "لا توجد فواتير مسجلة بعد" : language === "tr" ? "Henüz fatura oluşturulmadı" : "No invoice has been created yet",
+    loading: fa ? "در حال دریافت اطلاعات..." : language === "ar" ? "جارٍ تحميل البيانات..." : language === "tr" ? "Veriler yükleniyor..." : "Loading data...",
+    chooseCustomerAlert: fa ? "لطفاً طرف حساب را انتخاب کن" : language === "ar" ? "الرجاء اختيار الطرف" : language === "tr" ? "Lütfen bir cari seçin" : "Please select customer",
+    chooseProductAlert: fa ? "حداقل یک کالا با تعداد معتبر انتخاب کن" : language === "ar" ? "أضف صنفًا واحدًا على الأقل بكمية صحيحة" : language === "tr" ? "Lütfen geçerli miktarda en az bir ürün ekleyin" : "Please add at least one valid product",
+    createdAlert: fa ? "فاکتور با موفقیت ثبت شد" : language === "ar" ? "تم إنشاء الفاتورة بنجاح" : language === "tr" ? "Fatura başarıyla oluşturuldu" : "Invoice created successfully",
+    savedOffline: fa
+      ? "سرور در دسترس نبود؛ فاکتور در حافظه آفلاین ذخیره شد."
+      : language === "ar"
+      ? "تعذّر الاتصال بالخادم؛ تم حفظ الفاتورة في الذاكرة المؤقتة غير المتصلة."
+      : language === "tr"
+      ? "Sunucuya ulaşılamadı; fatura çevrimdışı olarak kaydedildi."
+      : "Server unavailable; invoice saved offline.",
+    loadedOffline: fa
+      ? "اتصال به سرور برقرار نشد؛ اطلاعات فاکتورها از حافظه آفلاین نمایش داده شد."
+      : language === "ar"
+      ? "تعذّر الاتصال بالخادم؛ تم عرض بيانات الفواتير من الذاكرة المؤقتة غير المتصلة."
+      : language === "tr"
+      ? "Sunucuya bağlanılamadı; faturalar çevrimdışı önbellekten yüklendi."
+      : "Server unavailable; invoices loaded from offline cache.",
+    createError: fa ? "خطا در ثبت فاکتور" : language === "ar" ? "خطأ في إنشاء الفاتورة" : language === "tr" ? "Fatura oluşturulurken hata oluştu" : "Error creating invoice",
+    saleInvoice: fa ? "فاکتور فروش" : language === "ar" ? "فاتورة مبيعات" : language === "tr" ? "Satış Faturası" : "Sales invoice",
+    buyInvoice: fa ? "فاکتور خرید" : language === "ar" ? "فاتورة مشتريات" : language === "tr" ? "Alış Faturası" : "Purchase invoice",
+    proformaInvoice: fa ? "پیش‌فاکتور" : language === "ar" ? "فاتورة أولية" : language === "tr" ? "Proforma Fatura" : "Proforma invoice",
+    returnSaleInvoice: fa ? "برگشت از فروش" : language === "ar" ? "مرتجع مبيعات" : language === "tr" ? "Satış İadesi" : "Sales return",
+    returnBuyInvoice: fa ? "برگشت از خرید" : language === "ar" ? "مرتجع مشتريات" : language === "tr" ? "Alış İadesi" : "Purchase return",
+    stock: fa ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock",
+    offline: fa ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline",
   };
 
   const emptyForm = {
@@ -317,14 +339,14 @@ export default function Invoices() {
       ...updated[index],
       [field]:
         field === "quantity" || field === "unit_price"
-          ? normalizeNumberInput(value, fa)
+          ? normalizeNumberInput(value, language)
           : value,
     };
 
     if (field === "product_id") {
       const product = products.find((p) => String(p.id) === String(value));
       const price = product?.sell_price ?? product?.price ?? "";
-      updated[index].unit_price = price ? faText(price, fa) : "";
+      updated[index].unit_price = price ? faText(price, language) : "";
     }
 
     setItems(updated);
@@ -653,6 +675,10 @@ export default function Invoices() {
     alert(
       fa
         ? "جزئیات کالاهای این فاکتور از بک‌اند برنگشت. باید مسیر GET /invoices/{id} در بک‌اند آیتم‌های فاکتور را هم برگرداند."
+        : language === "ar"
+        ? "لم يتم إرجاع بنود هذه الفاتورة من الخادم. يجب أن يُعيد مسار GET /invoices/{id} بنود الفاتورة أيضًا."
+        : language === "tr"
+        ? "Bu faturanın kalemleri sunucudan alınamadı. Backend'deki GET /invoices/{id} uç noktası fatura kalemlerini de döndürmelidir."
         : "Invoice items were not returned from backend."
     );
     return;
@@ -663,9 +689,9 @@ export default function Invoices() {
   setForm({
     invoice_type: fullInvoice.invoice_type || "sale",
     customer_id: String(fullInvoice.customer_id || ""),
-    discount_percent: faText(fullInvoice.discount_percent || "", fa),
-    tax_percent: faText(fullInvoice.tax_percent || "", fa),
-    shipping_cost: faText(fullInvoice.shipping_cost || "", fa),
+    discount_percent: faText(fullInvoice.discount_percent || "", language),
+    tax_percent: faText(fullInvoice.tax_percent || "", language),
+    shipping_cost: faText(fullInvoice.shipping_cost || "", language),
     payment_status: fullInvoice.payment_status || fullInvoice.status || "unpaid",
     invoice_note: fullInvoice.invoice_note || fullInvoice.note || "",
     qr_enabled: fullInvoice.qr_enabled ?? true,
@@ -674,8 +700,8 @@ export default function Invoices() {
   setItems(
     invoiceItems.map((it) => ({
       product_id: String(it.product_id || it.product?.id || ""),
-      quantity: faText(it.quantity || 0, fa),
-      unit_price: faText(it.unit_price || it.price || 0, fa),
+      quantity: faText(it.quantity || 0, language),
+      unit_price: faText(it.unit_price || it.price || 0, language),
       warehouse_id: it.warehouse_id ? String(it.warehouse_id) : "",
     }))
   );
@@ -685,7 +711,13 @@ export default function Invoices() {
 
   async function deleteInvoice(invoice) {
     const ok = window.confirm(
-      fa ? `فاکتور شماره ${n(invoice.id)} حذف شود؟` : `Delete invoice #${invoice.id}?`
+      fa
+        ? `فاکتور شماره ${n(invoice.id)} حذف شود؟`
+        : language === "ar"
+        ? `هل تريد حذف الفاتورة رقم ${n(invoice.id)}؟`
+        : language === "tr"
+        ? `${n(invoice.id)} numaralı fatura silinsin mi?`
+        : `Delete invoice #${invoice.id}?`
     );
     if (!ok) return;
 
@@ -711,6 +743,10 @@ export default function Invoices() {
       setLoadError(
         fa
           ? "حذف آنلاین انجام نشد؛ فاکتور از حافظه آفلاین حذف شد."
+          : language === "ar"
+          ? "فشل الحذف عبر الخادم؛ تم حذف الفاتورة من الذاكرة المؤقتة غير المتصلة."
+          : language === "tr"
+          ? "Çevrimiçi silme başarısız oldu; fatura çevrimdışı önbellekten kaldırıldı."
           : "Online delete failed; invoice removed from offline cache."
       );
     }
@@ -762,13 +798,25 @@ export default function Invoices() {
     selectedCustomerProjectedBalance > 0
       ? fa
         ? "بدهکار"
+        : language === "ar"
+        ? "مدين"
+        : language === "tr"
+        ? "Borçlu"
         : "Debtor"
       : selectedCustomerProjectedBalance < 0
       ? fa
         ? "بستانکار"
+        : language === "ar"
+        ? "دائن"
+        : language === "tr"
+        ? "Alacaklı"
         : "Creditor"
       : fa
       ? "تسویه"
+      : language === "ar"
+      ? "مسدد"
+      : language === "tr"
+      ? "Kapandı"
       : "Settled";
 
   return (
@@ -887,7 +935,7 @@ export default function Invoices() {
               onChange={(e) =>
                 setForm({
                   ...form,
-                  shipping_cost: normalizeNumberInput(e.target.value, fa),
+                  shipping_cost: normalizeNumberInput(e.target.value, language),
                 })
               }
               className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
@@ -903,11 +951,11 @@ export default function Invoices() {
               onChange={(e) =>
                 setForm({
                   ...form,
-                  discount_percent: normalizeNumberInput(e.target.value, fa),
+                  discount_percent: normalizeNumberInput(e.target.value, language),
                 })
               }
               className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-              placeholder={fa ? "۰٪" : "0%"}
+              placeholder={fa ? "۰٪" : language === "tr" ? "%0" : "0%"}
             />
           </Field>
 
@@ -919,11 +967,11 @@ export default function Invoices() {
               onChange={(e) =>
                 setForm({
                   ...form,
-                  tax_percent: normalizeNumberInput(e.target.value, fa),
+                  tax_percent: normalizeNumberInput(e.target.value, language),
                 })
               }
               className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-              placeholder={fa ? "۰٪" : "0%"}
+              placeholder={fa ? "۰٪" : language === "tr" ? "%0" : "0%"}
             />
           </Field>
 
@@ -1131,7 +1179,7 @@ export default function Invoices() {
                 <th className="text-start py-3">{label.customer}</th>
                 <th className="text-start py-3">{label.total}</th>
                 <th className="text-start py-3">{label.status}</th>
-                <th className="text-start py-3">{fa ? "عملیات" : "Actions"}</th>
+                <th className="text-start py-3">{fa ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</th>
               </tr>
             </thead>
 

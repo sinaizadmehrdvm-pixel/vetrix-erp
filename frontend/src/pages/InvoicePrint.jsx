@@ -77,35 +77,77 @@ function normalizeConfig(config) {
   };
 }
 
-function getInvoiceTitle(invoice, fa) {
+function getInvoiceTitle(invoice, language) {
   const type = invoice?.invoice_type || invoice?.type || "sale";
-  const labelsFa = {
-    sale: "فاکتور فروش",
-    buy: "فاکتور خرید",
-    proforma: "پیش‌فاکتور",
-    return_sale: "مرجوعی فروش",
-    return_buy: "مرجوعی خرید",
+  const labels = {
+    fa: {
+      sale: "فاکتور فروش",
+      buy: "فاکتور خرید",
+      proforma: "پیش‌فاکتور",
+      return_sale: "مرجوعی فروش",
+      return_buy: "مرجوعی خرید",
+    },
+    ar: {
+      sale: "فاتورة مبيعات",
+      buy: "فاتورة مشتريات",
+      proforma: "فاتورة أولية",
+      return_sale: "مرتجع مبيعات",
+      return_buy: "مرتجع مشتريات",
+    },
+    tr: {
+      sale: "Satış Faturası",
+      buy: "Alış Faturası",
+      proforma: "Proforma Fatura",
+      return_sale: "Satış İadesi",
+      return_buy: "Alış İadesi",
+    },
+    en: {
+      sale: "Sales Invoice",
+      buy: "Purchase Invoice",
+      proforma: "Proforma Invoice",
+      return_sale: "Sales Return",
+      return_buy: "Purchase Return",
+    },
   };
-  const labelsEn = {
-    sale: "Sales Invoice",
-    buy: "Purchase Invoice",
-    proforma: "Proforma Invoice",
-    return_sale: "Sales Return",
-    return_buy: "Purchase Return",
-  };
-  return invoice?.invoice_type_label || (fa ? labelsFa[type] : labelsEn[type]) || (fa ? "فاکتور" : "Invoice");
+  const map = labels[language] || labels.en;
+  const fallback = { fa: "فاکتور", ar: "فاتورة", tr: "Fatura", en: "Invoice" }[language] || "Invoice";
+  return invoice?.invoice_type_label || map[type] || fallback;
 }
 
-function paymentLabel(status, fa) {
+function paymentLabel(status, language) {
   const key = String(status || "unpaid").toLowerCase();
-  if (!fa) return key || "-";
-  return {
-    paid: "تسویه شده",
-    unpaid: "تسویه نشده",
-    partial: "تسویه ناقص",
-    draft: "پیش‌نویس",
-    final: "نهایی",
-  }[key] || key || "-";
+  const labels = {
+    fa: {
+      paid: "تسویه شده",
+      unpaid: "تسویه نشده",
+      partial: "تسویه ناقص",
+      draft: "پیش‌نویس",
+      final: "نهایی",
+    },
+    ar: {
+      paid: "مسدد",
+      unpaid: "غير مسدد",
+      partial: "مسدد جزئيًا",
+      draft: "مسودة",
+      final: "نهائي",
+    },
+    tr: {
+      paid: "Ödendi",
+      unpaid: "Ödenmedi",
+      partial: "Kısmi Ödendi",
+      draft: "Taslak",
+      final: "Kesin",
+    },
+    en: {
+      paid: "Paid",
+      unpaid: "Unpaid",
+      partial: "Partial",
+      draft: "Draft",
+      final: "Final",
+    },
+  };
+  const map = labels[language] || labels.en;
+  return map[key] || key || "-";
 }
 
 function snap(value) {
@@ -120,7 +162,9 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const [cachedInvoice, setCachedInvoice] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
-  const [templateName, setTemplateName] = useState(fa ? "قالب چاپ فاکتور" : "Invoice print template");
+  const [templateName, setTemplateName] = useState(
+    fa ? "قالب چاپ فاکتور" : language === "ar" ? "قالب طباعة الفاتورة" : language === "tr" ? "Fatura Yazdırma Şablonu" : "Invoice print template"
+  );
   const [config, setConfig] = useState(defaultConfig);
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [editMode, setEditMode] = useState(true);
@@ -214,26 +258,52 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setSelectedTemplateId(templateId);
 
     if (templateId === "default") {
-      setTemplateName(fa ? "قالب چاپ فاکتور" : "Invoice print template");
+      setTemplateName(
+        fa ? "قالب چاپ فاکتور" : language === "ar" ? "قالب طباعة الفاتورة" : language === "tr" ? "Fatura Yazdırma Şablonu" : "Invoice print template"
+      );
       updateConfig(defaultConfig);
       setSelectedElementId("title");
-      setMessage(fa ? "قالب پیش‌فرض اعمال شد." : "Default template applied.");
+      setMessage(
+        fa
+          ? "قالب پیش‌فرض اعمال شد."
+          : language === "ar"
+          ? "تم تطبيق القالب الافتراضي."
+          : language === "tr"
+          ? "Varsayılan şablon uygulandı."
+          : "Default template applied."
+      );
       return;
     }
 
     const template = templates.find((tpl) => String(tpl.id) === String(templateId));
     if (!template) return;
 
-    setTemplateName(template.name || (fa ? "قالب چاپ" : "Print template"));
+    setTemplateName(
+      template.name || (fa ? "قالب چاپ" : language === "ar" ? "قالب الطباعة" : language === "tr" ? "Yazdırma Şablonu" : "Print template")
+    );
     updateConfig(template.config || defaultConfig);
     setSelectedElementId((template.config?.elements || [])[0]?.id || "title");
-    setMessage(fa ? "قالب انتخاب شد و روی پیش‌نمایش اعمال شد." : "Template loaded in preview.");
+    setMessage(
+      fa
+        ? "قالب انتخاب شد و روی پیش‌نمایش اعمال شد."
+        : language === "ar"
+        ? "تم تحميل القالب وتطبيقه على المعاينة."
+        : language === "tr"
+        ? "Şablon yüklendi ve önizlemeye uygulandı."
+        : "Template loaded in preview."
+    );
   }
 
   async function saveAsTemplate() {
     const suffix = invoice?.id ? ` #${invoice.id}` : "";
     const newName = window.prompt(
-      fa ? "نام قالب جدید را وارد کن:" : "Enter new template name:",
+      fa
+        ? "نام قالب جدید را وارد کن:"
+        : language === "ar"
+        ? "أدخل اسم القالب الجديد:"
+        : language === "tr"
+        ? "Yeni şablon adını girin:"
+        : "Enter new template name:",
       `${templateName}${suffix}`
     );
 
@@ -245,7 +315,15 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       config,
     });
 
-    setMessage(fa ? "قالب جدید ذخیره شد." : "New template saved.");
+    setMessage(
+      fa
+        ? "قالب جدید ذخیره شد."
+        : language === "ar"
+        ? "تم حفظ القالب الجديد."
+        : language === "tr"
+        ? "Yeni şablon kaydedildi."
+        : "New template saved."
+    );
     await loadTemplates();
   }
 
@@ -329,12 +407,14 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   function replaceTokens(text) {
+    const notRegistered =
+      fa ? "ثبت نشده" : language === "ar" ? "غير مسجل" : language === "tr" ? "Kayıtlı değil" : "Not registered";
     const customerName = invoice?.customerName || invoice?.customer_name || invoice?.customer?.name || "-";
-    const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || "ثبت نشده";
-    const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || "ثبت نشده";
+    const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || notRegistered;
+    const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || notRegistered;
     const invoiceDate = date(invoice?.created_at || new Date(), { month: "long" });
-    const invoiceTitle = getInvoiceTitle(invoice, fa);
-    const status = paymentLabel(invoice?.payment_status || invoice?.status, fa);
+    const invoiceTitle = getInvoiceTitle(invoice, language);
+    const status = paymentLabel(invoice?.payment_status || invoice?.status, language);
 
     const tokens = {
       "{{invoice_title}}": invoiceTitle,
@@ -358,8 +438,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   function renderElement(element) {
-    if (element.type === "table") return <ItemsTable items={items} fa={fa} n={n} money={money} />;
-    if (element.type === "totals") return <TotalsBox totals={totals} fa={fa} money={money} />;
+    if (element.type === "table") return <ItemsTable items={items} language={language} n={n} money={money} />;
+    if (element.type === "totals") return <TotalsBox totals={totals} language={language} money={money} />;
 
     if (element.type === "qr") {
       return (
@@ -394,10 +474,16 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     return (
       <section className="p-6 text-[var(--erp-text)] bg-[var(--erp-bg)] min-h-screen">
         <Link to="/invoices" className="text-[var(--erp-accent)] font-bold">
-          {fa ? "بازگشت به فاکتورها" : "Back to invoices"}
+          {fa ? "بازگشت به فاکتورها" : language === "ar" ? "العودة إلى الفواتير" : language === "tr" ? "Faturalara Dön" : "Back to invoices"}
         </Link>
         <div className="mt-6 text-[var(--erp-muted)]">
-          {fa ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود." : "Invoice not found."}
+          {fa
+            ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود."
+            : language === "ar"
+            ? "لم يتم العثور على الفاتورة. افتح صفحة الفواتير مرة واحدة لتحديث الذاكرة المؤقتة غير المتصلة."
+            : language === "tr"
+            ? "Fatura bulunamadı. Çevrimdışı önbelleği güncellemek için faturalar sayfasını bir kez açın."
+            : "Invoice not found."}
         </div>
       </section>
     );
@@ -408,27 +494,33 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       <div className="no-print flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-3xl font-black text-[var(--erp-accent)]">
-            {fa ? "استودیوی چاپ فاکتور" : "Invoice Print Studio"}
+            {fa ? "استودیوی چاپ فاکتور" : language === "ar" ? "استوديو طباعة الفواتير" : language === "tr" ? "Fatura Baskı Stüdyosu" : "Invoice Print Studio"}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
-            {fa ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.` : `Print invoice #${invoice.id} with a saved template.`}
+            {fa
+              ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.`
+              : language === "ar"
+              ? `اطبع الفاتورة رقم ${n(invoice.id)} باستخدام قالب محفوظ.`
+              : language === "tr"
+              ? `${n(invoice.id)} numaralı faturayı kayıtlı bir şablonla yazdırın.`
+              : `Print invoice #${invoice.id} with a saved template.`}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
           <Link to="/invoices" className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2">
             <ArrowLeft size={18} />
-            {fa ? "بازگشت" : "Back"}
+            {fa ? "بازگشت" : language === "ar" ? "رجوع" : language === "tr" ? "Geri" : "Back"}
           </Link>
 
           <button type="button" onClick={saveAsTemplate} className="px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
             <Save size={18} />
-            {fa ? "ذخیره به عنوان قالب" : "Save as template"}
+            {fa ? "ذخیره به عنوان قالب" : language === "ar" ? "حفظ كقالب" : language === "tr" ? "Şablon Olarak Kaydet" : "Save as template"}
           </button>
 
           <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             <Printer size={18} />
-            {fa ? "چاپ / ذخیره PDF" : "Print / PDF"}
+            {fa ? "چاپ / ذخیره PDF" : language === "ar" ? "طباعة / حفظ PDF" : language === "tr" ? "Yazdır / PDF Kaydet" : "Print / PDF"}
           </button>
         </div>
       </div>
@@ -443,23 +535,23 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
           <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <FileText size={20} />
-            {fa ? "قالب چاپ" : "Print Template"}
+            {fa ? "قالب چاپ" : language === "ar" ? "قالب الطباعة" : language === "tr" ? "Yazdırma Şablonu" : "Print Template"}
           </h2>
 
-          <Field label={fa ? "انتخاب قالب ذخیره‌شده" : "Saved template"}>
+          <Field label={fa ? "انتخاب قالب ذخیره‌شده" : language === "ar" ? "اختيار قالب محفوظ" : language === "tr" ? "Kayıtlı Şablon Seç" : "Saved template"}>
             <select value={selectedTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className="studio-input">
-              <option value="default">{fa ? "قالب پیش‌فرض سریع" : "Default template"}</option>
+              <option value="default">{fa ? "قالب پیش‌فرض سریع" : language === "ar" ? "القالب الافتراضي السريع" : language === "tr" ? "Hızlı Varsayılan Şablon" : "Default template"}</option>
               {templates.map((template) => (
                 <option key={template.id} value={template.id}>{template.name}</option>
               ))}
             </select>
           </Field>
 
-          <Field label={fa ? "نام قالب / نسخه چاپ" : "Template name"}>
+          <Field label={fa ? "نام قالب / نسخه چاپ" : language === "ar" ? "اسم القالب / نسخة الطباعة" : language === "tr" ? "Şablon Adı / Baskı Sürümü" : "Template name"}>
             <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="studio-input" />
           </Field>
 
-          <Field label={fa ? "اندازه صفحه" : "Page size"}>
+          <Field label={fa ? "اندازه صفحه" : language === "ar" ? "حجم الصفحة" : language === "tr" ? "Sayfa Boyutu" : "Page size"}>
             <select value={config.page_size} onChange={(e) => updateConfig({ ...config, page_size: e.target.value })} className="studio-input">
               <option value="A4">A4</option>
               <option value="A5">A5</option>
@@ -471,11 +563,13 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           <div className="grid grid-cols-2 gap-2">
             <button onClick={loadTemplates} className="studio-tool-button">
               <RefreshCw size={16} />
-              {loadingTemplates ? "..." : fa ? "دریافت" : "Refresh"}
+              {loadingTemplates ? "..." : fa ? "دریافت" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
             </button>
             <button onClick={() => setEditMode((v) => !v)} className="studio-tool-button">
               <Edit3 size={16} />
-              {editMode ? (fa ? "ویرایش روشن" : "Edit on") : fa ? "ویرایش خاموش" : "Edit off"}
+              {editMode
+                ? (fa ? "ویرایش روشن" : language === "ar" ? "التعديل مفعّل" : language === "tr" ? "Düzenleme Açık" : "Edit on")
+                : (fa ? "ویرایش خاموش" : language === "ar" ? "التعديل متوقف" : language === "tr" ? "Düzenleme Kapalı" : "Edit off")}
             </button>
           </div>
 
@@ -490,7 +584,9 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
           <button onClick={() => setShowGrid((v) => !v)} className="w-full studio-tool-button">
             <Grid3X3 size={16} />
-            {showGrid ? (fa ? "Grid روشن" : "Grid on") : fa ? "Grid خاموش" : "Grid off"}
+            {showGrid
+              ? (fa ? "Grid روشن" : language === "ar" ? "الشبكة مفعّلة" : language === "tr" ? "Izgara Açık" : "Grid on")
+              : (fa ? "Grid خاموش" : language === "ar" ? "الشبكة متوقفة" : language === "tr" ? "Izgara Kapalı" : "Grid off")}
           </button>
         </aside>
 
@@ -501,17 +597,17 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           onMouseLeave={stopPointerActions}
         >
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-[var(--erp-accent)] font-black">{fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}</div>
+            <div className="text-[var(--erp-accent)] font-black">{fa ? "پیش‌نمایش قابل ویرایش" : language === "ar" ? "معاينة قابلة للتعديل" : language === "tr" ? "Düzenlenebilir Önizleme" : "Editable preview"}</div>
             <div className="text-[var(--erp-muted)] text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
           </div>
 
-          <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} fa={fa} />
+          <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} dir={dir} />
         </main>
 
         <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
           <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <Settings2 size={20} />
-            {fa ? "تنظیمات بخش" : "Selected element"}
+            {fa ? "تنظیمات بخش" : language === "ar" ? "إعدادات العنصر" : language === "tr" ? "Seçili Öğe Ayarları" : "Selected element"}
           </h2>
 
           {selectedElement ? (
@@ -525,28 +621,28 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
                 <NumberProp label="H" value={selectedElement.h} onChange={(v) => updateElement(selectedElement.id, { h: Number(v) })} />
               </div>
 
-              <Field label={fa ? "متن" : "Text"}>
+              <Field label={fa ? "متن" : language === "ar" ? "النص" : language === "tr" ? "Metin" : "Text"}>
                 <textarea value={selectedElement.text || ""} onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })} rows={4} className="studio-input" />
               </Field>
 
-              <NumberProp label={fa ? "سایز فونت" : "Font size"} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />
-              <NumberProp label={fa ? "گردی گوشه" : "Radius"} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />
+              <NumberProp label={fa ? "سایز فونت" : language === "ar" ? "حجم الخط" : language === "tr" ? "Yazı Boyutu" : "Font size"} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />
+              <NumberProp label={fa ? "گردی گوشه" : language === "ar" ? "استدارة الحواف" : language === "tr" ? "Köşe Yarıçapı" : "Radius"} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />
 
-              <ColorProp label={fa ? "رنگ متن" : "Text color"} value={selectedElement.color} onChange={(v) => updateElement(selectedElement.id, { color: v })} />
-              <ColorProp label={fa ? "پس‌زمینه" : "Background"} value={selectedElement.bg} onChange={(v) => updateElement(selectedElement.id, { bg: v })} />
-              <ColorProp label={fa ? "خط دور" : "Border"} value={selectedElement.border} onChange={(v) => updateElement(selectedElement.id, { border: v })} />
+              <ColorProp label={fa ? "رنگ متن" : language === "ar" ? "لون النص" : language === "tr" ? "Metin Rengi" : "Text color"} value={selectedElement.color} onChange={(v) => updateElement(selectedElement.id, { color: v })} />
+              <ColorProp label={fa ? "پس‌زمینه" : language === "ar" ? "الخلفية" : language === "tr" ? "Arka Plan" : "Background"} value={selectedElement.bg} onChange={(v) => updateElement(selectedElement.id, { bg: v })} />
+              <ColorProp label={fa ? "خط دور" : language === "ar" ? "الحدود" : language === "tr" ? "Kenarlık" : "Border"} value={selectedElement.border} onChange={(v) => updateElement(selectedElement.id, { border: v })} />
 
-              <button onClick={duplicateElement} className="studio-tool-button w-full"><Copy size={16} /> {fa ? "کپی از بخش" : "Duplicate"}</button>
-              <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
+              <button onClick={duplicateElement} className="studio-tool-button w-full"><Copy size={16} /> {fa ? "کپی از بخش" : language === "ar" ? "نسخ العنصر" : language === "tr" ? "Öğeyi Çoğalt" : "Duplicate"}</button>
+              <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : language === "ar" ? "حذف العنصر" : language === "tr" ? "Öğeyi Sil" : "Delete"}</button>
             </>
           ) : (
-            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
+            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : language === "ar" ? "اختر عنصرًا." : language === "tr" ? "Bir öğe seçin." : "Select an element."}</div>
           )}
         </aside>
       </div>
 
       <div className="print-only">
-        <Canvas page={page} zoom={1} showGrid={false} config={config} selectedElementId={null} editMode={false} onElementMouseDown={() => {}} onResizeMouseDown={() => {}} renderElement={renderElement} fa={fa} />
+        <Canvas page={page} zoom={1} showGrid={false} config={config} selectedElementId={null} editMode={false} onElementMouseDown={() => {}} onResizeMouseDown={() => {}} renderElement={renderElement} dir={dir} />
       </div>
 
       <style>{`
@@ -594,7 +690,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   );
 }
 
-function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, fa }) {
+function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, dir }) {
   return (
     <div className="min-w-max flex justify-center pb-10">
       <div
@@ -627,7 +723,7 @@ function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onE
               fontWeight: element.bold ? 900 : 500,
               textAlign: element.align || "center",
               padding: 8,
-              direction: fa ? "rtl" : "ltr",
+              direction: dir || "ltr",
             }}
           >
             {renderElement(element)}
@@ -645,16 +741,19 @@ function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onE
   );
 }
 
-function ItemsTable({ items, fa, n, money }) {
+function ItemsTable({ items, language, n, money }) {
+  const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
   return (
     <table className="w-full border-collapse text-[11px]">
       <thead>
         <tr className="bg-slate-900 text-white">
           <th className="border p-1">#</th>
-          <th className="border p-1">{fa ? "شرح" : "Item"}</th>
-          <th className="border p-1">{fa ? "تعداد" : "Qty"}</th>
-          <th className="border p-1">{fa ? "واحد" : "Unit"}</th>
-          <th className="border p-1">{fa ? "جمع" : "Total"}</th>
+          <th className="border p-1">{fa ? "شرح" : ar ? "الوصف" : tr ? "Açıklama" : "Item"}</th>
+          <th className="border p-1">{fa ? "تعداد" : ar ? "الكمية" : tr ? "Adet" : "Qty"}</th>
+          <th className="border p-1">{fa ? "واحد" : ar ? "الوحدة" : tr ? "Birim" : "Unit"}</th>
+          <th className="border p-1">{fa ? "جمع" : ar ? "الإجمالي" : tr ? "Toplam" : "Total"}</th>
         </tr>
       </thead>
       <tbody>
@@ -674,7 +773,9 @@ function ItemsTable({ items, fa, n, money }) {
           })
         ) : (
           <tr>
-            <td colSpan={5} className="border p-2 text-center">{fa ? "اقلامی ثبت نشده است." : "No items."}</td>
+            <td colSpan={5} className="border p-2 text-center">
+              {fa ? "اقلامی ثبت نشده است." : ar ? "لا توجد بنود مسجلة." : tr ? "Kayıtlı kalem yok." : "No items."}
+            </td>
           </tr>
         )}
       </tbody>
@@ -682,14 +783,17 @@ function ItemsTable({ items, fa, n, money }) {
   );
 }
 
-function TotalsBox({ totals, fa, money }) {
+function TotalsBox({ totals, language, money }) {
+  const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
   const rows = [
-    [fa ? "جمع جزء" : "Subtotal", totals.subtotal],
-    [fa ? "تخفیف" : "Discount", totals.discount],
-    [fa ? "مالیات" : "Tax", totals.tax],
-    [fa ? "حمل" : "Shipping", totals.shipping],
-    [fa ? "پرداخت شده" : "Settled", totals.settled],
-    [fa ? "باقی‌مانده" : "Remaining", totals.remaining],
+    [fa ? "جمع جزء" : ar ? "المجموع الفرعي" : tr ? "Ara Toplam" : "Subtotal", totals.subtotal],
+    [fa ? "تخفیف" : ar ? "الخصم" : tr ? "İskonto" : "Discount", totals.discount],
+    [fa ? "مالیات" : ar ? "الضريبة" : tr ? "Vergi" : "Tax", totals.tax],
+    [fa ? "حمل" : ar ? "الشحن" : tr ? "Kargo" : "Shipping", totals.shipping],
+    [fa ? "پرداخت شده" : ar ? "المسدد" : tr ? "Ödenen" : "Settled", totals.settled],
+    [fa ? "باقی‌مانده" : ar ? "المتبقي" : tr ? "Kalan" : "Remaining", totals.remaining],
   ];
 
   return (
@@ -701,7 +805,7 @@ function TotalsBox({ totals, fa, money }) {
         </div>
       ))}
       <div className="flex justify-between text-cyan-700 font-black text-sm pt-2">
-        <span>{fa ? "مبلغ نهایی" : "Total"}</span>
+        <span>{fa ? "مبلغ نهایی" : ar ? "المبلغ الإجمالي" : tr ? "Genel Toplam" : "Total"}</span>
         <b>{money(totals.total)}</b>
       </div>
     </div>
