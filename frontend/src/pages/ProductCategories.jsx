@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import { createProductCategory, deleteProductCategory, getProductCategories } from "../services/api";
 
 export default function ProductCategories() {
@@ -158,7 +159,7 @@ export default function ProductCategories() {
                   <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
                   <td className="p-4 font-bold text-[var(--erp-text)]">{item.main_category}</td>
                   <td className="p-4 text-[var(--erp-text)]">{item.sub_category || "-"}</td>
-                  <td className="p-4 text-[var(--erp-text)]">{item.code || "-"}</td>
+                  <td className="p-4 text-[var(--erp-text)]">{(language === "fa" ? toPersianDigits(item.code) : item.code) || "-"}</td>
                   <td className="p-4">
                     <button
                       onClick={() => removeCategory(item.id)}

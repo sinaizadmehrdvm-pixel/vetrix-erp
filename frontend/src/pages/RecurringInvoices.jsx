@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import {
   createRecurringInvoice,
   deleteRecurringInvoice,
@@ -28,7 +29,7 @@ function frequencyLabel(template, language) {
     return language === "fa" ? "ماهانه" : language === "ar" ? "شهري" : language === "tr" ? "Aylık" : "Monthly";
   }
   return language === "fa"
-    ? `هر ${template.custom_interval_days} روز`
+    ? `هر ${toPersianDigits(template.custom_interval_days)} روز`
     : language === "ar"
     ? `كل ${template.custom_interval_days} يوم`
     : language === "tr"

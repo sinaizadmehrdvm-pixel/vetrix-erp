@@ -3632,18 +3632,18 @@ def print_transaction_receipt(entry_id: int, language: str = "fa"):
           </div>
           <div style="text-align:left">
             <h1>{_esc(title)}</h1>
-            <div class="muted">{_print_label(language, 'شماره رسید:', 'Voucher number:')} #{entry.id}</div>
+            <div class="muted">{_print_label(language, 'شماره رسید:', 'Voucher number:')} #{localized_digits(entry.id, language)}</div>
             <div class="muted">{_print_label(language, 'تاریخ:', 'Date:')} {_fmt_date(entry.created_at, settings, language)}</div>
           </div>
         </div>
 
         <div class="grid">
           <div class="box"><div class="label">{_print_label(language, 'طرف حساب', 'Party')}</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
-          <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{_esc(getattr(customer, "phone", "") if customer else "-")}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{_esc(localized_digits(getattr(customer, "phone", "") or "-", language) if customer else "-")}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'نوع سند', 'Document type')}</div><div class="value">{_esc(title)}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'مبلغ', 'Amount')}</div><div class="value">{_fmt_money(amount, settings, language)}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'روش پرداخت', 'Payment method')}</div><div class="value">{_esc(method)}</div></div>
-          <div class="box"><div class="label">{_print_label(language, 'فاکتور مرتبط', 'Linked invoice')}</div><div class="value">{("#" + str(invoice.id)) if invoice else _print_label(language, 'بدون فاکتور', 'No linked invoice')}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'فاکتور مرتبط', 'Linked invoice')}</div><div class="value">{("#" + localized_digits(invoice.id, language)) if invoice else _print_label(language, 'بدون فاکتور', 'No linked invoice')}</div></div>
         </div>
 
         <div class="box" style="margin-top:16px">

@@ -150,21 +150,21 @@ export default function PaymentReminders() {
             </span>
             <span className="text-[var(--erp-muted)]">
               {language === "fa"
-                ? `آستانه معوقگی: ${status.overdue_days_threshold} روز`
+                ? `آستانه معوقگی: ${n(status.overdue_days_threshold)} روز`
                 : language === "ar"
-                ? `عتبة التأخر: ${status.overdue_days_threshold} يوم`
+                ? `عتبة التأخر: ${n(status.overdue_days_threshold)} يوم`
                 : language === "tr"
-                ? `Gecikme eşiği: ${status.overdue_days_threshold} gün`
-                : `Overdue threshold: ${status.overdue_days_threshold} day(s)`}
+                ? `Gecikme eşiği: ${n(status.overdue_days_threshold)} gün`
+                : `Overdue threshold: ${n(status.overdue_days_threshold)} day(s)`}
             </span>
             <span className="text-[var(--erp-muted)]">
               {language === "fa"
-                ? `فاصله بین یادآوری‌ها: ${status.cooldown_days} روز`
+                ? `فاصله بین یادآوری‌ها: ${n(status.cooldown_days)} روز`
                 : language === "ar"
-                ? `الفاصل بين التذكيرات: ${status.cooldown_days} يوم`
+                ? `الفاصل بين التذكيرات: ${n(status.cooldown_days)} يوم`
                 : language === "tr"
-                ? `Hatırlatmalar arası bekleme: ${status.cooldown_days} gün`
-                : `Cooldown between reminders: ${status.cooldown_days} day(s)`}
+                ? `Hatırlatmalar arası bekleme: ${n(status.cooldown_days)} gün`
+                : `Cooldown between reminders: ${n(status.cooldown_days)} day(s)`}
             </span>
           </div>
           {!status.smtp_configured && (
