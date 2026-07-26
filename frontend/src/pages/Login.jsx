@@ -74,7 +74,7 @@ export default function Login() {
         }
       });
     return () => { active = false; };
-  }, [fa]);
+  }, [language, fa]);
 
   async function handleLogin(event) {
     event.preventDefault();

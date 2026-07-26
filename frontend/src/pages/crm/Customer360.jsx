@@ -99,6 +99,7 @@ const tabs = [
 export default function Customer360() {
   const { id } = useParams();
   const { language, dir, money, n, date } = useLanguage();
+  const fa = language === "fa";
 
   const [activeTab, setActiveTab] = useState("overview");
   const [data, setData] = useState(null);
@@ -490,6 +491,7 @@ async function fetchCustomerFiles(customerId) {
           <CustomerTimeline
             events={allTimeline}
             fa={fa}
+            language={language}
             money={money}
             n={n}
             loading={loading}
@@ -508,7 +510,7 @@ async function fetchCustomerFiles(customerId) {
               <div className="grid grid-cols-2 gap-3">
                 <Kpi title={fa ? "احتمال خرید" : "Purchase probability"} value={`${n(ai.purchase_probability || 0)}%`} />
                 <Kpi title={fa ? "ریسک ریزش" : "Churn risk"} value={`${n(ai.churn_risk || 0)}%`} />
-                <Kpi title={fa ? "اقدام بعدی" : "Next action"} value={actionLabel(ai.next_action, fa)} wide />
+                <Kpi title={fa ? "اقدام بعدی" : "Next action"} value={actionLabel(ai.next_action, language)} wide />
                 <Kpi title={fa ? "تخفیف پیشنهادی" : "Suggested discount"} value={`${n(ai.suggested_discount || 0)}%`} wide />
               </div>
             </div>
@@ -547,6 +549,7 @@ async function fetchCustomerFiles(customerId) {
           invoices={invoices}
           ledger={ledger}
           fa={fa}
+          language={language}
           money={money}
           n={n}
           loading={loading}
@@ -558,6 +561,7 @@ async function fetchCustomerFiles(customerId) {
         <CustomerTimeline
           events={allTimeline}
           fa={fa}
+          language={language}
           money={money}
           n={n}
           loading={loading}
@@ -571,6 +575,7 @@ async function fetchCustomerFiles(customerId) {
         <CustomerTasks
           tasks={tasks}
           fa={fa}
+          language={language}
           n={n}
           loading={loading}
           onRefresh={loadCustomer360}
@@ -584,6 +589,7 @@ async function fetchCustomerFiles(customerId) {
         <CustomerFiles
           files={files}
           fa={fa}
+          language={language}
           n={n}
           loading={loading}
           onRefresh={loadCustomer360}
@@ -599,6 +605,7 @@ async function fetchCustomerFiles(customerId) {
           invoices={invoices}
           ai={ai}
           fa={fa}
+          language={language}
           money={money}
           n={n}
           loading={loading}
