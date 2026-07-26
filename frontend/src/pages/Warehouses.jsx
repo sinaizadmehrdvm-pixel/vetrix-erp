@@ -3,6 +3,7 @@ import { ArrowRightLeft, Plus, ShieldOff, Warehouse as WarehouseIcon } from "luc
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
   createWarehouse,
   deactivateWarehouse,
@@ -236,12 +237,12 @@ export default function Warehouses() {
             ))}
           </select>
           <input
-            type="number"
-            min="0"
+            type="text"
+            inputMode="numeric"
             className={inputClass}
             placeholder={language === "fa" ? "تعداد" : language === "ar" ? "الكمية" : language === "tr" ? "Miktar" : "Quantity"}
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            value={language === "fa" ? toPersianDigits(quantity) : quantity}
+            onChange={(e) => setQuantity(cleanNumberInput(e.target.value))}
           />
           <select className={inputClass} value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>
             <option value="">{language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..."}</option>

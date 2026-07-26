@@ -4,6 +4,7 @@ import { AlertTriangle, BookOpen, CheckCircle2, ShoppingCart } from "lucide-reac
 
 import { API_URL } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 
 export default function CatalogPublicView() {
   const { token } = useParams();
@@ -126,11 +127,11 @@ export default function CatalogPublicView() {
                   </div>
                 </div>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   disabled={!item.in_stock}
-                  value={quantities[item.id] || ""}
-                  onChange={(e) => setQuantities({ ...quantities, [item.id]: e.target.value })}
+                  value={language === "fa" ? toPersianDigits(quantities[item.id] || "") : quantities[item.id] || ""}
+                  onChange={(e) => setQuantities({ ...quantities, [item.id]: cleanNumberInput(e.target.value) })}
                   className="w-20 p-2 rounded-lg bg-black/30 border border-white/10 text-center disabled:opacity-40"
                   placeholder="0"
                 />

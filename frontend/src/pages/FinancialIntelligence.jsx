@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getFinancialIntelligenceOverview, simulateFinancialScenario } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 
 function toNum(v) {
   const n = Number(v || 0);
@@ -239,10 +240,17 @@ function Row({ label, value, strong }) {
 }
 
 function SimInput({ label, value, onChange }) {
+  const { language } = useLanguage();
   return (
     <label className="block">
       <span className="text-[var(--erp-accent)] text-sm font-bold">{label}</span>
-      <input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 w-full rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-3 text-[var(--erp-text)] outline-none" />
+      <input
+        type="text"
+        inputMode="numeric"
+        value={language === "fa" ? toPersianDigits(value) : value}
+        onChange={(e) => onChange(cleanNumberInput(e.target.value))}
+        className="mt-2 w-full rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-3 text-[var(--erp-text)] outline-none"
+      />
     </label>
   );
 }

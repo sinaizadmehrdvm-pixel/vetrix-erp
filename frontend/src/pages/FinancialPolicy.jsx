@@ -3,6 +3,7 @@ import { BadgeCheck, FileClock, Plus, RefreshCw, ShieldCheck } from "lucide-reac
 import toast from "react-hot-toast";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
   activateFinancialPolicy,
   createFinancialPolicy,
@@ -180,7 +181,7 @@ export default function FinancialPolicy() {
         <label>{text.firstDay}<select value={draft.first_day_of_week} onChange={e => setDraft({ ...draft, first_day_of_week: e.target.value })} style={input}>{[0,1,2,3,4,5,6].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
         <label>{text.fiscalStart}<input required value={draft.fiscal_year_start} onChange={e => setDraft({ ...draft, fiscal_year_start: e.target.value })} style={input} /></label>
         <label>{text.measurement}<select value={draft.measurement_system} onChange={e => setDraft({ ...draft, measurement_system: e.target.value })} style={input}><option value="metric">metric</option><option value="us">US</option><option value="imperial">imperial</option></select></label>
-        <label>{text.taxRate}<input type="number" min="0" max="100" step="0.01" required value={draft.tax_percent} onChange={e => setDraft({ ...draft, tax_percent: e.target.value })} style={input} /></label>
+        <label>{text.taxRate}<input type="text" inputMode="numeric" required value={language === "fa" ? toPersianDigits(draft.tax_percent) : draft.tax_percent} onChange={e => setDraft({ ...draft, tax_percent: cleanNumberInput(e.target.value) })} style={input} /></label>
       </div>
       <button disabled={saving} style={{ marginTop: 13, border: 0, borderRadius: 13, padding: "11px 16px", background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028", fontWeight: 900 }}>{saving ? "..." : text.save}</button>
     </form>

@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api/change-requests${path}`, {
@@ -261,7 +262,7 @@ export default function ChangeRequestCenter() {
           {form.action_type === "online_product_update" && <>
             <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select required style={inputStyle} value={form.target_id} onChange={(e) => setForm({ ...form, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
             <Field label={tr("فیلد قابل تغییر", "الحقل القابل للتعديل", "Değiştirilebilir alan", "Allowed field")}><select style={inputStyle} value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("وضعیت انتشار", "حالة النشر", "Yayın durumu", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
-            <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input required type="number" min="0" style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />}</Field>
+            <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(form.value) : form.value} onChange={(e) => setForm({ ...form, value: cleanNumberInput(e.target.value) })} />}</Field>
           </>}
 
           {form.action_type === "campaign_draft" && <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></Field>}
@@ -351,7 +352,7 @@ function InvoiceItemsBuilder({ language, customers, products, customerId, items,
             </select>
           </Field>
           <Field label={index === 0 ? tr("تعداد", "الكمية", "Adet", "Qty") : ""}>
-            <input required type="number" min="0.01" step="any" style={inputStyle} value={row.quantity} onChange={(e) => updateRow(index, "quantity", e.target.value)} />
+            <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(row.quantity) : row.quantity} onChange={(e) => updateRow(index, "quantity", cleanNumberInput(e.target.value))} />
           </Field>
           <button type="button" onClick={() => removeRow(index)} className="rounded-xl p-3 bg-red-500/20 text-red-300"><Trash2 size={16} /></button>
         </div>
@@ -554,7 +555,7 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
     {review.action_type === "online_product_update" && <>
       <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
       <Field label={tr("فیلد مجاز", "الحقل المسموح به", "İzin verilen alan", "Allowed field")}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("انتشار", "النشر", "Yayın", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
-      <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input type="number" min="0" style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })} />}</Field>
+      <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(review.value) : review.value} onChange={(e) => setReview({ ...review, value: cleanNumberInput(e.target.value) })} />}</Field>
     </>}
     {review.action_type === "campaign_draft" && <>
       <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>

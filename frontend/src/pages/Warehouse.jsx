@@ -3,6 +3,7 @@ import { useStableCallback } from "../hooks/useStableCallback";
 import { Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal } from "lucide-react";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { createStockMovement, getProducts, getStockMovements } from "../services/api";
 
 const inputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
@@ -75,7 +76,7 @@ export default function Warehouse() {
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
       <Field label={label.warehouse}><input className={inputClass} value={form.warehouse} onChange={e=>setForm({...form, warehouse:e.target.value})}/></Field>
       <Field label={label.product}><select className={inputClass} value={form.product_id} onChange={e=>setForm({...form, product_id:e.target.value})}><option value="">{label.product}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name} | {language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}: {n(p.stock||0)}</option>)}</select></Field>
-      <Field label={label.quantity}><input type="number" className={inputClass} value={form.quantity} onChange={e=>setForm({...form, quantity:e.target.value})} placeholder="0"/></Field>
+      <Field label={label.quantity}><input type="text" inputMode="numeric" className={inputClass} value={language === "fa" ? toPersianDigits(form.quantity) : form.quantity} onChange={e=>setForm({...form, quantity:cleanNumberInput(e.target.value)})} placeholder="0"/></Field>
       <Field label={label.type}><select className={inputClass} value={form.movement_type} onChange={e=>setForm({...form, movement_type:e.target.value})}><option value="in">{label.in}</option><option value="out">{label.out}</option><option value="adjustment">{label.adjustment}</option></select></Field>
       <Field label={label.date}><JalaliDateField className={inputClass} value={form.movement_date} onChange={(iso)=>setForm({...form, movement_date:iso})} fa={language === "fa"} language={language}/></Field>
       <Field label={label.note}><input className={inputClass} value={form.note} onChange={e=>setForm({...form, note:e.target.value})} placeholder={label.note}/></Field>

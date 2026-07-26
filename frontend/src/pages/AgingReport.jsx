@@ -4,6 +4,7 @@ import { AlertTriangle, CalendarDays, Download, HandCoins, Landmark, Printer, Re
 
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getAgingReport } from "../services/agingApi";
 
 export default function AgingReport() {
@@ -78,7 +79,7 @@ export default function AgingReport() {
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.asOf}<div style={{ marginTop: 4 }}><JalaliDateField value={asOf} onChange={setAsOf} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[10px] p-2" /></div></label>
-        <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.terms}<input type="number" min="0" max="365" value={termsDays} onChange={(e) => setTermsDays(Number(e.target.value))} style={{ display: "block", width: 105, marginTop: 4, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 10, padding: 8 }} /></label>
+        <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.terms}<input type="text" inputMode="numeric" value={language === "fa" ? toPersianDigits(termsDays) : termsDays} onChange={(e) => setTermsDays(Number(cleanNumberInput(e.target.value)) || 0)} style={{ display: "block", width: 105, marginTop: 4, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 10, padding: 8 }} /></label>
         <button onClick={load} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)", alignSelf: "end" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
         <button onClick={downloadCsv} style={{ ...button, background: "#166534", color: "#dcfce7", alignSelf: "end" }}><Download size={16} />{copy.export}</button>
         <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", alignSelf: "end" }}><Printer size={16} />{copy.print}</button>

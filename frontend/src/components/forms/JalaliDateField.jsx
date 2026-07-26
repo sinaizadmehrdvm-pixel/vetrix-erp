@@ -251,9 +251,17 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
                 className={cell?.isToday ? "bg-[var(--erp-accent)]" : "bg-transparent hover:bg-[var(--erp-glow)]"}
                 style={{
                   aspectRatio: "1 / 1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                  padding: 0,
                   borderRadius: 8,
                   border: "none",
                   fontSize: 12,
+                  lineHeight: 1,
+                  fontFamily: "inherit",
                   fontWeight: cell?.isToday ? 900 : 600,
                   color: cell ? (cell.isToday ? "#071028" : "var(--erp-text)") : "transparent",
                   cursor: cell ? "pointer" : "default",

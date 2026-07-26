@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 
 const PAGE_SIZES = {
   A4: { w: 620, h: 820, label: "A4" },
@@ -122,7 +123,7 @@ export default function InvoiceDesigner() {
       table: tr("جدول اقلام", "جدول البنود", "Kalem tablosu", "Items table"),
       totals: tr("جمع فاکتور", "إجمالي الفاتورة", "Fatura toplamı", "Totals"),
       qr: "QR",
-      barcode: "Barcode",
+      barcode: tr("بارکد", "الباركود", "Barkod", "Barcode"),
       logo: tr("لوگو", "الشعار", "Logo", "Logo"),
     };
 
@@ -354,7 +355,7 @@ export default function InvoiceDesigner() {
             <ToolButton onClick={() => addElement("table")} label={tr("جدول", "جدول", "Tablo", "Table")} />
             <ToolButton onClick={() => addElement("totals")} label={tr("جمع", "الإجمالي", "Toplam", "Totals")} />
             <ToolButton onClick={() => addElement("qr")} label="QR" />
-            <ToolButton onClick={() => addElement("barcode")} label="Barcode" />
+            <ToolButton onClick={() => addElement("barcode")} label={tr("بارکد", "الباركود", "Barkod", "Barcode")} />
             <ToolButton onClick={() => addElement("logo")} label={tr("لوگو", "الشعار", "Logo", "Logo")} />
           </div>
 
@@ -388,8 +389,8 @@ export default function InvoiceDesigner() {
               <button onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} className="mini-btn"><Maximize2 size={15} /> -</button>
               <div className="mini-btn text-[var(--erp-accent)]">{Math.round(zoom * 100)}%</div>
               <button onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))} className="mini-btn"><Maximize2 size={15} /> +</button>
-              <button onClick={() => setShowGrid((v) => !v)} className="mini-btn"><Grid3X3 size={15} /> Grid</button>
-              <button onClick={() => setSnapGrid((v) => !v)} className={`mini-btn ${snapGrid ? "text-[var(--erp-accent)]" : "text-[var(--erp-muted)]"}`}>Snap</button>
+              <button onClick={() => setShowGrid((v) => !v)} className="mini-btn"><Grid3X3 size={15} /> {tr("شبکه", "الشبكة", "Izgara", "Grid")}</button>
+              <button onClick={() => setSnapGrid((v) => !v)} className={`mini-btn ${snapGrid ? "text-[var(--erp-accent)]" : "text-[var(--erp-muted)]"}`}>{tr("چفت", "الالتصاق", "Yapışma", "Snap")}</button>
             </div>
           </div>
 
@@ -471,7 +472,7 @@ export default function InvoiceDesigner() {
               </select>
 
               <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex justify-between">
-                <span>Bold</span>
+                <span>{tr("درشت", "غامق", "Kalın", "Bold")}</span>
                 <input type="checkbox" checked={!!selected.bold} onChange={(e) => updateElement(selected.id, { bold: e.target.checked })} />
               </label>
 
@@ -556,10 +557,18 @@ function ToolButton({ label, onClick }) {
 }
 
 function Prop({ label, value, onChange }) {
+  const { language } = useLanguage();
+  const display = value ?? 0;
   return (
     <div>
       <label className="text-[var(--erp-accent)] text-sm font-bold">{label}</label>
-      <input type="number" value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="studio-input" />
+      <input
+        type="text"
+        inputMode="numeric"
+        value={language === "fa" ? toPersianDigits(display) : display}
+        onChange={(e) => onChange(cleanNumberInput(e.target.value))}
+        className="studio-input"
+      />
     </div>
   );
 }

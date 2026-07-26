@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits } from "../localization/helpers";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
   createRecurringInvoice,
   deleteRecurringInvoice,
@@ -219,21 +219,21 @@ export default function RecurringInvoices() {
                   ))}
                 </select>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   className={inputClass + " mb-0"}
                   placeholder={tr("تعداد", "الكمية", "Miktar", "Quantity")}
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                  value={language === "fa" ? toPersianDigits(item.quantity) : item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", cleanNumberInput(e.target.value))}
                 />
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     className={inputClass + " mb-0"}
                     placeholder={tr("قیمت واحد", "سعر الوحدة", "Birim fiyat", "Unit price")}
-                    value={item.unit_price}
-                    onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                    value={language === "fa" ? toPersianDigits(item.unit_price) : item.unit_price}
+                    onChange={(e) => updateItem(index, "unit_price", cleanNumberInput(e.target.value))}
                   />
                   {items.length > 1 && (
                     <button type="button" onClick={() => removeRow(index)} className="text-red-300 hover:text-red-200 px-2 inline-flex items-center justify-center">
@@ -256,12 +256,12 @@ export default function RecurringInvoices() {
             </select>
             {frequency === "custom" && (
               <input
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
                 className={inputClass}
                 placeholder={tr("هر چند روز؟", "كل كم يوم؟", "Kaç günde bir?", "Every N days")}
-                value={customIntervalDays}
-                onChange={(e) => setCustomIntervalDays(e.target.value)}
+                value={language === "fa" ? toPersianDigits(customIntervalDays) : customIntervalDays}
+                onChange={(e) => setCustomIntervalDays(cleanNumberInput(e.target.value))}
               />
             )}
             <JalaliDateField

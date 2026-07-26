@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getCache } from "../storage/db";
 import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
 import {
@@ -529,9 +530,17 @@ function Field({ label, children }) {
 }
 
 function NumberProp({ label, value, onChange }) {
+  const { language } = useLanguage();
+  const display = value ?? 0;
   return (
     <Field label={label}>
-      <input type="number" value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="studio-input" />
+      <input
+        type="text"
+        inputMode="numeric"
+        value={language === "fa" ? toPersianDigits(display) : display}
+        onChange={(e) => onChange(cleanNumberInput(e.target.value))}
+        className="studio-input"
+      />
     </Field>
   );
 }

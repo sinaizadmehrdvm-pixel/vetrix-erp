@@ -24,6 +24,7 @@ import {
 } from "../services/api";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 
 const STAGE_COLORS = {
   new: "#22d3ee",
@@ -313,6 +314,19 @@ function Panel({ title, icon, children }) {
 }
 
 function Input({ value, onChange, placeholder, type = "text" }) {
+  const { language } = useLanguage();
+  if (type === "number") {
+    return (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={language === "fa" ? toPersianDigits(value) : value}
+        onChange={(e) => onChange(cleanNumberInput(e.target.value))}
+        placeholder={placeholder}
+        style={inputStyle}
+      />
+    );
+  }
   return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />;
 }
 

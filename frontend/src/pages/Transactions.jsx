@@ -91,6 +91,10 @@ function toEnglishDigits(value) {
     .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 }
 
+function toPersianDigits(value) {
+  return String(value || "").replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+}
+
 function cleanNumber(value) {
   return toEnglishDigits(value).replace(/[,،]/g, "").replace(/[^\d.-]/g, "");
 }
@@ -542,7 +546,7 @@ export default function Transactions() {
           <input
             type="text"
             inputMode="numeric"
-            value={form.amount}
+            value={language === "fa" ? toPersianDigits(form.amount) : form.amount}
             onChange={(e) =>
               setForm({
                 ...form,
@@ -568,7 +572,7 @@ export default function Transactions() {
           <input
             type="text"
             inputMode="numeric"
-            value={form.invoice_id}
+            value={language === "fa" ? toPersianDigits(form.invoice_id) : form.invoice_id}
             onChange={(e) => setForm({ ...form, invoice_id: cleanNumber(e.target.value) })}
             placeholder={tr("شماره فاکتور مرتبط (اختیاری)", "رقم الفاتورة المرتبطة (اختياري)", "İlişkili fatura no (isteğe bağlı)", "Linked invoice ID (optional)")}
             className={inputClass}

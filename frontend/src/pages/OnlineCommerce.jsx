@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone,
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
@@ -234,8 +235,8 @@ export default function OnlineCommerce() {
                     <td className="p-4 font-black">{product.name}</td>
                     <td className="p-4">{n(product.stock || 0)}</td>
                     <td className="p-4">{money(product.sell_price || 0)}</td>
-                    <td className="p-3"><input type="number" min="0" className="erp-focus rounded-xl p-3 w-36" style={inputStyle} value={product.online_price ?? ""} onChange={(e) => patchProduct(product.id, { online_price: e.target.value })} /></td>
-                    <td className="p-3"><input type="number" min="0" max="100" className="erp-focus rounded-xl p-3 w-24" style={inputStyle} value={product.discount_percent || 0} onChange={(e) => patchProduct(product.id, { discount_percent: e.target.value })} /></td>
+                    <td className="p-3"><input type="text" inputMode="numeric" className="erp-focus rounded-xl p-3 w-36" style={inputStyle} value={language === "fa" ? toPersianDigits(product.online_price ?? "") : product.online_price ?? ""} onChange={(e) => patchProduct(product.id, { online_price: cleanNumberInput(e.target.value) })} /></td>
+                    <td className="p-3"><input type="text" inputMode="numeric" className="erp-focus rounded-xl p-3 w-24" style={inputStyle} value={language === "fa" ? toPersianDigits(product.discount_percent || 0) : product.discount_percent || 0} onChange={(e) => patchProduct(product.id, { discount_percent: cleanNumberInput(e.target.value) })} /></td>
                     <td className="p-4"><Toggle value={Boolean(product.is_published)} onChange={(value) => patchProduct(product.id, { is_published: value })} /></td>
                     <td className="p-4"><Toggle value={Boolean(product.sync_stock)} onChange={(value) => patchProduct(product.id, { sync_stock: value })} /></td>
                     <td className="p-3"><button onClick={() => saveProduct(product)} className="rounded-xl p-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028" }}><Save size={17} />{tr("ذخیره", "حفظ", "Kaydet", "Save")}</button></td>

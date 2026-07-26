@@ -3,6 +3,7 @@ import { Layers, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
   createPriceTier,
   deletePriceTier,
@@ -133,20 +134,20 @@ export default function PricingTiers() {
           <>
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
               <input
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
                 className={inputClass + " mb-0"}
                 placeholder={fa ? "حداقل تعداد" : "Min quantity"}
-                value={minQuantity}
-                onChange={(e) => setMinQuantity(e.target.value)}
+                value={language === "fa" ? toPersianDigits(minQuantity) : minQuantity}
+                onChange={(e) => setMinQuantity(cleanNumberInput(e.target.value))}
               />
               <input
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 className={inputClass + " mb-0"}
                 placeholder={fa ? "قیمت واحد" : "Unit price"}
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
+                value={language === "fa" ? toPersianDigits(unitPrice) : unitPrice}
+                onChange={(e) => setUnitPrice(cleanNumberInput(e.target.value))}
               />
               <select
                 className={inputClass + " mb-0"}
