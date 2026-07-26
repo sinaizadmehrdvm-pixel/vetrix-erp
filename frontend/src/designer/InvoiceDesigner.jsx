@@ -26,23 +26,30 @@ const PAGE_SIZES = {
   THERMAL58: { w: 230, h: 850, label: "Thermal 58" },
 };
 
-const DEFAULT_CONFIG = {
-  page_size: "A4",
-  theme: { primary: "#0f172a", accent: "#06b6d4" },
-  elements: [
-    { id: "logo", type: "logo", label: "لوگو", text: "LOGO", x: 40, y: 35, w: 90, h: 45, fontSize: 12, color: "#0f172a", bg: "#ecfeff", border: "#bae6fd", radius: 12, align: "center", bold: true },
-    { id: "title", type: "text", label: "عنوان فاکتور", text: "فاکتور فروش", x: 340, y: 40, w: 190, h: 45, fontSize: 22, color: "#0f172a", bg: "#ffffff", border: "#ffffff", radius: 10, align: "center", bold: true },
-    { id: "company", type: "text", label: "نام شرکت", text: "Vetrix ERP\nسیستم حسابداری و مدیریت فروش", x: 60, y: 95, w: 250, h: 60, fontSize: 14, color: "#0891b2", bg: "#ffffff", border: "#e2e8f0", radius: 10, align: "center", bold: true },
-    { id: "invoiceInfo", type: "box", label: "اطلاعات فاکتور", text: "شماره: {{invoice_id}}\nتاریخ: {{invoice_date}}\nوضعیت: {{payment_status}}", x: 370, y: 120, w: 180, h: 90, fontSize: 13, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "customer", type: "box", label: "طرف حساب", text: "طرف حساب\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", x: 55, y: 170, w: 280, h: 95, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "table", type: "table", label: "جدول اقلام", text: "جدول اقلام فاکتور", x: 55, y: 300, w: 505, h: 150, fontSize: 13, color: "#0f172a", bg: "#ffffff", border: "#94a3b8", radius: 10, align: "center", bold: true },
-    { id: "totals", type: "totals", label: "جمع فاکتور", text: "جمع جزء: {{subtotal}}\nتخفیف: {{discount}}\nمالیات: {{tax}}\nمبلغ نهایی: {{total}}", x: 55, y: 480, w: 250, h: 130, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "qr", type: "qr", label: "QR Code", text: "QR", x: 420, y: 500, w: 90, h: 90, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "signature", type: "box", label: "امضا", text: "امضاء فروشنده / حسابدار", x: 55, y: 650, w: 210, h: 70, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "stamp", type: "box", label: "مهر", text: "مهر شرکت / امضاء طرف حساب", x: 350, y: 650, w: 210, h: 70, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "footer", type: "text", label: "متن پایین", text: "با تشکر از اعتماد شما", x: 210, y: 765, w: 200, h: 35, fontSize: 13, color: "#334155", bg: "transparent", border: "transparent", radius: 0, align: "center", bold: true },
-  ],
-};
+function pick(language, fa, ar, tr, en) {
+  return language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? tr : en;
+}
+
+function buildDefaultConfig(language) {
+  const p = (fa, ar, tr, en) => pick(language, fa, ar, tr, en);
+  return {
+    page_size: "A4",
+    theme: { primary: "#0f172a", accent: "#06b6d4" },
+    elements: [
+      { id: "logo", type: "logo", label: p("لوگو", "الشعار", "Logo", "Logo"), text: p("لوگو", "الشعار", "Logo", "LOGO"), x: 40, y: 35, w: 90, h: 45, fontSize: 12, color: "#0f172a", bg: "#ecfeff", border: "#bae6fd", radius: 12, align: "center", bold: true },
+      { id: "title", type: "text", label: p("عنوان فاکتور", "عنوان الفاتورة", "Fatura başlığı", "Invoice title"), text: p("فاکتور فروش", "فاتورة مبيعات", "Satış Faturası", "Sales Invoice"), x: 340, y: 40, w: 190, h: 45, fontSize: 22, color: "#0f172a", bg: "#ffffff", border: "#ffffff", radius: 10, align: "center", bold: true },
+      { id: "company", type: "text", label: p("نام شرکت", "اسم الشركة", "Şirket adı", "Company name"), text: `Vetrix ERP\n${p("سیستم حسابداری و مدیریت فروش", "نظام محاسبي وإدارة مبيعات", "Muhasebe ve Satış Yönetim Sistemi", "Accounting & Sales Management System")}`, x: 60, y: 95, w: 250, h: 60, fontSize: 14, color: "#0891b2", bg: "#ffffff", border: "#e2e8f0", radius: 10, align: "center", bold: true },
+      { id: "invoiceInfo", type: "box", label: p("اطلاعات فاکتور", "معلومات الفاتورة", "Fatura bilgileri", "Invoice info"), text: p("شماره: {{invoice_id}}\nتاریخ: {{invoice_date}}\nوضعیت: {{payment_status}}", "الرقم: {{invoice_id}}\nالتاريخ: {{invoice_date}}\nالحالة: {{payment_status}}", "No: {{invoice_id}}\nTarih: {{invoice_date}}\nDurum: {{payment_status}}", "No: {{invoice_id}}\nDate: {{invoice_date}}\nStatus: {{payment_status}}"), x: 370, y: 120, w: 180, h: 90, fontSize: 13, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
+      { id: "customer", type: "box", label: p("طرف حساب", "العميل", "Cari", "Customer"), text: p("طرف حساب\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", "العميل\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", "Cari\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", "Customer\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}"), x: 55, y: 170, w: 280, h: 95, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 14, align: "right", bold: false },
+      { id: "table", type: "table", label: p("جدول اقلام", "جدول البنود", "Kalem tablosu", "Items table"), text: p("جدول اقلام فاکتور", "جدول بنود الفاتورة", "Fatura kalemleri tablosu", "Invoice items table"), x: 55, y: 300, w: 505, h: 150, fontSize: 13, color: "#0f172a", bg: "#ffffff", border: "#94a3b8", radius: 10, align: "center", bold: true },
+      { id: "totals", type: "totals", label: p("جمع فاکتور", "إجمالي الفاتورة", "Fatura toplamı", "Invoice totals"), text: p("جمع جزء: {{subtotal}}\nتخفیف: {{discount}}\nمالیات: {{tax}}\nمبلغ نهایی: {{total}}", "المجموع الفرعي: {{subtotal}}\nالخصم: {{discount}}\nالضريبة: {{tax}}\nالإجمالي النهائي: {{total}}", "Ara toplam: {{subtotal}}\nİndirim: {{discount}}\nVergi: {{tax}}\nGenel toplam: {{total}}", "Subtotal: {{subtotal}}\nDiscount: {{discount}}\nTax: {{tax}}\nGrand total: {{total}}"), x: 55, y: 480, w: 250, h: 130, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
+      { id: "qr", type: "qr", label: p("کد QR", "رمز QR", "QR Kodu", "QR Code"), text: "QR", x: 420, y: 500, w: 90, h: 90, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
+      { id: "signature", type: "box", label: p("امضا", "التوقيع", "İmza", "Signature"), text: p("امضاء فروشنده / حسابدار", "توقيع البائع / المحاسب", "Satıcı / Muhasebeci İmzası", "Seller / Accountant signature"), x: 55, y: 650, w: 210, h: 70, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
+      { id: "stamp", type: "box", label: p("مهر", "الختم", "Kaşe", "Stamp"), text: p("مهر شرکت / امضاء طرف حساب", "ختم الشركة / توقيع العميل", "Şirket Kaşesi / Müşteri İmzası", "Company stamp / Customer signature"), x: 350, y: 650, w: 210, h: 70, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
+      { id: "footer", type: "text", label: p("متن پایین", "النص السفلي", "Alt metin", "Footer text"), text: p("با تشکر از اعتماد شما", "شكراً لثقتكم", "Güveniniz için teşekkür ederiz", "Thank you for your trust"), x: 210, y: 765, w: 200, h: 35, fontSize: 13, color: "#334155", bg: "transparent", border: "transparent", radius: 0, align: "center", bold: true },
+    ],
+  };
+}
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -61,13 +68,14 @@ function snap(value, enabled) {
   return Math.round(value / 10) * 10;
 }
 
-function normalizeConfig(config) {
-  const source = config && typeof config === "object" ? config : DEFAULT_CONFIG;
+function normalizeConfig(config, language) {
+  const fallback = buildDefaultConfig(language);
+  const source = config && typeof config === "object" ? config : fallback;
   return {
-    ...DEFAULT_CONFIG,
+    ...fallback,
     ...source,
-    theme: { ...DEFAULT_CONFIG.theme, ...(source.theme || {}) },
-    elements: Array.isArray(source.elements) && source.elements.length ? source.elements : DEFAULT_CONFIG.elements,
+    theme: { ...fallback.theme, ...(source.theme || {}) },
+    elements: Array.isArray(source.elements) && source.elements.length ? source.elements : fallback.elements,
   };
 }
 
@@ -78,7 +86,7 @@ export default function InvoiceDesigner() {
 
   const [templates, setTemplates] = useState([]);
   const [name, setName] = useState(tr("قالب رسمی فاکتور", "قالب فاتورة رسمي", "Resmi fatura şablonu", "Official invoice template"));
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [config, setConfig] = useState(() => buildDefaultConfig(language));
   const [selectedId, setSelectedId] = useState("title");
   const [drag, setDrag] = useState(null);
   const [resize, setResize] = useState(null);
@@ -225,7 +233,7 @@ export default function InvoiceDesigner() {
   }
 
   function loadTemplate(tpl) {
-    const cfg = normalizeConfig(tpl.config);
+    const cfg = normalizeConfig(tpl.config, language);
     setName(tpl.name || name);
     setConfig(cfg);
     setSelectedId(cfg.elements[0]?.id || "");
@@ -251,7 +259,7 @@ export default function InvoiceDesigner() {
 
   function resetTemplate() {
     if (!window.confirm(tr("قالب به حالت پیش‌فرض برگردد؟", "هل تريد إعادة تعيين القالب؟", "Şablon sıfırlansın mı?", "Reset template?"))) return;
-    const cfg = clone(DEFAULT_CONFIG);
+    const cfg = clone(buildDefaultConfig(language));
     setConfig(cfg);
     setSelectedId("title");
   }
@@ -365,7 +373,7 @@ export default function InvoiceDesigner() {
               {templates.map((tpl) => (
                 <div key={tpl.id} className="flex gap-2">
                   <button onClick={() => loadTemplate(tpl)} className="flex-1 text-right bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] rounded-2xl p-3">
-                    {tpl.name}
+                    {language === "fa" ? toPersianDigits(tpl.name) : tpl.name}
                   </button>
                   <button onClick={() => removeTemplate(tpl.id)} className="px-3 rounded-2xl bg-red-500/80 text-white font-black">
                     <Trash2 size={16} />
@@ -387,7 +395,7 @@ export default function InvoiceDesigner() {
             <div className="text-[var(--erp-accent)] font-black flex gap-2 items-center"><Move /> {tr("صفحه طراحی", "لوحة التصميم", "Tasarım tuvali", "Canvas")}</div>
             <div className="flex gap-2">
               <button onClick={() => setZoom((z) => Math.max(0.45, z - 0.1))} className="mini-btn"><Maximize2 size={15} /> -</button>
-              <div className="mini-btn text-[var(--erp-accent)]">{Math.round(zoom * 100)}%</div>
+              <div className="mini-btn text-[var(--erp-accent)]">{language === "fa" ? toPersianDigits(Math.round(zoom * 100)) : Math.round(zoom * 100)}%</div>
               <button onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))} className="mini-btn"><Maximize2 size={15} /> +</button>
               <button onClick={() => setShowGrid((v) => !v)} className="mini-btn"><Grid3X3 size={15} /> {tr("شبکه", "الشبكة", "Izgara", "Grid")}</button>
               <button onClick={() => setSnapGrid((v) => !v)} className={`mini-btn ${snapGrid ? "text-[var(--erp-accent)]" : "text-[var(--erp-muted)]"}`}>{tr("چفت", "الالتصاق", "Yapışma", "Snap")}</button>
