@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshCw, ShieldAlert, Sparkles, Target, TrendingUp, Trophy, UserRound, Wallet } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useLanguage } from "../../localization/useLanguage";
+import { toPersianDigits } from "../../localization/helpers";
 import {
   API_URL,
   createCrmInteraction,
@@ -413,12 +414,12 @@ async function fetchCustomerFiles(customerId) {
             <div className="text-center rounded-3xl bg-[var(--erp-panel-solid)] p-5 min-w-[160px]">
               <div className="text-[var(--erp-muted)] text-sm">{fa ? "امتیاز مشتری" : "Customer score"}</div>
               <div className="text-5xl font-black text-[var(--erp-accent)] mt-2">{n(score)}</div>
-              <div className="text-xs text-[var(--erp-muted)]">/100</div>
+              <div className="text-xs text-[var(--erp-muted)]">/{n(100)}</div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
-            <Info icon={<Phone />} label={fa ? "تلفن" : "Phone"} value={customer.phone || customer.mobile || "-"} />
+            <Info icon={<Phone />} label={fa ? "تلفن" : "Phone"} value={(fa ? toPersianDigits(customer.phone || customer.mobile) : customer.phone || customer.mobile) || "-"} />
             <Info icon={<Mail />} label={fa ? "ایمیل" : "Email"} value={customer.email || "-"} />
             <Info icon={<ShieldAlert />} label={fa ? "ریسک" : "Risk"} value={riskLabel(risk, fa)} />
           </div>

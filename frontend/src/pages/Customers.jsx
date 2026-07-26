@@ -994,7 +994,7 @@ export default function Customers() {
                         <span className={`px-3 py-1 rounded-full text-xs font-black ${status.bg} ${status.color}`}>
                           {status.label}
                         </span>
-                        <span className="text-xs text-[var(--erp-muted)]">{n(score)}/100</span>
+                        <span className="text-xs text-[var(--erp-muted)]">{n(score)}/{n(100)}</span>
                       </div>
                       <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden mb-2">
                         <div
@@ -1115,7 +1115,7 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
         </div>
         <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] px-5 py-3">
           <div className="text-[var(--erp-muted)] text-xs font-bold">{fa ? "میانگین امتیاز" : ar ? "متوسط النقاط" : tr ? "Ortalama puan" : "Average score"}</div>
-          <div className="text-[var(--erp-accent)] text-2xl font-black">{n(averageScore)}/100</div>
+          <div className="text-[var(--erp-accent)] text-2xl font-black">{n(averageScore)}/{n(100)}</div>
         </div>
       </div>
 
@@ -1130,7 +1130,7 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
                 <div className="font-black text-[var(--erp-text)] truncate">{item.name || "-"}</div>
                 <span className={`px-2 py-1 rounded-full text-xs font-black ${rank.bg} ${rank.color}`}>{rank.key}</span>
               </div>
-              <div className="text-xs text-[var(--erp-muted)] mb-3">{item.phone || item.mobile || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
+              <div className="text-xs text-[var(--erp-muted)] mb-3">{faText(item.phone || item.mobile, fa) || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
               <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-3">
                 <div className="h-full bg-cyan-400" style={{ width: `${score}%` }} />
               </div>

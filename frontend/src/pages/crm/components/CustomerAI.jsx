@@ -389,7 +389,7 @@ export default function CustomerAI({
             <div className="relative w-48 h-48 mx-auto my-5 rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--erp-accent) ${analysis.healthScore * 3.6}deg, var(--erp-panel-solid) 0deg)` }}>
               <div className="w-36 h-36 rounded-full bg-[var(--erp-bg-soft)] flex flex-col items-center justify-center">
                 <div className="text-5xl font-black text-[var(--erp-accent)]">{n(analysis.healthScore)}</div>
-                <div className="text-[var(--erp-muted)] text-xs">/100</div>
+                <div className="text-[var(--erp-muted)] text-xs">/{n(100)}</div>
               </div>
             </div>
 

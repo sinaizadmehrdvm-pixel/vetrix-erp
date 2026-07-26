@@ -71,7 +71,7 @@ function normalizeConfig(config) {
 }
 
 export default function InvoiceDesigner() {
-  const { language, dir } = useLanguage();
+  const { language, dir, n } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
@@ -271,11 +271,11 @@ export default function InvoiceDesigner() {
           <tbody>
             {[1, 2, 3].map((i) => (
               <tr key={i}>
-                <td className="border p-1">{i}</td>
+                <td className="border p-1">{n(i)}</td>
                 <td className="border p-1">{tr("نمونه کالا", "منتج نموذجي", "Örnek ürün", "Sample item")}</td>
-                <td className="border p-1">1</td>
-                <td className="border p-1">100,000</td>
-                <td className="border p-1">100,000</td>
+                <td className="border p-1">{n(1)}</td>
+                <td className="border p-1">{n(100000)}</td>
+                <td className="border p-1">{n(100000)}</td>
               </tr>
             ))}
           </tbody>
@@ -286,9 +286,9 @@ export default function InvoiceDesigner() {
     if (el.type === "totals") {
       return (
         <div className="w-full text-[12px] leading-7">
-          <div className="flex justify-between"><span>{tr("جمع جزء", "المجموع الفرعي", "Ara toplam", "Subtotal")}</span><b>300,000</b></div>
-          <div className="flex justify-between"><span>{tr("تخفیف", "الخصم", "İndirim", "Discount")}</span><b>0</b></div>
-          <div className="flex justify-between text-cyan-700 font-black"><span>{tr("نهایی", "الإجمالي النهائي", "Nihai toplam", "Total")}</span><b>300,000</b></div>
+          <div className="flex justify-between"><span>{tr("جمع جزء", "المجموع الفرعي", "Ara toplam", "Subtotal")}</span><b>{n(300000)}</b></div>
+          <div className="flex justify-between"><span>{tr("تخفیف", "الخصم", "İndirim", "Discount")}</span><b>{n(0)}</b></div>
+          <div className="flex justify-between text-cyan-700 font-black"><span>{tr("نهایی", "الإجمالي النهائي", "Nihai toplam", "Total")}</span><b>{n(300000)}</b></div>
         </div>
       );
     }

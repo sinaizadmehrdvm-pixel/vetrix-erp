@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import {
   createCustomerPortalLink,
   createSupplierPortalLink,
@@ -656,7 +657,7 @@ export default function CustomerDetails() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Info icon={<Phone size={17} />} label={tr("شماره تماس", "رقم الهاتف", "Telefon Numarası", "Phone")} value={party.phone || "-"} />
+          <Info icon={<Phone size={17} />} label={tr("شماره تماس", "رقم الهاتف", "Telefon Numarası", "Phone")} value={(language === "fa" ? toPersianDigits(party.phone) : party.phone) || "-"} />
           <Info icon={<Mail size={17} />} label={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")} value={party.email || "-"} />
           <Info icon={<MapPin size={17} />} label={tr("شهر", "المدينة", "Şehir", "City")} value={party.city || "-"} />
           <Info icon={<MapPin size={17} />} label={tr("آدرس", "العنوان", "Adres", "Address")} value={party.address || "-"} />
