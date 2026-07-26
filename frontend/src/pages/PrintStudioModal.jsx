@@ -13,17 +13,17 @@ import { API_URL, getPdfTemplates } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 
 const PAGE_SIZES = [
-  { value: "A4", fa: "A4 رسمی", en: "A4 official" },
-  { value: "A5", fa: "A5 جمع‌وجور", en: "A5 compact" },
-  { value: "THERMAL80", fa: "فیش ۸۰ میلی‌متری", en: "Thermal 80mm" },
-  { value: "THERMAL58", fa: "فیش ۵۸ میلی‌متری", en: "Thermal 58mm" },
+  { value: "A4", fa: "A4 رسمی", ar: "A4 رسمي", tr: "A4 resmi", en: "A4 official" },
+  { value: "A5", fa: "A5 جمع‌وجور", ar: "A5 مدمج", tr: "A5 kompakt", en: "A5 compact" },
+  { value: "THERMAL80", fa: "فیش ۸۰ میلی‌متری", ar: "إيصال 80 مم", tr: "80mm termal fiş", en: "Thermal 80mm" },
+  { value: "THERMAL58", fa: "فیش ۵۸ میلی‌متری", ar: "إيصال 58 مم", tr: "58mm termal fiş", en: "Thermal 58mm" },
 ];
 
 const PDF_TEMPLATES = [
-  { value: "official", fa: "رسمی", en: "Official" },
-  { value: "premium", fa: "پرمیوم", en: "Premium" },
-  { value: "compact", fa: "فشرده", en: "Compact" },
-  { value: "thermal", fa: "فیش فروشگاهی", en: "Thermal" },
+  { value: "official", fa: "رسمی", ar: "رسمي", tr: "Resmi", en: "Official" },
+  { value: "premium", fa: "پرمیوم", ar: "متميز", tr: "Premium", en: "Premium" },
+  { value: "compact", fa: "فشرده", ar: "مدمج", tr: "Kompakt", en: "Compact" },
+  { value: "thermal", fa: "فیش فروشگاهی", ar: "إيصال المتجر", tr: "Mağaza fişi", en: "Thermal" },
 ];
 
 function getInvoiceId(invoice) {
@@ -74,7 +74,8 @@ function normalizeTemplateList(data) {
 
 export default function PrintStudioModal({ invoice, onClose }) {
   const { language, dir } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const invoiceId = getInvoiceId(invoice);
 
   const [templates, setTemplates] = useState([]);
@@ -109,13 +110,13 @@ export default function PrintStudioModal({ invoice, onClose }) {
         }
       } else {
         setSelectedTemplateId("");
-        setMessage(fa ? "هنوز قالبی ذخیره نشده است." : "No saved templates yet.");
+        setMessage(tr("هنوز قالبی ذخیره نشده است.", "لا توجد قوالب محفوظة بعد.", "Henüz kayıtlı şablon yok.", "No saved templates yet."));
       }
     } catch (error) {
       console.error("Print Studio templates error:", error);
       setTemplates([]);
       setSelectedTemplateId("");
-      setMessage(fa ? "خطا در دریافت قالب‌ها" : "Error loading templates");
+      setMessage(tr("خطا در دریافت قالب‌ها", "خطأ في تحميل القوالب", "Şablonlar yüklenirken hata oluştu", "Error loading templates"));
     } finally {
       setLoadingTemplates(false);
     }
@@ -202,9 +203,12 @@ export default function PrintStudioModal({ invoice, onClose }) {
               <Printer /> Vetrix Print Studio
             </h2>
             <p className="text-[var(--erp-muted)] mt-2">
-              {fa
-                ? `چاپ و پیش‌نمایش فاکتور شماره ${invoiceId} با انتخاب قالب طراحی‌شده`
-                : `Preview and print invoice #${invoiceId} with saved templates`}
+              {tr(
+                `چاپ و پیش‌نمایش فاکتور شماره ${invoiceId} با انتخاب قالب طراحی‌شده`,
+                `طباعة ومعاينة الفاتورة رقم ${invoiceId} باستخدام قالب مصمم`,
+                `${invoiceId} numaralı faturayı kayıtlı şablonlarla önizleyin ve yazdırın`,
+                `Preview and print invoice #${invoiceId} with saved templates`
+              )}
             </p>
           </div>
 
@@ -225,8 +229,8 @@ export default function PrintStudioModal({ invoice, onClose }) {
 
         <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-5 p-5">
           <div className="space-y-5">
-            <Panel title={fa ? "انتخاب قالب چاپ" : "Print template"} icon={<FileText size={19} />}>
-              <Field label={fa ? "قالب طراحی‌شده" : "Saved designer template"}>
+            <Panel title={tr("انتخاب قالب چاپ", "اختيار قالب الطباعة", "Yazdırma şablonu seçimi", "Print template")} icon={<FileText size={19} />}>
+              <Field label={tr("قالب طراحی‌شده", "قالب مصمم", "Kayıtlı tasarım şablonu", "Saved designer template")}>
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => {
@@ -237,7 +241,7 @@ export default function PrintStudioModal({ invoice, onClose }) {
                 >
                   {templates.length === 0 && (
                     <option value="">
-                      {fa ? "قالبی ذخیره نشده" : "No saved template"}
+                      {tr("قالبی ذخیره نشده", "لا يوجد قالب محفوظ", "Kayıtlı şablon yok", "No saved template")}
                     </option>
                   )}
 
@@ -257,33 +261,33 @@ export default function PrintStudioModal({ invoice, onClose }) {
                   className="btn-dark"
                 >
                   <RefreshCw size={16} />
-                  {loadingTemplates ? (fa ? "دریافت..." : "Loading...") : fa ? "بروزرسانی" : "Refresh"}
+                  {loadingTemplates ? tr("دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...") : tr("بروزرسانی", "تحديث", "Yenile", "Refresh")}
                 </button>
 
                 <button type="button" onClick={openDesigner} className="btn-cyan">
                   <Wand2 size={16} />
-                  {fa ? "طراحی قالب" : "Designer"}
+                  {tr("طراحی قالب", "تصميم القالب", "Şablon tasarla", "Designer")}
                 </button>
               </div>
 
               {selectedTemplate && (
                 <div className="rounded-2xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-3 text-xs text-[var(--erp-muted)] leading-7">
                   <div>
-                    {fa ? "نام قالب" : "Template"}: <b>{selectedTemplate.name}</b>
+                    {tr("نام قالب", "اسم القالب", "Şablon adı", "Template")}: <b>{selectedTemplate.name}</b>
                   </div>
                   <div>
-                    {fa ? "اندازه" : "Size"}: <b>{selectedTemplate.page_size || "A4"}</b>
+                    {tr("اندازه", "الحجم", "Boyut", "Size")}: <b>{selectedTemplate.page_size || "A4"}</b>
                   </div>
                   <div>
-                    {fa ? "تعداد اجزاء" : "Elements"}:{" "}
+                    {tr("تعداد اجزاء", "عدد العناصر", "Öğe sayısı", "Elements")}:{" "}
                     <b>{selectedTemplate.config?.elements?.length || 0}</b>
                   </div>
                 </div>
               )}
             </Panel>
 
-            <Panel title={fa ? "تنظیمات چاپ" : "Print settings"} icon={<Settings size={19} />}>
-              <Field label={fa ? "اندازه کاغذ" : "Page size"}>
+            <Panel title={tr("تنظیمات چاپ", "إعدادات الطباعة", "Yazdırma ayarları", "Print settings")} icon={<Settings size={19} />}>
+              <Field label={tr("اندازه کاغذ", "حجم الورق", "Kağıt boyutu", "Page size")}>
                 <select
                   value={pageSize}
                   onChange={(e) => {
@@ -294,13 +298,13 @@ export default function PrintStudioModal({ invoice, onClose }) {
                 >
                   {PAGE_SIZES.map((x) => (
                     <option key={x.value} value={x.value}>
-                      {fa ? x.fa : x.en}
+                      {tr(x.fa, x.ar, x.tr, x.en)}
                     </option>
                   ))}
                 </select>
               </Field>
 
-              <Field label={fa ? "قالب پایه PDF" : "Base PDF style"}>
+              <Field label={tr("قالب پایه PDF", "قالب PDF الأساسي", "Temel PDF şablonu", "Base PDF style")}>
                 <select
                   value={baseTemplate}
                   onChange={(e) => {
@@ -311,13 +315,13 @@ export default function PrintStudioModal({ invoice, onClose }) {
                 >
                   {PDF_TEMPLATES.map((x) => (
                     <option key={x.value} value={x.value}>
-                      {fa ? x.fa : x.en}
+                      {tr(x.fa, x.ar, x.tr, x.en)}
                     </option>
                   ))}
                 </select>
               </Field>
 
-              <Field label={fa ? "جهت صفحه" : "Orientation"}>
+              <Field label={tr("جهت صفحه", "اتجاه الصفحة", "Sayfa yönü", "Orientation")}>
                 <select
                   value={orientation}
                   onChange={(e) => {
@@ -326,14 +330,14 @@ export default function PrintStudioModal({ invoice, onClose }) {
                   }}
                   className="print-input"
                 >
-                  <option value="portrait">{fa ? "عمودی" : "Portrait"}</option>
-                  <option value="landscape">{fa ? "افقی" : "Landscape"}</option>
+                  <option value="portrait">{tr("عمودی", "عمودي", "Dikey", "Portrait")}</option>
+                  <option value="landscape">{tr("افقی", "أفقي", "Yatay", "Landscape")}</option>
                 </select>
               </Field>
 
               <label className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer">
                 <span className="text-[var(--erp-text)] font-bold">
-                  {fa ? "ویرایش موقت قبل چاپ" : "Temporary edit before print"}
+                  {tr("ویرایش موقت قبل چاپ", "تعديل مؤقت قبل الطباعة", "Yazdırmadan önce geçici düzenleme", "Temporary edit before print")}
                 </span>
                 <input
                   type="checkbox"
@@ -346,20 +350,20 @@ export default function PrintStudioModal({ invoice, onClose }) {
               </label>
             </Panel>
 
-            <Panel title={fa ? "عملیات" : "Actions"} icon={<Eye size={19} />}>
+            <Panel title={tr("عملیات", "الإجراءات", "İşlemler", "Actions")} icon={<Eye size={19} />}>
               <button type="button" onClick={refreshPreview} className="btn-dark w-full">
                 <RefreshCw size={17} />
-                {fa ? "تازه‌سازی پیش‌نمایش" : "Refresh preview"}
+                {tr("تازه‌سازی پیش‌نمایش", "تحديث المعاينة", "Önizlemeyi yenile", "Refresh preview")}
               </button>
 
               <button type="button" onClick={openPrint} className="btn-cyan w-full">
                 <Printer size={17} />
-                {fa ? "باز کردن چاپ فاکتور" : "Open invoice print"}
+                {tr("باز کردن چاپ فاکتور", "فتح طباعة الفاتورة", "Fatura yazdırmayı aç", "Open invoice print")}
               </button>
 
               <button type="button" onClick={openReportPdf} className="btn-dark w-full">
                 <ExternalLink size={17} />
-                {fa ? "دانلود گزارش PDF با همین تنظیمات" : "Download report PDF"}
+                {tr("دانلود گزارش PDF با همین تنظیمات", "تنزيل تقرير PDF بنفس الإعدادات", "Aynı ayarlarla PDF raporu indir", "Download report PDF")}
               </button>
             </Panel>
           </div>
@@ -367,13 +371,16 @@ export default function PrintStudioModal({ invoice, onClose }) {
           <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl overflow-hidden min-h-[780px]">
             <div className="p-4 border-b border-[var(--erp-border)] flex items-center justify-between gap-3 flex-wrap">
               <div className="font-black text-[var(--erp-accent)]">
-                {fa ? "پیش‌نمایش زنده چاپ" : "Live print preview"}
+                {tr("پیش‌نمایش زنده چاپ", "معاينة الطباعة المباشرة", "Canlı yazdırma önizlemesi", "Live print preview")}
               </div>
 
               <div className="text-xs text-[var(--erp-muted)]">
-                {fa
-                  ? "اگر قالب را در Designer تغییر دادی، بروزرسانی را بزن."
-                  : "After editing a template in Designer, refresh the preview."}
+                {tr(
+                  "اگر قالب را در Designer تغییر دادی، بروزرسانی را بزن.",
+                  "إذا قمت بتعديل القالب في المصمم، اضغط على تحديث.",
+                  "Şablonu Designer'da değiştirdiyseniz önizlemeyi yenileyin.",
+                  "After editing a template in Designer, refresh the preview."
+                )}
               </div>
             </div>
 

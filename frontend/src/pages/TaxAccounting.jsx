@@ -8,7 +8,8 @@ import { getVatReport } from "../services/taxApi";
 
 export default function TaxAccounting() {
   const { language, dir, money, date, n } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [periods, setPeriods] = useState([]);
   const [periodId, setPeriodId] = useState("");
   const [data, setData] = useState(null);
@@ -16,27 +17,32 @@ export default function TaxAccounting() {
   const [error, setError] = useState("");
 
   const copy = {
-    title: fa ? "حسابداری مالیات بر ارزش افزوده" : "VAT Accounting",
-    subtitle: fa ? "گزارش مالیات فروش، اعتبار مالیاتی خرید و مانده قابل پرداخت از دفتر کل" : "Output VAT, input tax credit, and net position from the posted ledger",
-    allTime: fa ? "همه دوره‌ها" : "All periods",
-    output: fa ? "مالیات فروش" : "Output VAT",
-    input: fa ? "اعتبار مالیاتی خرید" : "Input VAT",
-    net: fa ? "مانده خالص" : "Net VAT",
-    payable: fa ? "قابل پرداخت" : "Payable",
-    credit: fa ? "اعتبار مالیاتی" : "Tax credit",
-    settled: fa ? "تسویه‌شده" : "Settled",
-    invoices: fa ? "تعداد فاکتور" : "Invoices",
-    refresh: fa ? "به‌روزرسانی" : "Refresh",
-    export: fa ? "خروجی CSV" : "CSV export",
-    print: fa ? "چاپ" : "Print",
-    voucher: fa ? "شماره سند" : "Voucher",
-    invoice: fa ? "فاکتور" : "Invoice",
-    type: fa ? "نوع مالیات" : "VAT type",
-    taxable: fa ? "مبنای مشمول" : "Taxable base",
-    tax: fa ? "مالیات" : "VAT",
-    shipping: fa ? "حمل/خدمات" : "Shipping/service",
-    total: fa ? "مبلغ کل" : "Total",
-    noRows: fa ? "گردش مالیاتی ثبت‌شده‌ای وجود ندارد." : "No posted VAT activity.",
+    title: tr("حسابداری مالیات بر ارزش افزوده", "محاسبة ضريبة القيمة المضافة", "KDV Muhasebesi", "VAT Accounting"),
+    subtitle: tr(
+      "گزارش مالیات فروش، اعتبار مالیاتی خرید و مانده قابل پرداخت از دفتر کل",
+      "تقرير ضريبة المبيعات وائتمان ضريبة المشتريات والرصيد المستحق من دفتر الأستاذ",
+      "Satış KDV'si, alış vergi kredisi ve genel muhasebeden net durum",
+      "Output VAT, input tax credit, and net position from the posted ledger"
+    ),
+    allTime: tr("همه دوره‌ها", "جميع الفترات", "Tüm dönemler", "All periods"),
+    output: tr("مالیات فروش", "ضريبة المبيعات", "Satış KDV'si", "Output VAT"),
+    input: tr("اعتبار مالیاتی خرید", "ائتمان ضريبة المشتريات", "Alış vergi kredisi", "Input VAT"),
+    net: tr("مانده خالص", "الرصيد الصافي", "Net bakiye", "Net VAT"),
+    payable: tr("قابل پرداخت", "مستحق الدفع", "Ödenecek", "Payable"),
+    credit: tr("اعتبار مالیاتی", "ائتمان ضريبي", "Vergi kredisi", "Tax credit"),
+    settled: tr("تسویه‌شده", "مسوّى", "Ödendi", "Settled"),
+    invoices: tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices"),
+    refresh: tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh"),
+    export: tr("خروجی CSV", "تصدير CSV", "CSV dışa aktar", "CSV export"),
+    print: tr("چاپ", "طباعة", "Yazdır", "Print"),
+    voucher: tr("شماره سند", "رقم المستند", "Belge no", "Voucher"),
+    invoice: tr("فاکتور", "الفاتورة", "Fatura", "Invoice"),
+    type: tr("نوع مالیات", "نوع الضريبة", "KDV türü", "VAT type"),
+    taxable: tr("مبنای مشمول", "الوعاء الخاضع للضريبة", "Vergiye tabi taban", "Taxable base"),
+    tax: tr("مالیات", "الضريبة", "KDV", "VAT"),
+    shipping: tr("حمل/خدمات", "الشحن/الخدمات", "Nakliye/hizmet", "Shipping/service"),
+    total: tr("مبلغ کل", "المبلغ الإجمالي", "Toplam tutar", "Total"),
+    noRows: tr("گردش مالیاتی ثبت‌شده‌ای وجود ندارد.", "لا يوجد نشاط ضريبي مسجل.", "Kaydedilmiş KDV hareketi yok.", "No posted VAT activity."),
   };
 
   async function load(nextPeriodId = periodId) {
