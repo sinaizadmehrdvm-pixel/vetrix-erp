@@ -15,7 +15,8 @@ import { extractDocumentOcr } from "../services/documentOcrApi";
  */
 export default function ReceiptScanner({ onApply }) {
   const { dir, language } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const fileInputRef = useRef(null);
 
   const [open, setOpen] = useState(false);
@@ -42,10 +43,15 @@ export default function ReceiptScanner({ onApply }) {
       );
       setOpen(true);
       if (!result.suggested_items?.length) {
-        toast(fa ? "متنی استخراج شد ولی ردیف کالایی تشخیص داده نشد؛ می‌توانید دستی وارد کنید." : "Text was extracted but no line items were detected; you can add them manually.");
+        toast(tr(
+          "متنی استخراج شد ولی ردیف کالایی تشخیص داده نشد؛ می‌توانید دستی وارد کنید.",
+          "تم استخراج نص ولكن لم يتم التعرف على أي بنود؛ يمكنك إدخالها يدوياً.",
+          "Metin çıkarıldı ancak kalem satırı algılanamadı; manuel olarak ekleyebilirsiniz.",
+          "Text was extracted but no line items were detected; you can add them manually."
+        ));
       }
     } catch (error) {
-      toast.error(error.message || (fa ? "استخراج اطلاعات ناموفق بود" : "Extraction failed"));
+      toast.error(error.message || tr("استخراج اطلاعات ناموفق بود", "فشل استخراج البيانات", "Veri çıkarma başarısız oldu", "Extraction failed"));
     } finally {
       setLoading(false);
     }
@@ -80,7 +86,7 @@ export default function ReceiptScanner({ onApply }) {
         className="px-4 py-2 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
       >
         <ScanLine size={18} className={loading ? "animate-pulse" : ""} />
-        {loading ? (fa ? "در حال خواندن تصویر..." : "Reading image...") : (fa ? "اسکن رسید/فاکتور" : "Scan receipt/invoice")}
+        {loading ? tr("در حال خواندن تصویر...", "جارٍ قراءة الصورة...", "Görüntü okunuyor...", "Reading image...") : tr("اسکن رسید/فاکتور", "مسح الإيصال/الفاتورة", "Fiş/fatura tara", "Scan receipt/invoice")}
       </button>
 
       {open && (
@@ -92,7 +98,7 @@ export default function ReceiptScanner({ onApply }) {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[var(--erp-accent)] font-black text-lg flex items-center gap-2">
                 <Upload size={20} />
-                {fa ? "بررسی موارد استخراج‌شده" : "Review extracted items"}
+                {tr("بررسی موارد استخراج‌شده", "مراجعة العناصر المستخرجة", "Çıkarılan öğeleri incele", "Review extracted items")}
               </h2>
               <button type="button" onClick={() => setOpen(false)} className="p-1 text-[var(--erp-muted)]">
                 <X size={20} />
@@ -100,9 +106,12 @@ export default function ReceiptScanner({ onApply }) {
             </div>
 
             <p className="text-xs text-[var(--erp-muted)] mb-4">
-              {fa
-                ? "این اطلاعات به‌صورت خودکار از تصویر خوانده شده و ممکن است اشتباه باشد. لطفاً قبل از ثبت، هر ردیف را بررسی و در صورت نیاز اصلاح کنید."
-                : "This was read automatically from the image and may contain mistakes. Review and correct every line before submitting."}
+              {tr(
+                "این اطلاعات به‌صورت خودکار از تصویر خوانده شده و ممکن است اشتباه باشد. لطفاً قبل از ثبت، هر ردیف را بررسی و در صورت نیاز اصلاح کنید.",
+                "تم قراءة هذه البيانات تلقائياً من الصورة وقد تحتوي على أخطاء. يرجى مراجعة كل بند وتصحيحه عند الحاجة قبل الإرسال.",
+                "Bu bilgiler görüntüden otomatik olarak okundu ve hatalı olabilir. Göndermeden önce lütfen her satırı inceleyip gerekirse düzeltin.",
+                "This was read automatically from the image and may contain mistakes. Review and correct every line before submitting."
+              )}
             </p>
 
             <div className="space-y-2 mb-4">
@@ -111,25 +120,25 @@ export default function ReceiptScanner({ onApply }) {
                   <input
                     value={item.description}
                     onChange={(event) => updateItem(index, "description", event.target.value)}
-                    placeholder={fa ? "شرح" : "Description"}
+                    placeholder={tr("شرح", "الوصف", "Açıklama", "Description")}
                     className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] px-2 py-2 text-sm"
                   />
                   <input
                     value={item.quantity}
                     onChange={(event) => updateItem(index, "quantity", event.target.value)}
-                    placeholder={fa ? "تعداد" : "Qty"}
+                    placeholder={tr("تعداد", "الكمية", "Miktar", "Qty")}
                     className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] px-2 py-2 text-sm"
                   />
                   <input
                     value={item.unit_price}
                     onChange={(event) => updateItem(index, "unit_price", event.target.value)}
-                    placeholder={fa ? "قیمت واحد" : "Unit price"}
+                    placeholder={tr("قیمت واحد", "سعر الوحدة", "Birim fiyat", "Unit price")}
                     className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] px-2 py-2 text-sm"
                   />
                   <input
                     value={item.total}
                     onChange={(event) => updateItem(index, "total", event.target.value)}
-                    placeholder={fa ? "جمع" : "Total"}
+                    placeholder={tr("جمع", "الإجمالي", "Toplam", "Total")}
                     className="rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] px-2 py-2 text-sm"
                   />
                   <button type="button" onClick={() => removeItem(index)} className="text-rose-300">
@@ -140,13 +149,13 @@ export default function ReceiptScanner({ onApply }) {
             </div>
 
             <button type="button" onClick={addBlankItem} className="text-sm text-[var(--erp-accent)] font-bold mb-4">
-              + {fa ? "افزودن ردیف دستی" : "Add a manual row"}
+              + {tr("افزودن ردیف دستی", "إضافة صف يدوي", "Manuel satır ekle", "Add a manual row")}
             </button>
 
             {rawText && (
               <details className="mb-4">
                 <summary className="cursor-pointer text-xs text-[var(--erp-muted)]">
-                  {fa ? "نمایش متن کامل خوانده‌شده" : "Show full raw extracted text"}
+                  {tr("نمایش متن کامل خوانده‌شده", "عرض النص الكامل المستخرج", "Okunan tam metni göster", "Show full raw extracted text")}
                 </summary>
                 <pre className="mt-2 text-xs text-[var(--erp-muted)] whitespace-pre-wrap bg-[var(--erp-panel-solid)] rounded-xl p-3">{rawText}</pre>
               </details>
@@ -159,10 +168,10 @@ export default function ReceiptScanner({ onApply }) {
                 disabled={items.length === 0}
                 className="rounded-xl px-4 py-2 font-black bg-[var(--erp-accent)] text-black disabled:opacity-60"
               >
-                {fa ? "اعمال به فرم" : "Apply to form"}
+                {tr("اعمال به فرم", "تطبيق على النموذج", "Forma uygula", "Apply to form")}
               </button>
               <button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 font-bold bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">
-                {fa ? "انصراف" : "Cancel"}
+                {tr("انصراف", "إلغاء", "İptal", "Cancel")}
               </button>
             </div>
           </div>

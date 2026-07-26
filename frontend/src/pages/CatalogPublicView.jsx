@@ -8,7 +8,8 @@ import { useLanguage } from "../localization/useLanguage";
 export default function CatalogPublicView() {
   const { token } = useParams();
   const { language, dir, money } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [title, setTitle] = useState("");
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -21,7 +22,7 @@ export default function CatalogPublicView() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  const invalidLinkMessage = fa ? "این لینک کاتالوگ دیگر معتبر نیست." : "This catalog link is no longer valid.";
+  const invalidLinkMessage = tr("این لینک کاتالوگ دیگر معتبر نیست.", "رابط الكتالوج هذا لم يعد صالحاً.", "Bu katalog bağlantısı artık geçerli değil.", "This catalog link is no longer valid.");
 
   useEffect(() => {
     let active = true;
@@ -55,11 +56,11 @@ export default function CatalogPublicView() {
     event.preventDefault();
     setSubmitError("");
     if (!customerName.trim()) {
-      setSubmitError(fa ? "نام خود را وارد کنید." : "Enter your name.");
+      setSubmitError(tr("نام خود را وارد کنید.", "أدخل اسمك.", "Adınızı girin.", "Enter your name."));
       return;
     }
     if (selectedItems.length === 0) {
-      setSubmitError(fa ? "حداقل یک کالا و تعداد آن را انتخاب کنید." : "Choose at least one product and a quantity.");
+      setSubmitError(tr("حداقل یک کالا و تعداد آن را انتخاب کنید.", "اختر منتجاً واحداً على الأقل وحدد الكمية.", "En az bir ürün ve miktarını seçin.", "Choose at least one product and a quantity."));
       return;
     }
     setSubmitting(true);
@@ -78,7 +79,7 @@ export default function CatalogPublicView() {
         }),
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.detail || (fa ? "ثبت سفارش ممکن نشد." : "Couldn't submit your order."));
+      if (!response.ok) throw new Error(data?.detail || tr("ثبت سفارش ممکن نشد.", "تعذّر تقديم الطلب.", "Sipariş gönderilemedi.", "Couldn't submit your order."));
       setSubmitted(true);
     } catch (err) {
       setSubmitError(err.message);
@@ -90,7 +91,7 @@ export default function CatalogPublicView() {
   if (loading) {
     return (
       <div dir={dir} className="min-h-screen bg-[var(--erp-bg)] flex items-center justify-center text-[var(--erp-accent)] font-bold">
-        {fa ? "در حال بارگذاری..." : "Loading..."}
+        {tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
       </div>
     );
   }
@@ -121,7 +122,7 @@ export default function CatalogPublicView() {
                 <div>
                   <div className="font-bold">{item.name}</div>
                   <div className="text-xs text-[var(--erp-muted)]">
-                    {money(item.price)} {!item.in_stock && (fa ? "• ناموجود" : "• Out of stock")}
+                    {money(item.price)} {!item.in_stock && tr("• ناموجود", "• غير متوفر", "• Stokta yok", "• Out of stock")}
                   </div>
                 </div>
                 <input
@@ -141,27 +142,27 @@ export default function CatalogPublicView() {
         {submitted ? (
           <section className="rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-6 text-emerald-200 flex items-center gap-3">
             <CheckCircle2 />
-            {fa ? "سفارش شما ثبت شد. به‌زودی برای تأیید با شما تماس می‌گیریم." : "Your order was submitted. We'll contact you shortly to confirm."}
+            {tr("سفارش شما ثبت شد. به‌زودی برای تأیید با شما تماس می‌گیریم.", "تم استلام طلبك. سنتصل بك قريباً للتأكيد.", "Siparişiniz alındı. Onay için kısa süre içinde sizinle iletişime geçeceğiz.", "Your order was submitted. We'll contact you shortly to confirm.")}
           </section>
         ) : (
           <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">
-            <h2 className="font-black mb-3 flex items-center gap-2"><ShoppingCart size={18} /> {fa ? "ثبت سفارش" : "Place an order"}</h2>
+            <h2 className="font-black mb-3 flex items-center gap-2"><ShoppingCart size={18} /> {tr("ثبت سفارش", "تقديم الطلب", "Sipariş ver", "Place an order")}</h2>
             <form onSubmit={submitOrder}>
               <input
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
-                placeholder={fa ? "نام شما" : "Your name"}
+                placeholder={tr("نام شما", "اسمك", "Adınız", "Your name")}
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
               />
               <input
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
-                placeholder={fa ? "شماره تماس" : "Phone number"}
+                placeholder={tr("شماره تماس", "رقم الهاتف", "Telefon numarası", "Phone number")}
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
               />
               <textarea
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
-                placeholder={fa ? "توضیحات (اختیاری)" : "Note (optional)"}
+                placeholder={tr("توضیحات (اختیاری)", "ملاحظات (اختياري)", "Not (isteğe bağlı)", "Note (optional)")}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -171,7 +172,7 @@ export default function CatalogPublicView() {
                 disabled={submitting}
                 className="w-full rounded-xl bg-[var(--erp-accent)] text-black font-black py-3 disabled:opacity-60"
               >
-                {submitting ? (fa ? "در حال ثبت..." : "Submitting...") : (fa ? "ثبت سفارش" : "Submit order")}
+                {submitting ? tr("در حال ثبت...", "جارٍ الإرسال...", "Gönderiliyor...", "Submitting...") : tr("ثبت سفارش", "تقديم الطلب", "Sipariş ver", "Submit order")}
               </button>
             </form>
           </section>

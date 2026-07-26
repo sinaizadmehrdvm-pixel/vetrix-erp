@@ -6,30 +6,41 @@ import { applyImport, downloadImportTemplate, getImportBatches, previewImport } 
 
 export default function DataImportCenter() {
   const { language, dir, n, date } = useLanguage();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [entity, setEntity] = useState("customers");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [batches, setBatches] = useState([]);
   const [busy, setBusy] = useState(false);
   const t = {
-    title: fa ? "ورود گروهی امن اطلاعات" : "Safe Bulk Data Import",
-    sub: fa ? "فایل ابتدا بررسی می‌شود و تا تأیید شما هیچ داده‌ای ثبت نخواهد شد." : "Files are validated first; nothing is written until you approve.",
-    customers: fa ? "طرف‌حساب‌ها" : "Parties",
-    products: fa ? "کالاها" : "Products",
-    template: fa ? "دانلود الگوی Excel" : "Download Excel template",
-    choose: fa ? "انتخاب فایل Excel" : "Choose Excel file",
-    preview: fa ? "بررسی و پیش‌نمایش" : "Validate and preview",
-    apply: fa ? "تأیید و ثبت نهایی" : "Approve and apply",
-    total: fa ? "کل ردیف‌ها" : "Total rows",
-    valid: fa ? "معتبر" : "Valid",
-    errors: fa ? "خطادار" : "Errors",
-    duplicate: fa ? "تکراری" : "Duplicates",
-    history: fa ? "تاریخچه ورود اطلاعات" : "Import history",
-    status: fa ? "وضعیت" : "Status",
-    file: fa ? "فایل" : "File",
-    no: fa ? "هنوز Batch ثبت نشده است." : "No import batches yet.",
-    warning: fa ? "ردیف‌های تکراری ثبت نمی‌شوند. اگر هر ردیف خطا داشته باشد، Apply تا رفع خطا مسدود است." : "Duplicates are skipped. Apply is blocked while any row has validation errors.",
+    title: tr("ورود گروهی امن اطلاعات", "استيراد آمن للبيانات بالجملة", "Güvenli toplu veri içe aktarma", "Safe Bulk Data Import"),
+    sub: tr(
+      "فایل ابتدا بررسی می‌شود و تا تأیید شما هیچ داده‌ای ثبت نخواهد شد.",
+      "يتم التحقق من الملف أولاً، ولن يتم تسجيل أي بيانات حتى تؤكد ذلك.",
+      "Dosya önce doğrulanır; siz onaylayana kadar hiçbir veri kaydedilmez.",
+      "Files are validated first; nothing is written until you approve."
+    ),
+    customers: tr("طرف‌حساب‌ها", "الأطراف", "Cariler", "Parties"),
+    products: tr("کالاها", "المنتجات", "Ürünler", "Products"),
+    template: tr("دانلود الگوی Excel", "تنزيل قالب Excel", "Excel şablonunu indir", "Download Excel template"),
+    choose: tr("انتخاب فایل Excel", "اختر ملف Excel", "Excel dosyası seçin", "Choose Excel file"),
+    preview: tr("بررسی و پیش‌نمایش", "التحقق والمعاينة", "Doğrula ve önizle", "Validate and preview"),
+    apply: tr("تأیید و ثبت نهایی", "تأكيد وتطبيق نهائي", "Onayla ve uygula", "Approve and apply"),
+    total: tr("کل ردیف‌ها", "إجمالي الصفوف", "Toplam satır", "Total rows"),
+    valid: tr("معتبر", "صالح", "Geçerli", "Valid"),
+    errors: tr("خطادار", "به خطأ", "Hatalı", "Errors"),
+    duplicate: tr("تکراری", "مكرر", "Yinelenen", "Duplicates"),
+    history: tr("تاریخچه ورود اطلاعات", "سجل استيراد البيانات", "Veri içe aktarma geçmişi", "Import history"),
+    status: tr("وضعیت", "الحالة", "Durum", "Status"),
+    file: tr("فایل", "الملف", "Dosya", "File"),
+    no: tr("هنوز Batch ثبت نشده است.", "لم يتم تسجيل أي دفعة بعد.", "Henüz içe aktarma grubu yok.", "No import batches yet."),
+    warning: tr(
+      "ردیف‌های تکراری ثبت نمی‌شوند. اگر هر ردیف خطا داشته باشد، Apply تا رفع خطا مسدود است.",
+      "لن يتم تسجيل الصفوف المكررة. إذا كان هناك أي صف يحتوي على خطأ، يُحظر التطبيق حتى يتم إصلاحه.",
+      "Yinelenen satırlar kaydedilmez. Herhangi bir satırda hata varsa, hata giderilene kadar Uygula engellenir.",
+      "Duplicates are skipped. Apply is blocked while any row has validation errors."
+    ),
   };
   async function load() { try { setBatches(await getImportBatches()); } catch (error) { toast.error(error.message); } }
   useEffect(() => {
@@ -47,7 +58,7 @@ export default function DataImportCenter() {
     setBusy(true);
     try {
       const result = await applyImport(preview.batch_id);
-      toast.success(fa ? `${n(result.inserted)} ردیف ثبت شد.` : `${n(result.inserted)} rows imported.`);
+      toast.success(tr(`${n(result.inserted)} ردیف ثبت شد.`, `تم تسجيل ${n(result.inserted)} صف.`, `${n(result.inserted)} satır içe aktarıldı.`, `${n(result.inserted)} rows imported.`));
       setPreview(null); setFile(null); await load();
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
@@ -71,7 +82,7 @@ export default function DataImportCenter() {
       <div className="erp-import-metrics">
         {[[t.total,preview.total_rows],[t.valid,preview.valid_rows],[t.errors,preview.error_rows],[t.duplicate,preview.duplicate_rows]].map(([label,value]) => <div key={label} style={{ padding: 13, borderRadius: 15, background: "var(--erp-bg)" }}><small style={{ color: "var(--erp-muted)" }}>{label}</small><strong style={{ display: "block", fontSize: 24 }}>{n(value)}</strong></div>)}
       </div>
-      <div className="erp-table-scroll"><table className="erp-data-table"><thead><tr><th>#</th><th>{fa ? "نام" : "Name"}</th><th>{t.status}</th><th>{fa ? "جزئیات" : "Details"}</th></tr></thead><tbody>{preview.preview.map(row => <tr key={row.row}><td>{n(row.row)}</td><td>{row.data.name}</td><td>{row.errors.length ? t.errors : row.duplicate ? t.duplicate : t.valid}</td><td>{row.errors.map(x => x.message).join(" · ") || "—"}</td></tr>)}</tbody></table></div>
+      <div className="erp-table-scroll"><table className="erp-data-table"><thead><tr><th>#</th><th>{tr("نام", "الاسم", "Ad", "Name")}</th><th>{t.status}</th><th>{tr("جزئیات", "التفاصيل", "Ayrıntılar", "Details")}</th></tr></thead><tbody>{preview.preview.map(row => <tr key={row.row}><td>{n(row.row)}</td><td>{row.data.name}</td><td>{row.errors.length ? t.errors : row.duplicate ? t.duplicate : t.valid}</td><td>{row.errors.map(x => x.message).join(" · ") || "—"}</td></tr>)}</tbody></table></div>
       <button disabled={!preview.can_apply || busy} onClick={runApply} style={{ marginTop: 13, padding: "12px 18px", borderRadius: 13, border: 0, fontWeight: 900, background: "#166534", color: "#dcfce7", opacity: !preview.can_apply || busy ? .5 : 1 }}><CheckCircle2 size={18} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.apply}</button>
     </section>}
     <section style={{ ...card, padding: 18 }}><h2><History size={21} style={{ display: "inline", marginInlineEnd: 8 }}/>{t.history}</h2>
