@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, FileClock, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import {
   activateFinancialPolicy,
@@ -173,7 +174,7 @@ export default function FinancialPolicy() {
         <label>{text.currency}<input required minLength={3} maxLength={3} value={draft.currency_code} onChange={e => setDraft({ ...draft, currency_code: e.target.value.toUpperCase() })} style={input} /></label>
         <label>{text.decimals}<select value={draft.decimal_places} onChange={e => setDraft({ ...draft, decimal_places: e.target.value })} style={input}>{[0,1,2,3,4].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
         <label>{text.rounding}<select value={draft.rounding_mode} onChange={e => setDraft({ ...draft, rounding_mode: e.target.value })} style={input}><option value="half_up">half_up</option><option value="half_even">half_even</option><option value="down">down</option><option value="up">up</option></select></label>
-        <label>{text.effective}<input type="date" required value={draft.effective_from} onChange={e => setDraft({ ...draft, effective_from: e.target.value })} style={input} /></label>
+        <label>{text.effective}<JalaliDateField value={draft.effective_from} onChange={(iso) => setDraft({ ...draft, effective_from: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-bg)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-xl p-[11px_12px] w-full" /></label>
         <label>{text.calendar}<select value={draft.calendar_system} onChange={e => setDraft({ ...draft, calendar_system: e.target.value })} style={input}><option value="gregory">gregory</option><option value="persian">persian</option><option value="islamic">islamic</option><option value="islamic-umalqura">islamic-umalqura</option></select></label>
         <label>{text.timeZone}<input required value={draft.time_zone} onChange={e => setDraft({ ...draft, time_zone: e.target.value })} style={input} /></label>
         <label>{text.firstDay}<select value={draft.first_day_of_week} onChange={e => setDraft({ ...draft, first_day_of_week: e.target.value })} style={input}>{[0,1,2,3,4,5,6].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>

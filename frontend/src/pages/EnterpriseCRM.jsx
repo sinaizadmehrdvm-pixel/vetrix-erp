@@ -22,6 +22,7 @@ import {
   markEnterpriseFollowupDone,
   moveEnterpriseOpportunityStage,
 } from "../services/api";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 
 const STAGE_COLORS = {
@@ -246,7 +247,7 @@ export default function EnterpriseCRM() {
           <Panel title={language === "fa" ? "ثبت پیگیری" : language === "ar" ? "تسجيل متابعة" : language === "tr" ? "Yeni takip" : "New follow-up"} icon={<CalendarClock />}>
             <form onSubmit={submitFollowup} style={{ display: "grid", gap: 10 }}>
               <Input placeholder={language === "fa" ? "عنوان پیگیری" : language === "ar" ? "عنوان المتابعة" : language === "tr" ? "Takip başlığı" : "Title"} value={followup.title} onChange={(v) => setFollowup({ ...followup, title: v })} />
-              <Input type="date" value={followup.due_date} onChange={(v) => setFollowup({ ...followup, due_date: v })} />
+              <JalaliDateField value={followup.due_date} onChange={(v) => setFollowup({ ...followup, due_date: v })} fa={language === "fa"} language={language} className="w-full bg-[#1e293b] text-white border border-[rgba(34,211,238,.18)] rounded-[14px] p-3" />
               <select style={inputStyle} value={followup.channel} onChange={(e) => setFollowup({ ...followup, channel: e.target.value })}>
                 <option value="call">{language === "fa" ? "تماس" : language === "ar" ? "اتصال" : language === "tr" ? "Arama" : "Call"}</option>
                 <option value="meeting">{language === "fa" ? "جلسه" : language === "ar" ? "اجتماع" : language === "tr" ? "Toplantı" : "Meeting"}</option>

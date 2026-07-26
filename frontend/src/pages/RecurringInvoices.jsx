@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Pause, Play, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import {
   createRecurringInvoice,
@@ -262,12 +263,13 @@ export default function RecurringInvoices() {
                 onChange={(e) => setCustomIntervalDays(e.target.value)}
               />
             )}
-            <input
-              type="date"
+            <JalaliDateField
               className={inputClass}
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              title={tr("تاریخ شروع (پیش‌فرض: امروز)", "تاريخ البدء (الافتراضي: اليوم)", "Başlangıç tarihi (varsayılan: bugün)", "Start date (defaults to today)")}
+              onChange={setStartDate}
+              fa={language === "fa"}
+              language={language}
+              placeholder={tr("تاریخ شروع (پیش‌فرض: امروز)", "تاريخ البدء (الافتراضي: اليوم)", "Başlangıç tarihi (varsayılan: bugün)", "Start date (defaults to today)")}
             />
           </div>
 

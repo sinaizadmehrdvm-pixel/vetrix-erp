@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal } from "lucide-react";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import { createStockMovement, getProducts, getStockMovements } from "../services/api";
 
@@ -76,7 +77,7 @@ export default function Warehouse() {
       <Field label={label.product}><select className={inputClass} value={form.product_id} onChange={e=>setForm({...form, product_id:e.target.value})}><option value="">{label.product}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name} | {language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}: {n(p.stock||0)}</option>)}</select></Field>
       <Field label={label.quantity}><input type="number" className={inputClass} value={form.quantity} onChange={e=>setForm({...form, quantity:e.target.value})} placeholder="0"/></Field>
       <Field label={label.type}><select className={inputClass} value={form.movement_type} onChange={e=>setForm({...form, movement_type:e.target.value})}><option value="in">{label.in}</option><option value="out">{label.out}</option><option value="adjustment">{label.adjustment}</option></select></Field>
-      <Field label={label.date}><input type="date" className={inputClass} value={form.movement_date} onChange={e=>setForm({...form, movement_date:e.target.value})}/></Field>
+      <Field label={label.date}><JalaliDateField className={inputClass} value={form.movement_date} onChange={(iso)=>setForm({...form, movement_date:iso})} fa={language === "fa"} language={language}/></Field>
       <Field label={label.note}><input className={inputClass} value={form.note} onChange={e=>setForm({...form, note:e.target.value})} placeholder={label.note}/></Field>
     </div><button onClick={addMovement} className="mt-5 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18}/>{label.save}</button></div>
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5"><div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"/></div>

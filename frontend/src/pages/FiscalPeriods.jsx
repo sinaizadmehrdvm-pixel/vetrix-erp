@@ -16,6 +16,7 @@ import {
 import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import {
   closeFiscalPeriod,
@@ -261,11 +262,11 @@ export default function FiscalPeriods() {
             </label>
             <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.start}
-              <input type="date" value={form.start_date} onChange={(event) => setForm({ ...form, start_date: event.target.value })} style={{ ...input, marginTop: 7 }} />
+              <JalaliDateField value={form.start_date} onChange={(iso) => setForm({ ...form, start_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[14px] p-[12px_14px] w-full" style={{ marginTop: 7 }} />
             </label>
             <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.end}
-              <input type="date" value={form.end_date} onChange={(event) => setForm({ ...form, end_date: event.target.value })} style={{ ...input, marginTop: 7 }} />
+              <JalaliDateField value={form.end_date} onChange={(iso) => setForm({ ...form, end_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[14px] p-[12px_14px] w-full" style={{ marginTop: 7 }} />
             </label>
             <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 14, padding: "13px 20px", minHeight: 45, fontWeight: 950, cursor: creating ? "wait" : "pointer", background: "linear-gradient(135deg,var(--erp-accent),#22c55e)", color: "#03111f" }}>
               {creating ? "..." : copy.create}

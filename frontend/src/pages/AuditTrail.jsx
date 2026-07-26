@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthContext";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import { getAuditEvents, getAuditIntegrity } from "../services/auditApi";
 
@@ -207,8 +208,8 @@ export default function AuditTrail() {
             <option value="true">{copy.success}</option>
             <option value="false">{copy.failed}</option>
           </select>
-          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.from}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.from_date} onChange={(e) => setFilters({ ...filters, from_date: e.target.value })} /></label>
-          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.to}<input type="date" style={{ ...input, marginTop: 5 }} value={filters.to_date} onChange={(e) => setFilters({ ...filters, to_date: e.target.value })} /></label>
+          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.from}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.from_date} onChange={(iso) => setFilters({ ...filters, from_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[13px] p-[11px_12px]" /></div></label>
+          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.to}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.to_date} onChange={(iso) => setFilters({ ...filters, to_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[13px] p-[11px_12px]" /></div></label>
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 13, flexWrap: "wrap" }}>
           <button type="submit" style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 15px", background: "var(--erp-accent)", color: "#06202a", fontWeight: 900, cursor: "pointer" }}><Search size={16} />{copy.apply}</button>
