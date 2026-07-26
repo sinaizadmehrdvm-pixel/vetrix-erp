@@ -25,6 +25,7 @@ import {
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import {
   createCustomerPortalLink,
   createSupplierPortalLink,
@@ -703,7 +704,7 @@ export default function CustomerDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            <Info icon={<BellRing size={17} />} label={tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki Takip", "Next follow-up")} value={followupDate || tr("ثبت نشده", "غير محدد", "Belirtilmedi", "Not set")} />
+            <Info icon={<BellRing size={17} />} label={tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki Takip", "Next follow-up")} value={followupDate ? date(followupDate) : tr("ثبت نشده", "غير محدد", "Belirtilmedi", "Not set")} />
             <Info icon={<CheckCircle2 size={17} />} label={tr("وضعیت CRM", "حالة CRM", "CRM Durumu", "CRM Status")} value={customerIntelligence.levelLabel} />
             <Info icon={<MessageCircle size={17} />} label={tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes")} value={n(crmNotes.length)} />
           </div>
@@ -713,12 +714,12 @@ export default function CustomerDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3 mb-4">
-            <input
+            <JalaliDateField
               value={followupDate}
-              onChange={(e) => saveFollowupDate(e.target.value)}
-              type="text"
+              onChange={saveFollowupDate}
+              fa={language === "fa"}
+              language={language}
               className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
-              placeholder={tr("مثال: ۱۴۰۵/۰۴/۲۵", "مثال: 2026/07/16", "Örnek: 2026/07/16", "Example: 2026/07/16")}
             />
             <button
               onClick={openWhatsApp}
