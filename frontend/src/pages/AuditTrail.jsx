@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { getAuditEvents, getAuditIntegrity } from "../services/auditApi";
 
 const PAGE_SIZE = 50;
@@ -208,12 +209,12 @@ export default function AuditTrail() {
 
       <form onSubmit={applyFilters} style={{ ...card, padding: 18, marginBottom: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
-          <input style={input} value={filters.actor} onChange={(e) => setFilters({ ...filters, actor: e.target.value })} placeholder={copy.actor} />
+          <input style={input} value={language === "fa" ? toPersianDigits(filters.actor) : filters.actor} onChange={(e) => setFilters({ ...filters, actor: toEnglishDigits(e.target.value) })} placeholder={copy.actor} />
           <select style={input} value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })}>
             <option value="">{copy.action}: {copy.all}</option>
             {["create", "update", "delete", "close", "reopen", "post", "cancel", "convert", "toggle"].map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
           </select>
-          <input style={input} value={filters.path} onChange={(e) => setFilters({ ...filters, path: e.target.value })} placeholder={copy.resource} />
+          <input style={input} value={language === "fa" ? toPersianDigits(filters.path) : filters.path} onChange={(e) => setFilters({ ...filters, path: toEnglishDigits(e.target.value) })} placeholder={copy.resource} />
           <select style={input} value={filters.success} onChange={(e) => setFilters({ ...filters, success: e.target.value })}>
             <option value="all">{copy.result}: {copy.all}</option>
             <option value="true">{copy.success}</option>

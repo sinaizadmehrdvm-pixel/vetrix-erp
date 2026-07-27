@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { createUser, getRoles, getUsers, resetUserPassword, updateUserRole } from "../services/usersApi";
 
 const emptyForm = {
@@ -251,7 +251,7 @@ export default function UserManagement() {
         <h2 style={{ margin: "0 0 16px", color: "var(--erp-accent-2)", display: "flex", gap: 8, alignItems: "center" }}><Plus size={21} />{copy.create}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11 }}>
           <input style={input} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={copy.fullName} />
-          <input style={input} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder={copy.username} autoComplete="off" />
+          <input style={input} value={language === "fa" ? toPersianDigits(form.username) : form.username} onChange={(e) => setForm({ ...form, username: toEnglishDigits(e.target.value) })} placeholder={copy.username} autoComplete="off" />
           <label style={{ position: "relative" }}>
             <KeyRound size={16} style={{ position: "absolute", top: 14, insetInlineStart: 12, color: "var(--erp-muted)" }} />
             <input type="password" style={{ ...input, paddingInlineStart: 38 }} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={copy.password} autoComplete="new-password" />
