@@ -6,6 +6,7 @@ import { API_URL, getAuthHeaders } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
+import JalaliDateField from "../components/forms/JalaliDateField";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
 
@@ -253,12 +254,31 @@ export default function OnlineCommerce() {
         <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-5">
           <form onSubmit={createCampaign} className="erp-surface rounded-3xl p-5 space-y-3">
             <h2 className="text-xl font-black erp-accent">{tr("کمپین جدید", "حملة جديدة", "Yeni kampanya", "New campaign")}</h2>
-            <Input label={tr("عنوان", "العنوان", "Başlık", "Title")} value={campaign.title} onChange={(value) => setCampaign({ ...campaign, title: value })} required />
+            <Input label={tr("عنوان", "العنوان", "Başlık", "Title")} value={campaign.title} onChange={(value) => setCampaign({ ...campaign, title: language === "fa" ? toPersianDigits(value) : value })} required />
             <label className="block text-sm font-bold">{tr("شبکه", "القناة", "Kanal", "Channel")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.channel} onChange={(e) => setCampaign({ ...campaign, channel: e.target.value })}>{channels.map((item) => <option key={item} value={item}>{item === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : item[0].toUpperCase() + item.slice(1)}</option>)}</select></label>
             <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.product_id} onChange={(e) => setCampaign({ ...campaign, product_id: e.target.value })}><option value="">{tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product")}</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <label className="block text-sm font-bold">{tr("متن تبلیغ", "نص الإعلان", "Reklam metni", "Post copy")}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></label>
             <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
-            <Input label={tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")} type="datetime-local" value={campaign.scheduled_at} onChange={(value) => setCampaign({ ...campaign, scheduled_at: value })} />
+            <label className="block text-sm font-bold">
+              {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <JalaliDateField
+                  value={campaign.scheduled_at ? campaign.scheduled_at.split("T")[0] : ""}
+                  onChange={(iso) => setCampaign({ ...campaign, scheduled_at: `${iso}T${campaign.scheduled_at?.split("T")[1] || "00:00"}` })}
+                  fa={language === "fa"}
+                  language={language}
+                  className="w-full rounded-xl p-3"
+                  style={inputStyle}
+                />
+                <input
+                  type="time"
+                  style={inputStyle}
+                  className="w-full rounded-xl p-3"
+                  value={campaign.scheduled_at ? campaign.scheduled_at.split("T")[1] || "" : ""}
+                  onChange={(e) => setCampaign({ ...campaign, scheduled_at: `${campaign.scheduled_at?.split("T")[0] || new Date().toISOString().slice(0, 10)}T${e.target.value}` })}
+                />
+              </div>
+            </label>
             <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><ShieldCheck size={18} />{tr("ارسال برای تأیید مدیر", "إرسال لموافقة المدير", "Yönetici onayına gönder", "Submit for approval")}</button>
           </form>
           <div className="space-y-3">

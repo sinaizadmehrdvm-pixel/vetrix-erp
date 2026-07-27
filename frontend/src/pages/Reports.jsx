@@ -716,7 +716,7 @@ export default function Reports() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="month" stroke="#cbd5e1" tickFormatter={(m) => formatMonthLabel(m, language)} />
                 <YAxis stroke="#cbd5e1" tickFormatter={n} width={80} />
-                <Tooltip content={<ChartTooltip money={money} />} labelFormatter={(m) => formatMonthLabel(m, language)} />
+                <Tooltip content={<ChartTooltip money={money} labelFormatter={(m) => formatMonthLabel(m, language)} />} />
                 <Line type="monotone" dataKey="receipts" name={tr("دریافت", "المقبوضات", "Tahsilat", "Receipts")} stroke="#34d399" strokeWidth={3} />
                 <Line type="monotone" dataKey="payments" name={tr("پرداخت", "المدفوعات", "Ödemeler", "Payments")} stroke="#fb7185" strokeWidth={3} />
               </LineChart>
@@ -1025,11 +1025,15 @@ function MiniStat({ label, value }) {
   );
 }
 
-function ChartTooltip({ active, payload, label, money }) {
+function ChartTooltip({ active, payload, label, money, labelFormatter }) {
   if (!active || !payload?.length) return null;
+  // recharts does not call the <Tooltip labelFormatter> prop when a custom
+  // `content` component is supplied - it hands off all rendering, so this
+  // component must apply its own label formatting.
+  const displayLabel = labelFormatter ? labelFormatter(label) : label;
   return (
     <div className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 text-sm shadow-2xl">
-      <div className="text-[var(--erp-accent)] font-black mb-2">{label}</div>
+      <div className="text-[var(--erp-accent)] font-black mb-2">{displayLabel}</div>
       {payload.map((item, index) => (
         <div key={index} className="text-[var(--erp-text)] flex items-center justify-between gap-4">
           <span>{item.name}</span>
