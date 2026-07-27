@@ -54,6 +54,49 @@ function statusLabelsFor(language) {
   return STATUS_LABELS_EN;
 }
 
+// The backend logs a handful of fixed English detail strings alongside
+// each reminder (see payment_reminders.py::_record callers). Only the
+// "failed" status carries a raw exception message (str(error)), which is
+// genuinely unpredictable and left untranslated on purpose - everything
+// else is one of these known, translatable sentences.
+function detailLabel(detail, language) {
+  if (!detail) return "";
+
+  if (detail === "SMTP is not configured") {
+    return language === "fa"
+      ? "SMTP پیکربندی نشده است"
+      : language === "ar"
+      ? "لم يتم تهيئة SMTP"
+      : language === "tr"
+      ? "SMTP yapılandırılmadı"
+      : detail;
+  }
+
+  if (detail === "Customer has no email on file") {
+    return language === "fa"
+      ? "ایمیلی برای این مشتری ثبت نشده است"
+      : language === "ar"
+      ? "لا يوجد بريد إلكتروني مسجل لهذا العميل"
+      : language === "tr"
+      ? "Bu müşteri için kayıtlı e-posta yok"
+      : detail;
+  }
+
+  const sentMatch = /^Sent to (.+)$/.exec(detail);
+  if (sentMatch) {
+    const email = sentMatch[1];
+    return language === "fa"
+      ? `ارسال شد به ${email}`
+      : language === "ar"
+      ? `أُرسل إلى ${email}`
+      : language === "tr"
+      ? `Şuraya gönderildi: ${email}`
+      : detail;
+  }
+
+  return detail;
+}
+
 export default function PaymentReminders() {
   const { dir, language, money, n } = useLanguage();
 
@@ -101,7 +144,12 @@ export default function PaymentReminders() {
             : "Reminder sent."
         );
       } else {
-        toast(result.detail || result.status, { icon: "⚠️" });
+        toast(
+          (result.detail && detailLabel(result.detail, language)) ||
+            statusLabelsFor(language)[result.status] ||
+            result.status,
+          { icon: "⚠️" }
+        );
       }
       await loadAll();
     } catch (err) {
@@ -275,7 +323,7 @@ export default function PaymentReminders() {
                 <div>
                   <span className="font-bold">#{n(entry.invoice_id)}</span>{" "}
                   <span className="text-[var(--erp-muted)]">{entry.customer_name}</span>
-                  {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {entry.detail}</span>}
+                  {entry.detail && <span className="text-[var(--erp-muted)] ms-2">— {detailLabel(entry.detail, language)}</span>}
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${STATUS_STYLES[entry.status] || "bg-white/10 text-[var(--erp-muted)]"}`}>
                   {statusLabelsFor(language)[entry.status] || entry.status}
