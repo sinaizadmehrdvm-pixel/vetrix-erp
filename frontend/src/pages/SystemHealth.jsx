@@ -121,9 +121,9 @@ export default function SystemHealth() {
   }, [health]);
 
   const statusConfig = {
-    healthy: { color: "#86efac", background: "rgba(34,197,94,.14)", icon: CheckCircle2, label: copy.healthy },
-    degraded: { color: "#fde68a", background: "rgba(245,158,11,.14)", icon: AlertTriangle, label: copy.degraded },
-    critical: { color: "#fca5a5", background: "rgba(239,68,68,.14)", icon: TriangleAlert, label: copy.critical },
+    healthy: { color: "#86efac", textClassName: "text-green-300", background: "rgba(34,197,94,.14)", icon: CheckCircle2, label: copy.healthy },
+    degraded: { color: "#fde68a", textClassName: "text-amber-200", background: "rgba(245,158,11,.14)", icon: AlertTriangle, label: copy.degraded },
+    critical: { color: "#fca5a5", textClassName: "text-red-300", background: "rgba(239,68,68,.14)", icon: TriangleAlert, label: copy.critical },
   };
   const current = statusConfig[health?.status] || statusConfig.degraded;
   const OverallIcon = current.icon;
@@ -172,7 +172,7 @@ export default function SystemHealth() {
                 <OverallIcon size={30} />
               </div>
               <div>
-                <strong style={{ color: current.color, fontSize: 24 }}>{current.label}</strong>
+                <strong className={current.textClassName} style={{ fontSize: 24 }}>{current.label}</strong>
                 <div style={{ color: "var(--erp-muted)", marginTop: 5 }}>
                   {copy.lastCheck}: {date(health.checked_at)} {time(health.checked_at)}
                 </div>
@@ -236,16 +236,16 @@ function Summary({ label, value, color, colorClassName }) {
 function CheckRow({ check, language }) {
   const fa = language === "fa";
   const config = {
-    pass: { color: "#86efac", icon: CheckCircle2, label: fa ? "سالم" : language === "ar" ? "ناجح" : language === "tr" ? "Geçti" : "Pass" },
-    warn: { color: "#fde68a", icon: AlertTriangle, label: fa ? "هشدار" : language === "ar" ? "تحذير" : language === "tr" ? "Uyarı" : "Warning" },
-    fail: { color: "#fca5a5", icon: TriangleAlert, label: fa ? "خطا" : language === "ar" ? "فشل" : language === "tr" ? "Başarısız" : "Failure" },
+    pass: { color: "#86efac", textClassName: "text-green-300", icon: CheckCircle2, label: fa ? "سالم" : language === "ar" ? "ناجح" : language === "tr" ? "Geçti" : "Pass" },
+    warn: { color: "#fde68a", textClassName: "text-amber-200", icon: AlertTriangle, label: fa ? "هشدار" : language === "ar" ? "تحذير" : language === "tr" ? "Uyarı" : "Warning" },
+    fail: { color: "#fca5a5", textClassName: "text-red-300", icon: TriangleAlert, label: fa ? "خطا" : language === "ar" ? "فشل" : language === "tr" ? "Başarısız" : "Failure" },
   }[check.status];
   const Icon = config.icon;
   return (
     <div style={{ padding: 12, borderRadius: 15, background: "var(--erp-panel-solid)", borderInlineStart: `3px solid ${config.color}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 9, alignItems: "center" }}>
         <strong style={{ color: "var(--erp-text)" }}>{check.label}</strong>
-        <span style={{ display: "inline-flex", gap: 5, alignItems: "center", color: config.color, fontSize: 11, fontWeight: 900 }}>
+        <span className={config.textClassName} style={{ display: "inline-flex", gap: 5, alignItems: "center", fontSize: 11, fontWeight: 900 }}>
           <Icon size={14} /> {config.label}
         </span>
       </div>
