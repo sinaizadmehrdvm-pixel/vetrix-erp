@@ -12,6 +12,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import { getSmartInventoryOverview } from "../services/api";
 
 function safeArray(value) {
@@ -170,7 +171,7 @@ export default function SmartInventory() {
               <Search className="absolute top-3 right-3 text-[var(--erp-muted)]" size={18} />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
                 placeholder={language === "fa" ? "جستجوی کالا، برند، کد..." : language === "ar" ? "بحث عن منتج أو علامة تجارية أو رمز..." : language === "tr" ? "Ürün, marka, kod ara..." : "Search product, brand, code..."}
                 className="w-full bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl py-3 pr-10 pl-4 outline-none text-[var(--erp-text)]"
               />

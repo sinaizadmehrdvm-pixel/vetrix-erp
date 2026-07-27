@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import { API_URL, getAuthHeaders, getCustomers } from "../services/api";
 
 function toNumber(value) {
@@ -477,7 +478,7 @@ function CustomerList({ language, n, money, items, query, setQuery, filter, setF
             <Search size={16} className="text-[var(--erp-accent)]" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               placeholder={language === "fa" ? "جستجو..." : language === "ar" ? "بحث..." : language === "tr" ? "Ara..." : "Search..."}
               className="bg-transparent outline-none text-[var(--erp-text)] placeholder-[var(--erp-muted)] w-44"
             />

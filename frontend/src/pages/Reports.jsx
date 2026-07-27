@@ -629,7 +629,7 @@ export default function Reports() {
       {(active === "cash" || active === "transactions" || active === "customers") && (
         <div className="flex items-center gap-2 bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 no-print">
           <Search size={18} className="text-[var(--erp-accent)]" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("جستجو...", "بحث...", "Ara...", "Search...")} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
+          <input value={query} onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={tr("جستجو...", "بحث...", "Ara...", "Search...")} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
         </div>
       )}
 

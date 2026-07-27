@@ -3,6 +3,7 @@ import { BookOpen, Copy, FileDown, MessageCircle, Plus, Send, ShieldOff, Sparkle
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import {
   createCatalogLink,
   downloadAuthenticatedFile,
@@ -238,7 +239,7 @@ export default function CatalogManager() {
                 className={inputClass}
                 placeholder={language === "fa" ? "جستجوی کالا..." : language === "ar" ? "بحث عن منتجات..." : language === "tr" ? "Ürün ara..." : "Search products..."}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => setSearch(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               />
               <div className="max-h-48 overflow-auto space-y-1 rounded-xl bg-[var(--erp-panel-solid)] p-2">
                 {filteredProducts.map((product) => (

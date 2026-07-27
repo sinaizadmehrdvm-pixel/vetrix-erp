@@ -433,7 +433,7 @@ export default function FinanceCenter() {
               <Search size={18} className="text-[var(--erp-accent)]" />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => setQuery(fa ? toPersianDigits(e.target.value) : e.target.value)}
                 placeholder={
                   fa
                     ? "جستجو در تراکنش‌ها..."
