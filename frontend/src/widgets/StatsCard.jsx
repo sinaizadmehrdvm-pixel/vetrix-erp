@@ -9,7 +9,7 @@ export default function StatsCard({
   color = "#22d3ee",
   to,
 }) {
-  const { language } = useLanguage();
+  const { dir } = useLanguage();
   const Wrapper = to ? Link : "div";
   const wrapperProps = to ? { to } : {};
 
@@ -26,7 +26,7 @@ export default function StatsCard({
           justifyContent: "space-between",
           alignItems: "center",
           gap: 16,
-          direction: language === "fa" ? "rtl" : "ltr",
+          direction: dir,
           textDecoration: "none",
           cursor: to ? "pointer" : "default",
           // Makes the value font size react to this card's own width
@@ -38,7 +38,7 @@ export default function StatsCard({
       >
         <div
           style={{
-            textAlign: language === "fa" ? "right" : "left",
+            textAlign: dir === "rtl" ? "right" : "left",
             minWidth: 0,
             flex: 1,
           }}
