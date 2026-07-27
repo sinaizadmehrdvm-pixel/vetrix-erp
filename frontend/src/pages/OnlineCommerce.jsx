@@ -258,7 +258,7 @@ export default function OnlineCommerce() {
             <label className="block text-sm font-bold">{tr("شبکه", "القناة", "Kanal", "Channel")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.channel} onChange={(e) => setCampaign({ ...campaign, channel: e.target.value })}>{channels.map((item) => <option key={item} value={item}>{item === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : item[0].toUpperCase() + item.slice(1)}</option>)}</select></label>
             <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.product_id} onChange={(e) => setCampaign({ ...campaign, product_id: e.target.value })}><option value="">{tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product")}</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <label className="block text-sm font-bold">{tr("متن تبلیغ", "نص الإعلان", "Reklam metni", "Post copy")}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></label>
-            <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: language === "fa" ? toPersianDigits(value) : value })} />
+            <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
             <label className="block text-sm font-bold">
               {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}
               <div className="space-y-2 mt-1">
@@ -358,7 +358,23 @@ function Metric({ icon, label, value, n }) {
 }
 
 function Toggle({ value, onChange }) {
-  return <button type="button" onClick={() => onChange(!value)} className="w-12 h-7 !min-h-0 !rounded-full p-1" style={{ background: value ? "var(--erp-accent)" : "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}><span className="block w-5 h-5 bg-white rounded-full transition-transform" style={{ transform: value ? "translateX(20px)" : "translateX(0)" }} /></button>;
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className="relative w-12 h-7 !min-h-0 !rounded-full overflow-hidden"
+      style={{ background: value ? "var(--erp-accent)" : "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}
+    >
+      {/* absolutely positioned within an overflow-hidden track, using the
+          logical insetInlineStart (not transform: translateX, which is
+          physical and ignores dir) so the knob can never visually escape
+          the track and slides toward the correct edge in RTL too */}
+      <span
+        className="absolute w-5 h-5 bg-white rounded-full transition-all duration-150"
+        style={{ top: 3, insetInlineStart: value ? 23 : 3 }}
+      />
+    </button>
+  );
 }
 
 function Input({ label, value, onChange, type = "text", required = false }) {
