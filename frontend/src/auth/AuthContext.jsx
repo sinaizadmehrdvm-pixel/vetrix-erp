@@ -1,6 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { API_URL } from "../services/api";
+import { useLanguage } from "../localization/useLanguage";
+
+// The backend's global auth middleware (main.py) returns these two exact
+// detail strings whenever a request's bearer token is missing, malformed,
+// or expired - as opposed to other 401s (wrong password, bad MFA code)
+// that carry their own specific detail text and must NOT force a logout.
+const SESSION_EXPIRED_DETAILS = new Set(["Invalid or expired token", "Authentication required"]);
 
 const AuthContext = createContext(null);
 const USER_STORAGE_KEY = "vetrix_user";
@@ -20,6 +28,50 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY));
   const [authReady, setAuthReady] = useState(false);
+  const { language } = useLanguage();
+  const expiredHandledRef = useRef(false);
+
+  // Every page makes its own authenticated fetch() calls (several through
+  // ad hoc local helpers rather than the shared api.js), so a per-page 401
+  // handler can't offer full coverage. Patching the global fetch here once
+  // gives every call in the app the same behavior: if the session token
+  // has gone stale (expired, or simply never sent), clear it and drop the
+  // user back to /login with a message in their language instead of
+  // leaving a raw English "Invalid or expired token" toast on whatever
+  // page they happened to be on.
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401 && !expiredHandledRef.current) {
+        try {
+          const data = await response.clone().json();
+          if (SESSION_EXPIRED_DETAILS.has(data?.detail)) {
+            expiredHandledRef.current = true;
+            localStorage.removeItem(USER_STORAGE_KEY);
+            localStorage.removeItem(TOKEN_STORAGE_KEY);
+            setUser(null);
+            setToken(null);
+            toast.error(
+              language === "fa"
+                ? "نشست شما منقضی شده است؛ دوباره وارد شوید."
+                : language === "ar"
+                ? "انتهت صلاحية جلستك؛ يرجى تسجيل الدخول مرة أخرى."
+                : language === "tr"
+                ? "Oturumunuzun süresi doldu; lütfen tekrar giriş yapın."
+                : "Your session has expired; please sign in again."
+            );
+          }
+        } catch {
+          // Non-JSON or already-consumed body - nothing to detect here.
+        }
+      }
+      return response;
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [language]);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +153,7 @@ export function AuthProvider({ children }) {
     if (!newToken) return;
     localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
     setToken(newToken);
+    expiredHandledRef.current = false;
   }
 
   function applySignedInSession(data) {
@@ -109,6 +162,7 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setToken(data.access_token);
     setAuthReady(true);
+    expiredHandledRef.current = false;
     return data.user;
   }
 

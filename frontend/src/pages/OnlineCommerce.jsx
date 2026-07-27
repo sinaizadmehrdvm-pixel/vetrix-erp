@@ -4,7 +4,7 @@ import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone,
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
 
@@ -261,7 +261,7 @@ export default function OnlineCommerce() {
             <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
             <label className="block text-sm font-bold">
               {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}
-              <div className="grid grid-cols-2 gap-2 mt-1">
+              <div className="space-y-2 mt-1">
                 <JalaliDateField
                   value={campaign.scheduled_at ? campaign.scheduled_at.split("T")[0] : ""}
                   onChange={(iso) => setCampaign({ ...campaign, scheduled_at: `${iso}T${campaign.scheduled_at?.split("T")[1] || "00:00"}` })}
@@ -271,11 +271,22 @@ export default function OnlineCommerce() {
                   style={inputStyle}
                 />
                 <input
-                  type="time"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={language === "fa" ? "۰۰:۰۰" : "00:00"}
                   style={inputStyle}
                   className="w-full rounded-xl p-3"
-                  value={campaign.scheduled_at ? campaign.scheduled_at.split("T")[1] || "" : ""}
-                  onChange={(e) => setCampaign({ ...campaign, scheduled_at: `${campaign.scheduled_at?.split("T")[0] || new Date().toISOString().slice(0, 10)}T${e.target.value}` })}
+                  value={
+                    (() => {
+                      const time = campaign.scheduled_at?.split("T")[1] || "";
+                      return language === "fa" ? toPersianDigits(time) : time;
+                    })()
+                  }
+                  onChange={(e) => {
+                    const time = toEnglishDigits(e.target.value).replace(/[^\d:]/g, "");
+                    const date = campaign.scheduled_at?.split("T")[0] || new Date().toISOString().slice(0, 10);
+                    setCampaign({ ...campaign, scheduled_at: `${date}T${time}` });
+                  }}
                 />
               </div>
             </label>
