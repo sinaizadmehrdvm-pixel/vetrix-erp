@@ -9,6 +9,7 @@ from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
 from app.ai_bi.anomaly_detection import detect_anomalies
 from app.ai_bi.cashflow_forecast import build_cashflow_forecast
+from app.export.localization import localized_digits
 from app.settings_routes import get_or_create_settings
 
 router = APIRouter(prefix="/api/ai-bi", tags=["AI Business Intelligence"])
@@ -193,16 +194,16 @@ def _build_payload():
         if current_amounts["gross_profit"] < 0:
             alerts.append({"level": "danger", "title": "سود ناخالص منفی", "message": "خریدها و برگشتی‌ها از فروش ثبت‌شده بیشتر شده‌اند.", "action": "گزارش سود و خرید را بررسی کن."})
         if len(low_stock) > 0:
-            alerts.append({"level": "danger", "title": "ریسک کمبود موجودی", "message": f"{len(low_stock)} کالا به نقطه هشدار موجودی رسیده‌اند.", "action": "لیست سفارش مجدد بساز."})
+            alerts.append({"level": "danger", "title": "ریسک کمبود موجودی", "message": f"{localized_digits(len(low_stock), 'fa')} کالا به نقطه هشدار موجودی رسیده‌اند.", "action": "لیست سفارش مجدد بساز."})
         if len(overdue_like) > 0:
-            alerts.append({"level": "warning", "title": "مطالبات معوق", "message": f"{len(overdue_like)} فاکتور بیش از ۳۰ روز مانده باز دارد.", "action": "پیگیری وصول مطالبات را شروع کن."})
+            alerts.append({"level": "warning", "title": "مطالبات معوق", "message": f"{localized_digits(len(overdue_like), 'fa')} فاکتور بیش از ۳۰ روز مانده باز دارد.", "action": "پیگیری وصول مطالبات را شروع کن."})
         if net_cash < 0:
             alerts.append({"level": "warning", "title": "جریان نقدی منفی", "message": "پرداختی‌ها از دریافتی‌ها بیشتر است.", "action": "پرداخت‌های غیرضروری را کنترل کن."})
         if not alerts:
             alerts.append({"level": "success", "title": "وضعیت پایدار", "message": "هشدار بحرانی در فروش، نقدینگی و موجودی دیده نشد.", "action": "پایش روزانه را ادامه بده."})
 
         if len(dead_stock) > 0:
-            recommendations.append({"type": "inventory", "title": "کالاهای راکد", "text": f"{len(dead_stock)} کالا موجودی دارند اما فروش ثبت‌شده ندارند.", "impact": "کاهش خواب سرمایه"})
+            recommendations.append({"type": "inventory", "title": "کالاهای راکد", "text": f"{localized_digits(len(dead_stock), 'fa')} کالا موجودی دارند اما فروش ثبت‌شده ندارند.", "impact": "کاهش خواب سرمایه"})
         if current_amounts["net_sales"] < prev_amounts["net_sales"]:
             recommendations.append({"type": "sales", "title": "افت فروش نسبت به ماه قبل", "text": "فروش ماه جاری کمتر از ماه قبل است. روی مشتریان فعال و کالاهای پرفروش تمرکز کن.", "impact": "افزایش فروش"})
         if risky_customers:
@@ -269,16 +270,16 @@ def _build_narrative(health_score, current_amounts, prev_amounts, low_stock, ove
 
     growth = _pct_change(current_amounts.get("net_sales"), prev_amounts.get("net_sales"))
     if growth > 0:
-        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {growth:.1f} درصد رشد داشته است.")
+        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {localized_digits(f'{growth:.1f}', 'fa')} درصد رشد داشته است.")
     elif growth < 0:
-        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {abs(growth):.1f} درصد کاهش داشته است.")
+        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {localized_digits(f'{abs(growth):.1f}', 'fa')} درصد کاهش داشته است.")
     else:
         parts.append("تغییر قابل توجهی در فروش ماه جاری نسبت به ماه قبل دیده نمی‌شود.")
 
     if low_stock:
-        parts.append(f"{len(low_stock)} کالا در وضعیت هشدار موجودی قرار دارد.")
+        parts.append(f"{localized_digits(len(low_stock), 'fa')} کالا در وضعیت هشدار موجودی قرار دارد.")
     if overdue_like:
-        parts.append(f"{len(overdue_like)} فاکتور باز نیازمند پیگیری وصول مطالبات است.")
+        parts.append(f"{localized_digits(len(overdue_like), 'fa')} فاکتور باز نیازمند پیگیری وصول مطالبات است.")
     if net_cash < 0:
         parts.append("جریان نقدی خالص منفی است و باید پرداخت‌ها کنترل شوند.")
     return " ".join(parts)

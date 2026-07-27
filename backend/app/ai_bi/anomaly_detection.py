@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.accounting_entry import AccountingEntry
 from app.models.invoice import Invoice
+from app.export.localization import localized_digits
 
 MIN_SAMPLES_FOR_STATS = 5
 OUTLIER_STDDEV_MULTIPLIER = 3
@@ -45,8 +46,8 @@ def _detect_unusual_invoice_amounts(invoices):
                     "amount": amount,
                     "typical_amount": round(mean, 2),
                     "message": (
-                        f"فاکتور شماره {invoice.id} به مبلغ {amount:,.0f} نسبت به میانگین "
-                        f"فاکتورهای مشابه ({mean:,.0f}) به‌طور غیرعادی بالاست."
+                        f"فاکتور شماره {localized_digits(invoice.id, 'fa')} به مبلغ {localized_digits(f'{amount:,.0f}', 'fa')} نسبت به میانگین "
+                        f"فاکتورهای مشابه ({localized_digits(f'{mean:,.0f}', 'fa')}) به‌طور غیرعادی بالاست."
                     ),
                 })
     return anomalies
@@ -105,8 +106,8 @@ def _detect_off_hours_activity(invoices, time_zone_name):
                 "customer_id": invoice.customer_id,
                 "local_hour": local_time.hour,
                 "message": (
-                    f"فاکتور شماره {invoice.id} در ساعت غیرمعمول کاری "
-                    f"({local_time.strftime('%H:%M')}) ثبت شده است."
+                    f"فاکتور شماره {localized_digits(invoice.id, 'fa')} در ساعت غیرمعمول کاری "
+                    f"({localized_digits(local_time.strftime('%H:%M'), 'fa')}) ثبت شده است."
                 ),
             })
     return anomalies
