@@ -392,7 +392,7 @@ async function fetchCustomerFiles(customerId) {
                 <div>
                   <h2 className="text-3xl font-black text-[var(--erp-text)]">{customer.name}</h2>
                   <p className="text-[var(--erp-muted)]">
-                    {levelLabel(loyaltyLevel, fa)} • {riskLabel(risk, fa)} • {date(customer.created_at, { month: "long" })}
+                    {levelLabel(loyaltyLevel, language)} • {riskLabel(risk, language)} • {date(customer.created_at, { month: "long" })}
                   </p>
                 </div>
               </div>
@@ -405,42 +405,44 @@ async function fetchCustomerFiles(customerId) {
                 ))}
                 {!tags.length && (
                   <span className="px-3 py-1 rounded-full bg-slate-400/10 text-[var(--erp-muted)] border border-slate-400/20 text-xs font-bold">
-                    {fa ? "بدون برچسب" : "No tags"}
+                    {fa ? "بدون برچسب" : language === "ar" ? "بدون وسوم" : language === "tr" ? "Etiket yok" : "No tags"}
                   </span>
                 )}
               </div>
             </div>
 
             <div className="text-center rounded-3xl bg-[var(--erp-panel-solid)] p-5 min-w-[160px]">
-              <div className="text-[var(--erp-muted)] text-sm">{fa ? "امتیاز مشتری" : "Customer score"}</div>
+              <div className="text-[var(--erp-muted)] text-sm">
+                {fa ? "امتیاز مشتری" : language === "ar" ? "درجة العميل" : language === "tr" ? "Müşteri puanı" : "Customer score"}
+              </div>
               <div className="text-5xl font-black text-[var(--erp-accent)] mt-2">{n(score)}</div>
               <div className="text-xs text-[var(--erp-muted)]">/{n(100)}</div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
-            <Info icon={<Phone />} label={fa ? "تلفن" : "Phone"} value={(fa ? toPersianDigits(customer.phone || customer.mobile) : customer.phone || customer.mobile) || "-"} />
-            <Info icon={<Mail />} label={fa ? "ایمیل" : "Email"} value={customer.email || "-"} />
-            <Info icon={<ShieldAlert />} label={fa ? "ریسک" : "Risk"} value={riskLabel(risk, fa)} />
+            <Info icon={<Phone />} label={fa ? "تلفن" : language === "ar" ? "الهاتف" : language === "tr" ? "Telefon" : "Phone"} value={(fa ? toPersianDigits(customer.phone || customer.mobile) : customer.phone || customer.mobile) || "-"} />
+            <Info icon={<Mail />} label={fa ? "ایمیل" : language === "ar" ? "البريد الإلكتروني" : language === "tr" ? "E-posta" : "Email"} value={customer.email || "-"} />
+            <Info icon={<ShieldAlert />} label={fa ? "ریسک" : language === "ar" ? "المخاطر" : language === "tr" ? "Risk" : "Risk"} value={riskLabel(risk, language)} />
           </div>
         </div>
 
         <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-yellow-400/20 p-6 shadow-2xl">
           <h2 className="text-yellow-300 font-black text-xl flex items-center gap-2 mb-4">
             <Trophy />
-            {fa ? "باشگاه مشتریان" : "Customer Loyalty"}
+            {fa ? "باشگاه مشتریان" : language === "ar" ? "برنامج ولاء العملاء" : language === "tr" ? "Müşteri sadakat kulübü" : "Customer Loyalty"}
           </h2>
 
           <div className="grid grid-cols-2 gap-3">
-            <Kpi title={fa ? "سطح" : "Level"} value={levelLabel(loyaltyLevel, fa)} />
-            <Kpi title={fa ? "امتیاز قابل استفاده" : "Available points"} value={n(Math.round(toNumber(loyalty.points)))} />
-            <Kpi title={fa ? "اعتبار هدیه" : "Gift credit"} value={money(loyalty.gift_credit || 0)} />
-            <Kpi title={fa ? "تخفیف اختصاصی" : "Discount"} value={`${n(loyalty.discount_percent || 0)}%`} />
+            <Kpi title={fa ? "سطح" : language === "ar" ? "المستوى" : language === "tr" ? "Seviye" : "Level"} value={levelLabel(loyaltyLevel, language)} />
+            <Kpi title={fa ? "امتیاز قابل استفاده" : language === "ar" ? "النقاط المتاحة" : language === "tr" ? "Kullanılabilir puan" : "Available points"} value={n(Math.round(toNumber(loyalty.points)))} />
+            <Kpi title={fa ? "اعتبار هدیه" : language === "ar" ? "رصيد الهدايا" : language === "tr" ? "Hediye bakiyesi" : "Gift credit"} value={money(loyalty.gift_credit || 0)} />
+            <Kpi title={fa ? "تخفیف اختصاصی" : language === "ar" ? "خصم حصري" : language === "tr" ? "Özel indirim" : "Discount"} value={`${n(loyalty.discount_percent || 0)}%`} />
           </div>
 
           <div className="mt-5">
             <div className="flex justify-between text-xs text-[var(--erp-muted)] mb-2">
-              <span>{fa ? "پیشرفت تا سطح بعدی" : "Next level progress"}</span>
+              <span>{fa ? "پیشرفت تا سطح بعدی" : language === "ar" ? "التقدّم إلى المستوى التالي" : language === "tr" ? "Sonraki seviyeye ilerleme" : "Next level progress"}</span>
               <span>{n(Math.round(progress))}%</span>
             </div>
             <div className="h-3 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
@@ -451,24 +453,24 @@ async function fetchCustomerFiles(customerId) {
           <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
             <input
               className="crm-input"
-              placeholder={fa ? "مثلاً ۱۰۰ امتیاز" : "Points"}
+              placeholder={fa ? "مثلاً ۱۰۰ امتیاز" : language === "ar" ? "مثال: 100 نقطة" : language === "tr" ? "Örn. 100 puan" : "Points"}
               value={redeemPointsValue}
               onChange={(e) => setRedeemPointsValue(e.target.value)}
             />
             <button onClick={handleRedeemPoints} className="crm-btn" style={{ background: "#fde047" }}>
               <Gift size={16} />
-              {fa ? "تبدیل" : "Redeem"}
+              {fa ? "تبدیل" : language === "ar" ? "استبدال" : language === "tr" ? "Kullan" : "Redeem"}
             </button>
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
-        <Stat icon={<Wallet />} title={fa ? "مانده" : "Balance"} value={money(Math.abs(toNumber(summary.balance)))} />
-        <Stat icon={<TrendingUp />} title={fa ? "ارزش خرید" : "Lifetime value"} value={money(summary.lifetime_value || 0)} />
-        <Stat icon={<CreditCard />} title={fa ? "تعداد فاکتور" : "Invoices"} value={n(summary.invoice_count || 0)} />
-        <Stat icon={<Target />} title={fa ? "فاکتور باز" : "Open invoices"} value={n(summary.open_invoice_count || 0)} />
-        <Stat icon={<Sparkles />} title={fa ? "مصرف اعتبار" : "Credit usage"} value={`${n(creditUsage)}%`} />
+        <Stat icon={<Wallet />} title={fa ? "مانده" : language === "ar" ? "الرصيد" : language === "tr" ? "Bakiye" : "Balance"} value={money(Math.abs(toNumber(summary.balance)))} />
+        <Stat icon={<TrendingUp />} title={fa ? "ارزش خرید" : language === "ar" ? "القيمة الدائمة" : language === "tr" ? "Yaşam boyu değer" : "Lifetime value"} value={money(summary.lifetime_value || 0)} />
+        <Stat icon={<CreditCard />} title={fa ? "تعداد فاکتور" : language === "ar" ? "عدد الفواتير" : language === "tr" ? "Fatura sayısı" : "Invoices"} value={n(summary.invoice_count || 0)} />
+        <Stat icon={<Target />} title={fa ? "فاکتور باز" : language === "ar" ? "فواتير مفتوحة" : language === "tr" ? "Açık faturalar" : "Open invoices"} value={n(summary.open_invoice_count || 0)} />
+        <Stat icon={<Sparkles />} title={fa ? "مصرف اعتبار" : language === "ar" ? "استخدام الائتمان" : language === "tr" ? "Kredi kullanımı" : "Credit usage"} value={`${n(creditUsage)}%`} />
       </section>
 
       <nav className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-2 flex gap-2 overflow-auto">
@@ -482,7 +484,7 @@ async function fetchCustomerFiles(customerId) {
                 : "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)] hover:text-[var(--erp-accent)]"
             }`}
           >
-            {fa ? tab.fa : tab.en}
+            {fa ? tab.fa : language === "ar" ? tab.ar : language === "tr" ? tab.tr : tab.en}
           </button>
         ))}
       </nav>
@@ -505,38 +507,38 @@ async function fetchCustomerFiles(customerId) {
             <div className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-6 shadow-2xl">
               <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
                 <Sparkles />
-                {fa ? "تحلیل سریع فروش" : "Quick Sales Insight"}
+                {fa ? "تحلیل سریع فروش" : language === "ar" ? "تحليل سريع للمبيعات" : language === "tr" ? "Hızlı satış analizi" : "Quick Sales Insight"}
               </h2>
 
               <div className="grid grid-cols-2 gap-3">
-                <Kpi title={fa ? "احتمال خرید" : "Purchase probability"} value={`${n(ai.purchase_probability || 0)}%`} />
-                <Kpi title={fa ? "ریسک ریزش" : "Churn risk"} value={`${n(ai.churn_risk || 0)}%`} />
-                <Kpi title={fa ? "اقدام بعدی" : "Next action"} value={actionLabel(ai.next_action, language)} wide />
-                <Kpi title={fa ? "تخفیف پیشنهادی" : "Suggested discount"} value={`${n(ai.suggested_discount || 0)}%`} wide />
+                <Kpi title={fa ? "احتمال خرید" : language === "ar" ? "احتمالية الشراء" : language === "tr" ? "Satın alma olasılığı" : "Purchase probability"} value={`${n(ai.purchase_probability || 0)}%`} />
+                <Kpi title={fa ? "ریسک ریزش" : language === "ar" ? "مخاطر فقدان العميل" : language === "tr" ? "Kayıp riski" : "Churn risk"} value={`${n(ai.churn_risk || 0)}%`} />
+                <Kpi title={fa ? "اقدام بعدی" : language === "ar" ? "الإجراء التالي" : language === "tr" ? "Sonraki eylem" : "Next action"} value={actionLabel(ai.next_action, language)} wide />
+                <Kpi title={fa ? "تخفیف پیشنهادی" : language === "ar" ? "الخصم المقترح" : language === "tr" ? "Önerilen indirim" : "Suggested discount"} value={`${n(ai.suggested_discount || 0)}%`} wide />
               </div>
             </div>
 
-            <CrmForm title={fa ? "ثبت یادداشت" : "Add note"} icon={<MessageCircle />}>
-              <input className="crm-input" placeholder={fa ? "عنوان" : "Title"} value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} />
-              <textarea className="crm-input" rows={3} placeholder={fa ? "متن یادداشت" : "Note"} value={noteForm.text} onChange={(e) => setNoteForm({ ...noteForm, text: e.target.value })} />
+            <CrmForm title={fa ? "ثبت یادداشت" : language === "ar" ? "إضافة ملاحظة" : language === "tr" ? "Not ekle" : "Add note"} icon={<MessageCircle />}>
+              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} />
+              <textarea className="crm-input" rows={3} placeholder={fa ? "متن یادداشت" : language === "ar" ? "نص الملاحظة" : language === "tr" ? "Not metni" : "Note"} value={noteForm.text} onChange={(e) => setNoteForm({ ...noteForm, text: e.target.value })} />
               <button onClick={() => addNote()} className="crm-btn">
                 <Plus size={16} />
-                {fa ? "ثبت یادداشت" : "Save note"}
+                {fa ? "ثبت یادداشت" : language === "ar" ? "حفظ الملاحظة" : language === "tr" ? "Notu kaydet" : "Save note"}
               </button>
             </CrmForm>
 
-            <CrmForm title={fa ? "ثبت تماس / تعامل" : "Add interaction"} icon={<Phone />}>
+            <CrmForm title={fa ? "ثبت تماس / تعامل" : language === "ar" ? "إضافة تفاعل" : language === "tr" ? "Etkileşim ekle" : "Add interaction"} icon={<Phone />}>
               <select className="crm-input" value={interactionForm.interaction_type} onChange={(e) => setInteractionForm({ ...interactionForm, interaction_type: e.target.value })}>
-                <option value="call">{fa ? "تماس" : "Call"}</option>
-                <option value="meeting">{fa ? "جلسه" : "Meeting"}</option>
-                <option value="sms">{fa ? "پیامک" : "SMS"}</option>
-                <option value="whatsapp">{fa ? "واتساپ" : "WhatsApp"}</option>
+                <option value="call">{fa ? "تماس" : language === "ar" ? "اتصال" : language === "tr" ? "Arama" : "Call"}</option>
+                <option value="meeting">{fa ? "جلسه" : language === "ar" ? "اجتماع" : language === "tr" ? "Toplantı" : "Meeting"}</option>
+                <option value="sms">{fa ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS"}</option>
+                <option value="whatsapp">{fa ? "واتساپ" : language === "ar" ? "واتساب" : language === "tr" ? "WhatsApp" : "WhatsApp"}</option>
               </select>
-              <input className="crm-input" placeholder={fa ? "عنوان" : "Title"} value={interactionForm.title} onChange={(e) => setInteractionForm({ ...interactionForm, title: e.target.value })} />
-              <textarea className="crm-input" rows={2} placeholder={fa ? "توضیح تعامل" : "Interaction description"} value={interactionForm.description} onChange={(e) => setInteractionForm({ ...interactionForm, description: e.target.value })} />
+              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={interactionForm.title} onChange={(e) => setInteractionForm({ ...interactionForm, title: e.target.value })} />
+              <textarea className="crm-input" rows={2} placeholder={fa ? "توضیح تعامل" : language === "ar" ? "وصف التفاعل" : language === "tr" ? "Etkileşim açıklaması" : "Interaction description"} value={interactionForm.description} onChange={(e) => setInteractionForm({ ...interactionForm, description: e.target.value })} />
               <button onClick={() => addInteraction()} className="crm-btn">
                 <Plus size={16} />
-                {fa ? "ثبت تعامل" : "Save interaction"}
+                {fa ? "ثبت تعامل" : language === "ar" ? "حفظ التفاعل" : language === "tr" ? "Etkileşimi kaydet" : "Save interaction"}
               </button>
             </CrmForm>
           </div>

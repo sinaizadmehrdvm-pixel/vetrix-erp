@@ -20,10 +20,34 @@ import { useLanguage } from "../localization/useLanguage";
 import { API_URL } from "../services/api";
 
 const FEATURES = [
-  { icon: Calculator, fa: "حسابداری و خزانه‌داری حرفه‌ای", en: "Professional accounting & treasury" },
-  { icon: Sparkles, fa: "هوش تجاری و پیش‌بینی هوشمند", en: "AI-powered business intelligence" },
-  { icon: Mic, fa: "گزارش‌دهی و درخواست‌های صوتی", en: "Voice-driven reports & requests" },
-  { icon: ShieldCheck, fa: "امنیت چندلایه و رمزنگاری‌شده", en: "Layered, encrypted security" },
+  {
+    icon: Calculator,
+    fa: "حسابداری و خزانه‌داری حرفه‌ای",
+    ar: "محاسبة وخزينة احترافية",
+    tr: "Profesyonel muhasebe ve hazine yönetimi",
+    en: "Professional accounting & treasury",
+  },
+  {
+    icon: Sparkles,
+    fa: "هوش تجاری و پیش‌بینی هوشمند",
+    ar: "ذكاء أعمال مدعوم بالذكاء الاصطناعي",
+    tr: "Yapay zekâ destekli iş zekâsı",
+    en: "AI-powered business intelligence",
+  },
+  {
+    icon: Mic,
+    fa: "گزارش‌دهی و درخواست‌های صوتی",
+    ar: "تقارير وطلبات صوتية",
+    tr: "Sesli raporlama ve talepler",
+    en: "Voice-driven reports & requests",
+  },
+  {
+    icon: ShieldCheck,
+    fa: "امنیت چندلایه و رمزنگاری‌شده",
+    ar: "أمان متعدد الطبقات ومشفّر",
+    tr: "Katmanlı ve şifrelenmiş güvenlik",
+    en: "Layered, encrypted security",
+  },
 ];
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -253,7 +277,7 @@ export default function Login() {
       <AnimatedBackground />
 
       <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.05fr_1fr] gap-10 xl:gap-16 items-center">
-        <BrandPanel fa={fa} />
+        <BrandPanel fa={fa} language={language} />
 
         <motion.section
           initial={{ opacity: 0, y: 28, scale: 0.96 }}
@@ -357,31 +381,59 @@ export default function Login() {
                   <UserPlus className="mb-2" size={22} />
                   {fa
                     ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
+                    : language === "ar"
+                    ? "هذا هو أول تشغيل لنظام Vetrix. أنشئ حساب المسؤول الأولي؛ ستظهر هذه الخطوة مرة واحدة فقط."
+                    : language === "tr"
+                    ? "Bu, Vetrix'in ilk çalıştırmasıdır. İlk yöneticiyi oluşturun; bu adım yalnızca bir kez görüntülenir."
                     : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
                 </div>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
-                  {fa ? "نام و نام خانوادگی مدیر" : "Administrator full name"}
+                  {fa
+                    ? "نام و نام خانوادگی مدیر"
+                    : language === "ar"
+                    ? "الاسم الكامل للمسؤول"
+                    : language === "tr"
+                    ? "Yönetici tam adı"
+                    : "Administrator full name"}
                 </label>
                 <IconInput icon={User}>
                   <input id="full-name" autoComplete="name" value={setup.full_name} onChange={(event) => setSetup({ ...setup, full_name: event.target.value })} className={inputClass} required />
                 </IconInput>
 
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-username">
-                  {fa ? "نام کاربری مدیر" : "Administrator username"}
+                  {fa
+                    ? "نام کاربری مدیر"
+                    : language === "ar"
+                    ? "اسم مستخدم المسؤول"
+                    : language === "tr"
+                    ? "Yönetici kullanıcı adı"
+                    : "Administrator username"}
                 </label>
                 <IconInput icon={User}>
                   <input id="setup-username" autoComplete="username" value={setup.username} onChange={(event) => setSetup({ ...setup, username: event.target.value })} className={inputClass} required />
                 </IconInput>
 
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="setup-password">
-                  {fa ? "رمز عبور قوی (حداقل ۱۰ کاراکتر)" : "Strong password (minimum 10 characters)"}
+                  {fa
+                    ? "رمز عبور قوی (حداقل ۱۰ کاراکتر)"
+                    : language === "ar"
+                    ? "كلمة مرور قوية (10 أحرف على الأقل)"
+                    : language === "tr"
+                    ? "Güçlü parola (en az 10 karakter)"
+                    : "Strong password (minimum 10 characters)"}
                 </label>
                 <IconInput icon={Lock}>
                   <input id="setup-password" autoComplete="new-password" type="password" value={setup.password} onChange={(event) => setSetup({ ...setup, password: event.target.value })} className={inputClass} minLength={10} required />
                 </IconInput>
 
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-password">
-                  {fa ? "تکرار رمز عبور" : "Confirm password"}
+                  {fa
+                    ? "تکرار رمز عبور"
+                    : language === "ar"
+                    ? "تأكيد كلمة المرور"
+                    : language === "tr"
+                    ? "Parolayı onayla"
+                    : "Confirm password"}
                 </label>
                 <IconInput icon={Lock}>
                   <input id="confirm-password" autoComplete="new-password" type="password" value={setup.confirm_password} onChange={(event) => setSetup({ ...setup, confirm_password: event.target.value })} className={inputClass} minLength={10} required />
@@ -390,7 +442,21 @@ export default function Login() {
                 {error && <ErrorBox message={error} />}
                 <SubmitButton submitting={submitting} from="#34d399" to="#22d3ee">
                   <CheckCircle2 size={19} />
-                  {submitting ? (fa ? "در حال راه‌اندازی..." : "Setting up...") : (fa ? "ساخت مدیر و ورود" : "Create administrator & sign in")}
+                  {submitting
+                    ? fa
+                      ? "در حال راه‌اندازی..."
+                      : language === "ar"
+                      ? "جارٍ الإعداد..."
+                      : language === "tr"
+                      ? "Kuruluyor..."
+                      : "Setting up..."
+                    : fa
+                    ? "ساخت مدیر و ورود"
+                    : language === "ar"
+                    ? "إنشاء المسؤول وتسجيل الدخول"
+                    : language === "tr"
+                    ? "Yönetici oluştur ve giriş yap"
+                    : "Create administrator & sign in"}
                 </SubmitButton>
               </motion.form>
             )}
@@ -409,17 +475,33 @@ export default function Login() {
                   <KeyRound className="mb-2" size={22} />
                   {fa
                     ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
+                    : language === "ar"
+                    ? "للمتابعة، تقتضي سياسة الأمان الخاصة بالمسؤول تغيير كلمة المرور الخاصة بك."
+                    : language === "tr"
+                    ? "Devam etmek için yönetici güvenlik politikası gereği parolanızı değiştirmeniz gerekiyor."
                     : "To continue, your administrator requires you to change your password."}
                 </div>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="new-password">
-                  {fa ? "رمز عبور جدید" : "New password"}
+                  {fa
+                    ? "رمز عبور جدید"
+                    : language === "ar"
+                    ? "كلمة المرور الجديدة"
+                    : language === "tr"
+                    ? "Yeni parola"
+                    : "New password"}
                 </label>
                 <IconInput icon={Lock}>
                   <input id="new-password" autoComplete="new-password" type="password" value={passwordChange.new_password} onChange={(event) => setPasswordChange({ ...passwordChange, new_password: event.target.value })} className={inputClass} minLength={12} required />
                 </IconInput>
 
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="confirm-new-password">
-                  {fa ? "تکرار رمز عبور جدید" : "Confirm new password"}
+                  {fa
+                    ? "تکرار رمز عبور جدید"
+                    : language === "ar"
+                    ? "تأكيد كلمة المرور الجديدة"
+                    : language === "tr"
+                    ? "Yeni parolayı onayla"
+                    : "Confirm new password"}
                 </label>
                 <IconInput icon={Lock}>
                   <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
@@ -427,7 +509,21 @@ export default function Login() {
 
                 {error && <ErrorBox message={error} />}
                 <SubmitButton submitting={submitting} from="#fbbf24" to="#f59e0b">
-                  {submitting ? (fa ? "در حال تغییر رمز..." : "Changing password...") : (fa ? "تغییر رمز و ادامه" : "Change password & continue")}
+                  {submitting
+                    ? fa
+                      ? "در حال تغییر رمز..."
+                      : language === "ar"
+                      ? "جارٍ تغيير كلمة المرور..."
+                      : language === "tr"
+                      ? "Parola değiştiriliyor..."
+                      : "Changing password..."
+                    : fa
+                    ? "تغییر رمز و ادامه"
+                    : language === "ar"
+                    ? "تغيير كلمة المرور والمتابعة"
+                    : language === "tr"
+                    ? "Parolayı değiştir ve devam et"
+                    : "Change password & continue"}
                 </SubmitButton>
               </motion.form>
             )}
@@ -446,10 +542,20 @@ export default function Login() {
                   <ShieldCheck className="mb-2" size={22} />
                   {fa
                     ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
+                    : language === "ar"
+                    ? "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة، أو أحد رموز الاسترداد."
+                    : language === "tr"
+                    ? "Kimlik doğrulama uygulamanızdaki 6 haneli kodu veya bir kurtarma kodunu girin."
                     : "Enter the 6-digit code from your authenticator app, or a recovery code."}
                 </div>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="totp-code">
-                  {fa ? "کد تأیید" : "Verification code"}
+                  {fa
+                    ? "کد تأیید"
+                    : language === "ar"
+                    ? "رمز التحقق"
+                    : language === "tr"
+                    ? "Doğrulama kodu"
+                    : "Verification code"}
                 </label>
                 <IconInput icon={KeyRound}>
                   <input
@@ -466,14 +572,34 @@ export default function Login() {
 
                 {error && <ErrorBox message={error} />}
                 <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
-                  {submitting ? (fa ? "در حال بررسی..." : "Verifying...") : (fa ? "تأیید و ورود" : "Verify & sign in")}
+                  {submitting
+                    ? fa
+                      ? "در حال بررسی..."
+                      : language === "ar"
+                      ? "جارٍ التحقق..."
+                      : language === "tr"
+                      ? "Doğrulanıyor..."
+                      : "Verifying..."
+                    : fa
+                    ? "تأیید و ورود"
+                    : language === "ar"
+                    ? "تحقق وتسجيل الدخول"
+                    : language === "tr"
+                    ? "Doğrula ve giriş yap"
+                    : "Verify & sign in"}
                 </SubmitButton>
                 <button
                   type="button"
                   onClick={() => { setMode("login"); setMfa({ token: "", code: "" }); setError(""); }}
                   className="w-full mt-3 text-sm text-[var(--erp-muted)] hover:text-[var(--erp-text)] transition-colors"
                 >
-                  {fa ? "بازگشت به ورود" : "Back to login"}
+                  {fa
+                    ? "بازگشت به ورود"
+                    : language === "ar"
+                    ? "العودة إلى تسجيل الدخول"
+                    : language === "tr"
+                    ? "Girişe dön"
+                    : "Back to login"}
                 </button>
               </motion.form>
             )}
@@ -489,14 +615,26 @@ export default function Login() {
                 className="relative"
               >
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="username">
-                  {fa ? "نام کاربری" : "Username"}
+                  {fa
+                    ? "نام کاربری"
+                    : language === "ar"
+                    ? "اسم المستخدم"
+                    : language === "tr"
+                    ? "Kullanıcı adı"
+                    : "Username"}
                 </label>
                 <IconInput icon={User}>
                   <input id="username" autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} className={inputClass} required />
                 </IconInput>
 
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="password">
-                  {fa ? "رمز عبور" : "Password"}
+                  {fa
+                    ? "رمز عبور"
+                    : language === "ar"
+                    ? "كلمة المرور"
+                    : language === "tr"
+                    ? "Parola"
+                    : "Password"}
                 </label>
                 <IconInput icon={Lock}>
                   <input id="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className={inputClass} required />
@@ -504,7 +642,21 @@ export default function Login() {
 
                 {error && <ErrorBox message={error} />}
                 <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
-                  {submitting ? (fa ? "در حال ورود..." : "Signing in...") : (fa ? "ورود" : "Login")}
+                  {submitting
+                    ? fa
+                      ? "در حال ورود..."
+                      : language === "ar"
+                      ? "جارٍ تسجيل الدخول..."
+                      : language === "tr"
+                      ? "Giriş yapılıyor..."
+                      : "Signing in..."
+                    : fa
+                    ? "ورود"
+                    : language === "ar"
+                    ? "تسجيل الدخول"
+                    : language === "tr"
+                    ? "Giriş yap"
+                    : "Login"}
                   {!submitting && <ArrowLeft size={18} className={fa ? "" : "rotate-180"} />}
                 </SubmitButton>
               </motion.form>
@@ -577,7 +729,7 @@ function LogoMark({ size = 56 }) {
   );
 }
 
-function BrandPanel({ fa }) {
+function BrandPanel({ fa, language }) {
   return (
     <div className="hidden lg:flex flex-col justify-center relative z-10 px-4">
       <motion.div
@@ -592,7 +744,13 @@ function BrandPanel({ fa }) {
             Vetrix ERP
           </div>
           <div className="text-[var(--erp-muted)] text-sm mt-1">
-            {fa ? "پلتفرم یکپارچه مدیریت کسب‌وکار" : "The unified business management platform"}
+            {fa
+              ? "پلتفرم یکپارچه مدیریت کسب‌وکار"
+              : language === "ar"
+              ? "منصة إدارة الأعمال الموحّدة"
+              : language === "tr"
+              ? "Birleşik iş yönetimi platformu"
+              : "The unified business management platform"}
           </div>
         </div>
       </motion.div>
@@ -605,6 +763,10 @@ function BrandPanel({ fa }) {
       >
         {fa
           ? "همه‌چیز برای اداره‌ی هوشمند کسب‌وکار شما، در یک‌جا."
+          : language === "ar"
+          ? "كل ما تحتاجه لإدارة أعمالك بذكاء، في مكان واحد."
+          : language === "tr"
+          ? "İşletmenizi akıllıca yönetmek için ihtiyacınız olan her şey, tek bir yerde."
           : "Everything to run your business intelligently, in one place."}
       </motion.h2>
 
@@ -620,7 +782,9 @@ function BrandPanel({ fa }) {
             <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] shrink-0">
               <feature.icon size={19} />
             </span>
-            <span className="text-sm font-bold text-[var(--erp-text)]">{fa ? feature.fa : feature.en}</span>
+            <span className="text-sm font-bold text-[var(--erp-text)]">
+              {fa ? feature.fa : language === "ar" ? feature.ar : language === "tr" ? feature.tr : feature.en}
+            </span>
           </motion.div>
         ))}
       </div>

@@ -209,6 +209,8 @@ function Field({ label, children, hint }) {
 export default function Products() {
   const { language, n, money, dir } = useLanguage();
   const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const unitOptions =
     language === "fa"
       ? unitOptionsFa
@@ -263,31 +265,37 @@ export default function Products() {
   }, [categories, form.main_category, form.sub_category]);
 
   const label = {
-    title: fa ? "کالاها و خدمات" : "Products & Services",
-    subtitle: fa
-      ? "تعریف کالا، قیمت فروش، قیمت خرید، موجودی، بارکد و حداقل موجودی"
-      : "Define products, sale price, buy price, inventory, barcode and minimum stock",
-    name: fa ? "نام کالا / خدمت" : "Product / Service name",
-    code: fa ? "کد کالا" : "Product code",
-    barcode: fa ? "بارکد" : "Barcode",
-    sku: fa ? "SKU / شناسه داخلی" : "SKU / Internal code",
-    brand: fa ? "برند" : "Brand",
-    unit: fa ? "واحد" : "Unit",
-    buy: fa ? "قیمت خرید" : "Buy price",
-    sell: fa ? "قیمت فروش" : "Sell price",
-    stock: fa ? "موجودی فعلی" : "Current stock",
-    minStock: fa ? "حداقل موجودی هشدار" : "Minimum alert stock",
-    mainCategory: fa ? "گروه اصلی" : "Main category",
-    subCategory: fa ? "زیرگروه" : "Sub category",
-    uploadImage: fa ? "تصویر کالا" : "Product image",
-    add: fa ? "ثبت کالا" : "Add product",
-    save: fa ? "ذخیره ویرایش" : "Save changes",
-    cancel: fa ? "لغو ویرایش" : "Cancel edit",
-    search: fa
-      ? "جستجوی نام، کد، بارکد، برند یا گروه..."
-      : "Search name, code, barcode, brand or category...",
-    noData: fa ? "هنوز کالایی ثبت نشده است." : "No product has been created yet.",
-    nameRequired: fa ? "نام کالا را وارد کن" : "Enter product name",
+    title: tr("کالاها و خدمات", "المنتجات والخدمات", "Ürünler ve Hizmetler", "Products & Services"),
+    subtitle: tr(
+      "تعریف کالا، قیمت فروش، قیمت خرید، موجودی، بارکد و حداقل موجودی",
+      "تعريف المنتج، سعر البيع، سعر الشراء، المخزون، الباركود والحد الأدنى للمخزون",
+      "Ürün, satış fiyatı, alış fiyatı, stok, barkod ve minimum stok tanımı",
+      "Define products, sale price, buy price, inventory, barcode and minimum stock"
+    ),
+    name: tr("نام کالا / خدمت", "اسم المنتج / الخدمة", "Ürün / Hizmet adı", "Product / Service name"),
+    code: tr("کد کالا", "كود المنتج", "Ürün kodu", "Product code"),
+    barcode: tr("بارکد", "الباركود", "Barkod", "Barcode"),
+    sku: tr("SKU / شناسه داخلی", "SKU / الرمز الداخلي", "SKU / Dahili kod", "SKU / Internal code"),
+    brand: tr("برند", "العلامة التجارية", "Marka", "Brand"),
+    unit: tr("واحد", "الوحدة", "Birim", "Unit"),
+    buy: tr("قیمت خرید", "سعر الشراء", "Alış fiyatı", "Buy price"),
+    sell: tr("قیمت فروش", "سعر البيع", "Satış fiyatı", "Sell price"),
+    stock: tr("موجودی فعلی", "المخزون الحالي", "Mevcut stok", "Current stock"),
+    minStock: tr("حداقل موجودی هشدار", "الحد الأدنى لتنبيه المخزون", "Minimum uyarı stoğu", "Minimum alert stock"),
+    mainCategory: tr("گروه اصلی", "التصنيف الرئيسي", "Ana kategori", "Main category"),
+    subCategory: tr("زیرگروه", "التصنيف الفرعي", "Alt kategori", "Sub category"),
+    uploadImage: tr("تصویر کالا", "صورة المنتج", "Ürün görseli", "Product image"),
+    add: tr("ثبت کالا", "إضافة منتج", "Ürün ekle", "Add product"),
+    save: tr("ذخیره ویرایش", "حفظ التعديل", "Değişiklikleri kaydet", "Save changes"),
+    cancel: tr("لغو ویرایش", "إلغاء التعديل", "Düzenlemeyi iptal et", "Cancel edit"),
+    search: tr(
+      "جستجوی نام، کد، بارکد، برند یا گروه...",
+      "بحث بالاسم أو الكود أو الباركود أو العلامة التجارية أو التصنيف...",
+      "Ad, kod, barkod, marka veya kategoriye göre ara...",
+      "Search name, code, barcode, brand or category..."
+    ),
+    noData: tr("هنوز کالایی ثبت نشده است.", "لم يتم تسجيل أي منتج بعد.", "Henüz hiç ürün eklenmedi.", "No product has been created yet."),
+    nameRequired: tr("نام کالا را وارد کن", "أدخل اسم المنتج", "Ürün adını girin", "Enter product name"),
   };
 
   async function saveCache(items) {
@@ -320,15 +328,21 @@ export default function Products() {
         setProducts(cached.map(normalizeProduct));
         setOfflineMode(true);
         setMessage(
-          fa
-            ? "اتصال به سرور برقرار نشد؛ کالاها از حافظه آفلاین نمایش داده شدند."
-            : "Server unavailable; products loaded from offline cache."
+          tr(
+            "اتصال به سرور برقرار نشد؛ کالاها از حافظه آفلاین نمایش داده شدند.",
+            "تعذّر الاتصال بالخادم؛ تم عرض المنتجات من الذاكرة غير المتصلة.",
+            "Sunucuya bağlanılamadı; ürünler çevrimdışı önbellekten yüklendi.",
+            "Server unavailable; products loaded from offline cache."
+          )
         );
       } else {
         setMessage(
-          fa
-            ? "خطا در دریافت کالاها از سرور و کش آفلاین موجود نیست"
-            : "Error loading products and no offline cache found"
+          tr(
+            "خطا در دریافت کالاها از سرور و کش آفلاین موجود نیست",
+            "خطأ في تحميل المنتجات من الخادم ولا توجد ذاكرة غير متصلة",
+            "Ürünler sunucudan alınamadı ve çevrimdışı önbellek bulunamadı",
+            "Error loading products and no offline cache found"
+          )
         );
       }
     } finally {
@@ -349,7 +363,7 @@ export default function Products() {
 
   function reset() {
     setEditingId(null);
-    setForm({ ...empty, unit: fa ? "عدد" : "pcs" });
+    setForm({ ...empty, unit: tr("عدد", "قطعة", "Adet", "pcs") });
   }
 
   function buildPayload() {
@@ -359,7 +373,7 @@ export default function Products() {
       barcode: toEnglishDigits(form.barcode || form.code || form.sku || ""),
       sku: toEnglishDigits(form.sku || ""),
       brand: form.brand || "",
-      unit: form.unit || (fa ? "عدد" : "pcs"),
+      unit: form.unit || tr("عدد", "قطعة", "Adet", "pcs"),
       buy_price: toNumber(form.buy_price),
       purchase_price: toNumber(form.buy_price),
       sell_price: toNumber(form.sell_price),
@@ -405,7 +419,7 @@ export default function Products() {
         : await createProduct(payload);
 
       if (result?.status === "error") {
-        throw new Error(result.message || (fa ? "خطا در ذخیره کالا" : "Error saving product"));
+        throw new Error(result.message || tr("خطا در ذخیره کالا", "خطأ في حفظ المنتج", "Ürün kaydedilirken hata oluştu", "Error saving product"));
       }
 
       const serverItem = normalizeProduct({
@@ -457,9 +471,12 @@ export default function Products() {
 
       setOfflineMode(true);
       setMessage(
-        fa
-          ? "سرور در دسترس نبود؛ کالا در حافظه آفلاین ذخیره شد."
-          : "Server unavailable; product saved offline."
+        tr(
+          "سرور در دسترس نبود؛ کالا در حافظه آفلاین ذخیره شد.",
+          "الخادم غير متاح؛ تم حفظ المنتج في الذاكرة غير المتصلة.",
+          "Sunucuya ulaşılamadı; ürün çevrimdışı olarak kaydedildi.",
+          "Server unavailable; product saved offline."
+        )
       );
 
       reset();
@@ -473,7 +490,7 @@ export default function Products() {
       barcode: toEnglishDigits(item.barcode || item.code || item.sku || ""),
       sku: toEnglishDigits(item.sku || ""),
       brand: item.brand || "",
-      unit: item.unit || (fa ? "عدد" : "pcs"),
+      unit: item.unit || tr("عدد", "قطعة", "Adet", "pcs"),
       buy_price: toNumber(item.buy_price),
       purchase_price: toNumber(item.buy_price),
       sell_price: toNumber(item.sell_price),
@@ -520,7 +537,12 @@ export default function Products() {
     await saveCache(updated);
     if (syncedCount > 0) {
       setMessage(
-        fa ? `${toPersianDigits(syncedCount)} کالای آفلاین همگام‌سازی شد.` : `${syncedCount} offline product(s) synced.`
+        tr(
+          `${toPersianDigits(syncedCount)} کالای آفلاین همگام‌سازی شد.`,
+          `تمت مزامنة ${syncedCount} منتج غير متصل.`,
+          `${syncedCount} çevrimdışı ürün eşitlendi.`,
+          `${syncedCount} offline product(s) synced.`
+        )
       );
     }
   }
@@ -529,9 +551,12 @@ export default function Products() {
 
   async function handleDeleteProduct(product) {
     const ok = window.confirm(
-      fa
-        ? `کالای «${product.name || ""}» حذف شود؟`
-        : `Delete "${product.name || ""}"?`
+      tr(
+        `کالای «${product.name || ""}» حذف شود؟`,
+        `هل تريد حذف المنتج «${product.name || ""}»؟`,
+        `«${product.name || ""}» ürünü silinsin mi?`,
+        `Delete "${product.name || ""}"?`
+      )
     );
     if (!ok) return;
 
@@ -539,7 +564,7 @@ export default function Products() {
       const result = await deleteProduct(product.id);
 
       if (result?.status === "error") {
-        throw new Error(result.message || (fa ? "خطا در حذف کالا" : "Error deleting product"));
+        throw new Error(result.message || tr("خطا در حذف کالا", "خطأ في حذف المنتج", "Ürün silinirken hata oluştu", "Error deleting product"));
       }
 
       if (String(editingId) === String(product.id)) reset();
@@ -557,9 +582,12 @@ export default function Products() {
 
       setOfflineMode(true);
       setMessage(
-        fa
-          ? "سرور در دسترس نبود یا حذف آنلاین انجام نشد؛ کالا فقط از حافظه آفلاین حذف شد."
-          : "Server unavailable or online delete failed; product removed from offline cache only."
+        tr(
+          "سرور در دسترس نبود یا حذف آنلاین انجام نشد؛ کالا فقط از حافظه آفلاین حذف شد.",
+          "الخادم غير متاح أو فشل الحذف عبر الإنترنت؛ تم حذف المنتج من الذاكرة غير المتصلة فقط.",
+          "Sunucuya ulaşılamadı veya çevrimiçi silme başarısız oldu; ürün yalnızca çevrimdışı önbellekten kaldırıldı.",
+          "Server unavailable or online delete failed; product removed from offline cache only."
+        )
       );
     }
   }
@@ -579,7 +607,7 @@ export default function Products() {
       buy_price: toNumber(item.buy_price) === 0 ? "" : faText(item.buy_price, fa),
       stock: toNumber(item.stock) === 0 ? "" : faText(item.stock, fa),
       min_stock: toNumber(item.min_stock) === 0 ? "" : faText(item.min_stock, fa),
-      unit: item.unit || (fa ? "عدد" : "pcs"),
+      unit: item.unit || tr("عدد", "قطعة", "Adet", "pcs"),
       main_category: faText(item.main_category || "", fa),
       sub_category: faText(item.sub_category || "", fa),
       image: item.image || "",
@@ -641,7 +669,7 @@ export default function Products() {
           className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
@@ -661,33 +689,39 @@ export default function Products() {
       {countPending(products) > 0 && (
         <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
           <span>
-            {fa
-              ? `${toPersianDigits(countPending(products))} کالای آفلاین در انتظار همگام‌سازی است.`
-              : `${countPending(products)} offline product(s) waiting to sync.`}
+            {tr(
+              `${toPersianDigits(countPending(products))} کالای آفلاین در انتظار همگام‌سازی است.`,
+              `${countPending(products)} منتج غير متصل بانتظار المزامنة.`,
+              `${countPending(products)} çevrimdışı ürün eşitleme bekliyor.`,
+              `${countPending(products)} offline product(s) waiting to sync.`
+            )}
           </span>
           <button
             type="button"
             onClick={() => void syncPendingProducts()}
             className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm"
           >
-            {fa ? "همگام‌سازی الان" : "Sync now"}
+            {tr("همگام‌سازی الان", "مزامنة الآن", "Şimdi eşitle", "Sync now")}
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Summary icon={<Package />} title={fa ? "تعداد کالا" : "Products"} value={n(products.length)} />
-        <Summary icon={<Boxes />} title={fa ? "موجودی کل" : "Total stock"} value={n(totalStock)} />
+        <Summary icon={<Package />} title={tr("تعداد کالا", "عدد المنتجات", "Ürün sayısı", "Products")} value={n(products.length)} />
+        <Summary icon={<Boxes />} title={tr("موجودی کل", "إجمالي المخزون", "Toplam stok", "Total stock")} value={n(totalStock)} />
         <Summary
           icon={<AlertTriangle />}
-          title={fa ? "ارزش موجودی فروش" : "Stock sale value"}
+          title={tr("ارزش موجودی فروش", "قيمة المخزون البيعية", "Stok satış değeri", "Stock sale value")}
           value={money(stockValue)}
           danger={lowStock > 0}
           subtitle={
             lowStock
-              ? fa
-                ? `${n(lowStock)} کالا زیر حداقل`
-                : `${n(lowStock)} low-stock items`
+              ? tr(
+                  `${n(lowStock)} کالا زیر حداقل`,
+                  `${n(lowStock)} منتج تحت الحد الأدنى`,
+                  `${n(lowStock)} ürün minimum altında`,
+                  `${n(lowStock)} low-stock items`
+                )
               : ""
           }
         />
@@ -718,7 +752,7 @@ export default function Products() {
           <Field label={label.unit}>
             <select
               className={inputClass}
-              value={form.unit || (fa ? "عدد" : "pcs")}
+              value={form.unit || tr("عدد", "قطعة", "Adet", "pcs")}
               onChange={(e) => setField("unit", e.target.value)}
             >
               {unitOptions.map((unit) => (
@@ -745,9 +779,17 @@ export default function Products() {
             <input type="text" inputMode="numeric" className={inputClass} value={form.min_stock} onChange={(e) => setField("min_stock", normalizeNumberInput(e.target.value, fa))} placeholder={fa ? "۰" : "0"} />
           </Field>
 
-          <Field label={label.mainCategory} hint={fa ? "دسته‌بندی‌های جدید را از صفحه «دسته‌بندی کالا» اضافه کن" : "Add new categories from the Product Categories page"}>
+          <Field
+            label={label.mainCategory}
+            hint={tr(
+              "دسته‌بندی‌های جدید را از صفحه «دسته‌بندی کالا» اضافه کن",
+              "أضف تصنيفات جديدة من صفحة «تصنيفات المنتجات»",
+              "Yeni kategorileri «Ürün Kategorileri» sayfasından ekleyin",
+              "Add new categories from the Product Categories page"
+            )}
+          >
             <select className={inputClass} value={form.main_category} onChange={(e) => { setField("main_category", e.target.value); setField("sub_category", ""); }}>
-              <option value="">{fa ? "بدون گروه اصلی" : "No main category"}</option>
+              <option value="">{tr("بدون گروه اصلی", "بدون تصنيف رئيسي", "Ana kategori yok", "No main category")}</option>
               {mainCategoryOptions.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
@@ -756,7 +798,7 @@ export default function Products() {
 
           <Field label={label.subCategory}>
             <select className={inputClass} value={form.sub_category} onChange={(e) => setField("sub_category", e.target.value)} disabled={!form.main_category}>
-              <option value="">{fa ? "بدون زیرگروه" : "No sub category"}</option>
+              <option value="">{tr("بدون زیرگروه", "بدون تصنيف فرعي", "Alt kategori yok", "No sub category")}</option>
               {subCategoryOptions.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
@@ -799,13 +841,13 @@ export default function Products() {
           <table className="w-full min-w-[860px]">
             <thead>
               <tr className="text-[var(--erp-accent)] text-sm border-b border-[var(--erp-border)]">
-                <th className="py-3 text-start">{fa ? "کالا" : "Product"}</th>
+                <th className="py-3 text-start">{tr("کالا", "المنتج", "Ürün", "Product")}</th>
                 <th className="py-3 text-start">{label.barcode}</th>
                 <th className="py-3 text-start">{label.buy}</th>
                 <th className="py-3 text-start">{label.sell}</th>
                 <th className="py-3 text-start">{label.stock}</th>
                 <th className="py-3 text-start">{label.minStock}</th>
-                <th className="py-3 text-start">{fa ? "عملیات" : "Actions"}</th>
+                <th className="py-3 text-start">{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</th>
               </tr>
             </thead>
 
@@ -813,7 +855,7 @@ export default function Products() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-6 text-[var(--erp-muted)] text-center">
-                    {fa ? "در حال دریافت..." : "Loading..."}
+                    {tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -837,10 +879,10 @@ export default function Products() {
                         <div>
                           <b>
                             {faText(item.name, fa)}
-                            {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{fa ? "آفلاین" : "Offline"}</span>}
+                            {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{tr("آفلاین", "غير متصل", "Çevrimdışı", "Offline")}</span>}
                           </b>
                           <div className="text-[var(--erp-muted)] text-xs">
-                            {faText(item.brand || "-", fa)} • {!fa && item.unit === "عدد" ? "pcs" : faText(item.unit || "-", fa)}
+                            {faText(item.brand || "-", fa)} • {!fa && item.unit === "عدد" ? tr("", "قطعة", "Adet", "pcs") : faText(item.unit || "-", fa)}
                           </div>
                         </div>
                       </td>
@@ -859,12 +901,12 @@ export default function Products() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <button type="button" onClick={() => edit(item)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center gap-2">
                             <Edit3 size={16} />
-                            {fa ? "ویرایش" : "Edit"}
+                            {tr("ویرایش", "تعديل", "Düzenle", "Edit")}
                           </button>
 
                           <button type="button" onClick={() => handleDeleteProduct(item)} className="px-3 py-2 rounded-xl bg-red-500/20 text-red-300 inline-flex items-center gap-2">
                             <Trash2 size={16} />
-                            {fa ? "حذف" : "Delete"}
+                            {tr("حذف", "حذف", "Sil", "Delete")}
                           </button>
                         </div>
                       </td>

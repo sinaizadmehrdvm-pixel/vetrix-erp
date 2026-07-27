@@ -329,11 +329,21 @@ export default function FinanceCenter() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
-            {fa ? "مرکز مالی Vetrix" : "Vetrix Finance Center"}
+            {fa
+              ? "مرکز مالی Vetrix"
+              : language === "ar"
+              ? "مركز Vetrix المالي"
+              : language === "tr"
+              ? "Vetrix Finans Merkezi"
+              : "Vetrix Finance Center"}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
             {fa
               ? "مدیریت صندوق، بانک، کیف پول، دریافت، پرداخت، انتقال و نقدینگی لحظه‌ای"
+              : language === "ar"
+              ? "إدارة الصندوق والبنك والمحفظة والمقبوضات والمدفوعات والتحويلات والسيولة اللحظية"
+              : language === "tr"
+              ? "Kasa, banka, cüzdan, tahsilat, ödeme, transfer ve anlık likiditeyi yönetin"
               : "Manage cash, banks, wallets, receipts, payments, transfers and live liquidity"}
           </p>
         </div>
@@ -345,7 +355,7 @@ export default function FinanceCenter() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-            {fa ? "به‌روزرسانی" : "Refresh"}
+            {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
           </button>
 
           <button
@@ -353,7 +363,7 @@ export default function FinanceCenter() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             <Plus size={18} />
-            {fa ? "حساب جدید" : "New account"}
+            {fa ? "حساب جدید" : language === "ar" ? "حساب جديد" : language === "tr" ? "Yeni hesap" : "New account"}
           </button>
 
           <button
@@ -361,7 +371,7 @@ export default function FinanceCenter() {
             className="px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2"
           >
             <Send size={18} />
-            {fa ? "تراکنش جدید" : "New transaction"}
+            {fa ? "تراکنش جدید" : language === "ar" ? "معاملة جديدة" : language === "tr" ? "Yeni işlem" : "New transaction"}
           </button>
         </div>
       </div>
@@ -381,25 +391,25 @@ export default function FinanceCenter() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <FinanceCard
-          title={fa ? "کل نقدینگی" : "Total liquidity"}
+          title={fa ? "کل نقدینگی" : language === "ar" ? "إجمالي السيولة" : language === "tr" ? "Toplam likidite" : "Total liquidity"}
           value={money(totals.totalBalance)}
           icon={<Wallet />}
           color="text-[var(--erp-accent)]"
         />
         <FinanceCard
-          title={fa ? "دریافت‌ها" : "Receipts"}
+          title={fa ? "دریافت‌ها" : language === "ar" ? "المقبوضات" : language === "tr" ? "Tahsilatlar" : "Receipts"}
           value={money(totals.incomeToday)}
           icon={<ArrowUpRight />}
           color="text-emerald-300"
         />
         <FinanceCard
-          title={fa ? "پرداخت‌ها" : "Payments"}
+          title={fa ? "پرداخت‌ها" : language === "ar" ? "المدفوعات" : language === "tr" ? "Ödemeler" : "Payments"}
           value={money(totals.expenseToday)}
           icon={<ArrowDownRight />}
           color="text-rose-300"
         />
         <FinanceCard
-          title={fa ? "خالص امروز" : "Net today"}
+          title={fa ? "خالص امروز" : language === "ar" ? "صافي اليوم" : language === "tr" ? "Bugünkü net" : "Net today"}
           value={money(totals.netToday)}
           icon={<Banknote />}
           color={toNumber(totals.netToday) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300"}
@@ -407,23 +417,31 @@ export default function FinanceCenter() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[390px_1fr] gap-6">
-        <Panel title={fa ? "حساب‌های مالی" : "Financial accounts"} icon={<Landmark />}>
+        <Panel title={fa ? "حساب‌های مالی" : language === "ar" ? "الحسابات المالية" : language === "tr" ? "Finansal hesaplar" : "Financial accounts"} icon={<Landmark />}>
           <div className="space-y-3">
             {accounts.map((account) => (
-              <AccountCard key={account.id} account={account} fa={fa} money={money} />
+              <AccountCard key={account.id} account={account} language={language} money={money} />
             ))}
-            {accounts.length === 0 && <Empty fa={fa} />}
+            {accounts.length === 0 && <Empty language={language} />}
           </div>
         </Panel>
 
-        <Panel title={fa ? "تراکنش‌های مالی" : "Financial transactions"} icon={<CreditCard />}>
+        <Panel title={fa ? "تراکنش‌های مالی" : language === "ar" ? "المعاملات المالية" : language === "tr" ? "Finansal işlemler" : "Financial transactions"} icon={<CreditCard />}>
           <div className="flex gap-3 flex-wrap mb-4">
             <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 flex-1 min-w-[260px]">
               <Search size={18} className="text-[var(--erp-accent)]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={fa ? "جستجو در تراکنش‌ها..." : "Search transactions..."}
+                placeholder={
+                  fa
+                    ? "جستجو در تراکنش‌ها..."
+                    : language === "ar"
+                    ? "بحث في المعاملات..."
+                    : language === "tr"
+                    ? "İşlemlerde ara..."
+                    : "Search transactions..."
+                }
                 className="bg-transparent outline-none text-[var(--erp-text)] placeholder-slate-500 w-full"
               />
             </div>
@@ -439,18 +457,26 @@ export default function FinanceCenter() {
 
           <div className="space-y-3 max-h-[620px] overflow-auto pr-1">
             {filteredTransactions.map((item) => (
-              <TransactionRow key={item.id} item={item} fa={fa} money={money} date={date} />
+              <TransactionRow key={item.id} item={item} language={language} money={money} date={date} />
             ))}
-            {filteredTransactions.length === 0 && <Empty fa={fa} />}
+            {filteredTransactions.length === 0 && <Empty language={language} />}
           </div>
         </Panel>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Panel title={fa ? "تحلیل نقدینگی" : "Liquidity analysis"} icon={<Banknote />}>
+        <Panel title={fa ? "تحلیل نقدینگی" : language === "ar" ? "تحليل السيولة" : language === "tr" ? "Likidite analizi" : "Liquidity analysis"} icon={<Banknote />}>
           <AnalysisLine
             fa={fa}
-            label={fa ? "نسبت پرداخت به دریافت" : "Payment / receipt ratio"}
+            label={
+              fa
+                ? "نسبت پرداخت به دریافت"
+                : language === "ar"
+                ? "نسبة المدفوعات إلى المقبوضات"
+                : language === "tr"
+                ? "Ödeme / tahsilat oranı"
+                : "Payment / receipt ratio"
+            }
             value={
               totals.incomeToday > 0
                 ? `${n(((totals.expenseToday / totals.incomeToday) * 100).toFixed(1))}%`
@@ -460,86 +486,134 @@ export default function FinanceCenter() {
           />
           <AnalysisLine
             fa={fa}
-            label={fa ? "تعداد حساب‌ها" : "Accounts"}
+            label={fa ? "تعداد حساب‌ها" : language === "ar" ? "عدد الحسابات" : language === "tr" ? "Hesap sayısı" : "Accounts"}
             value={n(totals.accountsCount)}
             status="good"
           />
           <AnalysisLine
             fa={fa}
-            label={fa ? "انتقال‌های داخلی" : "Internal transfers"}
+            label={fa ? "انتقال‌های داخلی" : language === "ar" ? "التحويلات الداخلية" : language === "tr" ? "Dahili transferler" : "Internal transfers"}
             value={money(totals.transferTotal)}
             status="info"
           />
         </Panel>
 
-        <Panel title={fa ? "اقدامات سریع" : "Quick finance actions"} icon={<Plus />}>
+        <Panel title={fa ? "اقدامات سریع" : language === "ar" ? "إجراءات مالية سريعة" : language === "tr" ? "Hızlı finans işlemleri" : "Quick finance actions"} icon={<Plus />}>
           <button onClick={() => { setTransactionForm((p) => ({ ...p, type: "income" })); setShowTransactionForm(true); }} className="quick-btn bg-emerald-500/10 text-emerald-200 border-emerald-400/20">
             <ArrowUpRight size={18} />
-            {fa ? "ثبت دریافت" : "Record receipt"}
+            {fa ? "ثبت دریافت" : language === "ar" ? "تسجيل مقبوضات" : language === "tr" ? "Tahsilat kaydet" : "Record receipt"}
           </button>
           <button onClick={() => { setTransactionForm((p) => ({ ...p, type: "expense" })); setShowTransactionForm(true); }} className="quick-btn bg-rose-500/10 text-rose-200 border-rose-400/20">
             <ArrowDownRight size={18} />
-            {fa ? "ثبت پرداخت" : "Record payment"}
+            {fa ? "ثبت پرداخت" : language === "ar" ? "تسجيل مدفوعات" : language === "tr" ? "Ödeme kaydet" : "Record payment"}
           </button>
           <button onClick={() => { setTransactionForm((p) => ({ ...p, type: "transfer" })); setShowTransactionForm(true); }} className="quick-btn bg-[var(--erp-glow)] text-[var(--erp-accent)] border-[var(--erp-border)]">
             <Repeat size={18} />
-            {fa ? "انتقال بین حساب‌ها" : "Transfer between accounts"}
+            {fa ? "انتقال بین حساب‌ها" : language === "ar" ? "تحويل بين الحسابات" : language === "tr" ? "Hesaplar arası transfer" : "Transfer between accounts"}
           </button>
         </Panel>
 
-        <Panel title={fa ? "وضعیت سیستم مالی" : "Finance system status"} icon={<ShieldCheck />}>
+        <Panel title={fa ? "وضعیت سیستم مالی" : language === "ar" ? "حالة النظام المالي" : language === "tr" ? "Finans sistemi durumu" : "Finance system status"} icon={<ShieldCheck />}>
           <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-4 text-emerald-200 font-bold">
             {fa
               ? "حساب‌ها و تراکنش‌ها به‌صورت واقعی ذخیره می‌شوند."
+              : language === "ar"
+              ? "يتم الآن حفظ الحسابات والمعاملات فعليًا."
+              : language === "tr"
+              ? "Hesaplar ve işlemler artık gerçek olarak kaydediliyor."
               : "Accounts and transactions are now saved for real."}
           </div>
           <div className="text-[var(--erp-muted)] text-sm leading-7 mt-3">
             {fa
               ? "مرحله بعدی: مدیریت چک، اقساط، سررسیدها و هشدارهای مالی."
+              : language === "ar"
+              ? "الخطوة التالية: إدارة الشيكات والأقساط ومواعيد الاستحقاق والتنبيهات المالية."
+              : language === "tr"
+              ? "Sıradaki adım: çek, taksit, vade tarihi ve finansal uyarı yönetimi."
               : "Next: checks, installments, due dates and finance alerts."}
           </div>
         </Panel>
       </div>
 
       {showAccountForm && (
-        <Modal title={fa ? "حساب مالی جدید" : "New financial account"} onClose={() => setShowAccountForm(false)}>
-          <Field label={fa ? "نام حساب" : "Account name"}>
+        <Modal
+          title={
+            fa
+              ? "حساب مالی جدید"
+              : language === "ar"
+              ? "حساب مالي جديد"
+              : language === "tr"
+              ? "Yeni finansal hesap"
+              : "New financial account"
+          }
+          onClose={() => setShowAccountForm(false)}
+        >
+          <Field label={fa ? "نام حساب" : language === "ar" ? "اسم الحساب" : language === "tr" ? "Hesap adı" : "Account name"}>
             <input className="form-input" value={accountForm.name} onChange={(e) => setAccountForm((p) => ({ ...p, name: e.target.value }))} />
           </Field>
 
-          <Field label={fa ? "نوع حساب" : "Account type"}>
+          <Field label={fa ? "نوع حساب" : language === "ar" ? "نوع الحساب" : language === "tr" ? "Hesap türü" : "Account type"}>
             <select className="form-input" value={accountForm.type} onChange={(e) => setAccountForm((p) => ({ ...p, type: e.target.value }))}>
-              <option value="cash">{fa ? "صندوق" : "Cash"}</option>
-              <option value="bank">{fa ? "بانک" : "Bank"}</option>
-              <option value="wallet">{fa ? "کیف پول" : "Wallet"}</option>
-              <option value="card">{fa ? "کارت" : "Card"}</option>
-              <option value="other">{fa ? "سایر" : "Other"}</option>
+              <option value="cash">{fa ? "صندوق" : language === "ar" ? "الصندوق" : language === "tr" ? "Kasa" : "Cash"}</option>
+              <option value="bank">{fa ? "بانک" : language === "ar" ? "البنك" : language === "tr" ? "Banka" : "Bank"}</option>
+              <option value="wallet">{fa ? "کیف پول" : language === "ar" ? "المحفظة" : language === "tr" ? "Cüzdan" : "Wallet"}</option>
+              <option value="card">{fa ? "کارت" : language === "ar" ? "البطاقة" : language === "tr" ? "Kart" : "Card"}</option>
+              <option value="other">{fa ? "سایر" : language === "ar" ? "أخرى" : language === "tr" ? "Diğer" : "Other"}</option>
             </select>
           </Field>
 
-          <Field label={fa ? "مانده اولیه" : "Opening balance"}>
+          <Field label={fa ? "مانده اولیه" : language === "ar" ? "الرصيد الافتتاحي" : language === "tr" ? "Açılış bakiyesi" : "Opening balance"}>
             <input className="form-input" value={accountForm.opening_balance} onChange={(e) => setAccountForm((p) => ({ ...p, opening_balance: e.target.value }))} />
           </Field>
 
           <button onClick={createAccount} className="w-full mt-4 px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black">
-            {fa ? "ثبت حساب" : "Create account"}
+            {fa ? "ثبت حساب" : language === "ar" ? "إنشاء الحساب" : language === "tr" ? "Hesap oluştur" : "Create account"}
           </button>
         </Modal>
       )}
 
       {showTransactionForm && (
-        <Modal title={fa ? "تراکنش مالی جدید" : "New finance transaction"} onClose={() => setShowTransactionForm(false)}>
-          <Field label={fa ? "نوع تراکنش" : "Transaction type"}>
+        <Modal
+          title={
+            fa
+              ? "تراکنش مالی جدید"
+              : language === "ar"
+              ? "معاملة مالية جديدة"
+              : language === "tr"
+              ? "Yeni finans işlemi"
+              : "New finance transaction"
+          }
+          onClose={() => setShowTransactionForm(false)}
+        >
+          <Field label={fa ? "نوع تراکنش" : language === "ar" ? "نوع المعاملة" : language === "tr" ? "İşlem türü" : "Transaction type"}>
             <select className="form-input" value={transactionForm.type} onChange={(e) => setTransactionForm((p) => ({ ...p, type: e.target.value }))}>
-              <option value="income">{fa ? "دریافت" : "Income"}</option>
-              <option value="expense">{fa ? "پرداخت" : "Expense"}</option>
-              <option value="transfer">{fa ? "انتقال" : "Transfer"}</option>
+              <option value="income">{fa ? "دریافت" : language === "ar" ? "مقبوضات" : language === "tr" ? "Tahsilat" : "Income"}</option>
+              <option value="expense">{fa ? "پرداخت" : language === "ar" ? "مدفوعات" : language === "tr" ? "Ödeme" : "Expense"}</option>
+              <option value="transfer">{fa ? "انتقال" : language === "ar" ? "تحويل" : language === "tr" ? "Transfer" : "Transfer"}</option>
             </select>
           </Field>
 
-          <Field label={transactionForm.type === "transfer" ? (fa ? "از حساب" : "From account") : (fa ? "حساب" : "Account")}>
+          <Field
+            label={
+              transactionForm.type === "transfer"
+                ? fa
+                  ? "از حساب"
+                  : language === "ar"
+                  ? "من حساب"
+                  : language === "tr"
+                  ? "Kaynak hesap"
+                  : "From account"
+                : fa
+                ? "حساب"
+                : language === "ar"
+                ? "الحساب"
+                : language === "tr"
+                ? "Hesap"
+                : "Account"
+            }
+          >
             <select className="form-input" value={transactionForm.account_id} onChange={(e) => setTransactionForm((p) => ({ ...p, account_id: e.target.value }))}>
-              <option value="">{fa ? "انتخاب حساب" : "Select account"}</option>
+              <option value="">{fa ? "انتخاب حساب" : language === "ar" ? "اختر حسابًا" : language === "tr" ? "Hesap seçin" : "Select account"}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -547,9 +621,9 @@ export default function FinanceCenter() {
           </Field>
 
           {transactionForm.type === "transfer" && (
-            <Field label={fa ? "به حساب" : "To account"}>
+            <Field label={fa ? "به حساب" : language === "ar" ? "إلى حساب" : language === "tr" ? "Hedef hesap" : "To account"}>
               <select className="form-input" value={transactionForm.to_account_id} onChange={(e) => setTransactionForm((p) => ({ ...p, to_account_id: e.target.value }))}>
-                <option value="">{fa ? "انتخاب حساب مقصد" : "Select target account"}</option>
+                <option value="">{fa ? "انتخاب حساب مقصد" : language === "ar" ? "اختر الحساب الهدف" : language === "tr" ? "Hedef hesabı seçin" : "Select target account"}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
@@ -557,16 +631,16 @@ export default function FinanceCenter() {
             </Field>
           )}
 
-          <Field label={fa ? "مبلغ" : "Amount"}>
+          <Field label={fa ? "مبلغ" : language === "ar" ? "المبلغ" : language === "tr" ? "Tutar" : "Amount"}>
             <input className="form-input" value={transactionForm.amount} onChange={(e) => setTransactionForm((p) => ({ ...p, amount: e.target.value }))} />
           </Field>
 
-          <Field label={fa ? "شرح" : "Description"}>
+          <Field label={fa ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description"}>
             <textarea className="form-input" rows={3} value={transactionForm.description} onChange={(e) => setTransactionForm((p) => ({ ...p, description: e.target.value }))} />
           </Field>
 
           <button onClick={createTransaction} className="w-full mt-4 px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black">
-            {fa ? "ثبت تراکنش" : "Create transaction"}
+            {fa ? "ثبت تراکنش" : language === "ar" ? "إنشاء المعاملة" : language === "tr" ? "İşlem oluştur" : "Create transaction"}
           </button>
         </Modal>
       )}
@@ -623,7 +697,7 @@ function Panel({ title, icon, children }) {
   );
 }
 
-function AccountCard({ account, fa, money }) {
+function AccountCard({ account, language, money }) {
   const type = account.type || "cash";
   const icon = type === "bank" ? <Building2 /> : type === "wallet" ? <Wallet /> : <Landmark />;
   const balance = toNumber(account.balance ?? account.opening_balance);
@@ -637,7 +711,7 @@ function AccountCard({ account, fa, money }) {
           </div>
           <div>
             <div className="font-black text-[var(--erp-text)]">{account.name}</div>
-            <div className="text-xs text-[var(--erp-muted)] mt-1">{accountTypeLabel(type, fa)}</div>
+            <div className="text-xs text-[var(--erp-muted)] mt-1">{accountTypeLabel(type, language)}</div>
           </div>
         </div>
         <div className={`font-black ${balance >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
@@ -648,7 +722,7 @@ function AccountCard({ account, fa, money }) {
   );
 }
 
-function TransactionRow({ item, fa, money, date }) {
+function TransactionRow({ item, language, money, date }) {
   const type = item.type || "income";
   const amount = toNumber(item.amount);
   const isIncome = type === "income";
@@ -663,7 +737,7 @@ function TransactionRow({ item, fa, money, date }) {
           {typeIcon(type)}
         </div>
         <div>
-          <div className="font-black text-[var(--erp-text)]">{item.description || transactionTypeLabel(type, fa)}</div>
+          <div className="font-black text-[var(--erp-text)]">{item.description || transactionTypeLabel(type, language)}</div>
           <div className="text-xs text-[var(--erp-muted)] mt-1">
             {item.account_name || "-"} • {date ? date(item.created_at) : String(item.created_at || "").slice(0, 10)}
           </div>
@@ -710,10 +784,16 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-function Empty({ fa }) {
+function Empty({ language }) {
   return (
     <div className="rounded-2xl bg-[var(--erp-panel-solid)] p-5 text-[var(--erp-muted)] text-center">
-      {fa ? "داده‌ای وجود ندارد." : "No data."}
+      {language === "fa"
+        ? "داده‌ای وجود ندارد."
+        : language === "ar"
+        ? "لا توجد بيانات."
+        : language === "tr"
+        ? "Veri yok."
+        : "No data."}
     </div>
   );
 }
