@@ -44,6 +44,10 @@ import {
 
 import { useLanguage } from "../localization/useLanguage";
 import { fetchAuthenticatedResource, getDashboardStats, getReportsOverview } from "../services/api";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Notice from "../components/ui/Notice";
+import { TONE_STYLES } from "../components/ui/tones";
 
 
 function toNumber(value) {
@@ -403,23 +407,17 @@ export default function Dashboard() {
         <div className="flex gap-3 flex-wrap items-center">
           <LiveClock />
           <DateBadge />
-          <button
-            type="button"
-            onClick={loadDashboard}
-            disabled={loading}
-            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
-          >
-            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+          <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={loadDashboard}>
             {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="mb-5 rounded-2xl p-4 bg-rose-500/10 border border-rose-400/20 text-rose-200 flex items-center gap-2">
+        <Notice tone="danger" className="mb-5 flex items-center gap-2">
           <AlertTriangle size={18} />
           {error}
-        </div>
+        </Notice>
       )}
 
       <div className="mb-6 grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-5">
@@ -458,8 +456,8 @@ export default function Dashboard() {
         <StatsCard to="/products" title={tr("کالاهای کم موجود", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock")} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
       </div>
 
-      <details className="group rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
-        <summary className="cursor-pointer list-none rounded-2xl bg-[var(--erp-panel-solid)] px-4 py-3 text-[var(--erp-accent)] font-black flex items-center justify-between gap-3">
+      <details className="group rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
+        <summary className="cursor-pointer list-none rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] px-4 py-3 text-[var(--erp-accent)] font-black flex items-center justify-between gap-3">
           <span>{tr("نمایش جزئیات و تحلیل‌های بیشتر", "عرض المزيد من التفاصيل والتحليلات", "Daha fazla ayrıntı ve analiz göster", "Show more details and analytics")}</span>
           <ChevronDown className="transition-transform group-open:rotate-180" size={20} />
         </summary>
@@ -501,11 +499,11 @@ export default function Dashboard() {
 function ExecutiveHero({ language, money, n, score, netProfit, profitMargin, openAmount, cashflow }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
-  const scoreColor = score >= 75 ? "text-emerald-300" : score >= 45 ? "text-amber-300" : "text-rose-300";
+  const scoreColor = score >= 75 ? "var(--erp-success)" : score >= 45 ? "var(--erp-warning)" : "var(--erp-danger)";
   const scoreLabel = score >= 75 ? tr("عالی", "ممتاز", "Mükemmel", "Excellent") : score >= 45 ? tr("نیازمند توجه", "يحتاج إلى اهتمام", "Dikkat gerektiriyor", "Needs attention") : tr("بحرانی", "حرج", "Kritik", "Critical");
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 shadow-2xl">
+    <div className="relative overflow-hidden rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6" style={{ boxShadow: "var(--erp-shadow)" }}>
       <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl" />
       <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl" />
 
@@ -515,7 +513,7 @@ function ExecutiveHero({ language, money, n, score, netProfit, profitMargin, ope
             <Gauge size={22} />
             {tr("امتیاز سلامت کسب‌وکار", "مؤشر سلامة الأعمال", "İş sağlığı skoru", "Business health score")}
           </div>
-          <div className={`text-6xl font-black ${scoreColor}`}>{n(score)}</div>
+          <div className="text-6xl font-black" style={{ color: scoreColor }}>{n(score)}</div>
           <div className="text-[var(--erp-muted)] mt-2">{scoreLabel}</div>
         </div>
 
@@ -562,16 +560,17 @@ function ExecutiveHero({ language, money, n, score, netProfit, profitMargin, ope
 }
 
 function MiniKpi({ title, value, positive, icon, to }) {
+  const color = positive ? "var(--erp-success)" : "var(--erp-danger)";
   return (
     <Link
       to={to || "/reports"}
-      className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 block hover:border-[var(--erp-accent)] transition-colors"
+      className="rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 block hover:border-[var(--erp-accent)] transition-colors"
     >
       <div className="flex items-center gap-2 text-[var(--erp-muted)] text-xs font-bold mb-2">
-        <span className={positive ? "text-emerald-300" : "text-rose-300"}>{icon}</span>
+        <span style={{ color }}>{icon}</span>
         {title}
       </div>
-      <div className={`font-black text-lg ${positive ? "text-emerald-300" : "text-rose-300"}`}>{value}</div>
+      <div className="font-black text-lg" style={{ color }}>{value}</div>
     </Link>
   );
 }
@@ -580,42 +579,36 @@ function SmartAlertCenter({ language, alerts }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
-    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl">
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5" style={{ boxShadow: "var(--erp-shadow)" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <BellRing />
           {tr("مرکز هشدار هوشمند", "مركز التنبيهات الذكية", "Akıllı Uyarı Merkezi", "Smart Alert Center")}
         </h2>
-        <span className="text-xs rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] px-3 py-1">
-          {tr("زنده", "مباشر", "Canlı", "Live")}
-        </span>
+        <Badge tone="info">{tr("زنده", "مباشر", "Canlı", "Live")}</Badge>
       </div>
 
       <div className="space-y-3">
-        {alerts.map((item, index) => (
-          <Link
-            key={index}
-            to={item.to || "/reports"}
-            className={`block rounded-2xl p-4 border transition-transform hover:scale-[1.01] ${
-              item.level === "danger"
-                ? "bg-rose-500/10 border-rose-400/20"
-                : item.level === "warning"
-                ? "bg-amber-500/10 border-amber-400/20"
-                : item.level === "success"
-                ? "bg-emerald-500/10 border-emerald-400/20"
-                : "bg-[var(--erp-glow)] border-[var(--erp-border)]"
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className="text-[var(--erp-accent)] mt-1">{item.icon}</div>
-              <div className="flex-1">
-                <div className="text-[var(--erp-text)] font-black">{item.title}</div>
-                <div className="text-[var(--erp-muted)] text-sm mt-1">{item.text}</div>
-                <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{item.action}</div>
+        {alerts.map((item, index) => {
+          const style = TONE_STYLES[item.level] || TONE_STYLES.info;
+          return (
+            <Link
+              key={index}
+              to={item.to || "/reports"}
+              className="block rounded-[var(--erp-radius-md)] p-4 transition-transform hover:scale-[1.01]"
+              style={{ background: style.background }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-1" style={{ color: style.color }}>{item.icon}</div>
+                <div className="flex-1">
+                  <div className="text-[var(--erp-text)] font-black">{item.title}</div>
+                  <div className="text-[var(--erp-muted)] text-sm mt-1">{item.text}</div>
+                  <div className="text-xs font-bold mt-2" style={{ color: style.color }}>{item.action}</div>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -625,7 +618,7 @@ function QuickActions({ language, actions }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
-    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5">
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5">
       <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
         <Sparkles size={20} />
         {tr("دسترسی سریع عملیاتی", "إجراءات سريعة", "Hızlı işlemler", "Quick actions")}
@@ -635,7 +628,7 @@ function QuickActions({ language, actions }) {
           <Link
             key={index}
             to={item.path}
-            className="rounded-2xl bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-text)] font-bold flex items-center justify-center gap-2 transition-all"
+            className="rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] hover:bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-text)] font-bold flex items-center justify-center gap-2 transition-all"
           >
             <span className="text-[var(--erp-accent)]">{item.icon}</span>
             {item.title}
@@ -658,45 +651,45 @@ function BusinessPulse({ language, n, money, reports, stats }) {
       title: tr("رشد فروش", "نمو المبيعات", "Satış büyümesi", "Sales growth"),
       value: money(profit.net_sales ?? stats.total_revenue ?? 0),
       icon: <ArrowUpRight size={18} />,
-      color: "text-emerald-300",
+      color: "var(--erp-success)",
       to: "/invoices",
     },
     {
       title: tr("ریسک موجودی", "مخاطر المخزون", "Envanter riski", "Inventory risk"),
       value: n(inventory.low_stock_count ?? stats.low_stock ?? 0),
       icon: <ShieldAlert size={18} />,
-      color: toNumber(inventory.low_stock_count ?? stats.low_stock) > 0 ? "text-rose-300" : "text-emerald-300",
+      color: toNumber(inventory.low_stock_count ?? stats.low_stock) > 0 ? "var(--erp-danger)" : "var(--erp-success)",
       to: "/products",
     },
     {
       title: tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices"),
       value: n(invoices.open_count || 0),
       icon: <Flame size={18} />,
-      color: toNumber(invoices.open_count) > 0 ? "text-amber-300" : "text-emerald-300",
+      color: toNumber(invoices.open_count) > 0 ? "var(--erp-warning)" : "var(--erp-success)",
       to: "/invoices",
     },
     {
       title: tr("نقدینگی ماه", "سيولة الشهر", "Aylık nakit", "Monthly cash"),
       value: money(cash.net_cashflow || 0),
       icon: <UserRoundCheck size={18} />,
-      color: toNumber(cash.net_cashflow) >= 0 ? "text-[var(--erp-accent)]" : "text-rose-300",
+      color: toNumber(cash.net_cashflow) >= 0 ? "var(--erp-accent)" : "var(--erp-danger)",
       to: "/reports",
     },
   ];
 
   return (
-    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 shadow-2xl h-full flex flex-col">
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 h-full flex flex-col" style={{ boxShadow: "var(--erp-shadow)" }}>
       <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">
         {tr("نبض کسب‌وکار", "نبض الأعمال", "İş nabzı", "Business pulse")}
       </h2>
       <div className="flex-1 flex flex-col justify-between gap-3">
         {rows.map((row, index) => (
-          <Link key={index} to={row.to} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3 hover:opacity-90 transition-opacity">
+          <Link key={index} to={row.to} className="rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] p-4 flex items-center justify-between gap-3 hover:opacity-90 transition-opacity">
             <div className="flex items-center gap-3">
-              <div className={`${row.color}`}>{row.icon}</div>
+              <div style={{ color: row.color }}>{row.icon}</div>
               <div className="text-[var(--erp-muted)] font-bold">{row.title}</div>
             </div>
-            <div className={`font-black ${row.color}`}>{row.value}</div>
+            <div className="font-black" style={{ color: row.color }}>{row.value}</div>
           </Link>
         ))}
       </div>

@@ -3,13 +3,7 @@
 // invalid states across pages (the same pattern that caused this app's
 // recurring light-theme low-contrast bugs, since inline hex can't be
 // remapped per-theme the way a token-driven class can).
-const TONE_STYLES = {
-  success: { color: "var(--erp-success)", background: "var(--erp-success-soft)" },
-  warning: { color: "var(--erp-warning)", background: "var(--erp-warning-soft)" },
-  danger: { color: "var(--erp-danger)", background: "var(--erp-danger-soft)" },
-  info: { color: "var(--erp-accent)", background: "var(--erp-glow)" },
-  neutral: { color: "var(--erp-muted)", background: "var(--erp-panel-solid)" },
-};
+import { TONE_STYLES } from "./tones";
 
 export default function Badge({
   tone = "neutral",

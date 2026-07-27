@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL } from "../services/api";
+import Badge from "../components/ui/Badge";
+import Notice from "../components/ui/Notice";
 
 const FEATURES = [
   {
@@ -270,7 +272,7 @@ export default function Login() {
   }
 
   const inputClass =
-    "w-full mb-4 py-4 ps-12 pe-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none border border-transparent focus:border-[var(--erp-accent)] focus:ring-2 focus:ring-[var(--erp-glow)] transition-all duration-200";
+    "w-full mb-4 py-4 ps-12 pe-4 rounded-[var(--erp-radius-sm)] bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none border border-transparent focus:border-[var(--erp-accent)] focus:ring-2 focus:ring-[var(--erp-glow)] transition-all duration-200";
 
   return (
     <div dir={dir} className="relative min-h-screen overflow-hidden bg-[var(--erp-bg)] text-[var(--erp-text)] flex items-center justify-center px-4 py-10">
@@ -283,7 +285,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 28, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.65, ease: EASE }}
-          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
+          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
           style={{ boxShadow: "0 30px 90px -25px var(--erp-glow), 0 1px 0 0 var(--erp-border)" }}
         >
           <div
@@ -317,9 +319,7 @@ export default function Login() {
                 ? "Tekrar hoş geldiniz"
                 : "Welcome back"}
             </h1>
-            <span className="rounded-full bg-[var(--erp-glow)] border border-[var(--erp-border)] px-3 py-1 text-xs font-bold text-[var(--erp-accent)] whitespace-nowrap">
-              v{version}
-            </span>
+            <Badge tone="info">v{version}</Badge>
           </div>
           <p className="relative text-[var(--erp-muted)] mb-7 text-sm">
             {mode === "setup"
@@ -377,8 +377,7 @@ export default function Login() {
                 onSubmit={handleSetup}
                 className="relative"
               >
-                <div className="mb-5 rounded-2xl border border-emerald-400/25 bg-emerald-950/30 p-4 text-sm text-emerald-100">
-                  <UserPlus className="mb-2" size={22} />
+                <Notice tone="success" icon={UserPlus} className="mb-5">
                   {fa
                     ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
                     : language === "ar"
@@ -386,7 +385,7 @@ export default function Login() {
                     : language === "tr"
                     ? "Bu, Vetrix'in ilk çalıştırmasıdır. İlk yöneticiyi oluşturun; bu adım yalnızca bir kez görüntülenir."
                     : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
-                </div>
+                </Notice>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
                   {fa
                     ? "نام و نام خانوادگی مدیر"
@@ -439,7 +438,7 @@ export default function Login() {
                   <input id="confirm-password" autoComplete="new-password" type="password" value={setup.confirm_password} onChange={(event) => setSetup({ ...setup, confirm_password: event.target.value })} className={inputClass} minLength={10} required />
                 </IconInput>
 
-                {error && <ErrorBox message={error} />}
+                {error && <Notice tone="danger">{error}</Notice>}
                 <SubmitButton submitting={submitting} from="#34d399" to="#22d3ee">
                   <CheckCircle2 size={19} />
                   {submitting
@@ -471,8 +470,7 @@ export default function Login() {
                 onSubmit={handleForcedPasswordChange}
                 className="relative"
               >
-                <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/30 p-4 text-sm text-amber-100">
-                  <KeyRound className="mb-2" size={22} />
+                <Notice tone="warning" icon={KeyRound} className="mb-5">
                   {fa
                     ? "برای ادامه، بنا به سیاست امنیتی مدیر باید رمز عبور خود را تغییر دهید."
                     : language === "ar"
@@ -480,7 +478,7 @@ export default function Login() {
                     : language === "tr"
                     ? "Devam etmek için yönetici güvenlik politikası gereği parolanızı değiştirmeniz gerekiyor."
                     : "To continue, your administrator requires you to change your password."}
-                </div>
+                </Notice>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="new-password">
                   {fa
                     ? "رمز عبور جدید"
@@ -507,7 +505,7 @@ export default function Login() {
                   <input id="confirm-new-password" autoComplete="new-password" type="password" value={passwordChange.confirm_password} onChange={(event) => setPasswordChange({ ...passwordChange, confirm_password: event.target.value })} className={inputClass} minLength={12} required />
                 </IconInput>
 
-                {error && <ErrorBox message={error} />}
+                {error && <Notice tone="danger">{error}</Notice>}
                 <SubmitButton submitting={submitting} from="#fbbf24" to="#f59e0b">
                   {submitting
                     ? fa
@@ -538,8 +536,7 @@ export default function Login() {
                 onSubmit={handleTotpLogin}
                 className="relative"
               >
-                <div className="mb-5 rounded-2xl border border-cyan-400/25 bg-cyan-950/30 p-4 text-sm text-cyan-100">
-                  <ShieldCheck className="mb-2" size={22} />
+                <Notice tone="info" icon={ShieldCheck} className="mb-5">
                   {fa
                     ? "کد شش‌رقمی برنامه احراز هویت یا یکی از کدهای بازیابی را وارد کنید."
                     : language === "ar"
@@ -547,7 +544,7 @@ export default function Login() {
                     : language === "tr"
                     ? "Kimlik doğrulama uygulamanızdaki 6 haneli kodu veya bir kurtarma kodunu girin."
                     : "Enter the 6-digit code from your authenticator app, or a recovery code."}
-                </div>
+                </Notice>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="totp-code">
                   {fa
                     ? "کد تأیید"
@@ -570,7 +567,7 @@ export default function Login() {
                   />
                 </IconInput>
 
-                {error && <ErrorBox message={error} />}
+                {error && <Notice tone="danger">{error}</Notice>}
                 <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
                   {submitting
                     ? fa
@@ -640,7 +637,7 @@ export default function Login() {
                   <input id="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className={inputClass} required />
                 </IconInput>
 
-                {error && <ErrorBox message={error} />}
+                {error && <Notice tone="danger">{error}</Notice>}
                 <SubmitButton submitting={submitting} from="var(--erp-accent)" to="var(--erp-accent-2)">
                   {submitting
                     ? fa
@@ -686,7 +683,7 @@ function SubmitButton({ submitting, from, to, children }) {
       disabled={submitting}
       whileHover={submitting ? {} : { scale: 1.015, y: -1 }}
       whileTap={submitting ? {} : { scale: 0.98 }}
-      className="w-full text-black font-black py-4 rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2 transition-shadow"
+      className="w-full text-black font-black py-4 rounded-[var(--erp-radius-md)] disabled:opacity-60 flex items-center justify-center gap-2 transition-shadow"
       style={{
         background: `linear-gradient(110deg, ${from}, ${to})`,
         boxShadow: `0 12px 30px -10px ${from === "var(--erp-accent)" ? "var(--erp-glow)" : `${from}55`}`,
@@ -698,25 +695,12 @@ function SubmitButton({ submitting, from, to, children }) {
   );
 }
 
-function ErrorBox({ message }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      role="alert"
-      className="mb-4 rounded-2xl border border-red-400/30 bg-red-950/40 p-3 text-sm text-red-200"
-    >
-      {message}
-    </motion.div>
-  );
-}
-
 function LogoMark({ size = 56 }) {
   return (
     <motion.div
       animate={{ boxShadow: ["0 0 0px var(--erp-glow)", "0 0 28px var(--erp-glow)", "0 0 0px var(--erp-glow)"] }}
       transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      className="flex items-center justify-center rounded-2xl font-black text-black shrink-0"
+      className="flex items-center justify-center rounded-[var(--erp-radius-lg)] font-black text-black shrink-0"
       style={{
         width: size,
         height: size,
@@ -777,7 +761,7 @@ function BrandPanel({ fa, language }) {
             initial={{ opacity: 0, x: fa ? 20 : -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 + index * 0.1, ease: EASE }}
-            className="flex items-center gap-3 rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-xl px-4 py-3"
+            className="flex items-center gap-3 rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-xl px-4 py-3"
           >
             <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] shrink-0">
               <feature.icon size={19} />
