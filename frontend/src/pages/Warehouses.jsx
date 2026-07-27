@@ -168,13 +168,13 @@ export default function Warehouses() {
             className={inputClass + " mb-0"}
             placeholder={language === "fa" ? "نام انبار (مثلاً «شعبه شمال»)" : language === "ar" ? "اسم المستودع (مثال: «الفرع الشمالي»)" : language === "tr" ? "Depo adı (örn. \"Kuzey şubesi\")" : "Warehouse name (e.g. \"North branch\")"}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
           <input
             className={inputClass + " mb-0"}
             placeholder={language === "fa" ? "کد (اختیاری)" : language === "ar" ? "الرمز (اختياري)" : language === "tr" ? "Kod (isteğe bağlı)" : "Code (optional)"}
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
           <button type="submit" disabled={creating} className={buttonClass}>
             <Plus size={16} />

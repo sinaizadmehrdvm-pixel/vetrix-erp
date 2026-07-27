@@ -148,7 +148,7 @@ export default function AccountingEntries() {
       h(JalaliDateField, { className: dateInputClass, value: filters.to_date, onChange: iso => setFilters({ ...filters, to_date: iso }), fa: language === "fa", language }),
       h("select", { style: styles.input, value: filters.account_id, onChange: e => setFilters({ ...filters, account_id: e.target.value }) },
         h("option", { value: "" }, language === "fa" ? "همه حساب‌ها" : language === "ar" ? "جميع الحسابات" : language === "tr" ? "Tüm Hesaplar" : "All accounts"),
-        accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${acc.code} - ${acc.name}`))
+        accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}`))
       ),
       h("button", { onClick: load, style: { ...styles.btn, background: "var(--erp-accent)", color: "#020617" } }, loading ? "..." : language === "fa" ? "اعمال فیلتر" : language === "ar" ? "تطبيق" : language === "tr" ? "Uygula" : "Apply")
     );
@@ -177,7 +177,7 @@ export default function AccountingEntries() {
         h("h2", { style: { color: "var(--erp-accent)", fontSize: 24, fontWeight: 900 } }, language === "fa" ? "ثبت سند جدید" : language === "ar" ? "سند جديد" : language === "tr" ? "Yeni Fiş" : "New Voucher"),
         h("div", { style: { display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, marginBottom: 16 } },
           h(JalaliDateField, { className: dateInputClass, value: form.voucher_date, onChange: iso => setForm({ ...form, voucher_date: iso }), fa: language === "fa", language }),
-          h("input", { style: styles.input, value: form.description, onChange: e => setForm({ ...form, description: e.target.value }), placeholder: language === "fa" ? "شرح سند" : language === "ar" ? "وصف السند" : language === "tr" ? "Fiş Açıklaması" : "Voucher description" })
+          h("input", { style: styles.input, value: form.description, onChange: e => setForm({ ...form, description: language === "fa" ? toPersianDigits(e.target.value) : e.target.value }), placeholder: language === "fa" ? "شرح سند" : language === "ar" ? "وصف السند" : language === "tr" ? "Fiş Açıklaması" : "Voucher description" })
         ),
         h("div", { style: { overflowX: "auto" } },
           h("table", { style: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" } },
@@ -198,11 +198,11 @@ export default function AccountingEntries() {
             h("tbody", null, form.lines.map((line, index) => h("tr", { key: index },
               h("td", { style: { padding: 6 } }, h("select", { style: styles.input, value: line.account_id, onChange: e => patchLine(index, "account_id", e.target.value) },
                 h("option", { value: "" }, language === "fa" ? "انتخاب حساب" : language === "ar" ? "اختر الحساب" : language === "tr" ? "Hesap Seç" : "Select account"),
-                accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${acc.code} - ${acc.name}`))
+                accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}`))
               )),
-              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.description, onChange: e => patchLine(index, "description", e.target.value), placeholder: language === "fa" ? "شرح ردیف" : language === "ar" ? "وصف البند" : language === "tr" ? "Satır Açıklaması" : "Line description" })),
-              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.debit, onChange: e => patchLine(index, "debit", e.target.value), placeholder: "0" })),
-              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.credit, onChange: e => patchLine(index, "credit", e.target.value), placeholder: "0" })),
+              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.description, onChange: e => patchLine(index, "description", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "شرح ردیف" : language === "ar" ? "وصف البند" : language === "tr" ? "Satır Açıklaması" : "Line description" })),
+              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.debit, onChange: e => patchLine(index, "debit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),
+              h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.credit, onChange: e => patchLine(index, "credit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),
               h("td", { style: { padding: 6, textAlign: "center" } }, h("button", { onClick: () => removeLine(index), style: { ...styles.btn, width: 32, height: 32, padding: 0, background: "#7f1d1d", color: "white" } }, "×"))
             )))
           )
