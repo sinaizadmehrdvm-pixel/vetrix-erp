@@ -37,7 +37,7 @@ export function Thead({ children, ...rest }) {
   );
 }
 
-export function Th({ align = "start", className = "", children, ...rest }) {
+export function Th({ align = "start", className = "", style, children, ...rest }) {
   return (
     <th
       className={className}
@@ -51,6 +51,7 @@ export function Th({ align = "start", className = "", children, ...rest }) {
         letterSpacing: 0.4,
         borderBottom: "1px solid var(--erp-border)",
         whiteSpace: "nowrap",
+        ...style,
       }}
       {...rest}
     >
@@ -75,7 +76,7 @@ export function Tr({ className = "", children, ...rest }) {
   );
 }
 
-export function Td({ align = "start", className = "", children, ...rest }) {
+export function Td({ align = "start", className = "", style, children, ...rest }) {
   return (
     <td
       className={className}
@@ -85,6 +86,7 @@ export function Td({ align = "start", className = "", children, ...rest }) {
         fontSize: 14,
         color: "var(--erp-text)",
         verticalAlign: "middle",
+        ...style,
       }}
       {...rest}
     >

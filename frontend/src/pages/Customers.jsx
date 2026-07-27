@@ -33,6 +33,11 @@ import {
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Notice from "../components/ui/Notice";
+import { Input, Select } from "../components/ui/Field";
+import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
 
 const CUSTOMERS_CACHE_KEY = "customers";
 
@@ -52,9 +57,6 @@ const emptyForm = {
   notes: "",
   pricing_group: "retail",
 };
-
-const inputClass =
-  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all";
 
 function toNumber(value) {
   const cleaned = toEnglishDigits(String(value ?? ""))
@@ -118,10 +120,10 @@ function crmScore(item) {
 }
 
 function crmRank(score) {
-  if (score >= 85) return { key: "A+", color: "text-yellow-300", bg: "bg-yellow-400/10", border: "border-yellow-400/20" };
-  if (score >= 70) return { key: "A", color: "text-emerald-300", bg: "bg-emerald-400/10", border: "border-emerald-400/20" };
-  if (score >= 50) return { key: "B", color: "text-cyan-300", bg: "bg-cyan-400/10", border: "border-cyan-400/20" };
-  return { key: "C", color: "text-rose-300", bg: "bg-rose-400/10", border: "border-rose-400/20" };
+  if (score >= 85) return { key: "A+", tone: "success" };
+  if (score >= 70) return { key: "A", tone: "success" };
+  if (score >= 50) return { key: "B", tone: "info" };
+  return { key: "C", tone: "danger" };
 }
 
 function crmStatus(item, language) {
@@ -131,15 +133,15 @@ function crmStatus(item, language) {
   const balance = toNumber(item.balance);
   const limit = toNumber(item.credit_limit);
   if (balance > 0 && limit > 0 && balance > limit) {
-    return { key: "over_limit", label: fa ? "بیش از سقف اعتبار" : ar ? "تجاوز حد الائتمان" : tr ? "Kredi limiti aşıldı" : "Over credit limit", color: "text-rose-300", bg: "bg-rose-500/10" };
+    return { key: "over_limit", label: fa ? "بیش از سقف اعتبار" : ar ? "تجاوز حد الائتمان" : tr ? "Kredi limiti aşıldı" : "Over credit limit", tone: "danger" };
   }
   if (balance > 0) {
-    return { key: "debtor", label: fa ? "نیازمند پیگیری" : ar ? "بحاجة إلى متابعة" : tr ? "Takip gerekiyor" : "Needs follow-up", color: "text-amber-300", bg: "bg-amber-500/10" };
+    return { key: "debtor", label: fa ? "نیازمند پیگیری" : ar ? "بحاجة إلى متابعة" : tr ? "Takip gerekiyor" : "Needs follow-up", tone: "warning" };
   }
   if (balance < 0) {
-    return { key: "creditor", label: fa ? "بستانکار" : ar ? "دائن" : tr ? "Alacaklı" : "Creditor", color: "text-emerald-300", bg: "bg-emerald-500/10" };
+    return { key: "creditor", label: fa ? "بستانکار" : ar ? "دائن" : tr ? "Alacaklı" : "Creditor", tone: "success" };
   }
-  return { key: "healthy", label: fa ? "سالم" : ar ? "سليم" : tr ? "Sağlıklı" : "Healthy", color: "text-cyan-300", bg: "bg-cyan-500/10" };
+  return { key: "healthy", label: fa ? "سالم" : ar ? "سليم" : tr ? "Sağlıklı" : "Healthy", tone: "info" };
 }
 
 function crmTags(item, language) {
@@ -632,59 +634,39 @@ export default function Customers() {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={load}
-            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"
-          >
-            <RefreshCcw size={18} />
+          <Button variant="secondary" icon={RefreshCcw} onClick={load}>
             {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
-          </button>
+          </Button>
 
-          <button
+          <Button
+            icon={Download}
             onClick={exportCrmCsv}
-            className="px-4 py-3 rounded-2xl bg-emerald-500/15 text-emerald-200 border border-emerald-400/30 font-black flex items-center gap-2"
+            style={{ color: "var(--erp-success)", background: "var(--erp-success-soft)" }}
           >
-            <Download size={18} />
             {fa ? "خروجی CRM" : language === "ar" ? "تصدير CRM" : language === "tr" ? "CRM Dışa Aktar" : "CRM Export"}
-          </button>
+          </Button>
 
-          <button
-            onClick={resetAllAccounting}
-            className="px-4 py-3 rounded-2xl bg-rose-500/20 text-rose-200 border border-rose-400/30 font-black flex items-center gap-2"
-          >
-            <AlertTriangle size={18} />
+          <Button variant="danger" icon={AlertTriangle} onClick={resetAllAccounting}>
             {fa ? "پاکسازی تست‌ها" : language === "ar" ? "مسح بيانات الاختبار" : language === "tr" ? "Test verilerini temizle" : "Clear test data"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {message && (
-        <div
-          className={`rounded-2xl p-4 ${
-            offlineMode
-              ? "bg-amber-500/15 border border-amber-400/30 text-amber-100"
-              : "bg-rose-500/15 border border-rose-400/30 text-rose-100"
-          }`}
-        >
-          {message}
-        </div>
+        <Notice tone={offlineMode ? "warning" : "danger"}>{message}</Notice>
       )}
 
       {countPending(parties) > 0 && (
-        <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
+        <Notice tone="warning" className="flex flex-wrap items-center justify-between gap-3">
           <span>
             {fa
               ? `${toPersianDigits(countPending(parties))} طرف‌حساب آفلاین در انتظار همگام‌سازی است.`
               : `${countPending(parties)} offline customer record(s) waiting to sync.`}
           </span>
-          <button
-            type="button"
-            onClick={() => void syncPendingParties()}
-            className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm"
-          >
+          <Button variant="primary" size="sm" onClick={() => void syncPendingParties()}>
             {fa ? "همگام‌سازی الان" : language === "ar" ? "مزامنة الآن" : language === "tr" ? "Şimdi senkronize et" : "Sync now"}
-          </button>
-        </div>
+          </Button>
+        </Notice>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-5">
@@ -692,13 +674,13 @@ export default function Customers() {
           icon={<Wallet size={22} />}
           title={t("debtor")}
           value={money(summary.totalDebtor)}
-          colorClassName="text-red-300"
+          colorClassName="text-[var(--erp-danger)]"
         />
         <SummaryCard
           icon={<Wallet size={22} />}
           title={t("creditor")}
           value={money(summary.totalCreditor)}
-          colorClassName="text-green-300"
+          colorClassName="text-[var(--erp-success)]"
         />
         <SummaryCard
           icon={<Building2 size={22} />}
@@ -707,7 +689,7 @@ export default function Customers() {
             summary.totalBalance,
             language
           )}`}
-          color="#22d3ee"
+          color="var(--erp-accent)"
         />
         <SummaryCard
           icon={<Crown size={22} />}
@@ -719,13 +701,13 @@ export default function Customers() {
           icon={<PhoneCall size={22} />}
           title={fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Need follow-up"}
           value={n(summary.followupCount)}
-          color="#fbbf24"
+          color="var(--erp-warning)"
         />
         <SummaryCard
           icon={<ShieldCheck size={22} />}
           title={fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk"}
           value={n(summary.riskCount)}
-          color="#fb7185"
+          color="var(--erp-danger)"
         />
       </div>
 
@@ -738,19 +720,17 @@ export default function Customers() {
         summary={summary}
       />
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <input
+          <Input
             placeholder={t("party")}
             value={faText(form.name, fa)}
             onChange={(e) => setForm({ ...form, name: faText(e.target.value, fa) })}
-            className={inputClass}
           />
 
-          <select
+          <Select
             value={form.party_type}
             onChange={(e) => setForm({ ...form, party_type: e.target.value })}
-            className={inputClass}
           >
             <option value="customer">{t("customerParty")}</option>
             <option value="supplier">{t("supplierParty")}</option>
@@ -759,73 +739,65 @@ export default function Customers() {
             <option value="company">{t("companyParty")}</option>
             <option value="doctor">{t("doctorParty")}</option>
             <option value="other">{t("otherParty")}</option>
-          </select>
+          </Select>
 
-          <select
+          <Select
             value={form.pricing_group}
             onChange={(e) => setForm({ ...form, pricing_group: e.target.value })}
-            className={inputClass}
           >
             <option value="retail">{fa ? "خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة" : language === "tr" ? "Perakende" : "Retail"}</option>
             <option value="wholesale">{fa ? "عمده‌فروشی" : language === "ar" ? "بيع بالجملة" : language === "tr" ? "Toptan" : "Wholesale"}</option>
-          </select>
+          </Select>
 
-          <input
+          <Input
             placeholder={t("phone")}
             value={faText(form.phone, fa)}
             onChange={(e) => setForm({ ...form, phone: faText(e.target.value, fa) })}
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("mobile")}
             value={faText(form.mobile, fa)}
             onChange={(e) => setForm({ ...form, mobile: faText(e.target.value, fa) })}
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("email")}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("nationalId")}
             value={faText(form.national_id, fa)}
             onChange={(e) =>
               setForm({ ...form, national_id: faText(e.target.value, fa) })
             }
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("economicCode")}
             value={faText(form.economic_code, fa)}
             onChange={(e) =>
               setForm({ ...form, economic_code: faText(e.target.value, fa) })
             }
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("city")}
             value={faText(form.city, fa)}
             onChange={(e) => setForm({ ...form, city: faText(e.target.value, fa) })}
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("contactPerson")}
             value={faText(form.contact_person, fa)}
             onChange={(e) =>
               setForm({ ...form, contact_person: faText(e.target.value, fa) })
             }
-            className={inputClass}
           />
 
-          <input
+          <Input
             type="text"
             inputMode="numeric"
             placeholder={t("openingBalance")}
@@ -836,10 +808,9 @@ export default function Customers() {
                 opening_balance: normalizeNumberInput(e.target.value, fa),
               })
             }
-            className={inputClass}
           />
 
-          <input
+          <Input
             type="text"
             inputMode="numeric"
             placeholder={t("creditLimit")}
@@ -850,54 +821,49 @@ export default function Customers() {
                 credit_limit: normalizeNumberInput(e.target.value, fa),
               })
             }
-            className={inputClass}
           />
 
-          <input
+          <Input
             placeholder={t("address")}
             value={faText(form.address, fa)}
             onChange={(e) =>
               setForm({ ...form, address: faText(e.target.value, fa) })
             }
-            className={`${inputClass} xl:col-span-2`}
+            className="xl:col-span-2"
           />
 
-          <input
+          <Input
             placeholder={t("notes")}
             value={faText(form.notes, fa)}
             onChange={(e) =>
               setForm({ ...form, notes: faText(e.target.value, fa) })
             }
-            className={`${inputClass} xl:col-span-2`}
+            className="xl:col-span-2"
           />
         </div>
 
         <div className="flex gap-3 flex-wrap mt-5">
-          <button
-            onClick={save}
-            className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
-          >
-            {editingId ? <Save size={18} /> : <Plus size={18} />}
+          <Button variant="primary" icon={editingId ? Save : Plus} onClick={save}>
             {editingId ? t("saveCustomer") : t("addCustomer")}
-          </button>
+          </Button>
 
           {editingId && (
-            <button
+            <Button
+              variant="secondary"
+              icon={X}
               onClick={() => {
                 setEditingId(null);
                 setForm(emptyForm);
               }}
-              className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
-              <X size={18} />
               {t("cancelEdit")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
-        <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-6">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
+        <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] px-4 py-3 mb-6">
           <Search size={20} className="text-[var(--erp-accent)]" />
 
           <input
@@ -910,7 +876,7 @@ export default function Customers() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
+            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
             <option value="all">{fa ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"}</option>
             <option value="customer">{t("customerParty")}</option>
@@ -923,7 +889,7 @@ export default function Customers() {
           <select
             value={crmFilter}
             onChange={(e) => setCrmFilter(e.target.value)}
-            className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
+            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
             <option value="all">{fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM"}</option>
             <option value="vip">{fa ? "VIP" : language === "ar" ? "VIP" : language === "tr" ? "VIP" : "VIP"}</option>
@@ -935,7 +901,7 @@ export default function Customers() {
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value)}
-            className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
+            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
             <option value="score_desc">{fa ? "امتیاز بیشتر" : language === "ar" ? "أعلى درجة" : language === "tr" ? "En yüksek puan" : "Top score"}</option>
             <option value="debt_desc">{fa ? "بدهی بیشتر" : language === "ar" ? "أعلى دين" : language === "tr" ? "En yüksek borç" : "Highest debt"}</option>
@@ -944,143 +910,116 @@ export default function Customers() {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1180px]">
-            <thead>
-              <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                <th className="p-3 text-right">{t("party")}</th>
-                <th className="p-3 text-right">{fa ? "CRM" : language === "ar" ? "CRM" : language === "tr" ? "CRM" : "CRM"}</th>
-                <th className="p-3 text-right">{t("partyType")}</th>
-                <th className="p-3 text-right">{t("phone")}</th>
-                <th className="p-3 text-right">{t("debtor")}</th>
-                <th className="p-3 text-right">{t("creditor")}</th>
-                <th className="p-3 text-right">{t("balance")}</th>
-                <th className="p-3 text-right">{t("actions")}</th>
-              </tr>
-            </thead>
+        <Table>
+          <Thead>
+            <Th>{t("party")}</Th>
+            <Th>{fa ? "CRM" : language === "ar" ? "CRM" : language === "tr" ? "CRM" : "CRM"}</Th>
+            <Th>{t("partyType")}</Th>
+            <Th>{t("phone")}</Th>
+            <Th>{t("debtor")}</Th>
+            <Th>{t("creditor")}</Th>
+            <Th>{t("balance")}</Th>
+            <Th>{t("actions")}</Th>
+          </Thead>
 
-            <tbody>
-              {filtered.map((item) => {
-                const balance = balanceOf(item);
-                const debtor = debtorOf(item);
-                const creditor = creditorOf(item);
-                const score = crmScore(item);
-                const rank = crmRank(score);
-                const status = crmStatus(item, language);
-                const tags = crmTags(item, language);
+          <Tbody>
+            {filtered.map((item) => {
+              const balance = balanceOf(item);
+              const debtor = debtorOf(item);
+              const creditor = creditorOf(item);
+              const score = crmScore(item);
+              const rank = crmRank(score);
+              const status = crmStatus(item, language);
+              const tags = crmTags(item, language);
 
-                return (
-                  <tr
-                    key={item.id}
-                    className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5 transition-colors"
-                  >
-                    <td className="p-3 font-black text-[var(--erp-text)]">
-                      <div>
-                        {faText(item.name, fa)}
-                        {item.pending_sync && (
-                          <span className="mx-2 text-xs text-amber-300">
-                            {fa ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-[var(--erp-muted)]">ID #{n(item.id)}</div>
-                    </td>
+              return (
+                <Tr key={item.id}>
+                  <Td className="font-black">
+                    <div>
+                      {faText(item.name, fa)}
+                      {item.pending_sync && (
+                        <Badge tone="warning" className="mx-2">
+                          {fa ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline"}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-[var(--erp-muted)]">ID #{n(item.id)}</div>
+                  </Td>
 
-                    <td className="p-3 min-w-[220px]">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-3 py-1 rounded-full border text-xs font-black ${rank.bg} ${rank.color} ${rank.border}`}>
-                          {rank.key}
-                        </span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black ${status.bg} ${status.color}`}>
-                          {status.label}
-                        </span>
-                        <span className="text-xs text-[var(--erp-muted)]">{n(score)}/{n(100)}</span>
-                      </div>
-                      <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden mb-2">
-                        <div
-                          className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400"
-                          style={{ width: `${score}%` }}
-                        />
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {tags.map((tag, index) => (
-                          <span key={index} className="px-2 py-1 rounded-full bg-[var(--erp-panel-solid)] text-[var(--erp-muted)] text-[10px]">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
+                  <Td className="min-w-[220px]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge tone={rank.tone}>{rank.key}</Badge>
+                      <Badge tone={status.tone}>{status.label}</Badge>
+                      <span className="text-xs text-[var(--erp-muted)]">{n(score)}/{n(100)}</span>
+                    </div>
+                    <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400"
+                        style={{ width: `${score}%` }}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {tags.map((tag, index) => (
+                        <Badge key={index} tone="neutral">{tag}</Badge>
+                      ))}
+                    </div>
+                  </Td>
 
-                    <td className="p-3">
-                      <span className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] text-xs font-black">
-                        {partyTypeLabel(item.party_type || item.customer_type)}
-                      </span>
-                    </td>
+                  <Td>
+                    <Badge tone="info">{partyTypeLabel(item.party_type || item.customer_type)}</Badge>
+                  </Td>
 
-                    <td className="p-3 text-[var(--erp-text)]">
-                      {faText(item.phone || item.mobile || "-", fa)}
-                    </td>
+                  <Td>{faText(item.phone || item.mobile || "-", fa)}</Td>
 
-                    <td className="p-3 text-rose-300 font-black">
-                      {money(debtor)}
-                    </td>
+                  <Td style={{ color: "var(--erp-danger)" }} className="font-black">
+                    {money(debtor)}
+                  </Td>
 
-                    <td className="p-3 text-emerald-300 font-black">
-                      {money(creditor)}
-                    </td>
+                  <Td style={{ color: "var(--erp-success)" }} className="font-black">
+                    {money(creditor)}
+                  </Td>
 
-                    <td className="p-3 font-black text-[var(--erp-accent)]">
-                      {money(Math.abs(balance))}
-                      <div className="text-xs text-[var(--erp-muted)]">
-                        {balanceLabel(balance, language)}
-                      </div>
-                    </td>
+                  <Td className="font-black" style={{ color: "var(--erp-accent)" }}>
+                    {money(Math.abs(balance))}
+                    <div className="text-xs font-normal" style={{ color: "var(--erp-muted)" }}>
+                      {balanceLabel(balance, language)}
+                    </div>
+                  </Td>
 
-                    <td className="p-3">
-                      <div className="text-xs text-[var(--erp-muted)] mb-2 flex items-center gap-1">
-                        <CalendarClock size={13} />
-                        {followupSuggestion(item, language)}
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <Link
-                          to={`/customers/${item.id}`}
-                          className="px-3 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl flex items-center gap-1"
-                        >
-                          <Eye size={15} />
-                          {fa ? "پرونده ۳۶۰°" : language === "ar" ? "ملف 360°" : language === "tr" ? "360° Profil" : "360° Profile"}
-                        </Link>
+                  <Td>
+                    <div className="text-xs text-[var(--erp-muted)] mb-2 flex items-center gap-1">
+                      <CalendarClock size={13} />
+                      {followupSuggestion(item, language)}
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Link
+                        to={`/customers/${item.id}`}
+                        className="px-3 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-[var(--erp-radius-sm)] flex items-center gap-1"
+                      >
+                        <Eye size={15} />
+                        {fa ? "پرونده ۳۶۰°" : language === "ar" ? "ملف 360°" : language === "tr" ? "360° Profil" : "360° Profile"}
+                      </Link>
 
-                        <button
-                          onClick={() => edit(item)}
-                          className="px-3 py-2 bg-[var(--erp-glow)] text-[var(--erp-accent)] rounded-xl flex items-center gap-1"
-                        >
-                          <Edit3 size={15} />
-                          {t("edit")}
-                        </button>
+                      <Button variant="ghost" size="sm" icon={Edit3} onClick={() => edit(item)}>
+                        {t("edit")}
+                      </Button>
 
-                        <button
-                          onClick={() => remove(item.id)}
-                          className="px-3 py-2 bg-rose-500/20 text-rose-200 rounded-xl flex items-center gap-1"
-                        >
-                          <Trash2 size={15} />
-                          {t("delete")}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      <Button variant="danger" size="sm" icon={Trash2} onClick={() => remove(item.id)}>
+                        {t("delete")}
+                      </Button>
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })}
 
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan="8" className="p-8 text-center text-[var(--erp-muted)]">
-                    {fa ? "طرف‌حسابی ثبت نشده است" : language === "ar" ? "لا يوجد أطراف حساب" : language === "tr" ? "Cari bulunamadı" : "No parties found"}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            {!loading && filtered.length === 0 && (
+              <EmptyRow colSpan={8}>
+                {fa ? "طرف‌حسابی ثبت نشده است" : language === "ar" ? "لا يوجد أطراف حساب" : language === "tr" ? "Cari bulunamadı" : "No parties found"}
+              </EmptyRow>
+            )}
+          </Tbody>
+        </Table>
       </div>
     </div>
   );
@@ -1096,7 +1035,7 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
   const averageScore = parties.length ? Math.round(summary.scoreSum / parties.length) : 0;
 
   return (
-    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 shadow-2xl">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5 shadow-2xl">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <div>
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
@@ -1113,7 +1052,7 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
               : "Customer scoring, follow-up priority, credit and customer value at a glance"}
           </p>
         </div>
-        <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] px-5 py-3">
+        <div className="rounded-[var(--erp-radius-md)] bg-[var(--erp-glow)] border border-[var(--erp-border)] px-5 py-3">
           <div className="text-[var(--erp-muted)] text-xs font-bold">{fa ? "میانگین امتیاز" : ar ? "متوسط النقاط" : tr ? "Ortalama puan" : "Average score"}</div>
           <div className="text-[var(--erp-accent)] text-2xl font-black">{n(averageScore)}/{n(100)}</div>
         </div>
@@ -1125,17 +1064,17 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
           const rank = crmRank(score);
           const status = crmStatus(item, language);
           return (
-            <div key={item.id} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+            <div key={item.id} className="rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="font-black text-[var(--erp-text)] truncate">{item.name || "-"}</div>
-                <span className={`px-2 py-1 rounded-full text-xs font-black ${rank.bg} ${rank.color}`}>{rank.key}</span>
+                <Badge tone={rank.tone}>{rank.key}</Badge>
               </div>
               <div className="text-xs text-[var(--erp-muted)] mb-3">{faText(item.phone || item.mobile, fa) || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
               <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-3">
-                <div className="h-full bg-cyan-400" style={{ width: `${score}%` }} />
+                <div className="h-full" style={{ width: `${score}%`, background: "var(--erp-accent)" }} />
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className={status.color}>{status.label}</span>
+                <Badge tone={status.tone}>{status.label}</Badge>
                 <span className="text-[var(--erp-muted)] font-bold">{money(Math.abs(toNumber(item.balance)))}</span>
               </div>
             </div>
@@ -1153,7 +1092,7 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
 
 function SummaryCard({ icon, title, value, color, colorClassName }) {
   return (
-    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-6 shadow-2xl">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-6 shadow-2xl">
       <div className="flex justify-between items-center">
         <div>
           <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
@@ -1162,7 +1101,7 @@ function SummaryCard({ icon, title, value, color, colorClassName }) {
           </div>
         </div>
 
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--erp-glow)] text-[var(--erp-accent)]">
+        <div className="w-12 h-12 rounded-[var(--erp-radius-md)] flex items-center justify-center bg-[var(--erp-glow)] text-[var(--erp-accent)]">
           {icon}
         </div>
       </div>
