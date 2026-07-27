@@ -206,7 +206,7 @@ export default function CatalogManager() {
             className={inputClass}
             placeholder={language === "fa" ? "عنوان کاتالوگ (مثلاً «مجموعه تابستانی»)" : language === "ar" ? "عنوان الكتالوج (مثلاً «تشكيلة الصيف»)" : language === "tr" ? "Katalog başlığı (örn. \"Yaz koleksiyonu\")" : "Catalog title (e.g. \"Summer collection\")"}
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
 
           <div className="flex gap-2 mb-3">
