@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { disableTotp, getTotpStatus, setupTotp, verifyTotp } from "../services/mfaApi";
 
 const card = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-6";
@@ -197,8 +198,8 @@ export default function AccountSecurity() {
               <input
                 inputMode="numeric"
                 placeholder={fa ? "کد تأیید یا کد بازیابی" : language === "ar" ? "رمز المصادقة أو رمز الاسترداد" : language === "tr" ? "Doğrulayıcı veya kurtarma kodu" : "Authenticator or recovery code"}
-                value={disableForm.code}
-                onChange={(event) => setDisableForm({ ...disableForm, code: event.target.value })}
+                value={language === "fa" ? toPersianDigits(disableForm.code) : disableForm.code}
+                onChange={(event) => setDisableForm({ ...disableForm, code: toEnglishDigits(event.target.value) })}
                 className={input}
                 required
               />
@@ -231,8 +232,8 @@ export default function AccountSecurity() {
               <input
                 inputMode="numeric"
                 placeholder={fa ? "کد شش‌رقمی" : language === "ar" ? "رمز مكوّن من ستة أرقام" : language === "tr" ? "6 haneli kod" : "6-digit code"}
-                value={verifyCode}
-                onChange={(event) => setVerifyCode(event.target.value)}
+                value={language === "fa" ? toPersianDigits(verifyCode) : verifyCode}
+                onChange={(event) => setVerifyCode(toEnglishDigits(event.target.value))}
                 className={input}
                 required
                 autoFocus

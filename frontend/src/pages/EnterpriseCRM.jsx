@@ -327,7 +327,7 @@ function Input({ value, onChange, placeholder, type = "text" }) {
       />
     );
   }
-  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />;
+  return <input type={type} value={value} onChange={(e) => onChange(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={placeholder} style={inputStyle} />;
 }
 
 function CustomerScore({ c, money, n }) {

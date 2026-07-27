@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL } from "../services/api";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
 
@@ -559,8 +560,8 @@ export default function Login() {
                     id="totp-code"
                     autoComplete="one-time-code"
                     inputMode="numeric"
-                    value={mfa.code}
-                    onChange={(event) => setMfa({ ...mfa, code: event.target.value })}
+                    value={language === "fa" ? toPersianDigits(mfa.code) : mfa.code}
+                    onChange={(event) => setMfa({ ...mfa, code: toEnglishDigits(event.target.value) })}
                     className={inputClass}
                     required
                     autoFocus

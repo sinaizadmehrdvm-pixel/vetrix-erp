@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api/change-requests${path}`, {
@@ -245,7 +245,7 @@ export default function ChangeRequestCenter() {
           <Field label={tr("منبع ویس", "مصدر الصوت", "Ses kaynağı", "Voice source")}>
             <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{{ in_app: tr("درون‌برنامه‌ای", "داخل التطبيق", "Uygulama içi", "In-app"), telegram: "Telegram", whatsapp: "WhatsApp", other: tr("سایر", "أخرى", "Diğer", "Other") }[item]}</option>)}</select>
           </Field>
-          {form.source !== "in_app" && <Field label={tr("شناسه پیام یا لینک", "معرّف الرسالة أو الرابط", "Mesaj kimliği veya bağlantı", "Message ID or link")}><input style={inputStyle} value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} /></Field>}
+          {form.source !== "in_app" && <Field label={tr("شناسه پیام یا لینک", "معرّف الرسالة أو الرابط", "Mesaj kimliği veya bağlantı", "Message ID or link")}><input style={inputStyle} value={language === "fa" ? toPersianDigits(form.source_reference) : form.source_reference} onChange={(e) => setForm({ ...form, source_reference: toEnglishDigits(e.target.value) })} /></Field>}
           <Field label={tr("متن ویس پس از بررسی", "نص الرسالة الصوتية بعد المراجعة", "İncelenmiş ses dökümü", "Reviewed voice transcript")}>
             <textarea required minLength={2} rows={5} style={inputStyle} value={form.transcript} onChange={(e) => setForm({ ...form, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("متن دقیق درخواست را وارد یا پس از تبدیل صدا اصلاح کنید…", "أدخل نص الطلب الدقيق أو راجعه بعد تحويل الصوت إلى نص…", "Talebin tam metnini girin veya sesten metne dönüştürüldükten sonra düzenleyin…", "Enter or review the exact voice instruction…")} />
           </Field>
@@ -265,7 +265,7 @@ export default function ChangeRequestCenter() {
             <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(form.value) : form.value} onChange={(e) => setForm({ ...form, value: cleanNumberInput(e.target.value) })} />}</Field>
           </>}
 
-          {form.action_type === "campaign_draft" && <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></Field>}
+          {form.action_type === "campaign_draft" && <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>}
 
           {form.action_type === "sale_invoice_draft" && (
             <InvoiceItemsBuilder
@@ -558,7 +558,7 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
       <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(review.value) : review.value} onChange={(e) => setReview({ ...review, value: cleanNumberInput(e.target.value) })} />}</Field>
     </>}
     {review.action_type === "campaign_draft" && <>
-      <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: e.target.value })} /></Field>
+      <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
       <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
     </>}
     <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>

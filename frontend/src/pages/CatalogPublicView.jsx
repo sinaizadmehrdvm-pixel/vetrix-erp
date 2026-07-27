@@ -4,7 +4,7 @@ import { AlertTriangle, BookOpen, CheckCircle2, ShoppingCart } from "lucide-reac
 
 import { API_URL } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 
 export default function CatalogPublicView() {
   const { token } = useParams();
@@ -153,13 +153,13 @@ export default function CatalogPublicView() {
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
                 placeholder={tr("نام شما", "اسمك", "Adınız", "Your name")}
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => setCustomerName(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               />
               <input
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
                 placeholder={tr("شماره تماس", "رقم الهاتف", "Telefon numarası", "Phone number")}
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                value={language === "fa" ? toPersianDigits(customerPhone) : customerPhone}
+                onChange={(e) => setCustomerPhone(toEnglishDigits(e.target.value))}
               />
               <textarea
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"

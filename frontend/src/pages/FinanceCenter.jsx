@@ -17,7 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits } from "../localization/helpers";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { API_URL, getAuthHeaders } from "../services/api";
 
 
@@ -550,7 +550,7 @@ export default function FinanceCenter() {
           onClose={() => setShowAccountForm(false)}
         >
           <Field label={fa ? "نام حساب" : language === "ar" ? "اسم الحساب" : language === "tr" ? "Hesap adı" : "Account name"}>
-            <input className="form-input" value={accountForm.name} onChange={(e) => setAccountForm((p) => ({ ...p, name: e.target.value }))} />
+            <input className="form-input" value={accountForm.name} onChange={(e) => setAccountForm((p) => ({ ...p, name: fa ? toPersianDigits(e.target.value) : e.target.value }))} />
           </Field>
 
           <Field label={fa ? "نوع حساب" : language === "ar" ? "نوع الحساب" : language === "tr" ? "Hesap türü" : "Account type"}>
@@ -564,7 +564,7 @@ export default function FinanceCenter() {
           </Field>
 
           <Field label={fa ? "مانده اولیه" : language === "ar" ? "الرصيد الافتتاحي" : language === "tr" ? "Açılış bakiyesi" : "Opening balance"}>
-            <input className="form-input" value={accountForm.opening_balance} onChange={(e) => setAccountForm((p) => ({ ...p, opening_balance: e.target.value }))} />
+            <input className="form-input" value={fa ? toPersianDigits(accountForm.opening_balance) : accountForm.opening_balance} onChange={(e) => setAccountForm((p) => ({ ...p, opening_balance: cleanNumberInput(e.target.value) }))} />
           </Field>
 
           <button onClick={createAccount} className="w-full mt-4 px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black">
@@ -633,7 +633,7 @@ export default function FinanceCenter() {
           )}
 
           <Field label={fa ? "مبلغ" : language === "ar" ? "المبلغ" : language === "tr" ? "Tutar" : "Amount"}>
-            <input className="form-input" value={transactionForm.amount} onChange={(e) => setTransactionForm((p) => ({ ...p, amount: e.target.value }))} />
+            <input className="form-input" value={fa ? toPersianDigits(transactionForm.amount) : transactionForm.amount} onChange={(e) => setTransactionForm((p) => ({ ...p, amount: cleanNumberInput(e.target.value) }))} />
           </Field>
 
           <Field label={fa ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description"}>
