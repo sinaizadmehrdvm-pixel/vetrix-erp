@@ -27,6 +27,32 @@ const categoryIcons = {
   recovery: HardDrive,
 };
 
+const METRIC_LABELS = {
+  vouchers: { fa: "تعداد اسناد", ar: "عدد السندات", tr: "Fiş sayısı", en: "Vouchers" },
+  posted_vouchers: { fa: "اسناد قطعی", ar: "السندات المرحّلة", tr: "Kesinleşmiş fişler", en: "Posted vouchers" },
+  unbalanced_vouchers: { fa: "اسناد نامتوازن", ar: "سندات غير متوازنة", tr: "Dengesiz fişler", en: "Unbalanced vouchers" },
+  orphan_voucher_lines: { fa: "ردیف‌های یتیم", ar: "بنود يتيمة", tr: "Sahipsiz satırlar", en: "Orphan voucher lines" },
+  negative_stock_products: { fa: "کالاهای موجودی منفی", ar: "منتجات بمخزون سالب", tr: "Negatif stoklu ürünler", en: "Negative stock products" },
+  unvalued_stock_products: { fa: "کالاهای بدون قیمت خرید", ar: "منتجات بدون تقييم", tr: "Değerlenmemiş ürünler", en: "Unvalued stock products" },
+  audit_events: { fa: "رویدادهای ممیزی", ar: "أحداث التدقيق", tr: "Denetim olayları", en: "Audit events" },
+  backups: { fa: "تعداد بکاپ‌ها", ar: "عدد النسخ الاحتياطية", tr: "Yedek sayısı", en: "Backups" },
+  latest_backup_age_hours: { fa: "قدمت آخرین بکاپ (ساعت)", ar: "عمر أحدث نسخة احتياطية (ساعة)", tr: "Son yedeğin yaşı (saat)", en: "Latest backup age (hours)" },
+  backup_disk_free_bytes: { fa: "فضای آزاد دیسک بکاپ", ar: "المساحة الحرة لقرص النسخ الاحتياطي", tr: "Yedek disk boş alanı", en: "Backup disk free space" },
+};
+
+function metricLabel(key, language) {
+  const entry = METRIC_LABELS[key];
+  if (!entry) return key.replaceAll("_", " ");
+  return entry[language] || entry.en;
+}
+
+function metricValue(key, value, n) {
+  if (key === "backup_disk_free_bytes" && typeof value === "number") {
+    return `${n(Number((value / 1024 ** 3).toFixed(1)))} GB`;
+  }
+  return typeof value === "number" ? n(value) : value;
+}
+
 export default function SystemHealth() {
   const { user } = useAuth();
   const { language, dir, date, time, n } = useLanguage();
@@ -71,7 +97,7 @@ export default function SystemHealth() {
     setLoading(true);
     setError("");
     try {
-      setHealth(await getSystemHealth());
+      setHealth(await getSystemHealth(language));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -186,8 +212,8 @@ export default function SystemHealth() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 9 }}>
               {Object.entries(health.metrics || {}).map(([key, value]) => (
                 <div key={key} style={{ padding: 12, borderRadius: 14, background: "var(--erp-panel-solid)" }}>
-                  <div style={{ color: "var(--erp-muted)", fontSize: 11 }}>{key.replaceAll("_", " ")}</div>
-                  <div style={{ color: "var(--erp-text)", fontWeight: 900, marginTop: 5 }}>{typeof value === "number" ? n(value) : value}</div>
+                  <div style={{ color: "var(--erp-muted)", fontSize: 11 }}>{metricLabel(key, language)}</div>
+                  <div style={{ color: "var(--erp-text)", fontWeight: 900, marginTop: 5 }}>{metricValue(key, value, n)}</div>
                 </div>
               ))}
             </div>
