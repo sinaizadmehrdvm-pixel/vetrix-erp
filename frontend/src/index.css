@@ -11,6 +11,35 @@
   --erp-accent-2: #34d399;
   --erp-border: rgba(34, 211, 238, 0.18);
   --erp-glow: rgba(34, 211, 238, 0.2);
+
+  /* Radius scale - collapses the ~14 different radius values that had
+     accumulated ad hoc across pages (8/10/11/12/13/14/15/16/17/18/20/
+     22/24/28px) down to 3 deliberate steps, reused by the shared ui/
+     components. Not themed - roundness is a shape choice, not a color
+     one, so it stays constant across every theme preset below. */
+  --erp-radius-sm: 8px;
+  --erp-radius-md: 12px;
+  --erp-radius-lg: 16px;
+
+  /* Elevation - one restrained shadow for cards/panels/modals, replacing
+     the heavy 0 18px 55px look used ad hoc across pages. Enterprise SaaS
+     shadows are a soft hint of depth, not a dramatic drop shadow. */
+  --erp-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.10);
+
+  /* Semantic status colors - one token per meaning (success/warning/
+     danger), reused by Badge and status text everywhere instead of each
+     page hardcoding a Tailwind pastel class (text-green-300, etc.) that
+     then has to be patched separately per theme - see the light-theme
+     override block below for why that approach broke down. "Info" is
+     intentionally not a separate token: it reuses --erp-accent, since
+     every theme already has its own accent hue and a fixed blue would
+     clash with, say, the violet or rose presets. */
+  --erp-success: #86efac;
+  --erp-success-soft: rgba(34, 197, 94, 0.14);
+  --erp-warning: #fde68a;
+  --erp-warning-soft: rgba(245, 158, 11, 0.14);
+  --erp-danger: #fca5a5;
+  --erp-danger-soft: rgba(239, 68, 68, 0.14);
 }
 
 :root[data-theme="ocean"] { --erp-bg:#061827; --erp-bg-soft:#082f49; --erp-panel:#0c3048e6; --erp-panel-solid:#0e3a55; --erp-accent:#38bdf8; --erp-accent-2:#2dd4bf; --erp-border:#38bdf833; --erp-glow:#38bdf838; }
@@ -18,7 +47,18 @@
 :root[data-theme="violet"] { --erp-bg:#130d27; --erp-bg-soft:#211440; --erp-panel:#2b1d50e6; --erp-panel-solid:#352460; --erp-accent:#a78bfa; --erp-accent-2:#f0abfc; --erp-border:#a78bfa33; --erp-glow:#a78bfa38; }
 :root[data-theme="rose"] { --erp-bg:#24101b; --erp-bg-soft:#3a1627; --erp-panel:#4a1c31e6; --erp-panel-solid:#572139; --erp-accent:#fb7185; --erp-accent-2:#f9a8d4; --erp-border:#fb718533; --erp-glow:#fb718538; }
 :root[data-theme="gold"] { --erp-bg:#201706; --erp-bg-soft:#34250a; --erp-panel:#46320de6; --erp-panel-solid:#513b12; --erp-accent:#fbbf24; --erp-accent-2:#fde68a; --erp-border:#fbbf2433; --erp-glow:#fbbf2438; }
-:root[data-theme="light"] { --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8; --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669; --erp-border:#0284c733; --erp-glow:#0284c726; }
+:root[data-theme="light"] {
+  --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8;
+  --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669;
+  --erp-border:#0284c733; --erp-glow:#0284c726;
+  /* Dark, readable tones instead of the pale defaults above - same values
+     already proven correct for this theme in the text-color override
+     block that follows, so Badge/status text stays consistent with it. */
+  --erp-success:#15803d; --erp-success-soft: rgba(21, 128, 61, 0.10);
+  --erp-warning:#b45309; --erp-warning-soft: rgba(180, 83, 9, 0.10);
+  --erp-danger:#b91c1c; --erp-danger-soft: rgba(185, 28, 28, 0.10);
+  --erp-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+}
 
 /* Status pills/badges across the app pair a light pastel Tailwind text
    shade (e.g. text-emerald-300) with a translucent tinted background
@@ -57,6 +97,8 @@ button:hover, a:hover { transform:translateY(-1px); }
 .erp-surface { background:var(--erp-panel); border:1px solid var(--erp-border); box-shadow:0 18px 50px rgba(0,0,0,.16); backdrop-filter:blur(16px); }
 .erp-accent { color:var(--erp-accent) !important; }
 .erp-focus:focus { outline:none; box-shadow:0 0 0 3px var(--erp-glow); }
+.erp-table-row { transition: background-color 120ms ease; }
+.erp-table-row:hover { background-color: var(--erp-glow); }
 
 
 /* Responsive and accessible application shell */
@@ -197,7 +239,7 @@ img, svg { max-width: 100%; }
   min-height: 44px;
   font-size: 14px !important;
   font-weight: 800 !important;
-  border-radius: 14px !important;
+  border-radius: var(--erp-radius-md) !important;
   box-sizing: border-box;
 }
 @media (max-width: 640px) {
