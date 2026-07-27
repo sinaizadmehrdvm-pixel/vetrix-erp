@@ -127,6 +127,17 @@ export default function AuditTrail() {
     load(nextPage, applied);
   }
 
+  const roleLabel = (role) => {
+    const labels = fa
+      ? { admin: "مدیر سیستم", accountant: "حسابدار", sales: "فروش", warehouse: "انباردار", viewer: "مشاهده‌گر", user: "کاربر عادی", unknown: "نامشخص" }
+      : language === "ar"
+      ? { admin: "مسؤول النظام", accountant: "محاسب", sales: "المبيعات", warehouse: "أمين المستودع", viewer: "مشاهدة فقط", user: "مستخدم عادي", unknown: "غير معروف" }
+      : language === "tr"
+      ? { admin: "Yönetici", accountant: "Muhasebeci", sales: "Satış", warehouse: "Depo Sorumlusu", viewer: "Salt okunur", user: "Standart kullanıcı", unknown: "Bilinmiyor" }
+      : {};
+    return labels[role] || role;
+  };
+
   const actionLabel = (action) => {
     const labels = fa
       ? { create: "ایجاد", update: "ویرایش", delete: "حذف", close: "بستن", reopen: "بازگشایی", post: "قطعی‌کردن", cancel: "ابطال", convert: "تبدیل", toggle: "تغییر وضعیت" }
@@ -235,11 +246,11 @@ export default function AuditTrail() {
                   <tr key={event.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
                     <td style={{ padding: 12, color: "var(--erp-muted)", whiteSpace: "nowrap" }}>{date(event.created_at)} <small style={{ color: "var(--erp-muted)" }}>{time(event.created_at)}</small></td>
                     <td style={{ padding: 12, fontWeight: 900 }}>{event.actor_username}</td>
-                    <td style={{ padding: 12, color: "var(--erp-muted)" }}>{event.actor_role}</td>
+                    <td style={{ padding: 12, color: "var(--erp-muted)" }}>{roleLabel(event.actor_role)}</td>
                     <td style={{ padding: 12, color: "var(--erp-accent-2)", fontWeight: 800 }}>{actionLabel(event.action)}</td>
                     <td style={{ padding: 12 }}><code>{event.method}</code></td>
                     <td style={{ padding: 12, color: "var(--erp-accent)", direction: "ltr", textAlign: "left" }}>{event.path}</td>
-                    <td style={{ padding: 12 }}><span className={successful ? "text-green-300" : "text-red-300"} style={{ fontWeight: 900 }}>{event.status_code}</span></td>
+                    <td style={{ padding: 12 }}><span className={successful ? "text-green-300" : "text-red-300"} style={{ fontWeight: 900 }}>{n(event.status_code)}</span></td>
                     <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr" }}>{event.client_ip || "-"}</td>
                     <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr", fontSize: 11 }}>{event.request_id.slice(0, 8)}…</td>
                   </tr>
