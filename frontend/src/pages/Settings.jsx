@@ -74,6 +74,30 @@ function showDigits(value, fa) {
   return fa ? toPersianDigits(value) : String(value ?? "");
 }
 
+const CALENDAR_LABELS = {
+  persian: { fa: "شمسی", ar: "الهجري الشمسي", tr: "Şemsi (Jalali)", en: "Persian (Jalali)" },
+  gregory: { fa: "میلادی", ar: "ميلادي", tr: "Miladi", en: "Gregorian" },
+  islamic: { fa: "قمری", ar: "هجري قمري", tr: "Hicri", en: "Islamic (Hijri)" },
+};
+
+function calendarLabel(value, language) {
+  const entry = CALENDAR_LABELS[value];
+  if (!entry) return value;
+  return entry[language] || entry.en;
+}
+
+const MEASUREMENT_LABELS = {
+  metric: { fa: "متریک", ar: "متري", tr: "Metrik", en: "Metric" },
+  imperial: { fa: "امپریال", ar: "إمبراطوري", tr: "İngiliz birimi", en: "Imperial" },
+  us: { fa: "آمریکایی", ar: "أمريكي", tr: "ABD birimi", en: "US customary" },
+};
+
+function measurementLabel(value, language) {
+  const entry = MEASUREMENT_LABELS[value];
+  if (!entry) return value;
+  return entry[language] || entry.en;
+}
+
 function cleanNumber(value) {
   return toEnglishDigits(value).replace(/[,،]/g, "").replace(/[^\d.-]/g, "");
 }
@@ -123,6 +147,8 @@ async function compressImage(file) {
 export default function Settings() {
   const { language, setLanguage, languages, dir, t, country, setCountry, setCompanyFormatting, countries, countryProfile } = useLanguage();
   const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const { theme, themes, setTheme } = useTheme();
 
   const [settings, setSettings] = useState(emptySettings);
@@ -306,9 +332,9 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section icon={<Globe2 />} title={fa ? "کشور و استانداردهای محلی" : "Country & Local Standards"}>
+      <Section icon={<Globe2 />} title={tr("کشور و استانداردهای محلی", "الدولة والمعايير المحلية", "Ülke ve Yerel Standartlar", "Country & Local Standards")}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Field label={fa ? "کشور محل فعالیت شرکت" : "Company operating country"}>
+          <Field label={tr("کشور محل فعالیت شرکت", "بلد نشاط الشركة", "Şirketin faaliyet gösterdiği ülke", "Company operating country")}>
             <select
               className={inputClass}
               value={country}
@@ -344,64 +370,67 @@ export default function Settings() {
             >
               {countries.map((item) => (
                 <option key={item.code} value={item.code}>
-                  {fa ? item.name.fa : item.name.en}
+                  {item.name[language] || item.name.en}
                 </option>
               ))}
             </select>
           </Field>
 
-          <InfoCard title={fa ? "ارز و اعشار" : "Currency & decimals"} value={`${countryProfile.currency} · ${showDigits(countryProfile.currencyDigits, fa)}`} />
-          <InfoCard title={fa ? "تقویم اصلی" : "Primary calendar"} value={countryProfile.calendar} />
-          <InfoCard title={fa ? "منطقه زمانی" : "Time zone"} value={countryProfile.timeZone} />
-          <InfoCard title={fa ? "سیستم اندازه‌گیری" : "Measurement system"} value={countryProfile.measurementSystem} />
-          <InfoCard title={fa ? "شروع سال مالی" : "Fiscal year start"} value={countryProfile.fiscalYearStart} />
+          <InfoCard title={tr("ارز و اعشار", "العملة والكسور العشرية", "Para birimi ve ondalık", "Currency & decimals")} value={`${countryProfile.currency} · ${showDigits(countryProfile.currencyDigits, fa)}`} />
+          <InfoCard title={tr("تقویم اصلی", "التقويم الأساسي", "Ana takvim", "Primary calendar")} value={calendarLabel(countryProfile.calendar, language)} />
+          <InfoCard title={tr("منطقه زمانی", "المنطقة الزمنية", "Saat dilimi", "Time zone")} value={countryProfile.timeZone} />
+          <InfoCard title={tr("سیستم اندازه‌گیری", "نظام القياس", "Ölçüm sistemi", "Measurement system")} value={measurementLabel(countryProfile.measurementSystem, language)} />
+          <InfoCard title={tr("شروع سال مالی", "بداية السنة المالية", "Mali yıl başlangıcı", "Fiscal year start")} value={countryProfile.fiscalYearStart} />
         </div>
 
         <div className="mt-4 rounded-2xl p-4 flex items-start gap-3" style={{ background: "var(--erp-glow)", border: "1px solid var(--erp-border)" }}>
           <CalendarDays className="erp-accent shrink-0" />
           <p className="text-sm">
-            {fa
-              ? "تغییر کشور، قالب پول، تاریخ، ساعت، تقویم، منطقه زمانی و واحدها را هماهنگ می‌کند. نرخ مالیات تا زمان تأیید حسابدار همان کشور به‌صورت قابل‌ویرایش باقی می‌ماند."
-              : "Changing country aligns money, dates, calendar, time zone, and units. Tax rates remain editable until verified by a local accountant."}
+            {tr(
+              "تغییر کشور، قالب پول، تاریخ، ساعت، تقویم، منطقه زمانی و واحدها را هماهنگ می‌کند. نرخ مالیات تا زمان تأیید حسابدار همان کشور به‌صورت قابل‌ویرایش باقی می‌ماند.",
+              "يؤدي تغيير الدولة إلى مواءمة العملة والتواريخ والتقويم والمنطقة الزمنية والوحدات. تبقى معدلات الضريبة قابلة للتعديل حتى يتم التحقق منها من قبل محاسب محلي.",
+              "Ülke değiştirmek para birimi, tarih, takvim, saat dilimi ve birimleri buna göre ayarlar. Vergi oranları, yerel bir muhasebeci tarafından onaylanana kadar düzenlenebilir kalır.",
+              "Changing country aligns money, dates, calendar, time zone, and units. Tax rates remain editable until verified by a local accountant."
+            )}
           </p>
         </div>
       </Section>
 
       <Section icon={<Building2 />} title={label.company}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Field label={fa ? "نام شرکت" : "Company Name"}>
+          <Field label={tr("نام شرکت", "اسم الشركة", "Şirket Adı", "Company Name")}>
             <input className={inputClass} value={settings.company_name || ""} onChange={(e) => setField("company_name", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "نام مدیر" : "Manager Name"}>
+          <Field label={tr("نام مدیر", "اسم المدير", "Yönetici Adı", "Manager Name")}>
             <input className={inputClass} value={settings.manager_name || ""} onChange={(e) => setField("manager_name", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "تلفن" : "Phone"}>
+          <Field label={tr("تلفن", "الهاتف", "Telefon", "Phone")}>
             <input className={inputClass} value={showDigits(settings.phone, fa)} onChange={(e) => setNumberField("phone", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "موبایل" : "Mobile"}>
+          <Field label={tr("موبایل", "الجوال", "Cep Telefonu", "Mobile")}>
             <input className={inputClass} value={showDigits(settings.mobile, fa)} onChange={(e) => setNumberField("mobile", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "ایمیل" : "Email"}>
+          <Field label={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")}>
             <input className={inputClass} value={settings.email || ""} onChange={(e) => setField("email", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "وب‌سایت" : "Website"}>
+          <Field label={tr("وب‌سایت", "الموقع الإلكتروني", "Web Sitesi", "Website")}>
             <input className={inputClass} value={settings.website || ""} onChange={(e) => setField("website", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "شناسه ملی" : "National ID"}>
+          <Field label={tr("شناسه ملی", "الرقم الوطني", "Ulusal Kimlik No", "National ID")}>
             <input className={inputClass} value={showDigits(settings.national_id, fa)} onChange={(e) => setNumberField("national_id", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "کد اقتصادی" : "Economic Code"}>
+          <Field label={tr("کد اقتصادی", "الرمز الاقتصادي", "Ekonomik Kod", "Economic Code")}>
             <input className={inputClass} value={showDigits(settings.economic_code, fa)} onChange={(e) => setNumberField("economic_code", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "آدرس" : "Address"}>
+          <Field label={tr("آدرس", "العنوان", "Adres", "Address")}>
             <textarea className={inputClass} rows={2} value={settings.address || ""} onChange={(e) => setField("address", e.target.value)} />
           </Field>
         </div>
@@ -409,21 +438,21 @@ export default function Settings() {
 
       <Section icon={<Upload />} title={label.media}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <UploadBox label={fa ? "لوگوی شرکت" : "Company Logo"} buttonText={label.imageSelect} value={settings.logo_data} onChange={(file) => handleImage("logo_data", file)} />
-          <UploadBox label={fa ? "مهر شرکت" : "Company Stamp"} buttonText={label.imageSelect} value={settings.stamp_data} onChange={(file) => handleImage("stamp_data", file)} />
-          <UploadBox label={fa ? "امضا" : "Signature"} buttonText={label.imageSelect} value={settings.signature_data} onChange={(file) => handleImage("signature_data", file)} />
+          <UploadBox label={tr("لوگوی شرکت", "شعار الشركة", "Şirket Logosu", "Company Logo")} buttonText={label.imageSelect} value={settings.logo_data} onChange={(file) => handleImage("logo_data", file)} />
+          <UploadBox label={tr("مهر شرکت", "ختم الشركة", "Şirket Kaşesi", "Company Stamp")} buttonText={label.imageSelect} value={settings.stamp_data} onChange={(file) => handleImage("stamp_data", file)} />
+          <UploadBox label={tr("امضا", "التوقيع", "İmza", "Signature")} buttonText={label.imageSelect} value={settings.signature_data} onChange={(file) => handleImage("signature_data", file)} />
         </div>
       </Section>
 
       <Section icon={<FileText />} title={label.invoice}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Toggle label={fa ? "نمایش لوگو در فاکتور" : "Show logo on invoice"} checked={settings.show_logo} onChange={(v) => setField("show_logo", v)} />
-          <Toggle label={fa ? "نمایش QR Code" : "Show QR Code"} checked={settings.show_qr} onChange={(v) => setField("show_qr", v)} />
-          <Toggle label={fa ? "نمایش بارکد" : "Show Barcode"} checked={settings.show_barcode} onChange={(v) => setField("show_barcode", v)} />
+          <Toggle label={tr("نمایش لوگو در فاکتور", "إظهار الشعار في الفاتورة", "Faturada logo göster", "Show logo on invoice")} checked={settings.show_logo} onChange={(v) => setField("show_logo", v)} />
+          <Toggle label={tr("نمایش QR Code", "إظهار رمز QR", "QR Kodu göster", "Show QR Code")} checked={settings.show_qr} onChange={(v) => setField("show_qr", v)} />
+          <Toggle label={tr("نمایش بارکد", "إظهار الباركود", "Barkod göster", "Show Barcode")} checked={settings.show_barcode} onChange={(v) => setField("show_barcode", v)} />
         </div>
 
         <div className="mt-4">
-          <Field label={fa ? "متن پایین فاکتور" : "Invoice Footer"}>
+          <Field label={tr("متن پایین فاکتور", "نص أسفل الفاتورة", "Fatura Alt Metni", "Invoice Footer")}>
             <textarea className={inputClass} rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", e.target.value)} />
           </Field>
         </div>
@@ -431,26 +460,26 @@ export default function Settings() {
 
       <Section icon={<Wallet />} title={label.finance}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Field label={fa ? "واحد پول" : "Currency"}>
+          <Field label={tr("واحد پول", "العملة", "Para Birimi", "Currency")}>
             <select className={inputClass} value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
-              <option value="IRR">{fa ? "ریال ایران (IRR)" : "Iranian rial (IRR)"}</option>
-              <option value="تومان">{fa ? "تومان (واحد نمایشی)" : "Toman (display unit)"}</option>
-              <option value="EUR">{fa ? "یورو (EUR)" : "Euro (EUR)"}</option>
-              <option value="AED">{fa ? "درهم امارات (AED)" : "UAE dirham (AED)"}</option>
-              <option value="GBP">{fa ? "پوند بریتانیا (GBP)" : "Pound sterling (GBP)"}</option>
-              <option value="USD">{fa ? "دلار آمریکا (USD)" : "US dollar (USD)"}</option>
+              <option value="IRR">{tr("ریال ایران (IRR)", "الريال الإيراني (IRR)", "İran riyali (IRR)", "Iranian rial (IRR)")}</option>
+              <option value="تومان">{tr("تومان (واحد نمایشی)", "تومان (وحدة عرض)", "Tomen (görüntüleme birimi)", "Toman (display unit)")}</option>
+              <option value="EUR">{tr("یورو (EUR)", "يورو (EUR)", "Euro (EUR)", "Euro (EUR)")}</option>
+              <option value="AED">{tr("درهم امارات (AED)", "الدرهم الإماراتي (AED)", "BAE dirhemi (AED)", "UAE dirham (AED)")}</option>
+              <option value="GBP">{tr("پوند بریتانیا (GBP)", "الجنيه الإسترليني (GBP)", "İngiliz sterlini (GBP)", "Pound sterling (GBP)")}</option>
+              <option value="USD">{tr("دلار آمریکا (USD)", "الدولار الأمريكي (USD)", "ABD doları (USD)", "US dollar (USD)")}</option>
             </select>
           </Field>
 
-          <Field label={fa ? "درصد مالیات پیش‌فرض" : "Default Tax Percent"}>
+          <Field label={tr("درصد مالیات پیش‌فرض", "نسبة الضريبة الافتراضية", "Varsayılan Vergi Oranı", "Default Tax Percent")}>
             <input className={inputClass} value={showDigits(settings.tax_percent, fa)} onChange={(e) => setNumberField("tax_percent", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "درصد تخفیف پیش‌فرض" : "Default Discount Percent"}>
+          <Field label={tr("درصد تخفیف پیش‌فرض", "نسبة الخصم الافتراضية", "Varsayılan İndirim Oranı", "Default Discount Percent")}>
             <input className={inputClass} value={showDigits(settings.discount_percent, fa)} onChange={(e) => setNumberField("discount_percent", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "سال مالی" : "Fiscal Year"}>
+          <Field label={tr("سال مالی", "السنة المالية", "Mali Yıl", "Fiscal Year")}>
             <input className={inputClass} value={showDigits(settings.fiscal_year, fa)} onChange={(e) => setNumberField("fiscal_year", e.target.value)} />
           </Field>
         </div>
@@ -459,7 +488,7 @@ export default function Settings() {
       <Section icon={<Palette />} title={label.appearance}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-3">
-          <Field label={fa ? "رنگ و تم برنامه" : "Color theme"}>
+          <Field label={tr("رنگ و تم برنامه", "لون وسمة التطبيق", "Renk ve Tema", "Color theme")}>
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
               {themes.map((item) => (
                 <button
@@ -479,30 +508,30 @@ export default function Settings() {
                   aria-pressed={theme === item.id}
                 >
                   <span className="block w-8 h-8 rounded-full mb-2" style={{ background: item.accent }} />
-                  {fa ? item.fa : item.en}
+                  {item[language] || item.en}
                 </button>
               ))}
             </div>
           </Field>
           </div>
 
-          <Field label={fa ? "حداقل موجودی پیش‌فرض" : "Default Low Stock"}>
+          <Field label={tr("حداقل موجودی پیش‌فرض", "الحد الأدنى الافتراضي للمخزون", "Varsayılan Düşük Stok", "Default Low Stock")}>
             <input className={inputClass} value={showDigits(settings.low_stock_default, fa)} onChange={(e) => setNumberField("low_stock_default", e.target.value)} />
           </Field>
 
-          <InfoCard title={fa ? "نام سیستم" : "System Name"} value={t?.appName || "Vetrix ERP"} />
+          <InfoCard title={tr("نام سیستم", "اسم النظام", "Sistem Adı", "System Name")} value={t?.appName || "Vetrix ERP"} />
         </div>
       </Section>
 
       <Section icon={<Bell />} title={label.backupSms}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Toggle label={fa ? "بکاپ خودکار" : "Auto Backup"} checked={settings.auto_backup} onChange={(v) => setField("auto_backup", v)} />
+          <Toggle label={tr("بکاپ خودکار", "نسخ احتياطي تلقائي", "Otomatik Yedekleme", "Auto Backup")} checked={settings.auto_backup} onChange={(v) => setField("auto_backup", v)} />
 
-          <Field label={fa ? "پنل پیامک" : "SMS Panel"}>
+          <Field label={tr("پنل پیامک", "لوحة الرسائل النصية", "SMS Paneli", "SMS Panel")}>
             <input className={inputClass} value={settings.sms_panel || ""} onChange={(e) => setField("sms_panel", e.target.value)} />
           </Field>
 
-          <Field label={fa ? "کلید API پیامک" : "SMS API Key"}>
+          <Field label={tr("کلید API پیامک", "مفتاح API للرسائل النصية", "SMS API Anahtarı", "SMS API Key")}>
             <input className={inputClass} value={settings.sms_api_key || ""} onChange={(e) => setField("sms_api_key", e.target.value)} />
           </Field>
         </div>
@@ -511,7 +540,12 @@ export default function Settings() {
       <div className="bg-[var(--erp-bg-soft)] border border-emerald-500/20 rounded-3xl p-5 flex items-center gap-3 text-emerald-300">
         <ShieldCheck />
         <span className="font-black">
-          {fa ? "تنظیمات در دیتابیس ذخیره می‌شود و بعد از بستن برنامه باقی می‌ماند." : "Settings are saved in the database and persist after closing the app."}
+          {tr(
+            "تنظیمات در دیتابیس ذخیره می‌شود و بعد از بستن برنامه باقی می‌ماند.",
+            "يتم حفظ الإعدادات في قاعدة البيانات وتبقى بعد إغلاق التطبيق.",
+            "Ayarlar veritabanında saklanır ve uygulama kapatıldıktan sonra kalıcı olur.",
+            "Settings are saved in the database and persist after closing the app."
+          )}
         </span>
       </div>
     </div>

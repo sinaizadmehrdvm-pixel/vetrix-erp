@@ -3,7 +3,7 @@ import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
 export const COUNTRY_PROFILES = {
   IR: {
     code: "IR",
-    name: { en: "Iran", fa: "ایران" },
+    name: { en: "Iran", fa: "ایران", ar: "إيران", tr: "İran" },
     locale: { en: "en-IR", fa: "fa-IR" },
     direction: "rtl",
     currency: "IRR",
@@ -21,7 +21,7 @@ export const COUNTRY_PROFILES = {
   },
   DE: {
     code: "DE",
-    name: { en: "Germany", fa: "آلمان" },
+    name: { en: "Germany", fa: "آلمان", ar: "ألمانيا", tr: "Almanya" },
     locale: { en: "de-DE", fa: "de-DE" },
     direction: "ltr",
     currency: "EUR",
@@ -39,7 +39,7 @@ export const COUNTRY_PROFILES = {
   },
   FI: {
     code: "FI",
-    name: { en: "Finland", fa: "فنلاند" },
+    name: { en: "Finland", fa: "فنلاند", ar: "فنلندا", tr: "Finlandiya" },
     locale: { en: "fi-FI", fa: "fi-FI" },
     direction: "ltr",
     currency: "EUR",
@@ -57,7 +57,7 @@ export const COUNTRY_PROFILES = {
   },
   AE: {
     code: "AE",
-    name: { en: "United Arab Emirates", fa: "امارات متحده عربی" },
+    name: { en: "United Arab Emirates", fa: "امارات متحده عربی", ar: "الإمارات العربية المتحدة", tr: "Birleşik Arap Emirlikleri" },
     locale: { en: "en-AE", fa: "ar-AE" },
     direction: "rtl",
     currency: "AED",
@@ -75,7 +75,7 @@ export const COUNTRY_PROFILES = {
   },
   GB: {
     code: "GB",
-    name: { en: "United Kingdom", fa: "بریتانیا" },
+    name: { en: "United Kingdom", fa: "بریتانیا", ar: "المملكة المتحدة", tr: "Birleşik Krallık" },
     locale: { en: "en-GB", fa: "en-GB" },
     direction: "ltr",
     currency: "GBP",
@@ -93,7 +93,7 @@ export const COUNTRY_PROFILES = {
   },
   US: {
     code: "US",
-    name: { en: "United States", fa: "ایالات متحده آمریکا" },
+    name: { en: "United States", fa: "ایالات متحده آمریکا", ar: "الولايات المتحدة الأمريكية", tr: "Amerika Birleşik Devletleri" },
     locale: { en: "en-US", fa: "en-US" },
     direction: "ltr",
     currency: "USD",
