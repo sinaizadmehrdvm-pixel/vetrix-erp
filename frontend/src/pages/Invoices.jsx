@@ -50,6 +50,11 @@ import InvoicePrint from "../invoice/InvoicePrint";
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
+import Button from "../components/ui/Button";
+import IconButton from "../components/ui/IconButton";
+import Notice from "../components/ui/Notice";
+import Badge from "../components/ui/Badge";
+import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
 
 
 const CUSTOMERS_CACHE_KEY = "customers";
@@ -432,12 +437,12 @@ export default function Invoices() {
 
   function paymentStatusStyle(status) {
     if (status === "paid" || status === "final") {
-      return { className: "bg-emerald-500/15 text-emerald-300", Icon: CheckCircle2 };
+      return { tone: "success", Icon: CheckCircle2 };
     }
     if (status === "partial") {
-      return { className: "bg-amber-500/15 text-amber-300", Icon: Clock };
+      return { tone: "warning", Icon: Clock };
     }
-    return { className: "bg-rose-500/15 text-rose-300", Icon: AlertTriangle };
+    return { tone: "danger", Icon: AlertTriangle };
   }
 
   function buildCleanItems() {
@@ -827,54 +832,38 @@ export default function Invoices() {
           <p className="text-[var(--erp-muted)] mt-2">{label.subtitle}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadData}
-          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
-        >
-          <RefreshCw size={18} />
+        <Button variant="secondary" icon={RefreshCw} onClick={loadData}>
           {label.refresh}
-        </button>
+        </Button>
       </div>
 
       {loadError ? (
-        <div
-          className={`rounded-2xl p-4 flex items-center gap-2 ${
-            offlineMode
-              ? "bg-amber-500/15 border border-amber-400/30 text-amber-100"
-              : "bg-red-500/15 border border-red-400/30 text-red-200"
-          }`}
-        >
+        <Notice tone={offlineMode ? "warning" : "danger"} className="flex items-center gap-2">
           <AlertTriangle size={20} />
           {loadError}
-        </div>
+        </Notice>
       ) : null}
 
       {countPending(invoices) > 0 ? (
-        <div className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 bg-amber-500/15 border border-amber-400/30 text-amber-100">
+        <Notice tone="warning" className="flex flex-wrap items-center justify-between gap-3">
           <span>
             {fa
               ? `${toPersianDigits(countPending(invoices))} فاکتور آفلاین در انتظار همگام‌سازی است.`
               : `${countPending(invoices)} offline invoice(s) waiting to sync.`}
           </span>
-          <button
-            type="button"
-            onClick={() => void syncPendingInvoices()}
-            className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm flex items-center gap-1"
-          >
-            <RefreshCw size={14} />
+          <Button variant="primary" size="sm" icon={RefreshCw} onClick={() => void syncPendingInvoices()}>
             {fa ? "همگام‌سازی الان" : language === "ar" ? "مزامنة الآن" : language === "tr" ? "Şimdi senkronize et" : "Sync now"}
-          </button>
-        </div>
+          </Button>
+        </Notice>
       ) : null}
 
       {loading ? (
-        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-4 text-[var(--erp-accent)]">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-4 text-[var(--erp-accent)]">
           {label.loading}
         </div>
       ) : null}
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
         <div className="flex items-center gap-2 mb-5">
           <ReceiptText className="text-[var(--erp-accent)]" size={24} />
           <h2 className="text-2xl font-black text-[var(--erp-accent)]">
@@ -887,7 +876,7 @@ export default function Invoices() {
             <select
               value={form.invoice_type}
               onChange={(e) => setForm({ ...form, invoice_type: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="sale">{label.saleInvoice}</option>
               <option value="buy">{label.buyInvoice}</option>
@@ -901,7 +890,7 @@ export default function Invoices() {
             <select
               value={form.customer_id}
               onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="">{label.selectCustomer}</option>
               {customers.map((c) => (
@@ -911,7 +900,7 @@ export default function Invoices() {
               ))}
             </select>
             {customers.length === 0 ? (
-              <p className="text-xs text-amber-300 mt-2">{label.emptyCustomers}</p>
+              <p className="text-xs mt-2" style={{ color: "var(--erp-warning)" }}>{label.emptyCustomers}</p>
             ) : null}
           </Field>
 
@@ -919,7 +908,7 @@ export default function Invoices() {
             <select
               value={form.payment_status}
               onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             >
               <option value="unpaid">{label.unpaid}</option>
               <option value="partial">{label.partial}</option>
@@ -938,7 +927,7 @@ export default function Invoices() {
                   shipping_cost: normalizeNumberInput(e.target.value, language),
                 })
               }
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰" : language === "ar" ? "0" : language === "tr" ? "0" : "0"}
             />
           </Field>
@@ -954,7 +943,7 @@ export default function Invoices() {
                   discount_percent: normalizeNumberInput(e.target.value, language),
                 })
               }
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰٪" : language === "tr" ? "%0" : "0%"}
             />
           </Field>
@@ -970,13 +959,13 @@ export default function Invoices() {
                   tax_percent: normalizeNumberInput(e.target.value, language),
                 })
               }
-              className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰٪" : language === "tr" ? "%0" : "0%"}
             />
           </Field>
 
           <Field label={label.invoiceQR} hint={label.qrHint} icon={<QrCode size={16} />}>
-            <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex items-center justify-between gap-2 cursor-pointer border border-[var(--erp-border)]">
+            <label className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 flex items-center justify-between gap-2 cursor-pointer border border-[var(--erp-border)]">
               <span className="flex items-center gap-2">
                 <QrCode size={18} />
                 {label.invoiceQR}
@@ -1000,13 +989,13 @@ export default function Invoices() {
             const rowTotal = toNumber(item.quantity) * toNumber(item.unit_price);
 
             return (
-              <div key={index} className="bg-[var(--erp-panel)] rounded-3xl p-4 border border-[var(--erp-border)]">
+              <div key={index} className="bg-[var(--erp-panel)] rounded-[var(--erp-radius-lg)] p-4 border border-[var(--erp-border)]">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                   <Field label={`${label.item} ${n(index + 1)}`} icon={<Package size={16} />}>
                     <select
                       value={item.product_id}
                       onChange={(e) => updateItem(index, "product_id", e.target.value)}
-                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                     >
                       <option value="">{label.selectProduct}</option>
                       {products.map((p) => (
@@ -1017,7 +1006,7 @@ export default function Invoices() {
                       ))}
                     </select>
                     {products.length === 0 ? (
-                      <p className="text-xs text-amber-300 mt-2">{label.emptyProducts}</p>
+                      <p className="text-xs mt-2" style={{ color: "var(--erp-warning)" }}>{label.emptyProducts}</p>
                     ) : null}
                   </Field>
 
@@ -1027,7 +1016,7 @@ export default function Invoices() {
                       inputMode="numeric"
                       value={item.quantity}
                       onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       placeholder={label.quantity}
                     />
                   </Field>
@@ -1038,25 +1027,20 @@ export default function Invoices() {
                       inputMode="numeric"
                       value={item.unit_price}
                       onChange={(e) => updateItem(index, "unit_price", e.target.value)}
-                      className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+                      className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       placeholder={label.unitPrice}
                     />
                   </Field>
 
                   <Field label={label.rowTotal}>
-                    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 min-h-[48px] border border-[var(--erp-border)] text-[var(--erp-accent)] font-black">
+                    <div className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 min-h-[48px] border border-[var(--erp-border)] text-[var(--erp-accent)] font-black">
                       {money(rowTotal)}
                     </div>
                   </Field>
 
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    className="bg-red-500/20 text-red-300 rounded-2xl flex items-center justify-center gap-2 p-3 border border-red-400/20"
-                  >
-                    <Trash2 size={18} />
+                  <Button variant="danger" icon={Trash2} onClick={() => removeItem(index)}>
                     {label.remove}
-                  </button>
+                  </Button>
                 </div>
 
                 {warehouses.length > 1 && (
@@ -1065,7 +1049,7 @@ export default function Invoices() {
                       <select
                         value={item.warehouse_id}
                         onChange={(e) => updateItem(index, "warehouse_id", e.target.value)}
-                        className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+                        className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       >
                         <option value="">{fa ? "مشخص نشده" : language === "ar" ? "غير محدد" : language === "tr" ? "Belirtilmedi" : "Unspecified"}</option>
                         {warehouses.filter((w) => w.active).map((w) => (
@@ -1083,29 +1067,19 @@ export default function Invoices() {
         <textarea
           value={form.invoice_note}
           onChange={(e) => setForm({ ...form, invoice_note: e.target.value })}
-          className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full mt-5 border border-[var(--erp-border)] focus:border-cyan-400"
+          className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full mt-5 border border-[var(--erp-border)] focus:border-cyan-400"
           rows={3}
           placeholder={label.notesPlaceholder}
         />
 
         <div className="flex items-center justify-between mt-5 gap-4 flex-wrap">
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={addItem}
-              className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]"
-            >
-              <Plus size={18} />
+            <Button variant="secondary" icon={Plus} onClick={addItem}>
               {label.addItem}
-            </button>
-            <button
-              type="button"
-              onClick={() => setScannerOpen(true)}
-              className="px-5 py-3 rounded-2xl bg-indigo-500/20 text-indigo-200 font-bold flex items-center gap-2 border border-indigo-400/20"
-            >
-              <ScanBarcode size={18} />
+            </Button>
+            <Button variant="secondary" icon={ScanBarcode} onClick={() => setScannerOpen(true)}>
               {fa ? "اسکن بارکد" : language === "ar" ? "مسح الباركود" : language === "tr" ? "Barkod tara" : "Scan barcode"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-2xl font-black text-[var(--erp-accent)]">
@@ -1121,33 +1095,28 @@ export default function Invoices() {
         />
 
         <div className="flex gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={createInvoice}
-            className="mt-5 px-6 py-4 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
-          >
-            {editingId ? <Save size={20} /> : <FileText size={20} />}
+          <Button variant="primary" className="mt-5" icon={editingId ? Save : FileText} onClick={createInvoice}>
             {editingId ? label.saveInvoice : label.createInvoice}
-          </button>
+          </Button>
 
           {editingId && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              className="mt-5"
+              icon={X}
               onClick={() => {
                 setEditingId(null);
                 setForm(emptyForm);
                 setItems([{ ...emptyItem }]);
               }}
-              className="mt-5 px-6 py-4 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
-              <X size={20} />
               {label.cancelEdit}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
         <div className="flex items-center gap-2 mb-4">
           <Calculator className="text-[var(--erp-accent)]" size={24} />
           <h2 className="text-2xl font-black text-[var(--erp-accent)]">{label.summaryTitle}</h2>
@@ -1167,121 +1136,104 @@ export default function Invoices() {
 
       <InvoicePrint invoice={createdInvoice} />
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
         <h2 className="text-2xl font-black text-[var(--erp-accent)] mb-4">{label.invoicesList}</h2>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
-            <thead>
-              <tr className="text-[var(--erp-accent)] text-sm border-b border-[var(--erp-border)]">
-                <th className="text-start py-3">{label.id}</th>
-                <th className="text-start py-3">{label.invoiceType}</th>
-                <th className="text-start py-3">{label.customer}</th>
-                <th className="text-start py-3">{label.total}</th>
-                <th className="text-start py-3">{label.status}</th>
-                <th className="text-start py-3">{fa ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</th>
-              </tr>
-            </thead>
+        <Table>
+          <Thead>
+            <Th>{label.id}</Th>
+            <Th>{label.invoiceType}</Th>
+            <Th>{label.customer}</Th>
+            <Th>{label.total}</Th>
+            <Th>{label.status}</Th>
+            <Th>{fa ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</Th>
+          </Thead>
 
-            <tbody>
-              {invoices.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-[var(--erp-muted)] text-center" colSpan={6}>
-                    {label.noInvoices}
-                  </td>
-                </tr>
-              ) : (
-                invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-t border-[var(--erp-border)]">
-                    <td className="py-4">
-                      #{n(invoice.id)}
-                      {invoice.pending_sync && (
-                        <span className="mx-2 text-xs text-amber-300">{label.offline}</span>
+          <Tbody>
+            {invoices.length === 0 ? (
+              <EmptyRow colSpan={6}>{label.noInvoices}</EmptyRow>
+            ) : (
+              invoices.map((invoice) => (
+                <Tr key={invoice.id}>
+                  <Td>
+                    #{n(invoice.id)}
+                    {invoice.pending_sync && (
+                      <Badge tone="warning" className="mx-2">{label.offline}</Badge>
+                    )}
+                  </Td>
+                  <Td>{invoiceTypeLabel(invoice.invoice_type)}</Td>
+                  <Td>
+                    {customers.find((c) => Number(c.id) === Number(invoice.customer_id))?.name ||
+                      invoice.customer_name ||
+                      invoice.customerName ||
+                      invoice.customer_id ||
+                      "-"}
+                  </Td>
+                  <Td>{money(invoice.total_amount || invoice.total || 0)}</Td>
+                  <Td>
+                    {(() => {
+                      const { tone, Icon } = paymentStatusStyle(invoice.payment_status || invoice.status);
+                      return (
+                        <Badge tone={tone} icon={Icon}>
+                          {paymentStatusLabel(invoice.payment_status || invoice.status)}
+                        </Badge>
+                      );
+                    })()}
+                  </Td>
+                  <Td>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <IconButton
+                        size="sm"
+                        variant="primary"
+                        icon={Printer}
+                        onClick={() => openPrint(invoice)}
+                        label={label.printInvoice}
+                      />
+
+                      <IconButton
+                        size="sm"
+                        variant="secondary"
+                        icon={Edit3}
+                        onClick={() => editInvoice(invoice)}
+                        label={label.edit}
+                      />
+
+                      {invoice.invoice_type === "sale" && (invoice.payment_status || invoice.status) !== "paid" && (
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          icon={CreditCard}
+                          onClick={() => getPaymentLink(invoice)}
+                          label={fa ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
+                          style={{ color: "var(--erp-success)", background: "var(--erp-success-soft)" }}
+                        />
                       )}
-                    </td>
-                    <td>{invoiceTypeLabel(invoice.invoice_type)}</td>
-                    <td>
-                      {customers.find((c) => Number(c.id) === Number(invoice.customer_id))?.name ||
-                        invoice.customer_name ||
-                        invoice.customerName ||
-                        invoice.customer_id ||
-                        "-"}
-                    </td>
-                    <td>{money(invoice.total_amount || invoice.total || 0)}</td>
-                    <td>
-                      {(() => {
-                        const { className, Icon } = paymentStatusStyle(invoice.payment_status || invoice.status);
-                        return (
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl ${className}`}>
-                            <Icon size={15} />
-                            {paymentStatusLabel(invoice.payment_status || invoice.status)}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td>
-                      <div className="flex gap-1.5 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => openPrint(invoice)}
-                          title={label.printInvoice}
-                          aria-label={label.printInvoice}
-                          className="w-9 h-9 shrink-0 rounded-xl bg-[var(--erp-accent)] text-slate-950 inline-flex items-center justify-center"
-                        >
-                          <Printer size={16} />
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={() => editInvoice(invoice)}
-                          title={label.edit}
-                          aria-label={label.edit}
-                          className="w-9 h-9 shrink-0 rounded-xl bg-blue-500/20 text-blue-200 inline-flex items-center justify-center"
-                        >
-                          <Edit3 size={16} />
-                        </button>
+                      {invoice.invoice_type === "sale" && (
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          icon={FileCheck2}
+                          onClick={() => submitEinvoice(invoice)}
+                          label={fa ? "ارسال به مودیان" : language === "ar" ? "إرسال الفاتورة الإلكترونية" : language === "tr" ? "E-fatura gönder" : "Submit e-invoice"}
+                          style={{ color: "var(--erp-accent)", background: "var(--erp-glow)" }}
+                        />
+                      )}
 
-                        {invoice.invoice_type === "sale" && (invoice.payment_status || invoice.status) !== "paid" && (
-                          <button
-                            type="button"
-                            onClick={() => getPaymentLink(invoice)}
-                            title={fa ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
-                            aria-label={fa ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
-                            className="w-9 h-9 shrink-0 rounded-xl bg-emerald-500/20 text-emerald-200 inline-flex items-center justify-center"
-                          >
-                            <CreditCard size={16} />
-                          </button>
-                        )}
-
-                        {invoice.invoice_type === "sale" && (
-                          <button
-                            type="button"
-                            onClick={() => submitEinvoice(invoice)}
-                            title={fa ? "ارسال به مودیان" : language === "ar" ? "إرسال الفاتورة الإلكترونية" : language === "tr" ? "E-fatura gönder" : "Submit e-invoice"}
-                            aria-label={fa ? "ارسال به مودیان" : language === "ar" ? "إرسال الفاتورة الإلكترونية" : language === "tr" ? "E-fatura gönder" : "Submit e-invoice"}
-                            className="w-9 h-9 shrink-0 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center justify-center"
-                          >
-                            <FileCheck2 size={16} />
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => deleteInvoice(invoice)}
-                          title={label.delete}
-                          aria-label={label.delete}
-                          className="w-9 h-9 shrink-0 rounded-xl bg-red-500/20 text-red-300 inline-flex items-center justify-center"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <IconButton
+                        size="sm"
+                        variant="danger"
+                        icon={Trash2}
+                        onClick={() => deleteInvoice(invoice)}
+                        label={label.delete}
+                      />
+                    </div>
+                  </Td>
+                </Tr>
+              ))
+            )}
+          </Tbody>
+        </Table>
       </div>
     </div>
   );
