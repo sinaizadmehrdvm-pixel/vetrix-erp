@@ -300,7 +300,7 @@ export default function Settings() {
         </Notice>
       )}
 
-      <Card icon={<Languages />} title={label.language}>
+      <Card icon={Languages} title={label.language}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
             {languages.map((item) => (
@@ -325,7 +325,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<Globe2 />} title={tr("کشور و استانداردهای محلی", "الدولة والمعايير المحلية", "Ülke ve Yerel Standartlar", "Country & Local Standards")}>
+      <Card icon={Globe2} title={tr("کشور و استانداردهای محلی", "الدولة والمعايير المحلية", "Ülke ve Yerel Standartlar", "Country & Local Standards")}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={tr("کشور محل فعالیت شرکت", "بلد نشاط الشركة", "Şirketin faaliyet gösterdiği ülke", "Company operating country")}>
             <Select
@@ -388,7 +388,7 @@ export default function Settings() {
         </Notice>
       </Card>
 
-      <Card icon={<Building2 />} title={label.company}>
+      <Card icon={Building2} title={label.company}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={tr("نام شرکت", "اسم الشركة", "Şirket Adı", "Company Name")}>
             <Input value={settings.company_name || ""} onChange={(e) => setField("company_name", e.target.value)} />
@@ -428,7 +428,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<Upload />} title={label.media}>
+      <Card icon={Upload} title={label.media}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <UploadBox label={tr("لوگوی شرکت", "شعار الشركة", "Şirket Logosu", "Company Logo")} buttonText={label.imageSelect} value={settings.logo_data} onChange={(file) => handleImage("logo_data", file)} />
           <UploadBox label={tr("مهر شرکت", "ختم الشركة", "Şirket Kaşesi", "Company Stamp")} buttonText={label.imageSelect} value={settings.stamp_data} onChange={(file) => handleImage("stamp_data", file)} />
@@ -436,7 +436,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<FileText />} title={label.invoice}>
+      <Card icon={FileText} title={label.invoice}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Toggle label={tr("نمایش لوگو در فاکتور", "إظهار الشعار في الفاتورة", "Faturada logo göster", "Show logo on invoice")} checked={settings.show_logo} onChange={(v) => setField("show_logo", v)} />
           <Toggle label={tr("نمایش QR Code", "إظهار رمز QR", "QR Kodu göster", "Show QR Code")} checked={settings.show_qr} onChange={(v) => setField("show_qr", v)} />
@@ -450,7 +450,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<Wallet />} title={label.finance}>
+      <Card icon={Wallet} title={label.finance}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={tr("واحد پول", "العملة", "Para Birimi", "Currency")}>
             <Select value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
@@ -477,7 +477,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<Palette />} title={label.appearance}>
+      <Card icon={Palette} title={label.appearance}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-3">
           <Field label={tr("رنگ و تم برنامه", "لون وسمة التطبيق", "Renk ve Tema", "Color theme")}>
@@ -515,7 +515,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card icon={<Bell />} title={label.backupSms}>
+      <Card icon={Bell} title={label.backupSms}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Toggle label={tr("بکاپ خودکار", "نسخ احتياطي تلقائي", "Otomatik Yedekleme", "Auto Backup")} checked={settings.auto_backup} onChange={(v) => setField("auto_backup", v)} />
 
