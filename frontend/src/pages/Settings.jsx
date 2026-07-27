@@ -423,7 +423,7 @@ export default function Settings() {
           </Field>
 
           <Field label={tr("آدرس", "العنوان", "Adres", "Address")}>
-            <Textarea rows={2} value={settings.address || ""} onChange={(e) => setField("address", e.target.value)} />
+            <Textarea rows={2} value={settings.address || ""} onChange={(e) => setField("address", fa ? toPersianDigits(e.target.value) : e.target.value)} />
           </Field>
         </div>
       </Card>
@@ -445,7 +445,7 @@ export default function Settings() {
 
         <div className="mt-4">
           <Field label={tr("متن پایین فاکتور", "نص أسفل الفاتورة", "Fatura Alt Metni", "Invoice Footer")}>
-            <Textarea rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", e.target.value)} />
+            <Textarea rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", fa ? toPersianDigits(e.target.value) : e.target.value)} />
           </Field>
         </div>
       </Card>

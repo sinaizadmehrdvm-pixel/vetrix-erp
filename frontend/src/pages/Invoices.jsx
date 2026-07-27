@@ -1066,7 +1066,7 @@ export default function Invoices() {
 
         <textarea
           value={form.invoice_note}
-          onChange={(e) => setForm({ ...form, invoice_note: e.target.value })}
+          onChange={(e) => setForm({ ...form, invoice_note: faText(e.target.value, language) })}
           className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full mt-5 border border-[var(--erp-border)] focus:border-cyan-400"
           rows={3}
           placeholder={label.notesPlaceholder}

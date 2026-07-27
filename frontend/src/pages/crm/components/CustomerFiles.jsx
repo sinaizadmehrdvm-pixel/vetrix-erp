@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { openAuthenticatedDocument } from "../../../services/api";
 import { formatCalendarDate } from "../../../utils/date";
+import { toPersianDigits } from "../../../localization/helpers";
 
 function fileIcon(file) {
   const name = String(file?.name || file?.file_name || file?.title || "").toLowerCase();
@@ -119,7 +120,7 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
             <option value="service">{tr("خدمات", "خدمة", "Servis", "Service")}</option>
             <option value="other">{tr("سایر", "أخرى", "Diğer", "Other")}</option>
           </select>
-          <textarea value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })} placeholder={tr("توضیحات فایل", "وصف الملف", "Dosya açıklaması", "File description")} rows={3} className="crm-input lg:col-span-2" />
+          <textarea value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات فایل", "وصف الملف", "Dosya açıklaması", "File description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
 
         <button type="button" onClick={submitUpload} disabled={!selectedFile} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-50">

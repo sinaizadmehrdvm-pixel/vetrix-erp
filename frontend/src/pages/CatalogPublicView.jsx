@@ -165,7 +165,7 @@ export default function CatalogPublicView() {
                 className="w-full mb-3 p-3 rounded-xl bg-black/20 border border-white/10 outline-none"
                 placeholder={tr("توضیحات (اختیاری)", "ملاحظات (اختياري)", "Not (isteğe bağlı)", "Note (optional)")}
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
+                onChange={(e) => setNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               />
               {submitError && <div className="mb-3 text-rose-300 text-sm">{submitError}</div>}
               <button

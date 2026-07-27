@@ -278,7 +278,7 @@ export default function RecurringInvoices() {
             className={inputClass}
             placeholder={tr("یادداشت فاکتور (اختیاری)", "ملاحظة الفاتورة (اختياري)", "Fatura notu (isteğe bağlı)", "Invoice note (optional)")}
             value={invoiceNote}
-            onChange={(e) => setInvoiceNote(e.target.value)}
+            onChange={(e) => setInvoiceNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
 
           <button type="submit" disabled={creating} className={buttonClass}>

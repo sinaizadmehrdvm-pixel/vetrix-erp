@@ -740,7 +740,7 @@ export default function CustomerDetails() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-3">
             <textarea
               value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
+              onChange={(e) => setNewNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               rows={3}
               className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
               placeholder={tr(

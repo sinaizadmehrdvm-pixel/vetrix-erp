@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import { API_URL, getAuthHeaders } from "../services/api";
 
 
@@ -636,7 +637,7 @@ export default function FinanceCenter() {
           </Field>
 
           <Field label={fa ? "شرح" : language === "ar" ? "الوصف" : language === "tr" ? "Açıklama" : "Description"}>
-            <textarea className="form-input" rows={3} value={transactionForm.description} onChange={(e) => setTransactionForm((p) => ({ ...p, description: e.target.value }))} />
+            <textarea className="form-input" rows={3} value={transactionForm.description} onChange={(e) => setTransactionForm((p) => ({ ...p, description: fa ? toPersianDigits(e.target.value) : e.target.value }))} />
           </Field>
 
           <button onClick={createTransaction} className="w-full mt-4 px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black">

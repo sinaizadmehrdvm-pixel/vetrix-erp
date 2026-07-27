@@ -2,6 +2,7 @@ import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, Plus, Refr
 import { useMemo, useState } from "react";
 import JalaliDateField from "../../../components/forms/JalaliDateField";
 import { toJalali, toHijriText } from "../../../utils/date";
+import { toPersianDigits } from "../../../localization/helpers";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -174,7 +175,7 @@ export default function CustomerTasks({
               <option value="cancelled">{tr("لغو شده", "ملغاة", "İptal edildi", "Cancelled")}</option>
             </select>
           </div>
-          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={tr("توضیحات وظیفه", "وصف المهمة", "Görev açıklaması", "Task description")} rows={3} className="crm-input lg:col-span-2" />
+          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات وظیفه", "وصف المهمة", "Görev açıklaması", "Task description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
         <button type="button" onClick={submitTask} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18} />{tr("ثبت وظیفه", "حفظ المهمة", "Görevi kaydet", "Save task")}</button>
       </div>

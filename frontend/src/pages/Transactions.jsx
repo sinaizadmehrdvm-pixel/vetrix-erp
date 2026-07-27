@@ -589,7 +589,7 @@ export default function Transactions() {
 
         <textarea
           value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          onChange={(e) => setForm({ ...form, description: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
           placeholder={tr("توضیحات تکمیلی", "وصف إضافي", "Ek açıklama", "Additional description")}
           className={`${inputClass} w-full mt-3`}
           rows={3}

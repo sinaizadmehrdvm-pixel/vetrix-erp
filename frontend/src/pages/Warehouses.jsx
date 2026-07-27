@@ -260,7 +260,7 @@ export default function Warehouses() {
             className={inputClass + " md:col-span-2"}
             placeholder={language === "fa" ? "یادداشت (اختیاری)" : language === "ar" ? "ملاحظة (اختياري)" : language === "tr" ? "Not (isteğe bağlı)" : "Note (optional)"}
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => setNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
           <button type="submit" disabled={transferring} className={buttonClass}>
             <ArrowRightLeft size={16} />
