@@ -369,7 +369,7 @@ export default function Expenses() {
                   amount: normalizeAmount(e.target.value, fa),
                 })
               }
-              placeholder={fa ? "۰" : "0"}
+              placeholder={fa ? "۰" : language === "ar" ? "0" : language === "tr" ? "0" : "0"}
             />
           </Field>
 

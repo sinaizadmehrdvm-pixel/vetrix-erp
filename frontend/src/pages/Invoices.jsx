@@ -384,7 +384,7 @@ export default function Invoices() {
     try {
       const result = await lookupProductByCode(code);
       if (result.status !== "found") {
-        toast.error(fa ? "کالایی با این بارکد پیدا نشد." : "No product found for that barcode.");
+        toast.error(fa ? "کالایی با این بارکد پیدا نشد." : language === "ar" ? "لم يتم العثور على منتج بهذا الباركود." : language === "tr" ? "Bu barkoda ait ürün bulunamadı." : "No product found for that barcode.");
         return;
       }
       const product = result.product;
@@ -400,7 +400,7 @@ export default function Invoices() {
         void applyPriceQuote(nextIndex, product.id, 1);
       }
     } catch (err) {
-      toast.error(err.message || (fa ? "خطا در جستجوی بارکد" : "Barcode lookup failed"));
+      toast.error(err.message || (fa ? "خطا در جستجوی بارکد" : language === "ar" ? "خطأ في البحث عن الباركود" : language === "tr" ? "Barkod arama başarısız oldu" : "Barcode lookup failed"));
     }
   }
 
@@ -763,7 +763,7 @@ export default function Invoices() {
       const result = await requestInvoicePaymentLink(invoice.id);
       await navigator.clipboard.writeText(result.redirect_url);
       toast.success(
-        fa ? "لینک پرداخت کپی شد." : "Payment link copied to clipboard."
+        fa ? "لینک پرداخت کپی شد." : language === "ar" ? "تم نسخ رابط الدفع." : language === "tr" ? "Ödeme bağlantısı panoya kopyalandı." : "Payment link copied to clipboard."
       );
     } catch (error) {
       toast.error(error.message);
@@ -863,7 +863,7 @@ export default function Invoices() {
             className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm flex items-center gap-1"
           >
             <RefreshCw size={14} />
-            {fa ? "همگام‌سازی الان" : "Sync now"}
+            {fa ? "همگام‌سازی الان" : language === "ar" ? "مزامنة الآن" : language === "tr" ? "Şimdi senkronize et" : "Sync now"}
           </button>
         </div>
       ) : null}
@@ -939,7 +939,7 @@ export default function Invoices() {
                 })
               }
               className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-              placeholder={fa ? "۰" : "0"}
+              placeholder={fa ? "۰" : language === "ar" ? "0" : language === "tr" ? "0" : "0"}
             />
           </Field>
 
@@ -1061,13 +1061,13 @@ export default function Invoices() {
 
                 {warehouses.length > 1 && (
                   <div className="mt-3">
-                    <Field label={fa ? "انبار/شعبه (اختیاری)" : "Warehouse (optional)"}>
+                    <Field label={fa ? "انبار/شعبه (اختیاری)" : language === "ar" ? "المستودع/الفرع (اختياري)" : language === "tr" ? "Depo/Şube (opsiyonel)" : "Warehouse (optional)"}>
                       <select
                         value={item.warehouse_id}
                         onChange={(e) => updateItem(index, "warehouse_id", e.target.value)}
                         className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
                       >
-                        <option value="">{fa ? "مشخص نشده" : "Unspecified"}</option>
+                        <option value="">{fa ? "مشخص نشده" : language === "ar" ? "غير محدد" : language === "tr" ? "Belirtilmedi" : "Unspecified"}</option>
                         {warehouses.filter((w) => w.active).map((w) => (
                           <option key={w.id} value={w.id}>{w.name}</option>
                         ))}
@@ -1104,7 +1104,7 @@ export default function Invoices() {
               className="px-5 py-3 rounded-2xl bg-indigo-500/20 text-indigo-200 font-bold flex items-center gap-2 border border-indigo-400/20"
             >
               <ScanBarcode size={18} />
-              {fa ? "اسکن بارکد" : "Scan barcode"}
+              {fa ? "اسکن بارکد" : language === "ar" ? "مسح الباركود" : language === "tr" ? "Barkod tara" : "Scan barcode"}
             </button>
           </div>
 
@@ -1245,8 +1245,8 @@ export default function Invoices() {
                           <button
                             type="button"
                             onClick={() => getPaymentLink(invoice)}
-                            title={fa ? "لینک پرداخت" : "Payment link"}
-                            aria-label={fa ? "لینک پرداخت" : "Payment link"}
+                            title={fa ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
+                            aria-label={fa ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
                             className="w-9 h-9 shrink-0 rounded-xl bg-emerald-500/20 text-emerald-200 inline-flex items-center justify-center"
                           >
                             <CreditCard size={16} />
@@ -1257,8 +1257,8 @@ export default function Invoices() {
                           <button
                             type="button"
                             onClick={() => submitEinvoice(invoice)}
-                            title={fa ? "ارسال به مودیان" : "Submit e-invoice"}
-                            aria-label={fa ? "ارسال به مودیان" : "Submit e-invoice"}
+                            title={fa ? "ارسال به مودیان" : language === "ar" ? "إرسال الفاتورة الإلكترونية" : language === "tr" ? "E-fatura gönder" : "Submit e-invoice"}
+                            aria-label={fa ? "ارسال به مودیان" : language === "ar" ? "إرسال الفاتورة الإلكترونية" : language === "tr" ? "E-fatura gönder" : "Submit e-invoice"}
                             className="w-9 h-9 shrink-0 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center justify-center"
                           >
                             <FileCheck2 size={16} />

@@ -137,7 +137,7 @@ export default function PricingTiers() {
                 type="text"
                 inputMode="numeric"
                 className={inputClass + " mb-0"}
-                placeholder={fa ? "حداقل تعداد" : "Min quantity"}
+                placeholder={fa ? "حداقل تعداد" : language === "ar" ? "الحد الأدنى للكمية" : language === "tr" ? "Asgari miktar" : "Min quantity"}
                 value={language === "fa" ? toPersianDigits(minQuantity) : minQuantity}
                 onChange={(e) => setMinQuantity(cleanNumberInput(e.target.value))}
               />
@@ -145,7 +145,7 @@ export default function PricingTiers() {
                 type="text"
                 inputMode="numeric"
                 className={inputClass + " mb-0"}
-                placeholder={fa ? "قیمت واحد" : "Unit price"}
+                placeholder={fa ? "قیمت واحد" : language === "ar" ? "سعر الوحدة" : language === "tr" ? "Birim fiyat" : "Unit price"}
                 value={language === "fa" ? toPersianDigits(unitPrice) : unitPrice}
                 onChange={(e) => setUnitPrice(cleanNumberInput(e.target.value))}
               />
@@ -154,9 +154,9 @@ export default function PricingTiers() {
                 value={customerGroup}
                 onChange={(e) => setCustomerGroup(e.target.value)}
               >
-                <option value="">{fa ? "همه مشتریان" : "All customers"}</option>
-                <option value="retail">{fa ? "فقط خرده‌فروشی" : "Retail only"}</option>
-                <option value="wholesale">{fa ? "فقط عمده‌فروشی" : "Wholesale only"}</option>
+                <option value="">{fa ? "همه مشتریان" : language === "ar" ? "جميع العملاء" : language === "tr" ? "Tüm müşteriler" : "All customers"}</option>
+                <option value="retail">{fa ? "فقط خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة فقط" : language === "tr" ? "Sadece perakende" : "Retail only"}</option>
+                <option value="wholesale">{fa ? "فقط عمده‌فروشی" : language === "ar" ? "بيع بالجملة فقط" : language === "tr" ? "Sadece toptan" : "Wholesale only"}</option>
               </select>
               <button
                 type="submit"
@@ -164,22 +164,22 @@ export default function PricingTiers() {
                 className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 <Plus size={16} />
-                {fa ? "افزودن پله" : "Add tier"}
+                {fa ? "افزودن پله" : language === "ar" ? "إضافة شريحة" : language === "tr" ? "Kademe ekle" : "Add tier"}
               </button>
             </form>
 
             <div className="space-y-2">
               {tiers.length === 0 ? (
-                <p className="text-[var(--erp-muted)]">{fa ? "پله قیمتی تعریف نشده است." : "No price tiers yet."}</p>
+                <p className="text-[var(--erp-muted)]">{fa ? "پله قیمتی تعریف نشده است." : language === "ar" ? "لم يتم تعريف أي شريحة سعرية بعد." : language === "tr" ? "Henüz fiyat kademesi tanımlanmadı." : "No price tiers yet."}</p>
               ) : (
                 tiers.map((tier) => (
                   <div key={tier.id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                     <div className="text-sm">
-                      {fa ? "از " : "From "} {n(tier.min_quantity)} {fa ? "عدد به بعد: " : "units: "}
+                      {fa ? "از " : language === "ar" ? "من " : language === "tr" ? "" : "From "} {n(tier.min_quantity)} {fa ? "عدد به بعد: " : language === "ar" ? "وحدة فأكثر: " : language === "tr" ? "birimden itibaren: " : "units: "}
                       <span className="font-black text-[var(--erp-accent)]">{money(tier.unit_price)}</span>
                       {tier.customer_group && (
                         <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)]">
-                          {tier.customer_group === "wholesale" ? (fa ? "عمده" : "wholesale") : (fa ? "خرده" : "retail")}
+                          {tier.customer_group === "wholesale" ? (fa ? "عمده" : language === "ar" ? "جملة" : language === "tr" ? "toptan" : "wholesale") : (fa ? "خرده" : language === "ar" ? "تجزئة" : language === "tr" ? "perakende" : "retail")}
                         </span>
                       )}
                     </div>

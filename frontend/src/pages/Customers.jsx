@@ -564,9 +564,9 @@ export default function Customers() {
       await saveCache([]);
       setEditingId(null);
       setForm(emptyForm);
-      alert(fa ? "اطلاعات حسابداری پاک شد" : "Accounting data cleared");
+      alert(fa ? "اطلاعات حسابداری پاک شد" : language === "ar" ? "تم مسح البيانات المحاسبية" : language === "tr" ? "Muhasebe verileri temizlendi" : "Accounting data cleared");
     } catch (error) {
-      alert(error.message || (fa ? "خطا در پاکسازی اطلاعات" : "Reset failed"));
+      alert(error.message || (fa ? "خطا در پاکسازی اطلاعات" : language === "ar" ? "خطأ في مسح البيانات" : language === "tr" ? "Verileri temizleme başarısız oldu" : "Reset failed"));
     }
   }
 
@@ -574,16 +574,16 @@ export default function Customers() {
     const rows = [
       [
         "ID",
-        fa ? "نام" : "Name",
-        fa ? "نوع" : "Type",
-        fa ? "تلفن" : "Phone",
-        fa ? "امتیاز CRM" : "CRM Score",
-        fa ? "رتبه" : "Rank",
-        fa ? "وضعیت" : "Status",
-        fa ? "بدهکار" : "Debtor",
-        fa ? "بستانکار" : "Creditor",
-        fa ? "مانده" : "Balance",
-        fa ? "پیشنهاد پیگیری" : "Follow-up Suggestion",
+        fa ? "نام" : language === "ar" ? "الاسم" : language === "tr" ? "Ad" : "Name",
+        fa ? "نوع" : language === "ar" ? "النوع" : language === "tr" ? "Tür" : "Type",
+        fa ? "تلفن" : language === "ar" ? "الهاتف" : language === "tr" ? "Telefon" : "Phone",
+        fa ? "امتیاز CRM" : language === "ar" ? "درجة CRM" : language === "tr" ? "CRM Puanı" : "CRM Score",
+        fa ? "رتبه" : language === "ar" ? "الرتبة" : language === "tr" ? "Derece" : "Rank",
+        fa ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status",
+        fa ? "بدهکار" : language === "ar" ? "مدين" : language === "tr" ? "Borçlu" : "Debtor",
+        fa ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacaklı" : "Creditor",
+        fa ? "مانده" : language === "ar" ? "الرصيد" : language === "tr" ? "Bakiye" : "Balance",
+        fa ? "پیشنهاد پیگیری" : language === "ar" ? "اقتراح المتابعة" : language === "tr" ? "Takip Önerisi" : "Follow-up Suggestion",
       ],
       ...filtered.map((item) => {
         const score = crmScore(item);
@@ -637,7 +637,7 @@ export default function Customers() {
             className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"
           >
             <RefreshCcw size={18} />
-            {fa ? "به‌روزرسانی" : "Refresh"}
+            {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
           </button>
 
           <button
@@ -645,7 +645,7 @@ export default function Customers() {
             className="px-4 py-3 rounded-2xl bg-emerald-500/15 text-emerald-200 border border-emerald-400/30 font-black flex items-center gap-2"
           >
             <Download size={18} />
-            {fa ? "خروجی CRM" : "CRM Export"}
+            {fa ? "خروجی CRM" : language === "ar" ? "تصدير CRM" : language === "tr" ? "CRM Dışa Aktar" : "CRM Export"}
           </button>
 
           <button
@@ -653,7 +653,7 @@ export default function Customers() {
             className="px-4 py-3 rounded-2xl bg-rose-500/20 text-rose-200 border border-rose-400/30 font-black flex items-center gap-2"
           >
             <AlertTriangle size={18} />
-            {fa ? "پاکسازی تست‌ها" : "Clear test data"}
+            {fa ? "پاکسازی تست‌ها" : language === "ar" ? "مسح بيانات الاختبار" : language === "tr" ? "Test verilerini temizle" : "Clear test data"}
           </button>
         </div>
       </div>
@@ -682,7 +682,7 @@ export default function Customers() {
             onClick={() => void syncPendingParties()}
             className="px-3 py-2 rounded-xl bg-amber-400 text-black font-bold text-sm"
           >
-            {fa ? "همگام‌سازی الان" : "Sync now"}
+            {fa ? "همگام‌سازی الان" : language === "ar" ? "مزامنة الآن" : language === "tr" ? "Şimdi senkronize et" : "Sync now"}
           </button>
         </div>
       )}
@@ -711,19 +711,19 @@ export default function Customers() {
         />
         <SummaryCard
           icon={<Crown size={22} />}
-          title={fa ? "مشتریان VIP" : "VIP customers"}
+          title={fa ? "مشتریان VIP" : language === "ar" ? "عملاء VIP" : language === "tr" ? "VIP müşteriler" : "VIP customers"}
           value={n(summary.vipCount)}
           color="#fde047"
         />
         <SummaryCard
           icon={<PhoneCall size={22} />}
-          title={fa ? "نیازمند پیگیری" : "Need follow-up"}
+          title={fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Need follow-up"}
           value={n(summary.followupCount)}
           color="#fbbf24"
         />
         <SummaryCard
           icon={<ShieldCheck size={22} />}
-          title={fa ? "ریسک اعتباری" : "Credit risk"}
+          title={fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk"}
           value={n(summary.riskCount)}
           color="#fb7185"
         />
@@ -766,8 +766,8 @@ export default function Customers() {
             onChange={(e) => setForm({ ...form, pricing_group: e.target.value })}
             className={inputClass}
           >
-            <option value="retail">{fa ? "خرده‌فروشی" : "Retail"}</option>
-            <option value="wholesale">{fa ? "عمده‌فروشی" : "Wholesale"}</option>
+            <option value="retail">{fa ? "خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة" : language === "tr" ? "Perakende" : "Retail"}</option>
+            <option value="wholesale">{fa ? "عمده‌فروشی" : language === "ar" ? "بيع بالجملة" : language === "tr" ? "Toptan" : "Wholesale"}</option>
           </select>
 
           <input
@@ -912,7 +912,7 @@ export default function Customers() {
             onChange={(e) => setTypeFilter(e.target.value)}
             className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
           >
-            <option value="all">{fa ? "همه" : "All"}</option>
+            <option value="all">{fa ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"}</option>
             <option value="customer">{t("customerParty")}</option>
             <option value="supplier">{t("supplierParty")}</option>
             <option value="staff">{t("staffParty")}</option>
@@ -925,11 +925,11 @@ export default function Customers() {
             onChange={(e) => setCrmFilter(e.target.value)}
             className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
           >
-            <option value="all">{fa ? "همه CRM" : "All CRM"}</option>
-            <option value="vip">{fa ? "VIP" : "VIP"}</option>
-            <option value="followup">{fa ? "نیازمند پیگیری" : "Needs follow-up"}</option>
-            <option value="risk">{fa ? "ریسک اعتباری" : "Credit risk"}</option>
-            <option value="settled">{fa ? "تسویه" : "Settled"}</option>
+            <option value="all">{fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM"}</option>
+            <option value="vip">{fa ? "VIP" : language === "ar" ? "VIP" : language === "tr" ? "VIP" : "VIP"}</option>
+            <option value="followup">{fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Needs follow-up"}</option>
+            <option value="risk">{fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk"}</option>
+            <option value="settled">{fa ? "تسویه" : language === "ar" ? "مسدد" : language === "tr" ? "Kapandı" : "Settled"}</option>
           </select>
 
           <select
@@ -937,10 +937,10 @@ export default function Customers() {
             onChange={(e) => setSortMode(e.target.value)}
             className="bg-[var(--erp-bg-soft)] rounded-xl p-2 outline-none text-[var(--erp-text)]"
           >
-            <option value="score_desc">{fa ? "امتیاز بیشتر" : "Top score"}</option>
-            <option value="debt_desc">{fa ? "بدهی بیشتر" : "Highest debt"}</option>
-            <option value="credit_desc">{fa ? "بستانکاری بیشتر" : "Highest credit"}</option>
-            <option value="name_asc">{fa ? "نام" : "Name"}</option>
+            <option value="score_desc">{fa ? "امتیاز بیشتر" : language === "ar" ? "أعلى درجة" : language === "tr" ? "En yüksek puan" : "Top score"}</option>
+            <option value="debt_desc">{fa ? "بدهی بیشتر" : language === "ar" ? "أعلى دين" : language === "tr" ? "En yüksek borç" : "Highest debt"}</option>
+            <option value="credit_desc">{fa ? "بستانکاری بیشتر" : language === "ar" ? "أعلى رصيد دائن" : language === "tr" ? "En yüksek alacak" : "Highest credit"}</option>
+            <option value="name_asc">{fa ? "نام" : language === "ar" ? "الاسم" : language === "tr" ? "Ad" : "Name"}</option>
           </select>
         </div>
 
@@ -949,7 +949,7 @@ export default function Customers() {
             <thead>
               <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
                 <th className="p-3 text-right">{t("party")}</th>
-                <th className="p-3 text-right">{fa ? "CRM" : "CRM"}</th>
+                <th className="p-3 text-right">{fa ? "CRM" : language === "ar" ? "CRM" : language === "tr" ? "CRM" : "CRM"}</th>
                 <th className="p-3 text-right">{t("partyType")}</th>
                 <th className="p-3 text-right">{t("phone")}</th>
                 <th className="p-3 text-right">{t("debtor")}</th>
@@ -979,7 +979,7 @@ export default function Customers() {
                         {faText(item.name, fa)}
                         {item.pending_sync && (
                           <span className="mx-2 text-xs text-amber-300">
-                            {fa ? "آفلاین" : "Offline"}
+                            {fa ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline"}
                           </span>
                         )}
                       </div>
@@ -1047,7 +1047,7 @@ export default function Customers() {
                           className="px-3 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl flex items-center gap-1"
                         >
                           <Eye size={15} />
-                          {fa ? "پرونده ۳۶۰°" : "360° Profile"}
+                          {fa ? "پرونده ۳۶۰°" : language === "ar" ? "ملف 360°" : language === "tr" ? "360° Profil" : "360° Profile"}
                         </Link>
 
                         <button
@@ -1074,7 +1074,7 @@ export default function Customers() {
               {!loading && filtered.length === 0 && (
                 <tr>
                   <td colSpan="8" className="p-8 text-center text-[var(--erp-muted)]">
-                    {fa ? "طرف‌حسابی ثبت نشده است" : "No parties found"}
+                    {fa ? "طرف‌حسابی ثبت نشده است" : language === "ar" ? "لا يوجد أطراف حساب" : language === "tr" ? "Cari bulunamadı" : "No parties found"}
                   </td>
                 </tr>
               )}
