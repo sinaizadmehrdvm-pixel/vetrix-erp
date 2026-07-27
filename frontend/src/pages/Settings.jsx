@@ -16,6 +16,10 @@ import {
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useTheme } from "../theme/useTheme";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Notice from "../components/ui/Notice";
+import Field, { Input, Select, Textarea } from "../components/ui/Field";
 
 const emptySettings = {
   company_name: "Vetrix ERP",
@@ -56,9 +60,6 @@ const emptySettings = {
   sms_panel: "",
   sms_api_key: "",
 };
-
-const inputClass =
-  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
 
 function toPersianDigits(value) {
   return String(value ?? "").replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
@@ -155,6 +156,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState("success");
 
   const label = {
     title: fa ? "تنظیمات" : language === "ar" ? "الإعدادات" : language === "tr" ? "Ayarlar" : "Settings",
@@ -200,6 +202,7 @@ export default function Settings() {
     } catch (error) {
       console.error("Settings loading error:", error);
       setMessage(label.error);
+      setMessageTone("danger");
     } finally {
       setLoading(false);
     }
@@ -235,10 +238,12 @@ export default function Settings() {
       }
 
       setMessage(label.saved);
+      setMessageTone("success");
       await loadSettings();
     } catch (error) {
       console.error("Settings save error:", error);
       setMessage(label.error);
+      setMessageTone("danger");
     } finally {
       setSaving(false);
     }
@@ -279,43 +284,31 @@ export default function Settings() {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={loadSettings}
-            disabled={loading}
-            className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)] disabled:opacity-60"
-          >
-            <RefreshCw size={18} />
+          <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={loadSettings}>
             {loading ? label.loading : label.refresh}
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={saveSettings}
-            disabled={saving}
-            className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
-          >
-            <Save size={18} />
+          <Button variant="primary" icon={Save} loading={saving} onClick={saveSettings}>
             {saving ? label.saving : label.save}
-          </button>
+          </Button>
         </div>
       </div>
 
       {message && (
-        <div className="rounded-2xl p-4 bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-accent)] font-bold">
+        <Notice tone={messageTone} className="font-bold">
           {message}
-        </div>
+        </Notice>
       )}
 
-      <Section icon={<Languages />} title={label.language}>
+      <Card icon={<Languages />} title={label.language}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
+          <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
             {languages.map((item) => (
               <option key={item.code} value={item.code}>
                 {item.label}
               </option>
             ))}
-          </select>
+          </Select>
 
           <InfoCard
             title={fa ? "حالت فعلی" : language === "ar" ? "الوضع الحالي" : language === "tr" ? "Mevcut Mod" : "Current Mode"}
@@ -330,13 +323,12 @@ export default function Settings() {
             }
           />
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<Globe2 />} title={tr("کشور و استانداردهای محلی", "الدولة والمعايير المحلية", "Ülke ve Yerel Standartlar", "Country & Local Standards")}>
+      <Card icon={<Globe2 />} title={tr("کشور و استانداردهای محلی", "الدولة والمعايير المحلية", "Ülke ve Yerel Standartlar", "Country & Local Standards")}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={tr("کشور محل فعالیت شرکت", "بلد نشاط الشركة", "Şirketin faaliyet gösterdiği ülke", "Company operating country")}>
-            <select
-              className={inputClass}
+            <Select
               value={country}
               onChange={(event) => {
                 const next = countries.find((item) => item.code === event.target.value);
@@ -373,7 +365,7 @@ export default function Settings() {
                   {item.name[language] || item.name.en}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           <InfoCard title={tr("ارز و اعشار", "العملة والكسور العشرية", "Para birimi ve ondalık", "Currency & decimals")} value={`${countryProfile.currency} · ${showDigits(countryProfile.currencyDigits, fa)}`} />
@@ -383,8 +375,8 @@ export default function Settings() {
           <InfoCard title={tr("شروع سال مالی", "بداية السنة المالية", "Mali yıl başlangıcı", "Fiscal year start")} value={countryProfile.fiscalYearStart} />
         </div>
 
-        <div className="mt-4 rounded-2xl p-4 flex items-start gap-3" style={{ background: "var(--erp-glow)", border: "1px solid var(--erp-border)" }}>
-          <CalendarDays className="erp-accent shrink-0" />
+        <Notice tone="info" className="mt-4 flex items-start gap-3">
+          <CalendarDays className="shrink-0" />
           <p className="text-sm">
             {tr(
               "تغییر کشور، قالب پول، تاریخ، ساعت، تقویم، منطقه زمانی و واحدها را هماهنگ می‌کند. نرخ مالیات تا زمان تأیید حسابدار همان کشور به‌صورت قابل‌ویرایش باقی می‌ماند.",
@@ -393,58 +385,58 @@ export default function Settings() {
               "Changing country aligns money, dates, calendar, time zone, and units. Tax rates remain editable until verified by a local accountant."
             )}
           </p>
-        </div>
-      </Section>
+        </Notice>
+      </Card>
 
-      <Section icon={<Building2 />} title={label.company}>
+      <Card icon={<Building2 />} title={label.company}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={tr("نام شرکت", "اسم الشركة", "Şirket Adı", "Company Name")}>
-            <input className={inputClass} value={settings.company_name || ""} onChange={(e) => setField("company_name", e.target.value)} />
+            <Input value={settings.company_name || ""} onChange={(e) => setField("company_name", e.target.value)} />
           </Field>
 
           <Field label={tr("نام مدیر", "اسم المدير", "Yönetici Adı", "Manager Name")}>
-            <input className={inputClass} value={settings.manager_name || ""} onChange={(e) => setField("manager_name", e.target.value)} />
+            <Input value={settings.manager_name || ""} onChange={(e) => setField("manager_name", e.target.value)} />
           </Field>
 
           <Field label={tr("تلفن", "الهاتف", "Telefon", "Phone")}>
-            <input className={inputClass} value={showDigits(settings.phone, fa)} onChange={(e) => setNumberField("phone", e.target.value)} />
+            <Input value={showDigits(settings.phone, fa)} onChange={(e) => setNumberField("phone", e.target.value)} />
           </Field>
 
           <Field label={tr("موبایل", "الجوال", "Cep Telefonu", "Mobile")}>
-            <input className={inputClass} value={showDigits(settings.mobile, fa)} onChange={(e) => setNumberField("mobile", e.target.value)} />
+            <Input value={showDigits(settings.mobile, fa)} onChange={(e) => setNumberField("mobile", e.target.value)} />
           </Field>
 
           <Field label={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")}>
-            <input className={inputClass} value={settings.email || ""} onChange={(e) => setField("email", e.target.value)} />
+            <Input value={settings.email || ""} onChange={(e) => setField("email", e.target.value)} />
           </Field>
 
           <Field label={tr("وب‌سایت", "الموقع الإلكتروني", "Web Sitesi", "Website")}>
-            <input className={inputClass} value={settings.website || ""} onChange={(e) => setField("website", e.target.value)} />
+            <Input value={settings.website || ""} onChange={(e) => setField("website", e.target.value)} />
           </Field>
 
           <Field label={tr("شناسه ملی", "الرقم الوطني", "Ulusal Kimlik No", "National ID")}>
-            <input className={inputClass} value={showDigits(settings.national_id, fa)} onChange={(e) => setNumberField("national_id", e.target.value)} />
+            <Input value={showDigits(settings.national_id, fa)} onChange={(e) => setNumberField("national_id", e.target.value)} />
           </Field>
 
           <Field label={tr("کد اقتصادی", "الرمز الاقتصادي", "Ekonomik Kod", "Economic Code")}>
-            <input className={inputClass} value={showDigits(settings.economic_code, fa)} onChange={(e) => setNumberField("economic_code", e.target.value)} />
+            <Input value={showDigits(settings.economic_code, fa)} onChange={(e) => setNumberField("economic_code", e.target.value)} />
           </Field>
 
           <Field label={tr("آدرس", "العنوان", "Adres", "Address")}>
-            <textarea className={inputClass} rows={2} value={settings.address || ""} onChange={(e) => setField("address", e.target.value)} />
+            <Textarea rows={2} value={settings.address || ""} onChange={(e) => setField("address", e.target.value)} />
           </Field>
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<Upload />} title={label.media}>
+      <Card icon={<Upload />} title={label.media}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <UploadBox label={tr("لوگوی شرکت", "شعار الشركة", "Şirket Logosu", "Company Logo")} buttonText={label.imageSelect} value={settings.logo_data} onChange={(file) => handleImage("logo_data", file)} />
           <UploadBox label={tr("مهر شرکت", "ختم الشركة", "Şirket Kaşesi", "Company Stamp")} buttonText={label.imageSelect} value={settings.stamp_data} onChange={(file) => handleImage("stamp_data", file)} />
           <UploadBox label={tr("امضا", "التوقيع", "İmza", "Signature")} buttonText={label.imageSelect} value={settings.signature_data} onChange={(file) => handleImage("signature_data", file)} />
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<FileText />} title={label.invoice}>
+      <Card icon={<FileText />} title={label.invoice}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Toggle label={tr("نمایش لوگو در فاکتور", "إظهار الشعار في الفاتورة", "Faturada logo göster", "Show logo on invoice")} checked={settings.show_logo} onChange={(v) => setField("show_logo", v)} />
           <Toggle label={tr("نمایش QR Code", "إظهار رمز QR", "QR Kodu göster", "Show QR Code")} checked={settings.show_qr} onChange={(v) => setField("show_qr", v)} />
@@ -453,39 +445,39 @@ export default function Settings() {
 
         <div className="mt-4">
           <Field label={tr("متن پایین فاکتور", "نص أسفل الفاتورة", "Fatura Alt Metni", "Invoice Footer")}>
-            <textarea className={inputClass} rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", e.target.value)} />
+            <Textarea rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", e.target.value)} />
           </Field>
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<Wallet />} title={label.finance}>
+      <Card icon={<Wallet />} title={label.finance}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={tr("واحد پول", "العملة", "Para Birimi", "Currency")}>
-            <select className={inputClass} value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
+            <Select value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
               <option value="IRR">{tr("ریال ایران (IRR)", "الريال الإيراني (IRR)", "İran riyali (IRR)", "Iranian rial (IRR)")}</option>
               <option value="تومان">{tr("تومان (واحد نمایشی)", "تومان (وحدة عرض)", "Tomen (görüntüleme birimi)", "Toman (display unit)")}</option>
               <option value="EUR">{tr("یورو (EUR)", "يورو (EUR)", "Euro (EUR)", "Euro (EUR)")}</option>
               <option value="AED">{tr("درهم امارات (AED)", "الدرهم الإماراتي (AED)", "BAE dirhemi (AED)", "UAE dirham (AED)")}</option>
               <option value="GBP">{tr("پوند بریتانیا (GBP)", "الجنيه الإسترليني (GBP)", "İngiliz sterlini (GBP)", "Pound sterling (GBP)")}</option>
               <option value="USD">{tr("دلار آمریکا (USD)", "الدولار الأمريكي (USD)", "ABD doları (USD)", "US dollar (USD)")}</option>
-            </select>
+            </Select>
           </Field>
 
           <Field label={tr("درصد مالیات پیش‌فرض", "نسبة الضريبة الافتراضية", "Varsayılan Vergi Oranı", "Default Tax Percent")}>
-            <input className={inputClass} value={showDigits(settings.tax_percent, fa)} onChange={(e) => setNumberField("tax_percent", e.target.value)} />
+            <Input value={showDigits(settings.tax_percent, fa)} onChange={(e) => setNumberField("tax_percent", e.target.value)} />
           </Field>
 
           <Field label={tr("درصد تخفیف پیش‌فرض", "نسبة الخصم الافتراضية", "Varsayılan İndirim Oranı", "Default Discount Percent")}>
-            <input className={inputClass} value={showDigits(settings.discount_percent, fa)} onChange={(e) => setNumberField("discount_percent", e.target.value)} />
+            <Input value={showDigits(settings.discount_percent, fa)} onChange={(e) => setNumberField("discount_percent", e.target.value)} />
           </Field>
 
           <Field label={tr("سال مالی", "السنة المالية", "Mali Yıl", "Fiscal Year")}>
-            <input className={inputClass} value={showDigits(settings.fiscal_year, fa)} onChange={(e) => setNumberField("fiscal_year", e.target.value)} />
+            <Input value={showDigits(settings.fiscal_year, fa)} onChange={(e) => setNumberField("fiscal_year", e.target.value)} />
           </Field>
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<Palette />} title={label.appearance}>
+      <Card icon={<Palette />} title={label.appearance}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-3">
           <Field label={tr("رنگ و تم برنامه", "لون وسمة التطبيق", "Renk ve Tema", "Color theme")}>
@@ -498,7 +490,7 @@ export default function Settings() {
                     setTheme(item.id);
                     setField("theme", item.id);
                   }}
-                  className="rounded-2xl p-3 text-start font-black border"
+                  className="rounded-[var(--erp-radius-md)] p-3 text-start font-black border"
                   style={{
                     background: theme === item.id ? "var(--erp-glow)" : "var(--erp-panel-solid)",
                     borderColor: theme === item.id ? item.accent : "var(--erp-border)",
@@ -516,29 +508,29 @@ export default function Settings() {
           </div>
 
           <Field label={tr("حداقل موجودی پیش‌فرض", "الحد الأدنى الافتراضي للمخزون", "Varsayılan Düşük Stok", "Default Low Stock")}>
-            <input className={inputClass} value={showDigits(settings.low_stock_default, fa)} onChange={(e) => setNumberField("low_stock_default", e.target.value)} />
+            <Input value={showDigits(settings.low_stock_default, fa)} onChange={(e) => setNumberField("low_stock_default", e.target.value)} />
           </Field>
 
           <InfoCard title={tr("نام سیستم", "اسم النظام", "Sistem Adı", "System Name")} value={t?.appName || "Vetrix ERP"} />
         </div>
-      </Section>
+      </Card>
 
-      <Section icon={<Bell />} title={label.backupSms}>
+      <Card icon={<Bell />} title={label.backupSms}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Toggle label={tr("بکاپ خودکار", "نسخ احتياطي تلقائي", "Otomatik Yedekleme", "Auto Backup")} checked={settings.auto_backup} onChange={(v) => setField("auto_backup", v)} />
 
           <Field label={tr("پنل پیامک", "لوحة الرسائل النصية", "SMS Paneli", "SMS Panel")}>
-            <input className={inputClass} value={settings.sms_panel || ""} onChange={(e) => setField("sms_panel", e.target.value)} />
+            <Input value={settings.sms_panel || ""} onChange={(e) => setField("sms_panel", e.target.value)} />
           </Field>
 
           <Field label={tr("کلید API پیامک", "مفتاح API للرسائل النصية", "SMS API Anahtarı", "SMS API Key")}>
-            <input className={inputClass} value={settings.sms_api_key || ""} onChange={(e) => setField("sms_api_key", e.target.value)} />
+            <Input value={settings.sms_api_key || ""} onChange={(e) => setField("sms_api_key", e.target.value)} />
           </Field>
         </div>
-      </Section>
+      </Card>
 
-      <div className="bg-[var(--erp-bg-soft)] border border-emerald-500/20 rounded-3xl p-5 flex items-center gap-3 text-emerald-300">
-        <ShieldCheck />
+      <Notice tone="success" className="flex items-center gap-3">
+        <ShieldCheck className="shrink-0" />
         <span className="font-black">
           {tr(
             "تنظیمات در دیتابیس ذخیره می‌شود و بعد از بستن برنامه باقی می‌ماند.",
@@ -547,37 +539,14 @@ export default function Settings() {
             "Settings are saved in the database and persist after closing the app."
           )}
         </span>
-      </div>
-    </div>
-  );
-}
-
-function Section({ icon, title, children }) {
-  return (
-    <div className="erp-surface rounded-3xl p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center erp-accent" style={{ background: "var(--erp-glow)" }}>
-          {icon}
-        </div>
-        <h2 className="text-2xl font-black erp-accent">{title}</h2>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>
-      {children}
+      </Notice>
     </div>
   );
 }
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer border border-[var(--erp-border)]">
+    <label className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-4 flex items-center justify-between gap-3 cursor-pointer border border-[var(--erp-border)]">
       <span className="text-[var(--erp-text)] font-bold">{label}</span>
       <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
     </label>
@@ -586,7 +555,7 @@ function Toggle({ label, checked, onChange }) {
 
 function InfoCard({ title, value }) {
   return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
+    <div className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-4">
       <p className="text-[var(--erp-muted)] text-sm">{title}</p>
       <h3 className="font-black text-[var(--erp-text)] mt-2">{value}</h3>
     </div>
@@ -595,10 +564,10 @@ function InfoCard({ title, value }) {
 
 function UploadBox({ label, value, buttonText, onChange }) {
   return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 border border-[var(--erp-border)]">
+    <div className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-4 border border-[var(--erp-border)]">
       <label className="text-sm font-bold text-[var(--erp-accent)] block mb-3">{label}</label>
-      <label className="cursor-pointer bg-[var(--erp-bg-soft)] rounded-2xl border border-dashed border-[var(--erp-border)] p-4 min-h-[130px] flex items-center justify-center text-[var(--erp-muted)]">
-        {value ? <img src={value} alt="" className="max-h-28 object-contain rounded-xl" /> : <span>{buttonText}</span>}
+      <label className="cursor-pointer bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-md)] border border-dashed border-[var(--erp-border)] p-4 min-h-[130px] flex items-center justify-center text-[var(--erp-muted)]">
+        {value ? <img src={value} alt="" className="max-h-28 object-contain rounded-[var(--erp-radius-sm)]" /> : <span>{buttonText}</span>}
         <input type="file" accept="image/*" className="hidden" onChange={(e) => onChange(e.target.files?.[0])} />
       </label>
     </div>
