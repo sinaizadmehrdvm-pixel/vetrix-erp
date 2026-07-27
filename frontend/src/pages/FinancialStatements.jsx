@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
 
@@ -205,23 +206,23 @@ export default function FinancialStatements() {
             ))}
           </nav>
 
-          {active === "balance" && <BalanceSheet data={data.balance_sheet} copy={copy} money={money} card={card} />}
-          {active === "income" && <IncomeStatement data={data.income_statement} copy={copy} money={money} card={card} />}
-          {active === "cash" && <CashFlow data={data.cash_flow} copy={copy} money={money} card={card} />}
+          {active === "balance" && <BalanceSheet data={data.balance_sheet} copy={copy} money={money} language={language} card={card} />}
+          {active === "income" && <IncomeStatement data={data.income_statement} copy={copy} money={money} language={language} card={card} />}
+          {active === "cash" && <CashFlow data={data.cash_flow} copy={copy} money={money} language={language} card={card} />}
         </>
       )}
     </div>
   );
 }
 
-function StatementTable({ title, items, copy, money, color }) {
+function StatementTable({ title, items, copy, money, language, color }) {
   return (
     <section style={{ padding: 16, borderRadius: 18, background: "var(--erp-panel-solid)" }}>
       <h3 style={{ color, margin: "0 0 12px" }}>{title}</h3>
       {!items.length && <div style={{ color: "var(--erp-muted)", padding: 12 }}>{copy.noRows}</div>}
       {items.map((item) => (
         <div key={item.account_id || item.account_code} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 3px", borderTop: "1px solid var(--erp-border)" }}>
-          <span><code style={{ color: "var(--erp-muted)", marginInlineEnd: 8 }}>{item.account_code}</code>{item.account_name}</span>
+          <span><code style={{ color: "var(--erp-muted)", marginInlineEnd: 8 }}>{language === "fa" ? toPersianDigits(item.account_code) : item.account_code}</code>{item.account_name}</span>
           <strong style={{ color: item.amount < 0 ? "#fca5a5" : "var(--erp-text)" }}>{money(item.amount)}</strong>
         </div>
       ))}
@@ -229,14 +230,14 @@ function StatementTable({ title, items, copy, money, color }) {
   );
 }
 
-function BalanceSheet({ data, copy, money, card }) {
+function BalanceSheet({ data, copy, money, language, card }) {
   return (
     <section style={{ ...card, padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
-        <StatementTable title={copy.assets} items={data.asset_items} copy={copy} money={money} color="var(--erp-accent)" />
-        <StatementTable title={copy.liabilities} items={data.liability_items} copy={copy} money={money} color="#fda4af" />
+        <StatementTable title={copy.assets} items={data.asset_items} copy={copy} money={money} language={language} color="var(--erp-accent)" />
+        <StatementTable title={copy.liabilities} items={data.liability_items} copy={copy} money={money} language={language} color="#fda4af" />
         <div>
-          <StatementTable title={copy.equity} items={data.equity_items} copy={copy} money={money} color="#c4b5fd" />
+          <StatementTable title={copy.equity} items={data.equity_items} copy={copy} money={money} language={language} color="#c4b5fd" />
           <div style={{ marginTop: 9, padding: 12, borderRadius: 14, background: "var(--erp-glow)", display: "flex", justifyContent: "space-between" }}>
             <span>{copy.currentEarnings}</span><strong>{money(data.accumulated_earnings)}</strong>
           </div>
@@ -255,12 +256,12 @@ function BalanceSheet({ data, copy, money, card }) {
   );
 }
 
-function IncomeStatement({ data, copy, money, card }) {
+function IncomeStatement({ data, copy, money, language, card }) {
   return (
     <section style={{ ...card, padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-        <StatementTable title={copy.revenue} items={data.revenue_items} copy={copy} money={money} color="#86efac" />
-        <StatementTable title={copy.expenses} items={data.expense_items} copy={copy} money={money} color="#fda4af" />
+        <StatementTable title={copy.revenue} items={data.revenue_items} copy={copy} money={money} language={language} color="#86efac" />
+        <StatementTable title={copy.expenses} items={data.expense_items} copy={copy} money={money} language={language} color="#fda4af" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 10, marginTop: 14 }}>
         <Total label={copy.totalRevenue} value={data.total_revenue} money={money} />
@@ -271,7 +272,7 @@ function IncomeStatement({ data, copy, money, card }) {
   );
 }
 
-function CashFlow({ data, copy, money, card }) {
+function CashFlow({ data, copy, money, language, card }) {
   const metrics = [
     [copy.openingCash, data.opening_balance, Banknote],
     [copy.inflows, data.inflows, ArrowDownToLine],
@@ -291,7 +292,7 @@ function CashFlow({ data, copy, money, card }) {
         ))}
       </div>
       <div style={{ marginTop: 15 }}>
-        <StatementTable title={faLabel(copy.cash)} items={data.accounts.map((item) => ({ ...item, account_id: item.account_code, amount: item.net_change }))} copy={copy} money={money} color="var(--erp-accent)" />
+        <StatementTable title={faLabel(copy.cash)} items={data.accounts.map((item) => ({ ...item, account_id: item.account_code, amount: item.net_change }))} copy={copy} money={money} language={language} color="var(--erp-accent)" />
       </div>
     </section>
   );

@@ -4,7 +4,7 @@ import { AlertTriangle, CalendarDays, Download, HandCoins, Landmark, Printer, Re
 
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, cleanNumberInput, invoiceTypeLabel } from "../localization/helpers";
 import { getAgingReport } from "../services/agingApi";
 
 export default function AgingReport() {
@@ -98,7 +98,7 @@ export default function AgingReport() {
       <section style={{ ...card, overflowX:"auto" }}><table style={{ width:"100%", borderCollapse:"collapse", minWidth:900 }}>
         <thead><tr>{[copy.invoice,copy.party,copy.due,copy.age,copy.total,copy.settled,copy.outstanding].map(label=><th key={label} style={{ padding:13,textAlign:"start",color:"var(--erp-accent)",borderBottom:"1px solid var(--erp-border)" }}>{label}</th>)}</tr></thead>
         <tbody>{!items.length && <tr><td colSpan={7} style={{ padding:25,textAlign:"center",color:"var(--erp-muted)" }}>{copy.noRows}</td></tr>}
-        {items.map(item=><tr key={item.invoice_id}><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>#{item.invoice_id}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{item.invoice_type}</div></td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{item.customer_name}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{date(item.due_date)}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)",color:item.days_overdue?"#fbbf24":"#86efac" }}>{n(item.days_overdue)}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{copy[item.bucket]}</div></td>{[item.total_amount,item.settled_amount,item.outstanding_amount].map((value,index)=><td key={index} style={{ padding:13,borderTop:"1px solid var(--erp-border)",fontWeight:index===2?900:500,color:index===2?(item.side==="receivable"?"#86efac":"#fda4af"):"inherit" }}>{money(value)}</td>)}</tr>)}</tbody>
+        {items.map(item=><tr key={item.invoice_id}><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>#{n(item.invoice_id)}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{invoiceTypeLabel(item.invoice_type, language)}</div></td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{item.customer_name}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{date(item.due_date)}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)",color:item.days_overdue?"#fbbf24":"#86efac" }}>{n(item.days_overdue)}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{copy[item.bucket]}</div></td>{[item.total_amount,item.settled_amount,item.outstanding_amount].map((value,index)=><td key={index} style={{ padding:13,borderTop:"1px solid var(--erp-border)",fontWeight:index===2?900:500,color:index===2?(item.side==="receivable"?"#86efac":"#fda4af"):"inherit" }}>{money(value)}</td>)}</tr>)}</tbody>
       </table></section>
     </>}
   </div>;
