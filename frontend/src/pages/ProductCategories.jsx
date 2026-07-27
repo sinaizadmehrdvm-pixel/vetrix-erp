@@ -93,21 +93,21 @@ export default function ProductCategories() {
           <input
             placeholder={language === "fa" ? "گروه اصلی" : language === "ar" ? "التصنيف الرئيسي" : language === "tr" ? "Ana Kategori" : "Main category"}
             value={form.main_category}
-            onChange={(e) => setForm({ ...form, main_category: e.target.value })}
+            onChange={(e) => setForm({ ...form, main_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
             className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none"
           />
 
           <input
             placeholder={language === "fa" ? "گروه فرعی" : language === "ar" ? "التصنيف الفرعي" : language === "tr" ? "Alt Kategori" : "Sub category"}
             value={form.sub_category}
-            onChange={(e) => setForm({ ...form, sub_category: e.target.value })}
+            onChange={(e) => setForm({ ...form, sub_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
             className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none"
           />
 
           <input
             placeholder={language === "fa" ? "کد دسته‌بندی" : language === "ar" ? "رمز التصنيف" : language === "tr" ? "Kategori Kodu" : "Category code"}
             value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
+            onChange={(e) => setForm({ ...form, code: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
             className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none"
           />
         </div>
@@ -126,7 +126,7 @@ export default function ProductCategories() {
           <Search size={18} className="text-[var(--erp-accent)]" />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
             placeholder={language === "fa" ? "جستجوی دسته‌بندی..." : language === "ar" ? "بحث عن تصنيف..." : language === "tr" ? "Kategori ara..." : "Search category..."}
             className="bg-transparent outline-none text-[var(--erp-text)] w-full"
           />

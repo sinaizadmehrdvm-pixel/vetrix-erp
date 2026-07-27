@@ -641,7 +641,7 @@ export default function Transactions() {
           <Search size={18} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearch(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
             placeholder={t("searchTransaction")}
             className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
