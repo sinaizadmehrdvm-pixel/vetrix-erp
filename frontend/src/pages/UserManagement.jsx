@@ -220,7 +220,7 @@ export default function UserManagement() {
 
   if (!isAdmin) {
     return (
-      <div dir={dir} style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center", color: "#fecaca" }}>
+      <div dir={dir} className="text-red-200" style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center" }}>
         <ShieldAlert size={48} style={{ margin: "0 auto 16px" }} />
         <h1>{copy.denied}</h1>
       </div>
@@ -244,7 +244,7 @@ export default function UserManagement() {
         </button>
       </header>
 
-      {error && <div style={{ ...card, padding: 15, marginBottom: 18, color: "#fecaca" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 15, marginBottom: 18 }}>{error}</div>}
 
       <form onSubmit={submit} style={{ ...card, padding: 20, marginBottom: 20 }}>
         <h2 style={{ margin: "0 0 16px", color: "var(--erp-accent-2)", display: "flex", gap: 8, alignItems: "center" }}><Plus size={21} />{copy.create}</h2>
@@ -329,7 +329,7 @@ export default function UserManagement() {
         </div>
       </section>
 
-      <div style={{ ...card, padding: 16, marginTop: 18, display: "flex", gap: 10, alignItems: "center", color: "#bbf7d0", borderColor: "rgba(34,197,94,.3)" }}>
+      <div className="text-green-200" style={{ ...card, padding: 16, marginTop: 18, display: "flex", gap: 10, alignItems: "center", borderColor: "rgba(34,197,94,.3)" }}>
         <Shield />
         {fa ? "تمام تغییرات نقش در مرکز حسابرسی ثبت می‌شوند." : language === "ar" ? "يتم تسجيل كل تغيير في الدور في مركز التدقيق." : language === "tr" ? "Her rol değişikliği denetim merkezinde kaydedilir." : "Every role change is recorded in the audit center."}
       </div>

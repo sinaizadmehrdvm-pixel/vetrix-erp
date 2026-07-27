@@ -108,7 +108,7 @@ export default function TaxAccounting() {
         </div>
       </header>
 
-      {error && <div style={{ ...card, padding: 16, marginBottom: 17, color: "#fecaca" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
       {data && <>
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
           {[

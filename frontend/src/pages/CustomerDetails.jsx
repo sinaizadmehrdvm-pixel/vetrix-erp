@@ -679,11 +679,12 @@ export default function CustomerDetails() {
             balanceLabel(finance.balance, language),
             balanceLabel(finance.balance, language)
           )}
-          color={finance.balance > 0 ? "#fca5a5" : finance.balance < 0 ? "#86efac" : "#22d3ee"}
+          color={finance.balance === 0 ? "#22d3ee" : undefined}
+          colorClassName={finance.balance > 0 ? "text-red-300" : finance.balance < 0 ? "text-green-300" : undefined}
           icon={<Wallet size={20} />}
         />
-        <Kpi title={tr("بدهکار", "مدين", "Borçlu", "Debtor")} value={money(finance.debtor)} color="#fca5a5" icon={<Wallet size={20} />} />
-        <Kpi title={tr("بستانکار", "دائن", "Alacaklı", "Creditor")} value={money(finance.creditor)} color="#86efac" icon={<Wallet size={20} />} />
+        <Kpi title={tr("بدهکار", "مدين", "Borçlu", "Debtor")} value={money(finance.debtor)} colorClassName="text-red-300" icon={<Wallet size={20} />} />
+        <Kpi title={tr("بستانکار", "دائن", "Alacaklı", "Creditor")} value={money(finance.creditor)} colorClassName="text-green-300" icon={<Wallet size={20} />} />
         <Kpi title={tr("مانده اول دوره", "الرصيد الافتتاحي", "Açılış Bakiyesi", "Opening")} value={money(Math.abs(finance.opening))} hint={balanceLabel(finance.opening, language)} color="#22d3ee" icon={<Wallet size={20} />} />
         <Kpi title={tr("آخرین فعالیت", "آخر نشاط", "Son İşlem", "Last activity")} value={finance.lastActivity ? formatDate(finance.lastActivity.date || finance.lastActivity.created_at) : "-"} icon={<Clock size={20} />} />
         <Kpi title={tr("تعداد تراکنش", "عدد المعاملات", "İşlem Sayısı", "Transactions")} value={n(normalizedLedger.length)} icon={<ArrowRightLeft size={20} />} />
@@ -925,17 +926,17 @@ function Info({ icon, label, value }) {
   );
 }
 
-function Kpi({ title, value, hint, color = "#22d3ee", icon }) {
+function Kpi({ title, value, hint, color = "#22d3ee", colorClassName, icon }) {
   return (
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
       <div className="flex justify-between items-start">
         <div>
           <div className="text-[var(--erp-muted)] font-bold mb-3">{title}</div>
-          <div className="text-3xl font-black" style={{ color }}>
+          <div className={`text-3xl font-black${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
             {value}
           </div>
           {hint && (
-            <div className="text-xs mt-2" style={{ color }}>
+            <div className={`text-xs mt-2${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
               {hint}
             </div>
           )}

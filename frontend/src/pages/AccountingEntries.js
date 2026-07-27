@@ -212,7 +212,7 @@ export default function AccountingEntries() {
           h("div", { style: { display: "flex", gap: 12, flexWrap: "wrap" } },
             h("div", { style: { color: "var(--erp-accent)", fontWeight: 900 } }, language === "fa" ? "بدهکار: " : language === "ar" ? "مدين: " : language === "tr" ? "Borç: " : "Debit: ", money(totals.debit)),
             h("div", { style: { color: "var(--erp-accent)", fontWeight: 900 } }, language === "fa" ? "بستانکار: " : language === "ar" ? "دائن: " : language === "tr" ? "Alacak: " : "Credit: ", money(totals.credit)),
-            h("div", { style: { color: totals.balanced ? "#86efac" : "#fca5a5", fontWeight: 900 } }, totals.balanced ? (language === "fa" ? "تراز" : language === "ar" ? "متوازن" : language === "tr" ? "Dengeli" : "Balanced") : `${language === "fa" ? "اختلاف" : language === "ar" ? "الفرق" : language === "tr" ? "Fark" : "Diff"}: ${money(Math.abs(totals.diff))}`)
+            h("div", { className: totals.balanced ? "text-green-300" : "text-red-300", style: { fontWeight: 900 } }, totals.balanced ? (language === "fa" ? "تراز" : language === "ar" ? "متوازن" : language === "tr" ? "Dengeli" : "Balanced") : `${language === "fa" ? "اختلاف" : language === "ar" ? "الفرق" : language === "tr" ? "Fark" : "Diff"}: ${money(Math.abs(totals.diff))}`)
           )
         ),
         h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 } },
@@ -225,7 +225,7 @@ export default function AccountingEntries() {
         h("div", { style: { display: "grid", gap: 10, maxHeight: 700, overflow: "auto" } }, vouchers.map(v => h("div", { key: v.id, style: { background: "var(--erp-panel-solid)", borderRadius: 18, padding: 14, border: "1px solid var(--erp-border)" } },
           h("div", { style: { display: "flex", justifyContent: "space-between", gap: 8 } },
             h("b", null, language === "fa" ? `سند ${n(v.voucher_no)}` : language === "ar" ? `سند ${n(v.voucher_no)}` : language === "tr" ? `Fiş ${v.voucher_no}` : `Voucher ${v.voucher_no}`),
-            h("span", { style: { color: v.status === "posted" ? "#86efac" : v.status === "cancelled" ? "#fca5a5" : "#fde68a" } }, v.status)
+            h("span", { className: v.status === "posted" ? "text-green-300" : v.status === "cancelled" ? "text-red-300" : "text-amber-200" }, v.status)
           ),
           h("div", { style: { color: "var(--erp-muted)", marginTop: 6 } }, date(v.voucher_date)),
           h("div", { style: { color: "var(--erp-text)", marginTop: 6 } }, v.description || "-"),
@@ -302,7 +302,7 @@ export default function AccountingEntries() {
       h("div", { style: { ...styles.card, marginTop: 16, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" } },
         h("b", { style: { color: "var(--erp-accent)" } }, language === "fa" ? "جمع مانده بدهکار: " : language === "ar" ? "إجمالي الرصيد المدين: " : language === "tr" ? "Toplam Borç Bakiyesi: " : "Debit balance total: ", money(trial.totals?.debit_balance || 0)),
         h("b", { style: { color: "var(--erp-accent)" } }, language === "fa" ? "جمع مانده بستانکار: " : language === "ar" ? "إجمالي الرصيد الدائن: " : language === "tr" ? "Toplam Alacak Bakiyesi: " : "Credit balance total: ", money(trial.totals?.credit_balance || 0)),
-        h("b", { style: { color: trial.totals?.balanced ? "#86efac" : "#fca5a5" } }, trial.totals?.balanced ? (language === "fa" ? "تراز است" : language === "ar" ? "متوازن" : language === "tr" ? "Dengeli" : "Balanced") : `${language === "fa" ? "اختلاف" : language === "ar" ? "الفرق" : language === "tr" ? "Fark" : "Difference"}: ${money(trial.totals?.difference || 0)}`)
+        h("b", { className: trial.totals?.balanced ? "text-green-300" : "text-red-300" }, trial.totals?.balanced ? (language === "fa" ? "تراز است" : language === "ar" ? "متوازن" : language === "tr" ? "Dengeli" : "Balanced") : `${language === "fa" ? "اختلاف" : language === "ar" ? "الفرق" : language === "tr" ? "Fark" : "Difference"}: ${money(trial.totals?.difference || 0)}`)
       )
     )
   );

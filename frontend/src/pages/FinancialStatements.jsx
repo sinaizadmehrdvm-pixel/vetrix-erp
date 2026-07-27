@@ -179,7 +179,7 @@ export default function FinancialStatements() {
         </div>
       </header>
 
-      {error && <div style={{ ...card, padding: 16, marginBottom: 17, color: "#fecaca" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
 
       {data && (
         <>
@@ -189,7 +189,7 @@ export default function FinancialStatements() {
               {data.period && <div style={{ color: "var(--erp-muted)", marginTop: 5 }}>{date(data.period.start_date)} — {date(data.period.end_date)}</div>}
             </div>
             <div style={{ color: "var(--erp-muted)" }}>{copy.posted}: <b style={{ color: "var(--erp-text)" }}>{n(data.posted_vouchers)}</b></div>
-            <div style={{ color: data.valid ? "#86efac" : "#fca5a5", fontWeight: 900, display: "flex", gap: 7, alignItems: "center" }}>
+            <div className={data.valid ? "text-green-300" : "text-red-300"} style={{ fontWeight: 900, display: "flex", gap: 7, alignItems: "center" }}>
               <Scale size={18} />{data.valid ? copy.balanced : copy.unbalanced}
             </div>
           </section>
@@ -215,15 +215,15 @@ export default function FinancialStatements() {
   );
 }
 
-function StatementTable({ title, items, copy, money, language, color }) {
+function StatementTable({ title, items, copy, money, language, color, colorClassName }) {
   return (
     <section style={{ padding: 16, borderRadius: 18, background: "var(--erp-panel-solid)" }}>
-      <h3 style={{ color, margin: "0 0 12px" }}>{title}</h3>
+      <h3 className={colorClassName} style={colorClassName ? { margin: "0 0 12px" } : { color, margin: "0 0 12px" }}>{title}</h3>
       {!items.length && <div style={{ color: "var(--erp-muted)", padding: 12 }}>{copy.noRows}</div>}
       {items.map((item) => (
         <div key={item.account_id || item.account_code} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 3px", borderTop: "1px solid var(--erp-border)" }}>
           <span><code style={{ color: "var(--erp-muted)", marginInlineEnd: 8 }}>{language === "fa" ? toPersianDigits(item.account_code) : item.account_code}</code>{item.account_name}</span>
-          <strong style={{ color: item.amount < 0 ? "#fca5a5" : "var(--erp-text)" }}>{money(item.amount)}</strong>
+          <strong className={item.amount < 0 ? "text-red-300" : undefined} style={item.amount < 0 ? undefined : { color: "var(--erp-text)" }}>{money(item.amount)}</strong>
         </div>
       ))}
     </section>
@@ -237,7 +237,7 @@ function BalanceSheet({ data, copy, money, language, card }) {
         <StatementTable title={copy.assets} items={data.asset_items} copy={copy} money={money} language={language} color="var(--erp-accent)" />
         <StatementTable title={copy.liabilities} items={data.liability_items} copy={copy} money={money} language={language} color="#fda4af" />
         <div>
-          <StatementTable title={copy.equity} items={data.equity_items} copy={copy} money={money} language={language} color="#c4b5fd" />
+          <StatementTable title={copy.equity} items={data.equity_items} copy={copy} money={money} language={language} colorClassName="text-violet-300" />
           <div style={{ marginTop: 9, padding: 12, borderRadius: 14, background: "var(--erp-glow)", display: "flex", justifyContent: "space-between" }}>
             <span>{copy.currentEarnings}</span><strong>{money(data.accumulated_earnings)}</strong>
           </div>
@@ -249,7 +249,7 @@ function BalanceSheet({ data, copy, money, language, card }) {
         <Total label={copy.totalEquity} value={data.total_equity} money={money} />
         <Total label={copy.rightSide} value={data.liabilities_and_equity} money={money} />
       </div>
-      <div style={{ marginTop: 13, color: data.balanced ? "#86efac" : "#fca5a5", textAlign: "center", fontWeight: 950 }}>
+      <div className={data.balanced ? "text-green-300" : "text-red-300"} style={{ marginTop: 13, textAlign: "center", fontWeight: 950 }}>
         {data.balanced ? copy.balanced : `${copy.unbalanced}: ${money(data.difference)}`}
       </div>
     </section>
@@ -260,7 +260,7 @@ function IncomeStatement({ data, copy, money, language, card }) {
   return (
     <section style={{ ...card, padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-        <StatementTable title={copy.revenue} items={data.revenue_items} copy={copy} money={money} language={language} color="#86efac" />
+        <StatementTable title={copy.revenue} items={data.revenue_items} copy={copy} money={money} language={language} colorClassName="text-green-300" />
         <StatementTable title={copy.expenses} items={data.expense_items} copy={copy} money={money} language={language} color="#fda4af" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 10, marginTop: 14 }}>
@@ -287,7 +287,7 @@ function CashFlow({ data, copy, money, language, card }) {
           <div key={label} style={{ padding: 15, borderRadius: 17, background: "var(--erp-panel-solid)" }}>
             <Icon size={19} color="var(--erp-accent)" />
             <div style={{ color: "var(--erp-muted)", marginTop: 9, fontSize: 12 }}>{label}</div>
-            <strong style={{ display: "block", marginTop: 5, color: value < 0 ? "#fca5a5" : "var(--erp-text)", fontSize: 19 }}>{money(value)}</strong>
+            <strong className={value < 0 ? "text-red-300" : undefined} style={{ display: "block", marginTop: 5, ...(value < 0 ? null : { color: "var(--erp-text)" }), fontSize: 19 }}>{money(value)}</strong>
           </div>
         ))}
       </div>
@@ -306,7 +306,7 @@ function Total({ label, value, money, highlight }) {
   return (
     <div style={{ padding: 15, borderRadius: 17, background: highlight ? "linear-gradient(135deg,var(--erp-glow),rgba(34,197,94,.14))" : "var(--erp-panel-solid)" }}>
       <div style={{ color: "var(--erp-muted)", fontSize: 12 }}>{label}</div>
-      <strong style={{ display: "block", marginTop: 6, color: value < 0 ? "#fca5a5" : "var(--erp-text)", fontSize: 20 }}>{money(value)}</strong>
+      <strong className={value < 0 ? "text-red-300" : undefined} style={{ display: "block", marginTop: 6, ...(value < 0 ? null : { color: "var(--erp-text)" }), fontSize: 20 }}>{money(value)}</strong>
     </div>
   );
 }

@@ -260,7 +260,7 @@ export default function BackupRecovery() {
 
   if (!isAdmin) {
     return (
-      <div dir={dir} style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center", color: "#fecaca" }}>
+      <div dir={dir} className="text-red-200" style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center" }}>
         <ShieldAlert size={48} style={{ margin: "0 auto 16px" }} />
         <h1>{copy.denied}</h1>
       </div>
@@ -293,11 +293,11 @@ export default function BackupRecovery() {
         <FileCheck2 color="var(--erp-accent)" />
         {copy.autoInfo}
       </div>
-      <div style={{ ...card, padding: 15, marginBottom: 18, color: "#bbf7d0", display: "flex", gap: 10, alignItems: "center" }}>
+      <div className="text-green-200" style={{ ...card, padding: 15, marginBottom: 18, display: "flex", gap: 10, alignItems: "center" }}>
         <TestTube2 color="#86efac" />
         {copy.rehearsalInfo}
       </div>
-      {error && <div style={{ ...card, padding: 15, marginBottom: 18, color: "#fecaca" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 15, marginBottom: 18 }}>{error}</div>}
 
       <section style={{ ...card, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
@@ -318,7 +318,7 @@ export default function BackupRecovery() {
                   <td style={{ padding: 13 }}>{kindNames[item.kind] || item.kind}</td>
                   <td style={{ padding: 13 }}>{formatBytes(item.size_bytes)}</td>
                   <td style={{ padding: 13 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: item.valid === true ? "#86efac" : item.valid === false ? "#fca5a5" : "#fde68a" }}>
+                    <span className={item.valid === true ? "text-green-300" : item.valid === false ? "text-red-300" : "text-amber-200"} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       {item.valid === true ? <CheckCircle2 size={16} /> : item.valid === false ? <AlertTriangle size={16} /> : <FileCheck2 size={16} />}
                       {item.valid === true ? copy.valid : item.valid === false ? copy.invalid : copy.notChecked}
                     </span>
@@ -345,7 +345,7 @@ export default function BackupRecovery() {
 
 function ActionButton({ title, onClick, disabled, danger, children }) {
   return (
-    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "var(--erp-glow)", color: danger ? "#fecaca" : "var(--erp-accent)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
+    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} className={danger ? "text-red-200" : undefined} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "var(--erp-glow)", ...(danger ? {} : { color: "var(--erp-accent)" }), cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
       {children}
     </button>
   );

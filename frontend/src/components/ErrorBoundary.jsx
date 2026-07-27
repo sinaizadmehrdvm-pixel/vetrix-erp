@@ -25,9 +25,9 @@ export default class ErrorBoundary extends Component {
       <div dir={dir} style={{ minHeight: "100vh", background: "#071028", color: "#f8fafc", display: "grid", placeItems: "center", padding: 24 }}>
         <section style={{ width: "min(620px,100%)", padding: 28, borderRadius: 26, background: "linear-gradient(145deg,#0f172a,#111c36)", border: "1px solid rgba(248,113,113,.35)", boxShadow: "0 30px 90px rgba(0,0,0,.4)" }}>
           <AlertTriangle size={42} color="#f87171" />
-          <h1 style={{ color: "#fecaca" }}>{tr("خطای غیرمنتظره رابط کاربری", "خطأ غير متوقع في الواجهة", "Beklenmeyen arayüz hatası", "Unexpected interface error")}</h1>
+          <h1 className="text-red-200">{tr("خطای غیرمنتظره رابط کاربری", "خطأ غير متوقع في الواجهة", "Beklenmeyen arayüz hatası", "Unexpected interface error")}</h1>
           <p style={{ color: "#94a3b8", lineHeight: 1.8 }}>{tr("اطلاعات شما حذف نشده است. صفحه را دوباره بارگذاری کنید؛ اگر خطا تکرار شد، گزارش سلامت سیستم را بررسی کنید.", "لم يتم حذف بياناتك. أعد تحميل الصفحة؛ إذا تكرر الخطأ، راجع تقرير سلامة النظام.", "Verileriniz silinmedi. Sayfayı yeniden yükleyin; hata tekrarlanırsa Sistem Sağlığı raporunu inceleyin.", "Your data was not deleted. Reload the page; if the error returns, review System Health.")}</p>
-          <pre style={{ padding: 12, borderRadius: 12, overflow: "auto", background: "#020617", color: "#fca5a5", fontSize: 12 }}>{this.state.error?.message || "Unknown error"}</pre>
+          <pre className="text-red-300" style={{ padding: 12, borderRadius: 12, overflow: "auto", background: "#020617", fontSize: 12 }}>{this.state.error?.message || "Unknown error"}</pre>
           <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 18 }}>
             <button onClick={() => window.location.reload()} style={{ border: 0, borderRadius: 12, padding: "11px 15px", background: "#0e7490", color: "white", fontWeight: 900, cursor: "pointer", display: "flex", gap: 7 }}><RefreshCw size={17} />{tr("بارگذاری مجدد", "إعادة التحميل", "Yeniden yükle", "Reload")}</button>
             <button onClick={() => { window.location.href = "/"; }} style={{ border: 0, borderRadius: 12, padding: "11px 15px", background: "#166534", color: "white", fontWeight: 900, cursor: "pointer", display: "flex", gap: 7 }}><Home size={17} />{tr("داشبورد", "لوحة التحكم", "Panel", "Dashboard")}</button>

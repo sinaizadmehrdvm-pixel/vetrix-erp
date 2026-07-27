@@ -137,7 +137,7 @@ export default function SystemHealth() {
 
   if (!isAdmin) {
     return (
-      <div dir={dir} style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center", color: "#fecaca" }}>
+      <div dir={dir} className="text-red-200" style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center" }}>
         <ShieldAlert size={48} style={{ margin: "0 auto 16px" }} />
         <h1>{copy.denied}</h1>
       </div>
@@ -161,7 +161,7 @@ export default function SystemHealth() {
         </button>
       </header>
 
-      {error && <div style={{ ...card, padding: 16, marginBottom: 18, color: "#fecaca" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 18 }}>{error}</div>}
       {!health && !loading && !error && <div style={{ ...card, padding: 34, textAlign: "center", color: "var(--erp-muted)" }}>{copy.noData}</div>}
 
       {health && (
@@ -180,9 +180,9 @@ export default function SystemHealth() {
             </div>
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
               <Summary label={copy.checks} value={n(health.summary.total)} color="var(--erp-accent)" />
-              <Summary label={copy.passed} value={n(health.summary.passed)} color="#86efac" />
-              <Summary label={copy.warnings} value={n(health.summary.warnings)} color="#fde68a" />
-              <Summary label={copy.failures} value={n(health.summary.failures)} color="#fca5a5" />
+              <Summary label={copy.passed} value={n(health.summary.passed)} colorClassName="text-green-300" />
+              <Summary label={copy.warnings} value={n(health.summary.warnings)} colorClassName="text-amber-200" />
+              <Summary label={copy.failures} value={n(health.summary.failures)} colorClassName="text-red-300" />
             </div>
           </section>
 
@@ -224,11 +224,11 @@ export default function SystemHealth() {
   );
 }
 
-function Summary({ label, value, color }) {
+function Summary({ label, value, color, colorClassName }) {
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ color: "var(--erp-muted)", fontSize: 11 }}>{label}</div>
-      <div style={{ color, fontWeight: 950, fontSize: 21, marginTop: 3 }}>{value}</div>
+      <div className={colorClassName} style={colorClassName ? { fontWeight: 950, fontSize: 21, marginTop: 3 } : { color, fontWeight: 950, fontSize: 21, marginTop: 3 }}>{value}</div>
     </div>
   );
 }

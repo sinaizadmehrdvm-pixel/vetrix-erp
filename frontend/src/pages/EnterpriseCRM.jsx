@@ -149,7 +149,7 @@ export default function EnterpriseCRM() {
         </button>
       </div>
 
-      {message && <div style={noticeStyle}>{message}</div>}
+      {message && <div className="text-green-200" style={noticeStyle}>{message}</div>}
 
       <div style={gridCards}>
         <Kpi icon={<UsersRound />} label={language === "fa" ? "کل مشتریان" : language === "ar" ? "إجمالي العملاء" : language === "tr" ? "Toplam Müşteri" : "Customers"} value={n(summary.customers_count || 0)} color="#22d3ee" />
@@ -186,7 +186,7 @@ export default function EnterpriseCRM() {
             </form>
           </Panel>
           <div style={{ ...panelStyle, overflowX: "auto" }}>
-            <h2 style={panelTitle}><Target size={20} /> {language === "fa" ? "Sales Pipeline" : language === "ar" ? "Sales Pipeline" : language === "tr" ? "Sales Pipeline" : "Sales Pipeline"}</h2>
+            <h2 className="text-cyan-300" style={panelTitle}><Target size={20} /> {language === "fa" ? "Sales Pipeline" : language === "ar" ? "Sales Pipeline" : language === "tr" ? "Sales Pipeline" : "Sales Pipeline"}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(210px, 1fr))", gap: 12 }}>
               {stages.map((stage) => (
                 <div key={stage.key} style={{ background: "rgba(15,23,42,.72)", border: `1px solid ${STAGE_COLORS[stage.key]}55`, borderRadius: 18, padding: 12, minHeight: 280 }}>
@@ -307,7 +307,7 @@ function Kpi({ icon, label, value, color }) {
 function Panel({ title, icon, children }) {
   return (
     <div style={panelStyle}>
-      <h2 style={panelTitle}>{icon} {title}</h2>
+      <h2 className="text-cyan-300" style={panelTitle}>{icon} {title}</h2>
       {children}
     </div>
   );
@@ -356,7 +356,7 @@ const panelStyle = {
   boxShadow: "0 24px 70px rgba(0,0,0,.22)",
 };
 
-const panelTitle = { color: "#67e8f9", fontSize: 20, fontWeight: 900, display: "flex", gap: 10, alignItems: "center", marginTop: 0 };
+const panelTitle = { fontSize: 20, fontWeight: 900, display: "flex", gap: 10, alignItems: "center", marginTop: 0 };
 const gridCards = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 16, marginBottom: 20 };
 const sectionGrid = { display: "grid", gridTemplateColumns: "minmax(280px, .75fr) minmax(420px, 2fr)", gap: 18 };
 const tabsStyle = { display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 };
@@ -364,4 +364,4 @@ const tabButton = (active) => ({ padding: "12px 18px", borderRadius: 16, border:
 const inputStyle = { width: "100%", background: "#1e293b", color: "white", border: "1px solid rgba(34,211,238,.18)", borderRadius: 14, padding: 12, outline: "none", boxSizing: "border-box" };
 const primaryButton = (bg = "#22d3ee", color = "#071028") => ({ background: bg, color, border: "none", borderRadius: 16, padding: "12px 16px", fontWeight: 950, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 });
 const cardMini = { background: "rgba(30,41,59,.75)", border: "1px solid rgba(34,211,238,.16)", borderRadius: 16, padding: 12, marginBottom: 10, display: "grid", gap: 6, color: "#e2e8f0" };
-const noticeStyle = { background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.25)", color: "#bbf7d0", padding: 14, borderRadius: 16, marginBottom: 18, fontWeight: 800 };
+const noticeStyle = { background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.25)", padding: 14, borderRadius: 16, marginBottom: 18, fontWeight: 800 };

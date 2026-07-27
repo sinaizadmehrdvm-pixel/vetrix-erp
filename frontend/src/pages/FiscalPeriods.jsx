@@ -224,12 +224,12 @@ export default function FiscalPeriods() {
       {!isAdmin && (
         <div style={{ ...card, display: "flex", gap: 12, alignItems: "center", padding: 16, marginBottom: 20, borderColor: "rgba(245,158,11,.35)" }}>
           <ShieldCheck color="#fbbf24" />
-          <span style={{ color: "#fde68a" }}>{copy.adminOnly}</span>
+          <span className="text-amber-200">{copy.adminOnly}</span>
         </div>
       )}
 
       {error && (
-        <div style={{ ...card, display: "flex", gap: 12, alignItems: "center", padding: 16, marginBottom: 20, borderColor: "rgba(239,68,68,.4)", color: "#fecaca" }}>
+        <div className="text-red-200" style={{ ...card, display: "flex", gap: 12, alignItems: "center", padding: 16, marginBottom: 20, borderColor: "rgba(239,68,68,.4)" }}>
           <AlertTriangle />
           {error}
         </div>
@@ -289,11 +289,11 @@ export default function FiscalPeriods() {
                 <div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                     <h2 style={{ margin: 0, color: "var(--erp-text)", fontSize: 24 }}>{period.name}</h2>
-                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", borderRadius: 999, padding: "6px 11px", fontSize: 12, fontWeight: 900, color: isOpen ? "#bbf7d0" : "var(--erp-muted)", background: isOpen ? "rgba(34,197,94,.14)" : "var(--erp-glow)" }}>
+                    <span className={isOpen ? "text-green-200" : undefined} style={{ display: "inline-flex", gap: 6, alignItems: "center", borderRadius: 999, padding: "6px 11px", fontSize: 12, fontWeight: 900, ...(isOpen ? null : { color: "var(--erp-muted)" }), background: isOpen ? "rgba(34,197,94,.14)" : "var(--erp-glow)" }}>
                       {isOpen ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
                       {isOpen ? copy.open : copy.closed}
                     </span>
-                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", color: balanced ? "#86efac" : "#fca5a5", fontSize: 13, fontWeight: 800 }}>
+                    <span className={balanced ? "text-green-300" : "text-red-300"} style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13, fontWeight: 800 }}>
                       {balanced ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
                       {balanced ? copy.balanced : copy.unbalanced}
                     </span>

@@ -75,7 +75,7 @@ export default function AgingReport() {
     <header className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
         <div style={{ width: 55, height: 55, display: "grid", placeItems: "center", borderRadius: 17, background: "linear-gradient(135deg,#8b5cf6,#06b6d4)" }}><CalendarDays size={30} /></div>
-        <div><h1 style={{ margin: 0, color: "#c4b5fd", fontSize: "clamp(27px,4vw,40px)" }}>{copy.title}</h1><p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p></div>
+        <div><h1 className="text-violet-300" style={{ margin: 0, fontSize: "clamp(27px,4vw,40px)" }}>{copy.title}</h1><p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p></div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.asOf}<div style={{ marginTop: 4 }}><JalaliDateField value={asOf} onChange={setAsOf} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[10px] p-2" /></div></label>
@@ -85,13 +85,13 @@ export default function AgingReport() {
         <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", alignSelf: "end" }}><Printer size={16} />{copy.print}</button>
       </div>
     </header>
-    {error && <div style={{ ...card, padding: 16, marginBottom: 17, color: "#fecaca" }}>{error}</div>}
+    {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
     {data && <>
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(185px,1fr))", gap: 12, marginBottom: 16 }}>
         {[[copy.receivable,data.summary.receivable,HandCoins,"#86efac"],[copy.payable,data.summary.payable,Landmark,"#fda4af"],[copy.net,data.summary.net_position,Scale,"var(--erp-accent)"],[copy.overdue,data.summary.overdue_receivable,AlertTriangle,"#fbbf24"]].map(([label,value,Icon,color]) => <div key={label} style={{ ...card, padding: 18 }}><Icon size={21} color={color}/><div style={{ color:"var(--erp-muted)", marginTop:8 }}>{label}</div><strong style={{ display:"block", color, fontSize:22, marginTop:5 }}>{money(value)}</strong></div>)}
       </section>
       <section style={{ ...card, padding: 15, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 9 }}>
-        {Object.entries(data.buckets).map(([key,bucket]) => <div key={key} style={{ background:"var(--erp-panel-solid)", borderRadius:15, padding:13 }}><strong style={{ color:"#c4b5fd" }}>{copy[key]}</strong><div style={{ color:"#86efac", marginTop:8 }}>{money(bucket.receivable)}</div><div style={{ color:"#fda4af", marginTop:4 }}>{money(bucket.payable)}</div></div>)}
+        {Object.entries(data.buckets).map(([key,bucket]) => <div key={key} style={{ background:"var(--erp-panel-solid)", borderRadius:15, padding:13 }}><strong className="text-violet-300">{copy[key]}</strong><div className="text-green-300" style={{ marginTop:8 }}>{money(bucket.receivable)}</div><div style={{ color:"#fda4af", marginTop:4 }}>{money(bucket.payable)}</div></div>)}
       </section>
       <nav className="no-print" style={{ display:"flex", gap:8, marginBottom:12 }}>{["all","receivable","payable"].map((value)=><button key={value} onClick={()=>setSide(value)} style={{ ...button, background:side===value?"var(--erp-accent)":"var(--erp-panel-solid)", color:side===value?"#05202a":"var(--erp-muted)" }}>{copy[value]}</button>)}</nav>
       {data.summary.over_credit_limit_count > 0 && <div style={{ ...card, padding:14, marginBottom:12, color:"#fbbf24" }}><AlertTriangle size={17} style={{ display:"inline", marginInlineEnd:8 }}/>{copy.creditWarning}: {n(data.summary.over_credit_limit_count)}</div>}

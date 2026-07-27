@@ -692,13 +692,13 @@ export default function Customers() {
           icon={<Wallet size={22} />}
           title={t("debtor")}
           value={money(summary.totalDebtor)}
-          color="#fca5a5"
+          colorClassName="text-red-300"
         />
         <SummaryCard
           icon={<Wallet size={22} />}
           title={t("creditor")}
           value={money(summary.totalCreditor)}
-          color="#86efac"
+          colorClassName="text-green-300"
         />
         <SummaryCard
           icon={<Building2 size={22} />}
@@ -1151,13 +1151,13 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
   );
 }
 
-function SummaryCard({ icon, title, value, color }) {
+function SummaryCard({ icon, title, value, color, colorClassName }) {
   return (
     <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-6 shadow-2xl">
       <div className="flex justify-between items-center">
         <div>
           <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
-          <div className="text-2xl font-black mt-3" style={{ color }}>
+          <div className={`text-2xl font-black mt-3${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
             {value}
           </div>
         </div>

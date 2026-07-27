@@ -92,10 +92,10 @@ export default function InventoryAlerts({ alerts = [], to = "/products" }) {
             <Link
               key={alert.id || index}
               to={to}
+              className="text-red-300"
               style={{
                 background: "rgba(239,68,68,0.15)",
                 border: "1px solid rgba(239,68,68,0.4)",
-                color: "#fca5a5",
                 padding: 14,
                 borderRadius: 16,
                 marginBottom: 12,

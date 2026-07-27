@@ -280,13 +280,13 @@ export default function OnlineCommerce() {
             </div>
             {["admin", "accountant"].includes(user?.role) && <button type="button" onClick={() => checkConnections(true)} disabled={checkingConnections} className="rounded-2xl px-4 py-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028", opacity: checkingConnections ? .6 : 1 }}><Activity size={18} />{checkingConnections ? "..." : tr("اجرای عیب‌یابی امن", "تشغيل التشخيص الآمن", "Güvenli tanılama çalıştır", "Run secure diagnostics")}</button>}
           </div>
-          {!["admin", "accountant"].includes(user?.role) && <div className="mt-5 rounded-2xl p-4 flex gap-3 items-center" style={{ background: "rgba(245,158,11,.12)", color: "#fde68a" }}><AlertTriangle />{tr("مشاهده وضعیت اتصال فقط برای مدیر و حسابدار مجاز است.", "عرض حالة الاتصال مسموح فقط للمدير والمحاسب.", "Bağlantı durumunu görüntüleme yalnızca yönetici ve muhasebeci içindir.", "Connection status is restricted to managers.")}</div>}
+          {!["admin", "accountant"].includes(user?.role) && <div className="mt-5 rounded-2xl p-4 flex gap-3 items-center text-amber-200" style={{ background: "rgba(245,158,11,.12)" }}><AlertTriangle />{tr("مشاهده وضعیت اتصال فقط برای مدیر و حسابدار مجاز است.", "عرض حالة الاتصال مسموح فقط للمدير والمحاسب.", "Bağlantı durumunu görüntüleme yalnızca yönetici ve muhasebeci içindir.", "Connection status is restricted to managers.")}</div>}
           {connectionStatus && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
             {["telegram", "whatsapp"].map((channel) => {
               const status = connectionStatus[channel];
               return <article key={channel} className="rounded-2xl p-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${status.ready ? "#22c55e" : "#f59e0b"}` }}>
                 <div className="flex items-center justify-between gap-3"><strong className="text-lg">{channel}</strong>{status.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
-                <p className="mt-3 font-black" style={{ color: status.ready ? "#86efac" : "#fcd34d" }}>{status.ready ? tr("آماده فعال‌سازی واقعی", "جاهز للتفعيل الفعلي", "Canlı aktivasyona hazır", "Ready for live activation") : tr("تنظیمات ناقص", "الإعدادات غير مكتملة", "Yapılandırma eksik", "Configuration incomplete")}</p>
+                <p className={`mt-3 font-black ${status.ready ? "text-green-300" : "text-amber-300"}`}>{status.ready ? tr("آماده فعال‌سازی واقعی", "جاهز للتفعيل الفعلي", "Canlı aktivasyona hazır", "Ready for live activation") : tr("تنظیمات ناقص", "الإعدادات غير مكتملة", "Yapılandırma eksik", "Configuration incomplete")}</p>
                 <code className="block mt-3 text-xs" dir="ltr">{status.webhook_path}</code>
               </article>;
             })}
@@ -301,7 +301,7 @@ export default function OnlineCommerce() {
           </div>}
           {storefrontStatus && <article className="rounded-2xl p-5 mt-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${storefrontStatus.ready ? "#22c55e" : "#f59e0b"}` }}>
             <div className="flex items-center justify-between gap-3"><strong className="text-lg">{tr("همگام‌سازی فروشگاه", "مزامنة المتجر", "Mağaza senkronizasyonu", "Storefront synchronization")}</strong>{storefrontStatus.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
-            <p className="mt-3 font-black" style={{ color: storefrontStatus.ready ? "#86efac" : "#fcd34d" }}>{storefrontStatus.ready ? tr("فید امضاشده آماده اتصال است", "الخلاصة الموقعة جاهزة للاتصال", "İmzalı besleme bağlantıya hazır", "Signed feed is ready") : tr("Secret همگام‌سازی هنوز تنظیم نشده", "لم يتم تكوين سر المزامنة بعد", "Senkronizasyon gizli anahtarı henüz yapılandırılmadı", "Synchronization secret is not configured")}</p>
+            <p className={`mt-3 font-black ${storefrontStatus.ready ? "text-green-300" : "text-amber-300"}`}>{storefrontStatus.ready ? tr("فید امضاشده آماده اتصال است", "الخلاصة الموقعة جاهزة للاتصال", "İmzalı besleme bağlantıya hazır", "Signed feed is ready") : tr("Secret همگام‌سازی هنوز تنظیم نشده", "لم يتم تكوين سر المزامنة بعد", "Senkronizasyon gizli anahtarı henüz yapılandırılmadı", "Synchronization secret is not configured")}</p>
             <code className="block mt-3 text-xs" dir="ltr">{storefrontStatus.feed_path}</code>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-center">
               <ConnectionMetric label={tr("کالای منتشرشده", "المنتجات المنشورة", "Yayınlanan ürünler", "Published products")} value={n(storefrontStatus.published_products)} />

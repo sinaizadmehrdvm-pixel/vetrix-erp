@@ -745,6 +745,7 @@ export default function Transactions() {
                           type="button"
                           onClick={() => removeTransaction(item)}
                           title={tr("حذف", "حذف", "Sil", "Delete")}
+                          className="text-red-300"
                           style={{
                             width: 38,
                             height: 38,
@@ -754,7 +755,6 @@ export default function Transactions() {
                             borderRadius: 12,
                             border: "none",
                             background: "rgba(239,68,68,0.18)",
-                            color: "#fca5a5",
                             cursor: "pointer",
                           }}
                         >

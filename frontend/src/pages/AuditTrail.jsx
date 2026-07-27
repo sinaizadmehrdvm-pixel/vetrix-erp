@@ -156,7 +156,7 @@ export default function AuditTrail() {
 
   if (!isAdmin) {
     return (
-      <div dir={dir} style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, color: "#fecaca", textAlign: "center" }}>
+      <div dir={dir} className="text-red-200" style={{ ...card, maxWidth: 760, margin: "80px auto", padding: 36, textAlign: "center" }}>
         <ShieldAlert size={48} style={{ margin: "0 auto 18px" }} />
         <h1>{copy.denied}</h1>
       </div>
@@ -187,13 +187,13 @@ export default function AuditTrail() {
         <section style={{ ...card, padding: 18, marginBottom: 18, display: "flex", alignItems: "center", gap: 13, borderColor: integrity.valid ? "rgba(34,197,94,.38)" : "rgba(239,68,68,.5)" }}>
           {integrity.valid ? <ShieldCheck size={30} color="#86efac" /> : <AlertTriangle size={30} color="#fca5a5" />}
           <div>
-            <strong style={{ color: integrity.valid ? "#bbf7d0" : "#fecaca", fontSize: 18 }}>{integrity.valid ? copy.valid : copy.broken}</strong>
+            <strong className={integrity.valid ? "text-green-200" : "text-red-200"} style={{ fontSize: 18 }}>{integrity.valid ? copy.valid : copy.broken}</strong>
             <div style={{ color: "var(--erp-muted)", marginTop: 4 }}>{n(integrity.events_checked)} {copy.checked}</div>
           </div>
         </section>
       )}
 
-      {error && <div style={{ ...card, padding: 15, marginBottom: 18, color: "#fecaca", borderColor: "rgba(239,68,68,.4)" }}>{error}</div>}
+      {error && <div className="text-red-200" style={{ ...card, padding: 15, marginBottom: 18, borderColor: "rgba(239,68,68,.4)" }}>{error}</div>}
 
       <form onSubmit={applyFilters} style={{ ...card, padding: 18, marginBottom: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
@@ -239,7 +239,7 @@ export default function AuditTrail() {
                     <td style={{ padding: 12, color: "var(--erp-accent-2)", fontWeight: 800 }}>{actionLabel(event.action)}</td>
                     <td style={{ padding: 12 }}><code>{event.method}</code></td>
                     <td style={{ padding: 12, color: "var(--erp-accent)", direction: "ltr", textAlign: "left" }}>{event.path}</td>
-                    <td style={{ padding: 12 }}><span style={{ color: successful ? "#86efac" : "#fca5a5", fontWeight: 900 }}>{event.status_code}</span></td>
+                    <td style={{ padding: 12 }}><span className={successful ? "text-green-300" : "text-red-300"} style={{ fontWeight: 900 }}>{event.status_code}</span></td>
                     <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr" }}>{event.client_ip || "-"}</td>
                     <td style={{ padding: 12, color: "var(--erp-muted)", direction: "ltr", fontSize: 11 }}>{event.request_id.slice(0, 8)}…</td>
                   </tr>
