@@ -50,25 +50,17 @@ const OnlineCommerce = lazy(() => import("./pages/OnlineCommerce"));
 const ChangeRequestCenter = lazy(() => import("./pages/ChangeRequestCenter"));
 const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
 const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
+const CatalogStudio = lazy(() => import("./pages/CatalogStudio"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
-
-  if (!authReady) {
-    return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-        Vetrix ERP...
-      </div>
-    );
-  }
-
+  if (!authReady) return <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">Vetrix ERP...</div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
 function AppContent() {
   const { dir, language } = useLanguage();
-
   useEffect(() => {
     document.documentElement.dir = dir;
     document.documentElement.lang = language;
@@ -81,85 +73,55 @@ function AppContent() {
   return (
     <>
       <LocaleSettingsSync />
-      <Toaster
-        position={dir === "rtl" ? "top-left" : "top-right"}
-        toastOptions={{
-          style: {
-            background: "#111827",
-            color: "#fff",
-            border: "1px solid #1f2937",
-          },
-        }}
-      />
-
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-            Vetrix ERP...
-          </div>
-        }
-      >
+      <Toaster position={dir === "rtl" ? "top-left" : "top-right"} toastOptions={{ style: { background: "#111827", color: "#fff", border: "1px solid #1f2937" } }} />
+      <Suspense fallback={<div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">Vetrix ERP...</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
-        <Route
-          path="/invoice-designer"
-          element={
-            <ProtectedRoute>
-              <InvoiceDesigner />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="customers/:id" element={<CustomerDetails />} />
-          <Route path="customers/:id/360" element={<Customer360 />} />
-          <Route path="products" element={<Products />} />
-          <Route path="product-categories" element={<ProductCategories />} />
-          <Route path="invoices" element={<Invoices />} />
-          <Route path="invoice-print/:id" element={<InvoicePrint />} />
-          <Route path="warehouse" element={<Warehouse />} />
-          <Route path="smart-inventory" element={<SmartInventory />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="receipts" element={<Receipts />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="ai-bi" element={<AiBusinessIntelligence />} />
-          <Route path="finance" element={<FinanceCenter />} />
-          <Route path="accounting" element={<AccountingCore />} />
-          <Route path="accounting-entries" element={<AccountingEntries />} />
-          <Route path="fiscal-periods" element={<FiscalPeriods />} />
-          <Route path="audit-trail" element={<AuditTrail />} />
-          <Route path="user-management" element={<UserManagement />} />
-          <Route path="backup-recovery" element={<BackupRecovery />} />
-          <Route path="system-health" element={<SystemHealth />} />
-          <Route path="financial-statements" element={<FinancialStatements />} />
-          <Route path="tax-accounting" element={<TaxAccounting />} />
-          <Route path="aging-report" element={<AgingReport />} />
-          <Route path="bank-reconciliation" element={<BankReconciliation />} />
-          <Route path="fixed-assets" element={<FixedAssets />} />
-          <Route path="budget-control" element={<BudgetControl />} />
-          <Route path="currency-management" element={<CurrencyManagement />} />
-          <Route path="approval-center" element={<ApprovalCenter />} />
-          <Route path="treasury-cheques" element={<TreasuryCheques />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="crm" element={<CrmDashboard />} />
-          <Route path="business-intelligence" element={<BusinessIntelligence />} />
-          <Route path="online-commerce" element={<OnlineCommerce />} />
-          <Route path="change-requests" element={<ChangeRequestCenter />} />
-          <Route path="financial-policy" element={<FinancialPolicy />} />
-          <Route path="data-import" element={<DataImportCenter />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/invoice-designer" element={<ProtectedRoute><InvoiceDesigner /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerDetails />} />
+            <Route path="customers/:id/360" element={<Customer360 />} />
+            <Route path="products" element={<Products />} />
+            <Route path="product-categories" element={<ProductCategories />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="invoice-print/:id" element={<InvoicePrint />} />
+            <Route path="warehouse" element={<Warehouse />} />
+            <Route path="smart-inventory" element={<SmartInventory />} />
+            <Route path="transactions" element={<Transactions />} />
+            <Route path="payments" element={<Payments />} />
+            <Route path="receipts" element={<Receipts />} />
+            <Route path="expenses" element={<Expenses />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="ai-bi" element={<AiBusinessIntelligence />} />
+            <Route path="finance" element={<FinanceCenter />} />
+            <Route path="accounting" element={<AccountingCore />} />
+            <Route path="accounting-entries" element={<AccountingEntries />} />
+            <Route path="fiscal-periods" element={<FiscalPeriods />} />
+            <Route path="audit-trail" element={<AuditTrail />} />
+            <Route path="user-management" element={<UserManagement />} />
+            <Route path="backup-recovery" element={<BackupRecovery />} />
+            <Route path="system-health" element={<SystemHealth />} />
+            <Route path="financial-statements" element={<FinancialStatements />} />
+            <Route path="tax-accounting" element={<TaxAccounting />} />
+            <Route path="aging-report" element={<AgingReport />} />
+            <Route path="bank-reconciliation" element={<BankReconciliation />} />
+            <Route path="fixed-assets" element={<FixedAssets />} />
+            <Route path="budget-control" element={<BudgetControl />} />
+            <Route path="currency-management" element={<CurrencyManagement />} />
+            <Route path="approval-center" element={<ApprovalCenter />} />
+            <Route path="treasury-cheques" element={<TreasuryCheques />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="crm" element={<CrmDashboard />} />
+            <Route path="business-intelligence" element={<BusinessIntelligence />} />
+            <Route path="online-commerce" element={<OnlineCommerce />} />
+            <Route path="catalog-studio" element={<CatalogStudio />} />
+            <Route path="change-requests" element={<ChangeRequestCenter />} />
+            <Route path="financial-policy" element={<FinancialPolicy />} />
+            <Route path="data-import" element={<DataImportCenter />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </Suspense>
@@ -168,11 +130,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary><AuthProvider><AppContent /></AuthProvider></ErrorBoundary>;
 }
