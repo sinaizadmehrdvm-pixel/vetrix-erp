@@ -28,9 +28,9 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
-      - name: Pin reviewed React Router security version
+      - name: Install patched React Router release
         working-directory: frontend
-        run: npm install --save-exact react-router-dom@7.11.0
+        run: npm install --save-exact react-router-dom@7.18.2
       - name: Apply remaining compatible security updates
         working-directory: frontend
         run: npm audit fix
