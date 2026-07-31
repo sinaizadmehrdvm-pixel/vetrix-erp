@@ -49,7 +49,13 @@ def build_engine(database_url: str | None = None) -> Engine:
 DATABASE_URL = normalize_database_url(os.getenv("VETRIX_DATABASE_URL", DEFAULT_DATABASE_URL))
 engine = build_engine(DATABASE_URL)
 
+
+class VetrixSession(Session):
+    """Application session with mandatory organization isolation guards."""
+
+
 SessionLocal = sessionmaker(
+    class_=VetrixSession,
     autocommit=False,
     autoflush=False,
     expire_on_commit=False,
@@ -61,7 +67,7 @@ Base = declarative_base()
 # Import after Base/SessionLocal exist to avoid model/database import cycles.
 from app.organization.runtime import install_organization_session_guards  # noqa: E402
 
-install_organization_session_guards(Session)
+install_organization_session_guards(VetrixSession)
 
 
 def get_db():
