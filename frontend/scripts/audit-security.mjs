@@ -4,7 +4,7 @@ const allowedAdvisories = new Map([
   [
     'GHSA-qwww-vcr4-c8h2',
     {
-      packages: new Set(['react-router', 'react-router-dom']),
+      packages: new Set(['react-router']),
       expires: '2026-09-30',
       reason:
         'VETRIX ERP uses React Router as a client-only BrowserRouter application and does not enable React Server Components, server actions, SSR action processing, or framework-mode action endpoints affected by this advisory.',
@@ -35,49 +35,72 @@ try {
 }
 
 const today = new Date().toISOString().slice(0, 10);
-const blocked = [];
-const accepted = [];
 const vulnerabilities = report.vulnerabilities ?? {};
+const decisions = new Map();
 
-for (const [packageName, vulnerability] of Object.entries(vulnerabilities)) {
-  if (!['high', 'critical'].includes(vulnerability.severity)) continue;
+function evaluate(packageName, stack = new Set()) {
+  if (decisions.has(packageName)) return decisions.get(packageName);
+  if (stack.has(packageName)) return { accepted: false, details: [`dependency cycle at ${packageName}`] };
 
-  const advisoryEntries = Array.isArray(vulnerability.via)
-    ? vulnerability.via.filter((entry) => typeof entry === 'object' && entry !== null)
-    : [];
-
-  if (advisoryEntries.length === 0) {
-    blocked.push({ packageName, advisory: 'unknown', title: vulnerability.title ?? 'High-severity vulnerability' });
-    continue;
+  const vulnerability = vulnerabilities[packageName];
+  if (!vulnerability || !['high', 'critical'].includes(vulnerability.severity)) {
+    return { accepted: true, details: [] };
   }
 
-  for (const advisory of advisoryEntries) {
-    const id = advisory.url?.split('/').pop() ?? String(advisory.source ?? 'unknown');
+  const nextStack = new Set(stack).add(packageName);
+  const via = Array.isArray(vulnerability.via) ? vulnerability.via : [];
+  const details = [];
+  let accepted = via.length > 0;
+
+  for (const entry of via) {
+    if (typeof entry === 'string') {
+      const dependencyDecision = evaluate(entry, nextStack);
+      if (!dependencyDecision.accepted) accepted = false;
+      details.push(...dependencyDecision.details);
+      continue;
+    }
+
+    if (typeof entry !== 'object' || entry === null) {
+      accepted = false;
+      details.push(`${packageName}: unknown advisory`);
+      continue;
+    }
+
+    const id = entry.url?.split('/').pop() ?? String(entry.source ?? 'unknown');
     const exception = allowedAdvisories.get(id);
     const validException =
       exception && exception.packages.has(packageName) && today <= exception.expires;
 
     if (validException) {
-      accepted.push({ packageName, id, expires: exception.expires, reason: exception.reason });
+      details.push(`${packageName}: ${id} accepted until ${exception.expires} — ${exception.reason}`);
     } else {
-      blocked.push({ packageName, advisory: id, title: advisory.title ?? 'High-severity vulnerability' });
+      accepted = false;
+      details.push(`${packageName}: ${id} — ${entry.title ?? 'High-severity vulnerability'}`);
     }
   }
+
+  const decision = { accepted, details: [...new Set(details)] };
+  decisions.set(packageName, decision);
+  return decision;
+}
+
+const blocked = [];
+const accepted = [];
+for (const [packageName, vulnerability] of Object.entries(vulnerabilities)) {
+  if (!['high', 'critical'].includes(vulnerability.severity)) continue;
+  const decision = evaluate(packageName);
+  const target = decision.accepted ? accepted : blocked;
+  target.push(...decision.details);
 }
 
 if (accepted.length > 0) {
   console.log('Time-bounded security exceptions:');
-  for (const item of accepted) {
-    console.log(`- ${item.packageName}: ${item.id} (expires ${item.expires})`);
-    console.log(`  ${item.reason}`);
-  }
+  for (const detail of [...new Set(accepted)]) console.log(`- ${detail}`);
 }
 
 if (blocked.length > 0) {
   console.error('Unaccepted high or critical dependency vulnerabilities:');
-  for (const item of blocked) {
-    console.error(`- ${item.packageName}: ${item.advisory} — ${item.title}`);
-  }
+  for (const detail of [...new Set(blocked)]) console.error(`- ${detail}`);
   process.exit(1);
 }
 
