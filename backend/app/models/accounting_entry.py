@@ -1,9 +1,10 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from datetime import datetime
 from app.database import Base
+from app.organization.scoped_model import OrganizationScopedMixin
 
 
-class AccountingEntry(Base):
+class AccountingEntry(OrganizationScopedMixin, Base):
     __tablename__ = "accounting_entries"
 
     id = Column(Integer, primary_key=True, index=True)
