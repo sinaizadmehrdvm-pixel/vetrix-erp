@@ -1,9 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float
 from datetime import datetime
 from app.database import Base
+from app.organization.scoped_model import OrganizationScopedMixin
 
 
-class Customer(Base):
+class Customer(OrganizationScopedMixin, Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
