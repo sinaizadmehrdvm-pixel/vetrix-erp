@@ -4,7 +4,7 @@ import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 DEFAULT_DATABASE_URL = "sqlite:///./vetrix.db"
 
@@ -57,6 +57,11 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+# Import after Base/SessionLocal exist to avoid model/database import cycles.
+from app.organization.runtime import install_organization_session_guards  # noqa: E402
+
+install_organization_session_guards(Session)
 
 
 def get_db():
