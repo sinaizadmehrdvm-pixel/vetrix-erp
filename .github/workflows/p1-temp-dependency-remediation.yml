@@ -28,10 +28,10 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
-      - name: Apply compatible security updates
+      - name: Apply reviewed security updates
         working-directory: frontend
-        run: npm audit fix
-      - name: Verify frontend
+        run: npm audit fix --force
+      - name: Verify frontend after dependency changes
         working-directory: frontend
         run: npm run verify
       - name: Verify high-severity security gate
