@@ -28,18 +28,20 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
-      - name: Install patched React Router release
+      - name: Apply compatible security updates
         working-directory: frontend
-        run: npm install --save-exact react-router-dom@7.18.2
-      - name: Apply remaining compatible security updates
-        working-directory: frontend
-        run: npm audit fix
+        shell: bash
+        run: |
+          npm audit fix || status=$?
+          if [ "${status:-0}" -gt 1 ]; then
+            exit "$status"
+          fi
       - name: Verify frontend after dependency changes
         working-directory: frontend
         run: npm run verify
-      - name: Verify high-severity security gate
+      - name: Verify policy-aware security gate
         working-directory: frontend
-        run: npm audit --audit-level=high
+        run: npm run verify:security
       - name: Remove temporary workflow and commit results
         shell: bash
         run: |
