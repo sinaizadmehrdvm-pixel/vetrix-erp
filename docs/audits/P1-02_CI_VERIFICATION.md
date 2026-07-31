@@ -1,5 +1,9 @@
 # P1-02 — CI and Verification Baseline
 
+## Status
+
+Complete.
+
 ## Scope
 
 Establish reproducible frontend and backend verification before database, money, migration, or tenancy changes.
@@ -11,7 +15,8 @@ Establish reproducible frontend and backend verification before database, money,
 - Updated GitHub Actions to run on `main`, `agent/**`, and `codex/**` changes.
 - Added workflow concurrency cancellation and explicit timeouts.
 - Preserved backend validation with Python 3.12, dependency checks, unit tests, and compile validation.
-- Applied compatible dependency remediations to the lockfile.
+- Applied compatible dependency remediations to `frontend/package-lock.json`.
+- Used a one-shot remediation workflow and removed it automatically after the lockfile commit.
 
 ## Security exception
 
@@ -21,6 +26,10 @@ The exception is code-enforced, package-scoped, advisory-scoped, time-bounded, a
 
 ## Verified evidence
 
+Reference verification commit: `630e576f11e669e5ede29218e51fcbb557289770`
+
+- Vetrix CI run 660: passed.
+- Vetrix Windows Package run 104: passed.
 - Frontend lint: passed.
 - Direct-fetch inventory audit: passed; 49 known calls are reported for later consolidation.
 - Route/translation contract audit: passed; 42 lazy pages and 30 menu items.
@@ -29,7 +38,9 @@ The exception is code-enforced, package-scoped, advisory-scoped, time-bounded, a
 - Backend unit tests: passed.
 - Backend dependency check: passed.
 - Backend compile validation: passed.
-- Windows packaging workflow: passed on the checkpoint branch before the bot-authored lockfile commit.
+- Windows portable build: passed.
+- Windows packaged-application smoke test: passed.
+- Portable archive, checksum, and artifact upload: passed.
 
 ## Remaining non-blocking debt
 
@@ -37,6 +48,6 @@ The exception is code-enforced, package-scoped, advisory-scoped, time-bounded, a
 - Consolidate direct fetch calls behind the shared API client in a later architecture checkpoint.
 - Add broader frontend component and browser E2E coverage after the foundation migrations have stabilized.
 
-## Exit criteria
+## Exit decision
 
-P1-02 is complete when a final human-authored branch commit reports green Vetrix CI and Windows Package checks using the remediated lockfile.
+All P1-02 exit criteria are satisfied. The project may proceed to P1-03 Decimal Money Migration.
