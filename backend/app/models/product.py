@@ -1,8 +1,9 @@
 from sqlalchemy import Column, Integer, String, Float
 from app.database import Base
+from app.organization.scoped_model import OrganizationScopedMixin
 
 
-class Product(Base):
+class Product(OrganizationScopedMixin, Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
