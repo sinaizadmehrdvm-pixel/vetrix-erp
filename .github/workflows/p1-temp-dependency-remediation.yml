@@ -1,17 +1,15 @@
 name: P1 One-Shot Dependency Remediation
 
 on:
-  push:
-    branches:
-      - codex/priority-01-enterprise-foundation
-    paths:
-      - .github/workflows/p1-temp-dependency-remediation.yml
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   remediate:
+    if: github.event.pull_request.head.ref == 'codex/priority-01-enterprise-foundation'
     name: Remediate and remove temporary workflow
     runs-on: ubuntu-latest
     timeout-minutes: 15
