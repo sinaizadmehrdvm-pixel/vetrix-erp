@@ -1,0 +1,542 @@
+domain,file,line,symbol,current_type,target_type,classification,evidence,migration_required,risk
+backend-conversion,backend/app/accounting/aging.py,14,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/aging.py,14,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-conversion,backend/app/accounting/approvals.py,144,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(voucher[""total_debit""] or 0)",code-change,critical
+backend-conversion,backend/app/accounting/bank_reconciliation.py,15,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/bank_reconciliation.py,15,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-python,backend/app/accounting/bank_reconciliation.py,24,opening_balance,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,opening_balance: float = 0,yes,critical
+backend-python,backend/app/accounting/bank_reconciliation.py,31,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float,yes,critical
+raw-sql,backend/app/accounting/bank_reconciliation.py,47,opening_balance,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"opening_balance FLOAT NOT NULL DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/bank_reconciliation.py,59,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT NOT NULL,",yes,critical
+backend-conversion,backend/app/accounting/budgets.py,15,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/budgets.py,15,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-python,backend/app/accounting/budgets.py,27,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float,yes,critical
+raw-sql,backend/app/accounting/budgets.py,73,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT NOT NULL,",yes,critical
+backend-conversion,backend/app/accounting/closing.py,86,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(debit),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,87,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(credit),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,94,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(balance),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,95,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(debit),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,96,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(credit),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,106,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(difference),code-change,review
+backend-conversion,backend/app/accounting/closing.py,114,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(loss),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,130,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(net_income),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,131,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(closing_debit),code-change,critical
+backend-conversion,backend/app/accounting/closing.py,132,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(closing_credit),code-change,critical
+backend-conversion,backend/app/accounting/currencies.py,16,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/currencies.py,16,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-conversion,backend/app/accounting/currencies.py,20,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(RATE_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/currencies.py,20,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(RATE_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-python,backend/app/accounting/currencies.py,33,rate_to_base,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,rate_to_base: float,yes,critical
+raw-sql,backend/app/accounting/currencies.py,62,rate_to_base,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"rate_to_base FLOAT NOT NULL,",yes,critical
+raw-sql,backend/app/accounting/currencies.py,85,foreign_amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"_ensure_column(conn, ""accounting_voucher_lines"", ""foreign_amount"", ""foreign_amount FLOAT"")",yes,critical
+raw-sql,backend/app/accounting/currencies.py,86,exchange_rate,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"_ensure_column(conn, ""accounting_voucher_lines"", ""exchange_rate"", ""exchange_rate FLOAT"")",yes,critical
+backend-python,backend/app/accounting/entries_router.py,45,debit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,debit: float = 0,yes,critical
+backend-python,backend/app/accounting/entries_router.py,46,credit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,credit: float = 0,yes,critical
+backend-python,backend/app/accounting/entries_router.py,50,foreign_amount,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,foreign_amount: Optional[float] = None,yes,critical
+backend-python,backend/app/accounting/entries_router.py,51,exchange_rate,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,exchange_rate: Optional[float] = None,yes,critical
+raw-sql,backend/app/accounting/entries_router.py,109,total_debit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_debit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/entries_router.py,110,total_credit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_credit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/entries_router.py,126,debit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"debit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/entries_router.py,127,credit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"credit FLOAT DEFAULT 0,",yes,critical
+backend-conversion,backend/app/accounting/entries_router.py,193,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(x.debit or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,194,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(x.credit or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,200,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(line.debit or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,201,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(line.credit or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,211,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(line.foreign_amount or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,212,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(line.exchange_rate or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,419,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(data.get(""total_debit"") or 0)",code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,480,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(row.get(""credit"") or 0)",code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,513,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(item.get(""debit"") or 0)",code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,514,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(item.get(""credit"") or 0)",code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,582,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(line.debit or 0),code-change,critical
+backend-conversion,backend/app/accounting/entries_router.py,594,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(current.get(""total_debit"") or 0)",code-change,critical
+backend-python,backend/app/accounting/fixed_assets.py,28,acquisition_cost,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,acquisition_cost: float,yes,critical
+backend-python,backend/app/accounting/fixed_assets.py,29,salvage_value,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,salvage_value: float = 0,yes,critical
+raw-sql,backend/app/accounting/fixed_assets.py,50,acquisition_cost,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"acquisition_cost FLOAT NOT NULL,",yes,critical
+raw-sql,backend/app/accounting/fixed_assets.py,51,salvage_value,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"salvage_value FLOAT NOT NULL DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/fixed_assets.py,67,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT NOT NULL,",yes,critical
+raw-sql,backend/app/accounting/fixed_assets.py,68,accumulated_after,FLOAT,Explicit numeric policy required,numeric-review,"accumulated_after FLOAT NOT NULL,",yes,review
+raw-sql,backend/app/accounting/fixed_assets.py,69,book_value_after,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"book_value_after FLOAT NOT NULL,",yes,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,101,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(cost),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,102,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(salvage),code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,103,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(depreciable),code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,104,float(),binary float conversion,Explicit numeric policy required,numeric-review,"float(
+            _money(depreciable / int(item[""useful_life_months""]))
+        )",code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,107,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(accumulated),code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,108,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(cost - accumulated)),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,133,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_money(sum(Decimal(str(a[""acquisition_cost""])) for a in assets)))",code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,134,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_money(sum(Decimal(str(a[""accumulated_depreciation""])) for a in assets)))",code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,135,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_money(sum(Decimal(str(a[""book_value""])) for a in assets)))",code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,181,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(cost),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,182,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(salvage),code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,192,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(cost),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,193,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(cost),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,276,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(amount),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,277,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(projected_accumulated),code-change,review
+backend-conversion,backend/app/accounting/fixed_assets.py,285,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(amount),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,286,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(amount),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,297,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(amount),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,298,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(book_value),code-change,critical
+backend-conversion,backend/app/accounting/fixed_assets.py,304,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_money(sum(Decimal(str(item[""amount""])) for item in posted)))",code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,79,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(subtotal),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,80,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(discount),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,81,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(discount_amount),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,82,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(tax),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,83,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(tax_amount),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,84,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(shipping),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,85,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(total_amount),code-change,critical
+backend-conversion,backend/app/accounting/integrity.py,93,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(quantity),code-change,medium
+raw-sql,backend/app/accounting/posting.py,82,total_debit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_debit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/posting.py,83,total_credit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_credit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/posting.py,98,debit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"debit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/posting.py,99,credit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"credit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/accounting/posting.py,103,foreign_amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"foreign_amount FLOAT,",yes,critical
+raw-sql,backend/app/accounting/posting.py,104,exchange_rate,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"exchange_rate FLOAT,",yes,critical
+backend-conversion,backend/app/accounting/posting.py,212,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(total_debit),code-change,critical
+backend-conversion,backend/app/accounting/posting.py,213,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(total_credit),code-change,critical
+backend-conversion,backend/app/accounting/posting.py,235,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(line[""debit""])",code-change,critical
+backend-conversion,backend/app/accounting/posting.py,236,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(line[""credit""])",code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,46,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(sales)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,47,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(sales_returns)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,48,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(net_sales)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,49,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(purchases)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,50,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(purchase_returns)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,51,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(net_purchases)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,52,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(cost_of_goods_sold)),code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,53,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(operating_expenses)),code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,54,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(gross_profit)),code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,55,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(net_profit)),code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,56,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(margin)),code-change,review
+backend-conversion,backend/app/accounting/reporting.py,71,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(_money(amount)),code-change,critical
+backend-conversion,backend/app/accounting/reporting.py,87,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(_money(positive - returned)),code-change,review
+raw-sql,backend/app/accounting/reporting.py,87,return,FLOAT,Explicit numeric policy required,numeric-review,return float(_money(positive - returned)),yes,review
+raw-sql,backend/app/accounting/router.py,94,rate,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"rate FLOAT DEFAULT 1,",yes,critical
+backend-conversion,backend/app/accounting/statements.py,17,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(
+        Decimal(str(value or 0)).quantize(
+            MONEY_STEP,
+            rounding=ROUND_HALF_UP,
+        )
+    )",code-change,critical
+raw-sql,backend/app/accounting/statements.py,17,return,FLOAT,Explicit numeric policy required,numeric-review,return float(,yes,review
+backend-conversion,backend/app/accounting/tax.py,14,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(
+        Decimal(str(value or 0)).quantize(
+            MONEY_STEP,
+            rounding=ROUND_HALF_UP,
+        )
+    )",code-change,critical
+raw-sql,backend/app/accounting/tax.py,14,return,FLOAT,Explicit numeric policy required,numeric-review,return float(,yes,review
+backend-conversion,backend/app/accounting/treasury.py,16,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",code-change,critical
+raw-sql,backend/app/accounting/treasury.py,16,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(Decimal(str(value or 0)).quantize(MONEY_STEP, rounding=ROUND_HALF_UP))",yes,review
+backend-python,backend/app/accounting/treasury.py,22,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float,yes,critical
+raw-sql,backend/app/accounting/treasury.py,43,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT NOT NULL,",yes,critical
+backend-python,backend/app/accounting_core/schemas.py,30,debit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,debit: float = 0,yes,critical
+backend-python,backend/app/accounting_core/schemas.py,31,credit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,credit: float = 0,yes,critical
+backend-python,backend/app/accounting_core/schemas.py,48,debit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,debit: float,yes,critical
+backend-python,backend/app/accounting_core/schemas.py,49,credit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,credit: float,yes,critical
+backend-conversion,backend/app/ai_bi/router.py,16,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/ai_bi/router.py,16,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+backend-conversion,backend/app/change_requests.py,146,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(changes[""discount_percent""])",code-change,critical
+raw-sql,backend/app/change_requests.py,148,and,FLOAT,Explicit numeric policy required,numeric-review,"if ""online_price"" in changes and changes[""online_price""] is not None and float(changes[""online_price""]) < 0:",yes,review
+backend-conversion,backend/app/change_requests.py,148,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(changes[""online_price""])",code-change,critical
+sqlalchemy-model,backend/app/crm/models.py,28,amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/crm/models/customer.py,26,amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/crm/models/timeline.py,17,amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount = Column(Float, nullable=True)",yes,critical
+backend-conversion,backend/app/crm/router.py,15,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(v or 0),code-change,review
+raw-sql,backend/app/crm/router.py,15,return,FLOAT,Explicit numeric policy required,numeric-review,return float(v or 0),yes,review
+raw-sql,backend/app/crm/router.py,69,points,FLOAT,Explicit numeric policy required,numeric-review,"points FLOAT DEFAULT 0,",yes,review
+raw-sql,backend/app/crm/router.py,70,redeemed_points,FLOAT,Explicit numeric policy required,numeric-review,"redeemed_points FLOAT DEFAULT 0,",yes,review
+raw-sql,backend/app/crm/router.py,71,gift_credit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"gift_credit FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/crm/router.py,72,total_spent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_spent FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/crm/router.py,74,discount_percent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent FLOAT DEFAULT 0,",yes,critical
+backend-python,backend/app/crm/router.py,110,points,float,Explicit numeric policy required,numeric-review,points: float,yes,review
+backend-conversion,backend/app/crm/routes/customer.py,31,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/crm/routes/customer.py,31,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+sqlalchemy-model,backend/app/crm/sales_pipeline_models.py,13,value,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"value = Column(Float, default=0)",yes,critical
+backend-python,backend/app/crm/sales_pipeline_routes.py,13,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float = 0,yes,critical
+backend-python,backend/app/crm/sales_pipeline_routes.py,14,probability,float,Explicit numeric policy required,numeric-review,probability: float = 0,yes,review
+raw-sql,backend/app/crm/sales_pipeline_routes.py,26,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/crm/sales_pipeline_routes.py,27,probability,FLOAT,Explicit numeric policy required,numeric-review,"probability FLOAT DEFAULT 0,",yes,review
+backend-python,backend/app/crm/schemas/customer.py,15,debt,float,Explicit numeric policy required,numeric-review,debt: float,yes,review
+backend-conversion,backend/app/data_import.py,100,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(str(value).replace("","", """").replace(""٬"", """"))",code-change,critical
+backend-conversion,backend/app/data_import.py,285,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(money(abs(balance), policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-conversion,backend/app/data_import.py,298,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(money(stock * buy_price, policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-python,backend/app/enterprise_crm/routes.py,22,value,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,value: float = 0,yes,critical
+backend-python,backend/app/enterprise_crm/routes.py,33,value,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,value: Optional[float] = None,yes,critical
+backend-python,backend/app/enterprise_crm/routes.py,43,value,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,value: float = 0,yes,critical
+backend-python,backend/app/enterprise_crm/routes.py,44,probability,float,Explicit numeric policy required,numeric-review,probability: float = 20,yes,review
+backend-conversion,backend/app/enterprise_crm/routes.py,77,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/enterprise_crm/routes.py,77,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+raw-sql,backend/app/enterprise_crm/routes.py,92,value,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"value FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/enterprise_crm/routes.py,107,value,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"value FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/app/enterprise_crm/routes.py,108,probability,FLOAT,Explicit numeric policy required,numeric-review,"probability FLOAT DEFAULT 20,",yes,review
+backend-conversion,backend/app/export/excel_export.py,47,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""total_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,48,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""settled_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,49,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""remaining_amount"", total - settled) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,55,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""subtotal"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,56,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""discount_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,57,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""tax_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/excel_export.py,58,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(_get(inv, ""shipping_cost"", 0) or 0)",code-change,critical
+backend-conversion,backend/app/export/pdf_export.py,79,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/export/pdf_export.py,79,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+backend-python,backend/app/financial_intelligence/routes.py,18,sales_growth_percent,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,sales_growth_percent: float = 0,yes,medium
+backend-python,backend/app/financial_intelligence/routes.py,19,purchase_cost_change_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,purchase_cost_change_percent: float = 0,yes,critical
+backend-python,backend/app/financial_intelligence/routes.py,20,selling_price_change_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,selling_price_change_percent: float = 0,yes,critical
+backend-python,backend/app/financial_intelligence/routes.py,21,expense_change_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,expense_change_percent: float = 0,yes,critical
+backend-python,backend/app/financial_intelligence/routes.py,22,collection_improvement_percent,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,collection_improvement_percent: float = 0,yes,medium
+backend-conversion,backend/app/financial_intelligence/routes.py,36,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/financial_intelligence/routes.py,36,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+raw-sql,backend/app/financial_policy.py,47,tax_percent,REAL,"Decimal / NUMERIC(precision, scale)",money-or-rate,"tax_percent REAL NOT NULL DEFAULT 0,",yes,critical
+raw-sql,backend/app/financial_policy.py,64,tax_percent,REAL,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""tax_percent REAL NOT NULL DEFAULT 0""",yes,critical
+backend-python,backend/app/financial_policy.py,129,tax_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"tax_percent: float = Field(default=0, ge=0, le=100)",yes,critical
+sqlalchemy-model,backend/app/models/accounting_entry.py,15,debit,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"debit = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/accounting_entry.py,16,credit,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"credit = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/accounting_entry.py,17,balance_after,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"balance_after = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/customer.py,19,opening_balance,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"opening_balance = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/customer.py,20,credit_limit,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"credit_limit = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,12,subtotal,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"subtotal = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,13,discount_percent,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,14,discount_amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_amount = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,15,tax_percent,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"tax_percent = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,16,tax_amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"tax_amount = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,17,shipping_cost,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"shipping_cost = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,18,total_amount,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_amount = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,32,quantity,Float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"quantity = Column(Float, default=1)",yes,medium
+sqlalchemy-model,backend/app/models/invoice.py,33,unit_price,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"unit_price = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/invoice.py,34,total_price,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"total_price = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/product.py,19,buy_price,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"buy_price = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/product.py,20,sell_price,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"sell_price = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/product.py,23,price,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"price = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/app/models/product.py,25,stock,Float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"stock = Column(Float, default=0)",yes,medium
+sqlalchemy-model,backend/app/models/product.py,26,min_stock,Float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"min_stock = Column(Float, default=0)",yes,medium
+raw-sql,backend/app/online_commerce.py,44,online_price,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"online_price FLOAT,",yes,critical
+raw-sql,backend/app/online_commerce.py,45,discount_percent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent FLOAT NOT NULL DEFAULT 0,",yes,critical
+backend-python,backend/app/online_commerce.py,98,online_price,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,"online_price: Optional[float] = Field(default=None, ge=0)",yes,critical
+backend-python,backend/app/online_commerce.py,99,discount_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent: float = Field(default=0, ge=0, le=100)",yes,critical
+raw-sql,backend/app/security.py,31,else,FLOAT,Explicit numeric policy required,numeric-review,now = time.monotonic() if now is None else float(now),yes,review
+backend-conversion,backend/app/security.py,31,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(now),code-change,review
+raw-sql,backend/app/security.py,42,else,FLOAT,Explicit numeric policy required,numeric-review,now = time.monotonic() if now is None else float(now),yes,review
+backend-conversion,backend/app/security.py,42,float(),binary float conversion,Explicit numeric policy required,numeric-review,float(now),code-change,review
+backend-conversion,backend/app/smart_inventory/routes.py,14,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/app/smart_inventory/routes.py,14,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+backend-conversion,backend/app/storefront_sync.py,90,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(row[""discount_percent""] or 0)",code-change,critical
+backend-conversion,backend/app/storefront_sync.py,91,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(price or 0),code-change,critical
+backend-conversion,backend/app/storefront_sync.py,99,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"float(row[""stock""] or 0)",code-change,medium
+sqlalchemy-model,backend/main.py,128,tax_percent,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"tax_percent = Column(Float, default=10)",yes,critical
+sqlalchemy-model,backend/main.py,129,discount_percent,Float,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent = Column(Float, default=0)",yes,critical
+sqlalchemy-model,backend/main.py,139,low_stock_default,Float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"low_stock_default = Column(Float, default=5)",yes,medium
+raw-sql,backend/main.py,166,opening_balance,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""opening_balance"": ""opening_balance FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,167,credit_limit,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""credit_limit"": ""credit_limit FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,172,subtotal,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""subtotal"": ""subtotal FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,173,discount_percent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""discount_percent"": ""discount_percent FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,174,discount_amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""discount_amount"": ""discount_amount FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,175,tax_percent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""tax_percent"": ""tax_percent FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,176,tax_amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""tax_amount"": ""tax_amount FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,177,shipping_cost,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"""shipping_cost"": ""shipping_cost FLOAT DEFAULT 0"",",yes,critical
+raw-sql,backend/main.py,221,amount,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"amount FLOAT DEFAULT 0,",yes,critical
+raw-sql,backend/main.py,233,quantity,FLOAT,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"quantity FLOAT DEFAULT 0,",yes,medium
+backend-python,backend/main.py,434,opening_balance,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,opening_balance: float = 0,yes,critical
+backend-python,backend/main.py,435,credit_limit,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,credit_limit: float = 0,yes,critical
+backend-python,backend/main.py,443,price,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,price: Optional[float] = None,yes,critical
+backend-python,backend/main.py,444,sell_price,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,sell_price: Optional[float] = None,yes,critical
+backend-python,backend/main.py,445,buy_price,Optional[float],"Decimal / NUMERIC(precision, scale)",money-or-rate,buy_price: Optional[float] = None,yes,critical
+backend-python,backend/main.py,447,stock,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,stock: float = 0,yes,medium
+backend-python,backend/main.py,452,quantity,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,quantity: float,yes,medium
+backend-python,backend/main.py,453,unit_price,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,unit_price: float,yes,critical
+backend-python,backend/main.py,460,discount_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,discount_percent: float = 0,yes,critical
+backend-python,backend/main.py,461,tax_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,tax_percent: float = 0,yes,critical
+backend-python,backend/main.py,462,shipping_cost,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,shipping_cost: float = 0,yes,critical
+backend-python,backend/main.py,470,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float,yes,critical
+backend-python,backend/main.py,480,amount,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,amount: float,yes,critical
+backend-python,backend/main.py,488,quantity,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,quantity: float,yes,medium
+backend-python,backend/main.py,517,tax_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,tax_percent: float = 10,yes,critical
+backend-python,backend/main.py,518,discount_percent,float,"Decimal / NUMERIC(precision, scale)",money-or-rate,discount_percent: float = 0,yes,critical
+backend-python,backend/main.py,528,low_stock_default,float,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,low_stock_default: float = 5,yes,medium
+backend-conversion,backend/main.py,554,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.debit or 0),code-change,critical
+backend-conversion,backend/main.py,555,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.credit or 0),code-change,critical
+backend-conversion,backend/main.py,572,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(credit or 0),code-change,critical
+backend-conversion,backend/main.py,578,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(debit or 0),code-change,critical
+raw-sql,backend/main.py,578,if,FLOAT,Explicit numeric policy required,numeric-review,"entry_type=""debit"" if float(debit or 0) >= float(credit or 0) else ""credit"",",yes,review
+backend-conversion,backend/main.py,580,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(debit or 0),code-change,critical
+backend-conversion,backend/main.py,581,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(credit or 0),code-change,critical
+backend-conversion,backend/main.py,596,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(abs(opening_balance or 0))),code-change,critical
+backend-conversion,backend/main.py,628,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,629,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(product.buy_price or 0)),code-change,critical
+backend-conversion,backend/main.py,630,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(stock * unit_cost)),code-change,critical
+backend-conversion,backend/main.py,661,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+        abs(stock_delta) * float(product.buy_price or 0)
+    ))",code-change,critical
+backend-conversion,backend/main.py,662,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(product.buy_price or 0),code-change,critical
+backend-conversion,backend/main.py,710,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(product, ""buy_price"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,711,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(
+        getattr(product, ""sell_price"", None)
+        or getattr(product, ""price"", 0)
+        or 0
+    )",code-change,critical
+backend-conversion,backend/main.py,716,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(product, ""price"", 0) or sell_price or 0)",code-change,critical
+backend-conversion,backend/main.py,717,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"float(getattr(product, ""stock"", 0) or 0)",code-change,medium
+backend-conversion,backend/main.py,718,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"float(getattr(product, ""min_stock"", 0) or 0)",code-change,medium
+backend-conversion,backend/main.py,788,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(settings.tax_percent or 0),code-change,critical
+backend-conversion,backend/main.py,789,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(settings.discount_percent or 0),code-change,critical
+backend-conversion,backend/main.py,799,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(settings.low_stock_default or 0),code-change,medium
+backend-conversion,backend/main.py,1189,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(customer, ""opening_balance"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1293,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(data.stock or 0),code-change,medium
+backend-conversion,backend/main.py,1306,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(data.buy_price or 0)),code-change,critical
+backend-conversion,backend/main.py,1307,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(sell_price)),code-change,critical
+backend-conversion,backend/main.py,1308,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(sell_price)),code-change,critical
+backend-conversion,backend/main.py,1332,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(data.stock or 0),code-change,medium
+backend-conversion,backend/main.py,1346,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,1363,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(data.buy_price or 0)),code-change,critical
+backend-conversion,backend/main.py,1364,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(sell_price)),code-change,critical
+backend-conversion,backend/main.py,1365,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(sell_price)),code-change,critical
+backend-conversion,backend/main.py,1432,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.credit or 0),code-change,critical
+backend-conversion,backend/main.py,1434,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.debit or 0),code-change,critical
+backend-conversion,backend/main.py,1436,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+        raw_total,
+        policy[""decimal_places""],
+        policy[""rounding_mode""],
+    ))",code-change,critical
+raw-sql,backend/main.py,1436,return,FLOAT,Explicit numeric policy required,numeric-review,return float(accounting_money(,yes,review
+raw-sql,backend/main.py,1469,and,FLOAT,Explicit numeric policy required,numeric-review,"if data.invoice_type in {""sale"", ""return_buy""} and float(product.stock or 0) < required_quantity:",yes,review
+backend-conversion,backend/main.py,1469,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,1472,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,1519,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(policy_money(invoice.total_amount)),code-change,critical
+backend-conversion,backend/main.py,1520,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(policy_money(getattr(invoice, ""subtotal"", 0) or 0))",code-change,critical
+backend-conversion,backend/main.py,1521,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(policy_money(
+        getattr(invoice, ""discount_amount"", 0) or 0
+    ))",code-change,critical
+backend-conversion,backend/main.py,1524,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(policy_money(subtotal - discount)),code-change,critical
+backend-conversion,backend/main.py,1525,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(policy_money(getattr(invoice, ""tax_amount"", 0) or 0))",code-change,critical
+backend-conversion,backend/main.py,1526,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(policy_money(
+        getattr(invoice, ""shipping_cost"", 0) or 0
+    ))",code-change,critical
+backend-conversion,backend/main.py,1529,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(policy_money(taxable_base + shipping)),code-change,critical
+backend-conversion,backend/main.py,1530,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(policy_money(sum(
+        float(item.quantity)
+        * float(getattr(products[item.product_id], ""buy_price"", 0) or 0)
+        for item in items
+    )))",code-change,critical
+backend-conversion,backend/main.py,1531,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(item.quantity),code-change,medium
+backend-conversion,backend/main.py,1532,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(products[item.product_id], ""buy_price"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1592,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+        entry.credit or entry.debit,
+        policy[""decimal_places""],
+        policy[""rounding_mode""],
+    ))",code-change,critical
+backend-conversion,backend/main.py,1659,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(item.unit_price, policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-conversion,backend/main.py,1660,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(float(item.quantity) * float(item.unit_price), policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-conversion,backend/main.py,1732,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(item.unit_price, policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-conversion,backend/main.py,1733,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(float(item.quantity) * float(item.unit_price), policy[""decimal_places""], policy[""rounding_mode""]))",code-change,critical
+backend-conversion,backend/main.py,1768,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(inv.total_amount or 0),code-change,critical
+backend-conversion,backend/main.py,1788,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(e.credit or 0),code-change,critical
+backend-conversion,backend/main.py,1789,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(e.debit or 0),code-change,critical
+backend-conversion,backend/main.py,1814,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""subtotal"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1815,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""discount_percent"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1816,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""discount_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1817,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""tax_percent"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1818,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""tax_amount"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1819,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(inv, ""shipping_cost"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,1849,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+            data.amount,
+            policy[""decimal_places""],
+            policy[""rounding_mode""],
+        ))",code-change,critical
+backend-conversion,backend/main.py,1876,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+                invoice.total_amount - settled_before,
+                policy[""decimal_places""],
+                policy[""rounding_mode""],
+            ))",code-change,critical
+backend-conversion,backend/main.py,1910,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(accounting_money(
+                invoice.total_amount - settled,
+                policy[""decimal_places""],
+                policy[""rounding_mode""],
+            ))",code-change,critical
+backend-conversion,backend/main.py,1991,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(accounting_money(data.amount)),code-change,critical
+backend-conversion,backend/main.py,2039,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,2040,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(data.quantity),code-change,medium
+backend-conversion,backend/main.py,2096,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(product.stock or 0),code-change,medium
+backend-conversion,backend/main.py,2372,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.debit or 0),code-change,critical
+raw-sql,backend/main.py,2372,return,FLOAT,Explicit numeric policy required,numeric-review,"return float(entry.debit or 0), float(entry.credit or 0)",yes,review
+backend-conversion,backend/main.py,2377,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(value or 0),code-change,critical
+raw-sql,backend/main.py,2377,return,FLOAT,Explicit numeric policy required,numeric-review,return float(value or 0),yes,review
+backend-conversion,backend/main.py,2962,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(product, ""buy_price"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,2963,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(
+                getattr(product, ""sell_price"", None)
+                or getattr(product, ""price"", 0)
+                or 0
+            )",code-change,critical
+backend-conversion,backend/main.py,2970,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,float(item.quantity or 0),code-change,medium
+backend-conversion,backend/main.py,2971,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(
+                    getattr(item, ""total_price"", None)
+                    or getattr(item, ""total"", 0)
+                    or qty * float(getattr(item, ""unit_price"", 0) or 0)
+                )",code-change,critical
+backend-conversion,backend/main.py,2974,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(item, ""unit_price"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,2996,float(),binary float conversion,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"float(getattr(product, ""stock"", 0) or 0)",code-change,medium
+backend-conversion,backend/main.py,3025,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(customer, ""balance"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3026,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(customer, ""opening_balance"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3038,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(e, ""debit"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3039,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(getattr(e, ""credit"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3068,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(x.get(""debit"", 0) or 0)",code-change,critical
+raw-sql,backend/main.py,3068,if,FLOAT,Explicit numeric policy required,numeric-review,"debtors = [x for x in rows if float(x.get(""debit"", 0) or 0) > 0]",yes,review
+backend-conversion,backend/main.py,3069,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(x.get(""credit"", 0) or 0)",code-change,critical
+raw-sql,backend/main.py,3069,if,FLOAT,Explicit numeric policy required,numeric-review,"creditors = [x for x in rows if float(x.get(""credit"", 0) or 0) > 0]",yes,review
+backend-conversion,backend/main.py,3071,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(x.get(""debit"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3072,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(x.get(""credit"", 0) or 0)",code-change,critical
+backend-conversion,backend/main.py,3377,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(e.credit or 0),code-change,critical
+backend-conversion,backend/main.py,3378,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(e.debit or 0),code-change,critical
+backend-conversion,backend/main.py,3387,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(invoice.total_amount or 0),code-change,critical
+backend-conversion,backend/main.py,3721,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,float(entry.credit or entry.debit or 0),code-change,critical
+backend-conversion,backend/tests/test_access_control.py,560,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(period[""total_debit""])",code-change,critical
+backend-conversion,backend/tests/test_access_control.py,561,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(period[""total_credit""])",code-change,critical
+backend-conversion,backend/tests/test_access_control.py,1221,float(),binary float conversion,"Decimal / NUMERIC(precision, scale)",money-or-rate,"float(voucher[""total_credit""] or 0)",code-change,critical
+raw-sql,backend/tests/test_campaign_delivery.py,47,stock,FLOAT,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"id INTEGER PRIMARY KEY, name VARCHAR, stock FLOAT,",yes,medium
+raw-sql,backend/tests/test_campaign_delivery.py,48,sell_price,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,sell_price FLOAT,yes,critical
+raw-sql,backend/tests/test_storefront_sync.py,37,stock,FLOAT,Decimal / NUMERIC when fractional; Integer when indivisible,quantity-or-measurement,"stock FLOAT,",yes,medium
+raw-sql,backend/tests/test_storefront_sync.py,38,sell_price,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,sell_price FLOAT,yes,critical
+raw-sql,backend/tests/test_storefront_sync.py,52,online_price,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"online_price FLOAT,",yes,critical
+raw-sql,backend/tests/test_storefront_sync.py,53,discount_percent,FLOAT,"Decimal / NUMERIC(precision, scale)",money-or-rate,"discount_percent FLOAT,",yes,critical
+frontend-numeric,frontend/src/charts/SalesChart.jsx,26,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"sales: Number(item.sales || 0),",code-review,medium
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,57,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,if (!enabled) return Math.round(value);,code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,58,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,return Math.round(value / 10) * 10;,code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,385,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"<div className=""mini-btn text-cyan-200"">{Math.round(zoom * 100)}%</div>",code-review,medium
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,447,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label=""X"" value={selected.x} onChange={(v) => updateElement(selected.id, { x: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,448,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label=""Y"" value={selected.y} onChange={(v) => updateElement(selected.id, { y: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,449,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label=""W"" value={selected.w} onChange={(v) => updateElement(selected.id, { w: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,450,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label=""H"" value={selected.h} onChange={(v) => updateElement(selected.id, { h: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,456,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label={fa ? ""سایز فونت"" : ""Font size""} value={selected.fontSize} onChange={(v) => updateElement(selected.id, { fontSize: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/designer/InvoiceDesigner.jsx,457,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Prop label={fa ? ""گردی گوشه"" : ""Radius""} value={selected.radius} onChange={(v) => updateElement(selected.id, { radius: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,49,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,return sum + Number(item.quantity || 0) * Number(item.unit_price || 0);,code-review,high
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,52,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const discountAmount = subtotal * (Number(discountPercent || 0) / 100);,code-review,high
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,54,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const taxAmount = afterDiscount * (Number(taxPercent || 0) / 100);,code-review,high
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,106,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,.filter((item) => item.product_id && Number(item.quantity) > 0),code-review,medium
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,108,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"product_id: Number(item.product_id),",code-review,medium
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,109,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"quantity: Number(item.quantity),",code-review,medium
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,110,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"unit_price: Number(item.unit_price),",code-review,high
+frontend-numeric,frontend/src/invoice/InvoiceBuilder.jsx,120,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"customer_id: Number(customerId),",code-review,medium
+frontend-numeric,frontend/src/localization/LanguageProvider.jsx,68,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,decimal_places: Number.isInteger(Number(settings.decimal_places)),code-review,medium
+frontend-numeric,frontend/src/localization/LanguageProvider.jsx,69,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"? Math.max(0, Math.min(4, Number(settings.decimal_places)))",code-review,medium
+frontend-numeric,frontend/src/localization/LanguageProvider.jsx,73,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,first_day_of_week: Number.isInteger(Number(settings.first_day_of_week)),code-review,medium
+frontend-numeric,frontend/src/localization/LanguageProvider.jsx,74,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"? Math.max(0, Math.min(6, Number(settings.first_day_of_week)))",code-review,medium
+frontend-numeric,frontend/src/localization/countryProfiles.js,124,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"return new Intl.NumberFormat(localeFor(profile, language), options).format(Number(value || 0));",code-review,high
+frontend-numeric,frontend/src/localization/countryProfiles.js,134,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,}).format(Number(value || 0));,code-review,high
+frontend-numeric,frontend/src/localization/helpers.js,6,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"return String(value).replace(/[0-9]/g, (digit) => persianDigits[Number(digit)]);",code-review,high
+frontend-numeric,frontend/src/localization/helpers.js,31,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const number = Number(cleaned);,code-review,medium
+frontend-numeric,frontend/src/localization/helpers.js,42,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const numericValue = Number(value || 0);,code-review,high
+frontend-numeric,frontend/src/localization/numbers.js,4,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"return String(value).replace(/[0-9]/g, (digit) => persianDigits[Number(digit)]);",code-review,high
+frontend-numeric,frontend/src/localization/numbers.js,8,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const number = Number(value || 0);,code-review,high
+frontend-numeric,frontend/src/pages/AccountingCore.js,42,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"const payload = { ...form, parent_id: form.parent_id ? Number(form.parent_id) : null, is_active: !!form.is_active };",code-review,medium
+frontend-numeric,frontend/src/pages/AccountingEntries.js,19,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"function toNumber(value) { return Number(String(value ?? ""0"").replace(/[۰-۹]/g, d => ""۰۱۲۳۴۵۶۷۸۹"".indexOf(d)).replace(/[^\d.-]/g, """")) || 0; }",code-review,high
+frontend-numeric,frontend/src/pages/AccountingEntries.js,103,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"account_id: Number(line.account_id),",code-review,medium
+frontend-numeric,frontend/src/pages/AgingReport.jsx,81,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<label style={{ color: ""#94a3b8"", fontSize: 12 }}>{copy.terms}<input type=""number"" min=""0"" max=""365"" value={termsDays} onChange={(e) => setTermsDays(Number(e.target.value))} style={{ display: ""block"", width: 105, marginTop: 4, background: ""#1e293b"", color: ""white"", border: ""1px solid #334155"", borde",code-review,high
+frontend-numeric,frontend/src/pages/AiBusinessIntelligence.jsx,72,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const score = Number(data?.health_score || 0);,code-review,medium
+frontend-numeric,frontend/src/pages/AiBusinessIntelligence.jsx,143,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<KpiCard title={fa ? ""رشد فروش ماه"" : ""Monthly sales growth""} value={`${n(Number(kpis.sales_growth_percent || 0).toFixed(1))}%`} icon={(kpis.sales_growth_percent || 0) >= 0 ? <TrendingUp /> : <TrendingDown />} color={(kpis.sales_growth_percent || 0) >= 0 ? ""#10b981"" : ""#ef4444""} />",code-review,high
+frontend-numeric,frontend/src/pages/AiBusinessIntelligence.jsx,143,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<KpiCard title={fa ? ""رشد فروش ماه"" : ""Monthly sales growth""} value={`${n(Number(kpis.sales_growth_percent || 0).toFixed(1))}%`} icon={(kpis.sales_growth_percent || 0) >= 0 ? <TrendingUp /> : <TrendingDown />} color={(kpis.sales_growth_percent || 0) >= 0 ? ""#10b981"" : ""#ef4444""} />",code-review,high
+frontend-numeric,frontend/src/pages/BackupRecovery.jsx,219,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const bytes = Number(value || 0);,code-review,high
+frontend-numeric,frontend/src/pages/BackupRecovery.jsx,221,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,if (bytes < 1024 * 1024) return `${n((bytes / 1024).toFixed(1))} KB`;,code-review,medium
+frontend-numeric,frontend/src/pages/BackupRecovery.jsx,222,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return `${n((bytes / 1024 / 1024).toFixed(2))} MB`;,code-review,medium
+frontend-numeric,frontend/src/pages/BankReconciliation.jsx,20,unary-plus,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"addLine:fa?""افزودن گردش صورتحساب"":""Add statement line"",date:fa?""تاریخ"":""Date"",description:fa?""شرح"":""Description"",reference:fa?""مرجع"":""Reference"",amount:fa?""مبلغ (+واریز / -برداشت)"":""Amount (+in / -out)"",",code-review,high
+frontend-numeric,frontend/src/pages/BankReconciliation.jsx,37,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"async function submitLine(e){e.preventDefault();if(!accountId)return;try{await addBankStatementLine(accountId,{...lineForm,amount:Number(lineForm.amount)});setLineForm({...lineForm,description:"""",reference:"""",amount:""""});await load(accountId);}catch(e){toast.error(e.message);}}",code-review,high
+frontend-numeric,frontend/src/pages/BankReconciliation.jsx,49,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<form onSubmit={submitAccount} style={{...card,padding:17}}><h3 style={{marginTop:0,color:""#67e8f9""}}>{copy.newAccount}</h3><div style={{display:""grid"",gridTemplateColumns:""1fr 1fr"",gap:8}}><input required placeholder={copy.account} value={accountForm.name} onChange={e=>setAccountForm({...accountFor",code-review,high
+frontend-numeric,frontend/src/pages/BudgetControl.jsx,26,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"async function addBudget(e){e.preventDefault();try{await saveBudgetLine({fiscal_period_id:Number(periodId),account_id:Number(budget.account_id),cost_center_id:budget.cost_center_id?Number(budget.cost_center_id):null,project_id:budget.project_id?Number(budget.project_id):null,amount:Number(budget.amo",code-review,high
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,27,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,81,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"list.push({ tone: ""emerald"", icon: <TrendingUp />, title: fa ? ""رشد فروش قابل توجه"" : ""Strong sales growth"", text: fa ? `فروش نسبت به دوره قبل حدود ${n(Math.round(trend))}% رشد داشته است.` : `Sales grew about ${Math.round(trend)}% vs previous period.` });",code-review,medium
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,83,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"list.push({ tone: ""rose"", icon: <TrendingDown />, title: fa ? ""افت فروش"" : ""Sales drop"", text: fa ? `فروش نسبت به دوره قبل حدود ${n(Math.abs(Math.round(trend)))}% کاهش داشته است. کمپین فروش پیشنهاد می‌شود.` : `Sales dropped about ${Math.abs(Math.round(trend))}%. A campaign is recommended.` });",code-review,medium
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,203,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"`${fa ? ""حاشیه سود"" : ""Profit margin""}: ${n(Math.round(metrics.profitMargin))}%`,",code-review,high
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,236,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<KpiCard icon={<Target />} title={fa ? ""حاشیه سود"" : ""Profit margin""} value={`${n(Math.round(metrics.profitMargin))}%`} tone={metrics.profitMargin >= 20 ? ""emerald"" : metrics.profitMargin >= 5 ? ""amber"" : ""rose""} />",code-review,high
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,294,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"<MiniPanel icon={<CalendarClock />} title={fa ? ""روند فروش"" : ""Sales trend""} main={`${n(Math.round(metrics.trend))}%`} sub={metrics.trend >= 0 ? (fa ? ""رو به رشد"" : ""Growing"") : (fa ? ""کاهشی"" : ""Declining"")} />",code-review,medium
+frontend-numeric,frontend/src/pages/BusinessIntelligence.jsx,325,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"return <div className=""text-center rounded-3xl bg-slate-800/70 border border-white/5 p-5""><div className=""text-slate-400 text-sm mb-3"">{title}</div><div className=""w-36 h-36 mx-auto rounded-full flex items-center justify-center"" style={{ background: `conic-gradient(#22d3ee ${score * 3.6}deg, rgba(51",code-review,medium
+frontend-numeric,frontend/src/pages/ChangeRequestCenter.jsx,95,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"if ([""online_price"", ""discount_percent""].includes(form.field)) value = Number(value);",code-review,high
+frontend-numeric,frontend/src/pages/ChangeRequestCenter.jsx,119,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"target_id: form.action_type === ""online_product_update"" ? Number(form.target_id) : null,",code-review,medium
+frontend-numeric,frontend/src/pages/ChangeRequestCenter.jsx,233,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"{requests.map((item) => <RequestCard key={item.id} item={item} fa={fa} products={products} canReview={user?.role === ""admin"" && item.status === ""needs_transcript_review""} canApprove={user?.role === ""admin"" && item.status === ""pending_approval"" && Number(item.requested_by) !== Number(user?.id)} onRev",code-review,medium
+frontend-numeric,frontend/src/pages/ChangeRequestCenter.jsx,284,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,target_id = Number(review.target_id);,code-review,medium
+frontend-numeric,frontend/src/pages/ChangeRequestCenter.jsx,286,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"if ([""online_price"", ""discount_percent""].includes(review.field)) value = Number(value);",code-review,high
+frontend-numeric,frontend/src/pages/CrmDashboard.jsx,26,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/CrmDashboard.jsx,67,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"return Math.max(0, Math.min(100, Math.round(score)));",code-review,medium
+frontend-numeric,frontend/src/pages/CrmDashboard.jsx,255,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const avgScore = summary.total ? Math.round(summary.scoreSum / summary.total) : 0;,code-review,high
+frontend-numeric,frontend/src/pages/CurrencyManagement.jsx,23,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"async function addRate(e){e.preventDefault();try{await setExchangeRate({...rate,rate_to_base:Number(rate.rate_to_base)});setRate({...rate,rate_to_base:""""});await load()}catch(e){toast.error(e.message)}}",code-review,high
+frontend-numeric,frontend/src/pages/CurrencyManagement.jsx,34,unary-plus,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<section style={{...card,overflowX:""auto""}}><table style={{width:""100%"",borderCollapse:""collapse"",minWidth:850}}><thead><tr>{[c.currency,c.account,c.foreign,c.carrying,c.latest,c.current,c.difference].map(x=><th key={x} style={{padding:12,textAlign:""start"",color:""#67e8f9""}}>{x}</th>)}</tr></thead><t",code-review,high
+frontend-numeric,frontend/src/pages/CustomerDetails.jsx,32,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(cleaned || 0);,code-review,medium
+frontend-numeric,frontend/src/pages/CustomerDetails.jsx,283,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"score = Math.max(0, Math.min(100, Math.round(score)));",code-review,medium
+frontend-numeric,frontend/src/pages/Customers.jsx,61,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(cleaned || 0);,code-review,medium
+frontend-numeric,frontend/src/pages/Customers.jsx,115,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"return Math.max(0, Math.min(100, Math.round(score)));",code-review,medium
+frontend-numeric,frontend/src/pages/Customers.jsx,977,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const averageScore = parties.length ? Math.round(summary.scoreSum / parties.length) : 0;,code-review,medium
+frontend-numeric,frontend/src/pages/Dashboard.jsx,48,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/Dashboard.jsx,457,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,value={`${n(profitMargin.toFixed(1))}%`},code-review,high
+frontend-numeric,frontend/src/pages/EnterpriseCRM.jsx,179,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Input placeholder={fa ? ""ارزش"" : ""Value""} type=""number"" value={opportunity.value} onChange={(v) => setOpportunity({ ...opportunity, value: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/EnterpriseCRM.jsx,229,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Input placeholder={fa ? ""ارزش احتمالی"" : ""Value""} type=""number"" value={lead.value} onChange={(v) => setLead({ ...lead, value: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/Expenses.jsx,25,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const num = Number(cleaned);,code-review,medium
+frontend-numeric,frontend/src/pages/FinanceCenter.jsx,36,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/FinanceCenter.jsx,224,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"account_id: transactionForm.account_id ? Number(transactionForm.account_id) : accounts[0]?.id,",code-review,medium
+frontend-numeric,frontend/src/pages/FinanceCenter.jsx,225,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"to_account_id: transactionForm.to_account_id ? Number(transactionForm.to_account_id) : null,",code-review,medium
+frontend-numeric,frontend/src/pages/FinanceCenter.jsx,446,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,? `${n(((totals.expenseToday / totals.incomeToday) * 100).toFixed(1))}%`,code-review,high
+frontend-numeric,frontend/src/pages/FinancialIntelligence.jsx,21,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const n = Number(v || 0);,code-review,medium
+frontend-numeric,frontend/src/pages/FinancialIntelligence.jsx,160,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<SimInput label={fa ? ""رشد فروش ٪"" : ""Sales growth %""} value={scenario.sales_growth_percent} onChange={(v) => setScenario({ ...scenario, sales_growth_percent: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/FinancialIntelligence.jsx,161,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<SimInput label={fa ? ""تغییر قیمت خرید ٪"" : ""Purchase cost %""} value={scenario.purchase_cost_change_percent} onChange={(v) => setScenario({ ...scenario, purchase_cost_change_percent: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/FinancialIntelligence.jsx,162,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<SimInput label={fa ? ""تغییر قیمت فروش ٪"" : ""Selling price %""} value={scenario.selling_price_change_percent} onChange={(v) => setScenario({ ...scenario, selling_price_change_percent: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/FinancialIntelligence.jsx,163,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<SimInput label={fa ? ""تغییر هزینه‌ها ٪"" : ""Expense change %""} value={scenario.expense_change_percent} onChange={(v) => setScenario({ ...scenario, expense_change_percent: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/FinancialPolicy.jsx,101,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"decimal_places: Number(draft.decimal_places),",code-review,medium
+frontend-numeric,frontend/src/pages/FinancialPolicy.jsx,102,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"first_day_of_week: Number(draft.first_day_of_week),",code-review,medium
+frontend-numeric,frontend/src/pages/FinancialPolicy.jsx,103,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"tax_percent: Number(draft.tax_percent),",code-review,high
+frontend-numeric,frontend/src/pages/FiscalPeriods.jsx,106,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"vouchers: sum.vouchers + Number(period.vouchers_count || 0),",code-review,medium
+frontend-numeric,frontend/src/pages/FiscalPeriods.jsx,107,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"debit: sum.debit + Number(period.total_debit || 0),",code-review,high
+frontend-numeric,frontend/src/pages/FiscalPeriods.jsx,108,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"credit: sum.credit + Number(period.total_credit || 0),",code-review,high
+frontend-numeric,frontend/src/pages/FiscalPeriods.jsx,266,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const difference = Number(period.total_debit || 0) - Number(period.total_credit || 0);,code-review,high
+frontend-numeric,frontend/src/pages/FixedAssets.jsx,20,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"async function submit(e){e.preventDefault();try{await createFixedAsset({...form,acquisition_cost:Number(form.acquisition_cost),salvage_value:Number(form.salvage_value),useful_life_months:Number(form.useful_life_months)});setForm(empty);toast.success(c.save);await load()}catch(e){toast.error(e.messag",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,59,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const num = Number(cleaned);,code-review,medium
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,112,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,return Math.round(Number(value || 0) / 10) * 10;,code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,112,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,return Math.round(Number(value || 0) / 10) * 10;,code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,495,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"<div className=""text-slate-400 text-sm"">{page.label} • {Math.round(zoom * 100)}%</div>",code-review,medium
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,512,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label=""X"" value={selectedElement.x} onChange={(v) => updateElement(selectedElement.id, { x: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,513,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label=""Y"" value={selectedElement.y} onChange={(v) => updateElement(selectedElement.id, { y: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,514,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label=""W"" value={selectedElement.w} onChange={(v) => updateElement(selectedElement.id, { w: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,515,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label=""H"" value={selectedElement.h} onChange={(v) => updateElement(selectedElement.id, { h: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,522,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label={fa ? ""سایز فونت"" : ""Font size""} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/InvoicePrint.jsx,523,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<NumberProp label={fa ? ""گردی گوشه"" : ""Radius""} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />",code-review,high
+frontend-numeric,frontend/src/pages/Invoices.jsx,52,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const numeric = Number(cleaned);,code-review,medium
+frontend-numeric,frontend/src/pages/Invoices.jsx,315,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"product_id: Number(item.product_id),",code-review,medium
+frontend-numeric,frontend/src/pages/Invoices.jsx,327,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,const product = products.find((p) => Number(p.id) === Number(item.product_id));,code-review,medium
+frontend-numeric,frontend/src/pages/Invoices.jsx,369,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"customer_id: Number(form.customer_id),",code-review,medium
+frontend-numeric,frontend/src/pages/Invoices.jsx,528,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const selectedCustomerBalance = Number(,code-review,high
+frontend-numeric,frontend/src/pages/Invoices.jsx,882,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,{customers.find((c) => Number(c.id) === Number(invoice.customer_id))?.name ||,code-review,medium
+frontend-numeric,frontend/src/pages/OnlineCommerce.jsx,132,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"online_price: product.online_price === """" || product.online_price == null ? null : Number(product.online_price),",code-review,high
+frontend-numeric,frontend/src/pages/OnlineCommerce.jsx,133,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"discount_percent: Number(product.discount_percent || 0),",code-review,high
+frontend-numeric,frontend/src/pages/OnlineCommerce.jsx,171,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"product_id: campaign.product_id ? Number(campaign.product_id) : null,",code-review,medium
+frontend-numeric,frontend/src/pages/Products.jsx,87,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(cleaned || 0);,code-review,medium
+frontend-numeric,frontend/src/pages/Reports.jsx,68,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/Reports.jsx,908,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<MiniStat label={fa ? ""حاشیه"" : ""Margin""} value={`${n(Number(item.margin_percent || 0).toFixed(1))}%`} />",code-review,high
+frontend-numeric,frontend/src/pages/Reports.jsx,908,toFixed,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<MiniStat label={fa ? ""حاشیه"" : ""Margin""} value={`${n(Number(item.margin_percent || 0).toFixed(1))}%`} />",code-review,high
+frontend-numeric,frontend/src/pages/Settings.jsx,82,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const num = Number(cleanNumber(value));,code-review,high
+frontend-numeric,frontend/src/pages/Settings.jsx,97,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,height = Math.round((height * max) / width);,code-review,medium
+frontend-numeric,frontend/src/pages/Settings.jsx,100,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,width = Math.round((width * max) / height);,code-review,medium
+frontend-numeric,frontend/src/pages/Transactions.jsx,83,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const num = Number(cleanNumber(value));,code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,99,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const balance = Number(party.balance || 0);,code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,102,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"opening_balance: Number(party.opening_balance || 0),",code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,103,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"debtor: Number(party.debit ?? party.debtor ?? (balance > 0 ? balance : 0)),",code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,104,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"creditor: Number(party.credit ?? party.creditor ?? (balance < 0 ? Math.abs(balance) : 0)),",code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,105,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"credit_limit: Number(party.credit_limit || 0),",code-review,high
+frontend-numeric,frontend/src/pages/Transactions.jsx,298,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"customer_id: Number(form.party_id),",code-review,medium
+frontend-numeric,frontend/src/pages/Transactions.jsx,305,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"invoice_id: form.invoice_id ? Number(form.invoice_id) : null,",code-review,medium
+frontend-numeric,frontend/src/pages/TreasuryCheques.jsx,22,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"async function submit(e){e.preventDefault();try{await createCheque({...form,customer_id:Number(form.customer_id),amount:Number(form.amount)});setForm(empty);await load()}catch(e){toast.error(e.message)}}",code-review,high
+frontend-numeric,frontend/src/pages/TreasuryCheques.jsx,31,unary-plus,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<section style={{...card,overflowX:""auto""}}><table style={{width:""100%"",borderCollapse:""collapse"",minWidth:1000}}><thead><tr>{[c.number,c.received+""/""+c.payable,c.party,c.bank,c.due,c.amount,c.status,c.actions].map(x=><th key={x} style={{padding:12,textAlign:""start"",color:""#67e8f9""}}>{x}</th>)}</tr>",code-review,high
+frontend-numeric,frontend/src/pages/Warehouse.jsx,8,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"function toNumber(value) { return Number(String(value ?? """").replace(/[۰-۹]/g, d => ""۰۱۲۳۴۵۶۷۸۹"".indexOf(d)).replace(/[٠-٩]/g, d => ""٠١٢٣٤٥٦٧٨٩"".indexOf(d)).replace(/[,،]/g, """").replace(/[^\d.-]/g, """") || 0); }",code-review,high
+frontend-numeric,frontend/src/pages/Warehouse.jsx,57,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,quantity-or-measurement,"const result = await createStockMovement({ ...form, product_id: Number(form.product_id), quantity: toNumber(form.quantity) });",code-review,medium
+frontend-numeric,frontend/src/pages/crm/Customer360.jsx,31,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"return Number(String(value ?? """").replace(/[۰-۹]/g, (d) => ""۰۱۲۳۴۵۶۷۸۹"".indexOf(d)).replace(/[٠-٩]/g, (d) => ""٠١٢٣٤٥٦٧٨٩"".indexOf(d)).replace(/[,،]/g, """").replace(/[^\d.-]/g, """") || 0);",code-review,high
+frontend-numeric,frontend/src/pages/crm/Customer360.jsx,392,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<Kpi title={fa ? ""امتیاز قابل استفاده"" : ""Available points""} value={n(Math.round(toNumber(loyalty.points)))} />",code-review,high
+frontend-numeric,frontend/src/pages/crm/Customer360.jsx,400,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,<span>{n(Math.round(progress))}%</span>,code-review,medium
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,21,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,74,Math.floor,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"return Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));",code-review,medium
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,100,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const total = Math.round(recencyScore * 0.35 + frequencyScore * 0.3 + monetaryScore * 0.35);,code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,144,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const healthScore = clamp(Math.round(baseScore * 0.5 + rfm.total * 0.35 + (100 - paymentRisk) * 0.15));,code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,321,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<MiniKpi title={fa ? ""مصرف اعتبار"" : ""Credit usage""} value={`${n(Math.round(analysis.creditUsage))}%`} />",code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,339,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<AiMetric icon={<Target />} title={fa ? ""احتمال خرید مجدد"" : ""Purchase probability""} value={`${n(Math.round(analysis.purchaseProbability))}%`} progress={analysis.purchaseProbability} tone=""cyan"" />",code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,340,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<AiMetric icon={<TrendingDown />} title={fa ? ""ریسک ریزش"" : ""Churn risk""} value={`${n(Math.round(analysis.churnRisk))}%`} progress={analysis.churnRisk} tone={analysis.churnRisk >= 60 ? ""rose"" : ""emerald""} />",code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,341,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,"<AiMetric icon={<AlertTriangle />} title={fa ? ""ریسک پرداخت"" : ""Payment risk""} value={`${n(Math.round(analysis.paymentRisk))}%`} progress={analysis.paymentRisk} tone={analysis.paymentRisk >= 60 ? ""rose"" : ""emerald""} />",code-review,high
+frontend-numeric,frontend/src/pages/crm/components/CustomerAI.jsx,422,Math.round,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,"<div className=""text-3xl font-black text-cyan-300 mt-2"">{Math.round(score)}</div>",code-review,medium
+frontend-numeric,frontend/src/pages/crm/components/CustomerFinancial.jsx,14,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/pages/crm/components/CustomerTimeline.jsx,19,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,return Number(,code-review,medium
+frontend-numeric,frontend/src/smart/AiInsights.jsx,43,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,money-or-rate,const profit = Number(insight.profit || 0);,code-review,high
+frontend-numeric,frontend/src/storage/customers.store.js,29,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,(x) => Number(x.id) !== Number(id),code-review,medium
+frontend-numeric,frontend/src/storage/expenses.store.js,29,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,(x) => Number(x.id) !== Number(id),code-review,medium
+frontend-numeric,frontend/src/storage/invoices.store.js,30,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,(x) => Number(x.id) !== Number(id),code-review,medium
+frontend-numeric,frontend/src/storage/invoices.store.js,42,Number,JavaScript Number,Decimal-safe string/minor-unit boundary,numeric-review,items.find((x) => Number(x.id) === Number(id)) ||,code-review,medium
