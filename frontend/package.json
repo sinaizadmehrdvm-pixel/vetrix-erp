@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "audit:fetch": "node scripts/audit-fetch.mjs",
     "audit:routes": "node scripts/audit-routes.mjs",
+    "audit:security": "node scripts/audit-security.mjs",
     "verify": "npm run lint && npm run audit:fetch && npm run audit:routes && npm run build",
-    "verify:security": "npm audit --audit-level=high"
+    "verify:security": "npm run audit:security"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
