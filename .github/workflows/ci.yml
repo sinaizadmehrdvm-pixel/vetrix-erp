@@ -4,15 +4,20 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "codex/**"]
 
 permissions:
   contents: read
 
+concurrency:
+  group: vetrix-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
-    name: Frontend build
+    name: Frontend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -25,20 +30,17 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
+      - name: Run frontend verification
+        run: npm run verify
       - name: Audit frontend dependencies
-        run: npm audit --audit-level=high
-      - name: Audit direct fetch calls
-        run: npm run audit:fetch
-      - name: Audit route and translation contracts
-        run: npm run audit:routes
-      - name: Build frontend
-        run: npm run build
+        run: npm run verify:security
 
   backend:
     name: Backend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
