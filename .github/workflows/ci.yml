@@ -84,3 +84,40 @@ jobs:
         run: python -m unittest tests.test_migrations -v
       - name: Show migration history
         run: VETRIX_DATABASE_URL=sqlite:///./ci-migration-history.db python scripts/migrate.py history
+
+  postgres:
+    name: PostgreSQL portability
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vetrix_ci
+          POSTGRES_USER: vetrix
+          POSTGRES_PASSWORD: vetrix_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vetrix -d vetrix_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      VETRIX_POSTGRES_TEST_URL: postgresql+psycopg://vetrix:vetrix_ci_password@127.0.0.1:5432/vetrix_ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run PostgreSQL portability tests
+        run: python -m unittest tests.test_database_portability -v
