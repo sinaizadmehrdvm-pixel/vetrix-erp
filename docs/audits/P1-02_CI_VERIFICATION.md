@@ -26,10 +26,10 @@ The exception is code-enforced, package-scoped, advisory-scoped, time-bounded, a
 
 ## Verified evidence
 
-Final checkpoint commit: `e7c812512877d5fb0f5c4f7859f94cb97a7f129b`
+Final verified head: `447b6a35e35a182dfa7f5ffe2af95978edbe9948`
 
-- Vetrix CI run 662: passed.
-- Vetrix Windows Package run 105: passed.
+- Vetrix CI run 664: passed.
+- Vetrix Windows Package run 106: passed.
 - Frontend lint: passed.
 - Direct-fetch inventory audit: passed; 49 known calls are reported for later consolidation.
 - Route/translation contract audit: passed; 42 lazy pages and 30 menu items.
