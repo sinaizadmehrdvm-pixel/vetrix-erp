@@ -1,9 +1,10 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
 from datetime import datetime
 from app.database import Base
+from app.organization.scoped_model import OrganizationScopedMixin
 
 
-class Invoice(Base):
+class Invoice(OrganizationScopedMixin, Base):
     __tablename__ = "invoices"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -23,7 +24,7 @@ class Invoice(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class InvoiceItem(Base):
+class InvoiceItem(OrganizationScopedMixin, Base):
     __tablename__ = "invoice_items"
 
     id = Column(Integer, primary_key=True, index=True)

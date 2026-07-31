@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import os
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+BACKEND = Path(__file__).resolve().parents[1]
+
+
+class MigrationLifecycleTests(unittest.TestCase):
+    def run_migration(self, database: Path, *args: str) -> None:
+        env = os.environ.copy()
+        env["VETRIX_DATABASE_URL"] = f"sqlite:///{database.as_posix()}"
+        result = subprocess.run(
+            [sys.executable, "scripts/migrate.py", *args],
+            cwd=BACKEND,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=120,
+        )
+        self.assertEqual(result.returncode, 0, msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+
+    def test_empty_database_upgrade_downgrade_upgrade_preserves_business_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "migration-cycle.db"
+
+            self.run_migration(database, "upgrade", "head")
+            with sqlite3.connect(database) as connection:
+                tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                self.assertIn("alembic_version", tables)
+                self.assertIn("customers", tables)
+                self.assertIn("tenants", tables)
+                self.assertIn("legal_entities", tables)
+                self.assertIn("branches", tables)
+                self.assertIn("user_organization_memberships", tables)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM tenants").fetchone()[0], 1)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM legal_entities").fetchone()[0], 1)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM branches").fetchone()[0], 1)
+                connection.execute(
+                    "INSERT INTO customers (name, phone, address, customer_type) VALUES (?, ?, ?, ?)",
+                    ("Migration Sentinel", "", "", "customer"),
+                )
+                row = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Migration Sentinel",),
+                ).fetchone()
+                self.assertEqual(row, (1, 1, 1))
+                connection.commit()
+
+            self.run_migration(database, "downgrade", "base")
+            with sqlite3.connect(database) as connection:
+                count = connection.execute(
+                    "SELECT COUNT(*) FROM customers WHERE name = ?", ("Migration Sentinel",)
+                ).fetchone()[0]
+                self.assertEqual(count, 1)
+
+            self.run_migration(database, "upgrade", "head")
+            with sqlite3.connect(database) as connection:
+                revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+                count = connection.execute(
+                    "SELECT COUNT(*) FROM customers WHERE name = ?", ("Migration Sentinel",)
+                ).fetchone()[0]
+                scope = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Migration Sentinel",),
+                ).fetchone()
+                self.assertEqual(revision, "0003_organization_data_scope")
+                self.assertEqual(count, 1)
+                self.assertEqual(scope, (1, 1, 1))
+
+    def test_existing_users_and_records_receive_default_organization_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "organization-backfill.db"
+            self.run_migration(database, "upgrade", "0001_schema_baseline")
+
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "INSERT INTO users (full_name, username, password, role, must_change_password) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    ("Existing User", "existing-user", "hash", "admin", 0),
+                )
+                user_id = connection.execute(
+                    "SELECT id FROM users WHERE username = ?", ("existing-user",)
+                ).fetchone()[0]
+                connection.execute(
+                    "INSERT INTO customers (name, phone, address, customer_type) VALUES (?, ?, ?, ?)",
+                    ("Existing Customer", "", "", "customer"),
+                )
+                connection.commit()
+
+            self.run_migration(database, "upgrade", "head")
+            with sqlite3.connect(database) as connection:
+                membership = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id, organization_role, is_default, is_active "
+                    "FROM user_organization_memberships WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+                self.assertEqual(membership, (1, 1, 1, "admin", 1, 1))
+                customer_scope = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Existing Customer",),
+                ).fetchone()
+                self.assertEqual(customer_scope, (1, 1, 1))
+
+
+if __name__ == "__main__":
+    unittest.main()

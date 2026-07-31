@@ -4,15 +4,20 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "codex/**"]
 
 permissions:
   contents: read
 
+concurrency:
+  group: vetrix-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
-    name: Frontend build
+    name: Frontend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -25,20 +30,17 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
+      - name: Run frontend verification
+        run: npm run verify
       - name: Audit frontend dependencies
-        run: npm audit --audit-level=high
-      - name: Audit direct fetch calls
-        run: npm run audit:fetch
-      - name: Audit route and translation contracts
-        run: npm run audit:routes
-      - name: Build frontend
-        run: npm run build
+        run: npm run verify:security
 
   backend:
     name: Backend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -59,3 +61,63 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Compile backend
         run: python -m compileall -q .
+
+  migrations:
+    name: Alembic migration lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run isolated migration lifecycle test
+        run: python -m unittest tests.test_migrations -v
+      - name: Show migration history
+        run: VETRIX_DATABASE_URL=sqlite:///./ci-migration-history.db python scripts/migrate.py history
+
+  postgres:
+    name: PostgreSQL portability
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vetrix_ci
+          POSTGRES_USER: vetrix
+          POSTGRES_PASSWORD: vetrix_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vetrix -d vetrix_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      VETRIX_POSTGRES_TEST_URL: postgresql+psycopg://vetrix:vetrix_ci_password@127.0.0.1:5432/vetrix_ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run PostgreSQL portability tests
+        run: python -m unittest tests.test_database_portability -v
