@@ -45,6 +45,11 @@ class MigrationLifecycleTests(unittest.TestCase):
                     "INSERT INTO customers (name, phone, address, customer_type) VALUES (?, ?, ?, ?)",
                     ("Migration Sentinel", "", "", "customer"),
                 )
+                row = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Migration Sentinel",),
+                ).fetchone()
+                self.assertEqual(row, (1, 1, 1))
                 connection.commit()
 
             self.run_migration(database, "downgrade", "base")
@@ -60,10 +65,15 @@ class MigrationLifecycleTests(unittest.TestCase):
                 count = connection.execute(
                     "SELECT COUNT(*) FROM customers WHERE name = ?", ("Migration Sentinel",)
                 ).fetchone()[0]
-                self.assertEqual(revision, "0002_organization_foundation")
+                scope = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Migration Sentinel",),
+                ).fetchone()
+                self.assertEqual(revision, "0003_organization_data_scope")
                 self.assertEqual(count, 1)
+                self.assertEqual(scope, (1, 1, 1))
 
-    def test_existing_users_receive_default_organization_membership(self) -> None:
+    def test_existing_users_and_records_receive_default_organization_scope(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "organization-backfill.db"
             self.run_migration(database, "upgrade", "0001_schema_baseline")
@@ -77,6 +87,10 @@ class MigrationLifecycleTests(unittest.TestCase):
                 user_id = connection.execute(
                     "SELECT id FROM users WHERE username = ?", ("existing-user",)
                 ).fetchone()[0]
+                connection.execute(
+                    "INSERT INTO customers (name, phone, address, customer_type) VALUES (?, ?, ?, ?)",
+                    ("Existing Customer", "", "", "customer"),
+                )
                 connection.commit()
 
             self.run_migration(database, "upgrade", "head")
@@ -87,6 +101,11 @@ class MigrationLifecycleTests(unittest.TestCase):
                     (user_id,),
                 ).fetchone()
                 self.assertEqual(membership, (1, 1, 1, "admin", 1, 1))
+                customer_scope = connection.execute(
+                    "SELECT tenant_id, legal_entity_id, branch_id FROM customers WHERE name = ?",
+                    ("Existing Customer",),
+                ).fetchone()
+                self.assertEqual(customer_scope, (1, 1, 1))
 
 
 if __name__ == "__main__":
