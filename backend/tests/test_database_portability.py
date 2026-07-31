@@ -40,9 +40,14 @@ class PostgreSqlSmokeTests(unittest.TestCase):
             with engine.connect() as connection:
                 value = connection.execute(text(f'SELECT value FROM "{table_name}" WHERE id = 1')).scalar_one()
                 self.assertEqual(str(value), "123.456789")
+                # SQLAlchemy 2.x starts a transaction automatically for SELECT.
+                # End that read transaction before explicitly testing rollback.
+                connection.commit()
+
                 transaction = connection.begin()
                 connection.execute(text(f'INSERT INTO "{table_name}" (id, value) VALUES (2, 9.990000)'))
                 transaction.rollback()
+
                 count = connection.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar_one()
                 self.assertEqual(count, 1)
         finally:
