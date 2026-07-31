@@ -7,6 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.database import Base
+from app.models import organization as organization_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
