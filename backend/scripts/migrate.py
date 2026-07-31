@@ -40,7 +40,7 @@ def bootstrap_current_schema() -> None:
     # This is temporary until all legacy create/alter helpers are removed in a
     # later checkpoint. It is isolated here so Alembic becomes the only public
     # migration entry point immediately.
-    import app.main  # noqa: F401
+    import main as application_main  # noqa: F401
 
 
 def run_upgrade(revision: str) -> None:
