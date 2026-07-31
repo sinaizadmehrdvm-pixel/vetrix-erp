@@ -104,7 +104,7 @@ def create_access_token(user_id: int, username: str, role: str) -> str:
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(
+    payload = jwt.decode(
         token,
         _jwt_secret(),
         algorithms=[TOKEN_ALGORITHM],
@@ -112,6 +112,14 @@ def decode_access_token(token: str) -> dict:
         audience=TOKEN_AUDIENCE,
         options={"require": ["exp", "iat", "sub", "iss", "aud"]},
     )
+
+    # Bind the authenticated identity to the current async/request context.
+    # Every SQLAlchemy Session resolves its authorized organization membership
+    # from this identity and applies fail-closed read/write isolation.
+    from app.organization.runtime import set_authenticated_user
+
+    set_authenticated_user(payload.get("sub"))
+    return payload
 
 
 PUBLIC_PATHS = {
