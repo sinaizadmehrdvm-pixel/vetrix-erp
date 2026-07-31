@@ -26,7 +26,7 @@ The exception is code-enforced, package-scoped, advisory-scoped, time-bounded, a
 
 ## Verified evidence
 
-Final verified head: `447b6a35e35a182dfa7f5ffe2af95978edbe9948`
+Verified implementation commit: `447b6a35e35a182dfa7f5ffe2af95978edbe9948`
 
 - Vetrix CI run 664: passed.
 - Vetrix Windows Package run 106: passed.
