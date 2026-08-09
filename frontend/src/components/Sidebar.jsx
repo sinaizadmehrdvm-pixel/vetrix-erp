@@ -5,12 +5,13 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate,
+  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, IdCard, FileSignature, Image, MessageSquareText,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { useTheme } from "../theme/useTheme";
+import CompanySwitcher from "./CompanySwitcher";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 
 const groups = [
@@ -19,11 +20,14 @@ const groups = [
     items: [
       { key: "dashboard", icon: LayoutDashboard, path: "/" },
       { key: "parties", fallbackKey: "customers", icon: UsersRound, path: "/customers" },
+      { key: "salesPipeline", icon: BriefcaseBusiness, path: "/sales-pipeline", roles: ["admin", "sales"] },
+      { key: "visitorModule", icon: Smartphone, path: "/visitor", roles: ["admin", "sales"] },
       { key: "products", icon: Package, path: "/products" },
       { key: "invoices", icon: Receipt, path: "/invoices" },
       { key: "invoiceDesigner", icon: LayoutTemplate, path: "/invoice-designer", roles: ["admin", "accountant", "sales"] },
       { key: "recurringInvoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
       { key: "paymentReminders", icon: BellRing, path: "/payment-reminders", roles: ["admin", "accountant", "sales"] },
+      { key: "messageTemplates", icon: MessageSquareText, path: "/message-templates", roles: ["admin", "accountant", "sales"] },
       { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
       { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
     ],
@@ -34,6 +38,7 @@ const groups = [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
       { key: "multiWarehouse", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
+      { key: "purchaseOrders", icon: Factory, path: "/purchase-orders", roles: ["admin", "warehouse", "accountant"] },
       { key: "pricingTiers", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
     ],
   },
@@ -54,6 +59,9 @@ const groups = [
       { key: "reports", icon: BarChart3, path: "/reports" },
       { key: "onlineCommerce", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
       { key: "catalogManager", icon: BookOpen, path: "/catalog-manager", roles: ["admin", "accountant", "sales"] },
+      { key: "businessCardDesigner", icon: IdCard, path: "/business-card-designer", roles: ["admin", "accountant", "sales"] },
+      { key: "letterheadDesigner", icon: FileSignature, path: "/letterhead-designer", roles: ["admin", "accountant", "sales"] },
+      { key: "bannerDesigner", icon: Image, path: "/banner-designer", roles: ["admin", "accountant", "sales"] },
       { key: "changeRequests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
@@ -73,6 +81,7 @@ const groups = [
     items: [
       { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
       { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
+      { key: "companyManagement", icon: Building2, path: "/company-management", roles: ["admin"], superAdminOnly: true },
       { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
       { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
@@ -121,12 +130,14 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
     return groups.map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        const permitted = !item.roles || item.roles.includes(user?.role || "viewer");
+        const permitted =
+          (!item.roles || item.roles.includes(user?.role || "viewer")) &&
+          (!item.superAdminOnly || user?.is_super_admin);
         const searchable = `${label(item)} ${item.key} ${groupLabel(group)}`.toLocaleLowerCase(language);
         return permitted && (!normalizedQuery || searchable.includes(normalizedQuery));
       }),
     })).filter((group) => group.items.length);
-  }, [user?.role, query, language, label, groupLabel]);
+  }, [user?.role, user?.is_super_admin, query, language, label, groupLabel]);
 
   function toggleGroup(id) {
     if (compact) setCompact(false);
@@ -216,7 +227,12 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         </div>
       </div>
 
-      {!compact && <div className="mb-4"><LanguageSwitcher /></div>}
+      {!compact && (
+        <div className="mb-4 flex flex-col gap-2">
+          <LanguageSwitcher />
+          <CompanySwitcher />
+        </div>
+      )}
 
       {!compact && (
         <label className="erp-surface mb-4 flex items-center gap-2 rounded-2xl px-3 py-2">

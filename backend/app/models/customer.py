@@ -9,6 +9,7 @@ class Customer(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
+    mobile = Column(String, nullable=True)
     email = Column(String, nullable=True)
     address = Column(String, nullable=True)
     city = Column(String, nullable=True)
@@ -32,3 +33,8 @@ class Customer(Base):
     # "retail" or "wholesale" - selects which quantity price tiers apply
     # when quoting a unit price (see app/pricing.py).
     pricing_group = Column(String, default="retail", nullable=False)
+    # Optional sales-rep ownership (users.id) - powers the "my customers"
+    # filter; unassigned customers are visible to everyone as before.
+    assigned_rep_id = Column(Integer, nullable=True)
+    # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
+    company_id = Column(Integer, nullable=True)

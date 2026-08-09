@@ -28,6 +28,11 @@ class ApiAccessControlTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.client.close()
+        # Releases every pooled SQLAlchemy connection's file handle first -
+        # without this, TEST_DATABASE.unlink() intermittently hit a Windows
+        # PermissionError (a still-open handle blocks deletion there, unlike
+        # POSIX where an open file can be unlinked freely).
+        engine.dispose()
         TEST_DATABASE.unlink(missing_ok=True)
         shutil.rmtree(TEST_BACKUP_DIR, ignore_errors=True)
 
@@ -3683,6 +3688,7 @@ class ApiAccessControlTests(unittest.TestCase):
 
     def test_zzzzzzzzzzzzzzzzzzzzz_voice_driven_report_delivery_flow(self):
         from app.report_delivery import generate_csv, generate_pdf
+        from app.company_scope import DEFAULT_COMPANY_ID
 
         admin_login = self.client.post(
             "/login",
@@ -3712,13 +3718,13 @@ class ApiAccessControlTests(unittest.TestCase):
         )
 
         # Report data generation reuses the real /reports/* endpoints directly.
-        csv_bytes = generate_csv("sales")
+        csv_bytes = generate_csv("sales", DEFAULT_COMPANY_ID)
         self.assertIn(b"Report Delivery Customer", csv_bytes)
-        pdf_bytes = generate_pdf("sales")
+        pdf_bytes = generate_pdf("sales", DEFAULT_COMPANY_ID)
         self.assertTrue(pdf_bytes.startswith(b"%PDF"))
 
         with self.assertRaises(ValueError):
-            generate_csv("not_a_real_report_type")
+            generate_csv("not_a_real_report_type", DEFAULT_COMPANY_ID)
 
         # Rejected: unknown report_type.
         bad_report_type = self.client.post(
@@ -3776,7 +3782,7 @@ class ApiAccessControlTests(unittest.TestCase):
             f"/api/change-requests/{request_id}/approve", headers=headers, json={"note": "Reviewed"}
         )
         self.assertEqual(approve.status_code, 200, approve.text)
-        self.assertEqual(approve.json()["status"], "applied")
+        self.assertEqual(approve.json()["status"], "applied", approve.text)
         # SMTP is not configured in this test environment, so the honest
         # outcome is reported rather than a false "sent".
         self.assertIn("skipped_not_configured", approve.json()["result"])
@@ -3894,6 +3900,665 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(extract.status_code, 503)
         self.assertIn("Tesseract", extract.json()["detail"])
+
+    def _login(self, username, password):
+        response = self.client.post("/login", json={"username": username, "password": password})
+        self.assertEqual(response.status_code, 200, response.text)
+        return {"Authorization": f"Bearer {response.json()['access_token']}"}, response.json()
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzz_super_admin_bootstrap_and_company_gating(self):
+        admin_headers, admin_login = self._login("ci-admin", "StrongAdminPassword!42")
+        me = self.client.get("/me", headers=admin_headers)
+        self.assertEqual(me.status_code, 200, me.text)
+        self.assertTrue(me.json()["user"]["is_super_admin"])
+        self.assertIsNotNone(me.json()["active_company"])
+        self.assertTrue(admin_login["user"]["is_super_admin"])
+        self.assertIsNotNone(admin_login.get("active_company"))
+
+        create_second = self.client.post(
+            "/api/companies", headers=admin_headers, json={"name": "Milestone 4 Second Co"},
+        )
+        self.assertEqual(create_second.status_code, 200, create_second.text)
+        # unittest builds a fresh instance per test method, so cross-test
+        # state (later z-ordered tests need this company's id) must live on
+        # the class, not the instance.
+        type(self).second_company_id = create_second.json()["id"]
+
+        regular_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={
+                "full_name": "Regular Admin One", "username": "m4-regular-admin",
+                "password": "StrongRegularAdmin!42", "role": "admin",
+            },
+        )
+        self.assertEqual(regular_admin.status_code, 200, regular_admin.text)
+        self.assertFalse(regular_admin.json()["is_super_admin"])
+
+        regular_headers, regular_login = self._login("m4-regular-admin", "StrongRegularAdmin!42")
+        self.assertFalse(regular_login["user"]["is_super_admin"])
+        blocked_list = self.client.get("/api/companies", headers=regular_headers)
+        self.assertEqual(blocked_list.status_code, 403)
+        blocked_create = self.client.post(
+            "/api/companies", headers=regular_headers, json={"name": "Should Not Be Created"},
+        )
+        self.assertEqual(blocked_create.status_code, 403)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzza_cross_company_user_creation_and_isolation(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        second_company_id = self.second_company_id
+
+        second_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={
+                "full_name": "Second Co Admin", "username": "m4-second-admin",
+                "password": "StrongSecondAdmin!42", "role": "admin",
+                "company_id": second_company_id,
+            },
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        self.assertEqual(second_admin.json()["company_id"], second_company_id)
+        self.assertFalse(second_admin.json()["is_super_admin"])
+
+        # A regular (non-super-admin) admin cannot escape their own company
+        # even if they try to spoof company_id/is_super_admin on the payload.
+        regular_headers, regular_login = self._login("m4-regular-admin", "StrongRegularAdmin!42")
+        own_company_id = regular_login["user"]["company_id"]
+        spoofed = self.client.post(
+            "/users", headers=regular_headers,
+            json={
+                "full_name": "Spoofed User", "username": "m4-spoofed-user",
+                "password": "StrongSpoofedUser!42", "role": "viewer",
+                "company_id": second_company_id, "is_super_admin": True,
+            },
+        )
+        self.assertEqual(spoofed.status_code, 200, spoofed.text)
+        self.assertEqual(spoofed.json()["company_id"], own_company_id)
+        self.assertNotEqual(spoofed.json()["company_id"], second_company_id)
+        self.assertFalse(spoofed.json()["is_super_admin"])
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzb_non_super_admin_user_management_scoped_to_own_company(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        regular_headers, regular_login = self._login("m4-regular-admin", "StrongRegularAdmin!42")
+        own_company_id = regular_login["user"]["company_id"]
+
+        own_company_list = self.client.get("/users", headers=regular_headers)
+        self.assertEqual(own_company_list.status_code, 200, own_company_list.text)
+        self.assertTrue(all(user["company_id"] == own_company_id for user in own_company_list.json()))
+        listed_usernames = {user["username"] for user in own_company_list.json()}
+        self.assertNotIn("m4-second-admin", listed_usernames)
+
+        second_admin_lookup = self.client.get("/users", headers=admin_headers).json()
+        second_admin_id = next(
+            user["id"] for user in second_admin_lookup if user["username"] == "m4-second-admin"
+        )
+
+        blocked_role = self.client.put(
+            f"/users/{second_admin_id}/role", headers=regular_headers, json={"role": "viewer"},
+        )
+        self.assertEqual(blocked_role.status_code, 404)
+        blocked_password = self.client.put(
+            f"/users/{second_admin_id}/password", headers=regular_headers,
+            json={"password": "SomeNewPassword!42"},
+        )
+        self.assertEqual(blocked_password.status_code, 404)
+
+        # Super-admin can still manage the cross-company user directly.
+        allowed_role = self.client.put(
+            f"/users/{second_admin_id}/role", headers=admin_headers, json={"role": "accountant"},
+        )
+        self.assertEqual(allowed_role.status_code, 200, allowed_role.text)
+        restore_role = self.client.put(
+            f"/users/{second_admin_id}/role", headers=admin_headers, json={"role": "admin"},
+        )
+        self.assertEqual(restore_role.status_code, 200, restore_role.text)
+
+        scoped_query = self.client.get(
+            "/users", headers=admin_headers, params={"company_id": self.second_company_id},
+        )
+        self.assertEqual(scoped_query.status_code, 200, scoped_query.text)
+        self.assertTrue(all(user["company_id"] == self.second_company_id for user in scoped_query.json()))
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzc_move_user_between_companies_revokes_old_token(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        moved_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={
+                "full_name": "Movable User", "username": "m4-movable-user",
+                "password": "StrongMovableUser!42", "role": "viewer",
+            },
+        )
+        self.assertEqual(moved_user.status_code, 200, moved_user.text)
+        moved_user_id = moved_user.json()["id"]
+
+        old_headers, _ = self._login("m4-movable-user", "StrongMovableUser!42")
+        move = self.client.put(
+            f"/users/{moved_user_id}/company", headers=admin_headers,
+            json={"company_id": self.second_company_id},
+        )
+        self.assertEqual(move.status_code, 200, move.text)
+        self.assertEqual(move.json()["user"]["company_id"], self.second_company_id)
+
+        revoked = self.client.get("/me", headers=old_headers)
+        self.assertEqual(revoked.status_code, 401)
+
+        fresh_headers, fresh_login = self._login("m4-movable-user", "StrongMovableUser!42")
+        self.assertEqual(fresh_login["user"]["company_id"], self.second_company_id)
+        self.assertEqual(fresh_login["active_company"]["id"], self.second_company_id)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzd_promote_and_demote_super_admin(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        regular_headers, regular_login = self._login("m4-regular-admin", "StrongRegularAdmin!42")
+        target_id = regular_login["user"]["id"]
+
+        admin_id = self.client.get("/me", headers=admin_headers).json()["user"]["id"]
+        self_demote = self.client.put(
+            f"/users/{admin_id}/super-admin", headers=admin_headers, json={"is_super_admin": False},
+        )
+        self.assertEqual(self_demote.status_code, 400)
+
+        promote = self.client.put(
+            f"/users/{target_id}/super-admin", headers=admin_headers, json={"is_super_admin": True},
+        )
+        self.assertEqual(promote.status_code, 200, promote.text)
+        self.assertTrue(promote.json()["user"]["is_super_admin"])
+
+        # is_super_admin is refreshed from the DB every request, exactly
+        # like role - the *same* still-valid token now carries it live,
+        # with no re-login/token bump needed.
+        live_refresh = self.client.get("/api/companies", headers=regular_headers)
+        self.assertEqual(live_refresh.status_code, 200, live_refresh.text)
+
+        demote = self.client.put(
+            f"/users/{target_id}/super-admin", headers=admin_headers, json={"is_super_admin": False},
+        )
+        self.assertEqual(demote.status_code, 200, demote.text)
+        self.assertFalse(demote.json()["user"]["is_super_admin"])
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzze_switch_company_context_flow(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        regular_headers, _ = self._login("m4-regular-admin", "StrongRegularAdmin!42")
+
+        blocked_switch = self.client.post(
+            "/api/companies/switch", headers=regular_headers,
+            json={"company_id": self.second_company_id},
+        )
+        self.assertEqual(blocked_switch.status_code, 403)
+
+        bogus_switch = self.client.post(
+            "/api/companies/switch", headers=admin_headers, json={"company_id": 999999},
+        )
+        self.assertEqual(bogus_switch.status_code, 404)
+
+        switched = self.client.post(
+            "/api/companies/switch", headers=admin_headers,
+            json={"company_id": self.second_company_id},
+        )
+        self.assertEqual(switched.status_code, 200, switched.text)
+        self.assertEqual(switched.json()["active_company"]["id"], self.second_company_id)
+        switched_headers = {"Authorization": f"Bearer {switched.json()['access_token']}"}
+
+        created = self.client.post(
+            "/customers", headers=switched_headers, json={"name": "Switched Context Customer"},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+
+        switched_customers = self.client.get("/customers", headers=switched_headers)
+        self.assertEqual(switched_customers.status_code, 200)
+        switched_names = {customer["name"] for customer in switched_customers.json()}
+        self.assertIn("Switched Context Customer", switched_names)
+
+        # The super-admin's original token (still first company's context)
+        # keeps working and does not see the switched-into company's data -
+        # switching mints an additional token, it doesn't mutate the old one.
+        original_customers = self.client.get("/customers", headers=admin_headers)
+        self.assertEqual(original_customers.status_code, 200)
+        original_names = {customer["name"] for customer in original_customers.json()}
+        self.assertNotIn("Switched Context Customer", original_names)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzz_visitor_field_sales_module(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        custom_role = self.client.post(
+            "/api/auth/custom-roles", headers=admin_headers,
+            json={
+                "code": "visitor_test", "label": "Visitor Test",
+                "base_role": "sales", "restrict_customers_to_own": True,
+            },
+        )
+        self.assertEqual(custom_role.status_code, 200, custom_role.text)
+
+        rep_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={
+                "full_name": "Field Rep One", "username": "m6-field-rep",
+                "password": "StrongFieldRepPass!42", "role": "visitor_test",
+            },
+        )
+        self.assertEqual(rep_user.status_code, 200, rep_user.text)
+        rep_id = rep_user.json()["id"]
+
+        assigned_customer = self.client.post(
+            "/customers", headers=admin_headers,
+            json={"name": "Visitor Assigned Customer", "assigned_rep_id": rep_id},
+        )
+        self.assertEqual(assigned_customer.status_code, 200, assigned_customer.text)
+        assigned_customer_id = assigned_customer.json()["id"]
+
+        unassigned_customer = self.client.post(
+            "/customers", headers=admin_headers, json={"name": "Desk-Only Customer"},
+        )
+        self.assertEqual(unassigned_customer.status_code, 200, unassigned_customer.text)
+
+        visitor_product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Visitor Module Product", "price": 100, "stock": 50},
+        )
+        self.assertEqual(visitor_product.status_code, 200, visitor_product.text)
+        visitor_product_id = visitor_product.json()["id"]
+
+        rep_headers, rep_login = self._login("m6-field-rep", "StrongFieldRepPass!42")
+        self.assertEqual(rep_login["user"]["role"], "visitor_test")
+
+        # restrict_customers_to_own: the rep only ever sees their own
+        # assigned customer, never the desk-only one.
+        rep_customers = self.client.get("/customers", headers=rep_headers)
+        self.assertEqual(rep_customers.status_code, 200, rep_customers.text)
+        rep_customer_ids = {c["id"] for c in rep_customers.json()}
+        self.assertEqual(rep_customer_ids, {assigned_customer_id})
+
+        # A visit against a customer that isn't real (or not this company's)
+        # is rejected before anything is written.
+        bad_visit = self.client.post(
+            "/api/field-visits", headers=rep_headers,
+            json={"customer_id": 999999, "outcome": "no_order"},
+        )
+        self.assertEqual(bad_visit.status_code, 404)
+
+        visit_payload = {
+            "customer_id": assigned_customer_id,
+            "outcome": "no_order",
+            "note": "Store was closed",
+            "client_ref": "visit-client-ref-m6-001",
+        }
+        visit = self.client.post("/api/field-visits", headers=rep_headers, json=visit_payload)
+        self.assertEqual(visit.status_code, 200, visit.text)
+        self.assertEqual(visit.json()["status"], "created")
+        visit_id = visit.json()["visit"]["id"]
+
+        # Retrying the same client_ref (simulating an offline-sync retry
+        # after a dropped response) returns the same row, not a duplicate.
+        retried_visit = self.client.post("/api/field-visits", headers=rep_headers, json=visit_payload)
+        self.assertEqual(retried_visit.status_code, 200, retried_visit.text)
+        self.assertEqual(retried_visit.json()["status"], "already_recorded")
+        self.assertEqual(retried_visit.json()["visit"]["id"], visit_id)
+
+        rep_visits = self.client.get("/api/field-visits", headers=rep_headers)
+        self.assertEqual(rep_visits.status_code, 200, rep_visits.text)
+        self.assertEqual(len(rep_visits.json()), 1)
+        self.assertEqual(rep_visits.json()[0]["id"], visit_id)
+
+        # Admin sees every rep's visits, not just their own.
+        admin_visits = self.client.get("/api/field-visits", headers=admin_headers)
+        self.assertEqual(admin_visits.status_code, 200, admin_visits.text)
+        self.assertIn(visit_id, {item["id"] for item in admin_visits.json()})
+
+        # An order placed by the rep is tagged source="visitor" so reporting
+        # can tell it apart from the normal desk flow, which keeps
+        # defaulting to "desk" unchanged.
+        visitor_invoice = self.client.post(
+            "/invoices", headers=rep_headers,
+            json={
+                "invoice_type": "sale", "customer_id": assigned_customer_id,
+                "items": [{"product_id": visitor_product_id, "quantity": 1, "unit_price": 100}],
+                "source": "visitor",
+            },
+        )
+        self.assertEqual(visitor_invoice.status_code, 200, visitor_invoice.text)
+        self.assertEqual(visitor_invoice.json()["source"], "visitor")
+
+        desk_invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={
+                "invoice_type": "sale", "customer_id": assigned_customer_id,
+                "items": [{"product_id": visitor_product_id, "quantity": 1, "unit_price": 100}],
+            },
+        )
+        self.assertEqual(desk_invoice.status_code, 200, desk_invoice.text)
+        self.assertEqual(desk_invoice.json()["source"], "desk")
+
+    def _payment_workflow_fixture(self, label):
+        """Fresh customer + product for one payment-workflow test, so
+        parallel z-tests never share stock/balance state with each other."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        customer = self.client.post(
+            "/customers", headers=admin_headers, json={"name": f"Payment Workflow Customer {label}"},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": f"Payment Workflow Product {label}", "price": 1000, "buy_price": 500, "stock": 1000},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        return admin_headers, customer.json()["id"], product.json()["id"]
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_payment_workflow_statuses(self):
+        admin_headers, customer_id, product_id = self._payment_workflow_fixture("statuses")
+
+        unpaid = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        })
+        self.assertEqual(unpaid.status_code, 200, unpaid.text)
+        self.assertEqual(unpaid.json()["payment_status"], "unpaid")
+        self.assertEqual(unpaid.json()["amount_paid"], 0)
+
+        paid = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 1000}],
+        })
+        self.assertEqual(paid.status_code, 200, paid.text)
+        self.assertEqual(paid.json()["payment_status"], "paid")
+        self.assertEqual(paid.json()["amount_paid"], 1000)
+
+        partial = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 2, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 500}],
+        })
+        self.assertEqual(partial.status_code, 200, partial.text)
+        self.assertEqual(partial.json()["payment_status"], "partial")
+
+        overpaid = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 1500, "allow_overpayment": True}],
+        })
+        self.assertEqual(overpaid.status_code, 200, overpaid.text)
+        self.assertEqual(overpaid.json()["payment_status"], "overpaid")
+
+        # Without allow_overpayment, the whole invoice creation fails
+        # atomically - proves the rollback covers items/stock/GL together.
+        stock_before = self.client.get("/products", headers=admin_headers).json()
+        product_before = next(p for p in stock_before if p["id"] == product_id)
+        blocked = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 1500}],
+        })
+        self.assertEqual(blocked.status_code, 200, blocked.text)
+        self.assertEqual(blocked.json()["status"], "error")
+        stock_after = self.client.get("/products", headers=admin_headers).json()
+        product_after = next(p for p in stock_after if p["id"] == product_id)
+        self.assertEqual(product_before["stock"], product_after["stock"])
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_split_payment_and_cheque_lifecycle(self):
+        admin_headers, customer_id, product_id = self._payment_workflow_fixture("split")
+
+        invoice = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 2, "unit_price": 1000}],
+            "payments": [
+                {"method": "cash", "amount": 1000},
+                {"method": "cheque", "amount": 1000, "cheque_number": f"CHQ-SPLIT-{customer_id}", "cheque_bank_name": "Test Bank", "cheque_due_date": "2027-01-01"},
+            ],
+        })
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        self.assertEqual(invoice.json()["payment_status"], "partial")
+        settlement = invoice.json()["settlement"]
+        self.assertEqual(settlement["confirmed_paid"], 1000)
+        self.assertEqual(settlement["pending_cheque_amount"], 1000)
+        self.assertEqual(settlement["uncovered_balance"], 0)
+        self.assertEqual(settlement["collection_status"], "covered_by_pending_cheque")
+        invoice_id = invoice.json()["invoice_id"]
+
+        detail = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        allocations = detail.json()["payments"]
+        self.assertEqual(len(allocations), 2)
+        cheque_allocation = next(a for a in allocations if a["method"] == "cheque")
+        self.assertIsNotNone(cheque_allocation["cheque_id"])
+
+        cheques = self.client.get("/api/accounting/treasury/cheques", headers=admin_headers)
+        cheque = next(c for c in cheques.json()["items"] if c["id"] == cheque_allocation["cheque_id"])
+        self.assertEqual(cheque["invoice_id"], invoice_id)
+        self.assertEqual(cheque["status"], "pending")
+
+        clear = self.client.post(
+            f"/api/accounting/treasury/cheques/{cheque['id']}/transition",
+            headers=admin_headers, json={"status": "cleared", "event_date": "2026-06-01"},
+        )
+        self.assertEqual(clear.status_code, 200, clear.text)
+
+        after_clear = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        self.assertEqual(after_clear.json()["payment_status"], "paid")
+        self.assertEqual(after_clear.json()["settlement"]["confirmed_paid"], 2000)
+        self.assertEqual(after_clear.json()["settlement"]["pending_cheque_amount"], 0)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_bounced_cheque_reopens_balance(self):
+        admin_headers, customer_id, product_id = self._payment_workflow_fixture("bounce")
+
+        invoice = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            "payments": [{"method": "cheque", "amount": 1000, "cheque_number": f"CHQ-BOUNCE-{customer_id}", "cheque_due_date": "2027-01-01"}],
+        })
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+        self.assertEqual(invoice.json()["settlement"]["collection_status"], "covered_by_pending_cheque")
+
+        detail = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        cheque_alloc = detail.json()["payments"][0]
+
+        bounce = self.client.post(
+            f"/api/accounting/treasury/cheques/{cheque_alloc['cheque_id']}/transition",
+            headers=admin_headers, json={"status": "bounced", "event_date": "2026-06-01"},
+        )
+        self.assertEqual(bounce.status_code, 200, bounce.text)
+
+        after_bounce = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        self.assertEqual(after_bounce.json()["settlement"]["pending_cheque_amount"], 0)
+        self.assertEqual(after_bounce.json()["settlement"]["confirmed_paid"], 0)
+        self.assertEqual(after_bounce.json()["payment_status"], "unpaid")
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_payment_void_requires_approval(self):
+        admin_headers, customer_id, product_id = self._payment_workflow_fixture("void")
+        second_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Void Approver", "username": "ci-accountant-void", "password": "StrongVoidPass!42", "role": "accountant"},
+        )
+        self.assertEqual(second_user.status_code, 200, second_user.text)
+        second_headers, _ = self._login("ci-accountant-void", "StrongVoidPass!42")
+
+        invoice = self.client.post("/invoices", headers=admin_headers, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 1000}],
+        })
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+        self.assertEqual(invoice.json()["payment_status"], "paid")
+
+        detail = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        allocation_id = detail.json()["payments"][0]["id"]
+
+        no_reason = self.client.post(f"/api/invoice-payments/{allocation_id}/void", headers=admin_headers, json={"reason": ""})
+        self.assertEqual(no_reason.status_code, 400, no_reason.text)
+
+        request_void = self.client.post(f"/api/invoice-payments/{allocation_id}/void", headers=admin_headers, json={"reason": "customer disputed charge"})
+        self.assertEqual(request_void.status_code, 200, request_void.text)
+        approval_id = request_void.json()["id"]
+        self.assertEqual(request_void.json()["status"], "pending")
+
+        # The invoice must NOT change yet - only an approved request executes.
+        still_paid = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        self.assertEqual(still_paid.json()["payment_status"], "paid")
+
+        self_approve = self.client.post(f"/api/approvals/{approval_id}/approve", headers=admin_headers, json={"note": "self"})
+        self.assertEqual(self_approve.status_code, 409, self_approve.text)
+
+        approve = self.client.post(f"/api/approvals/{approval_id}/approve", headers=second_headers, json={"note": "confirmed with customer"})
+        self.assertEqual(approve.status_code, 200, approve.text)
+
+        after_void = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        self.assertEqual(after_void.json()["payment_status"], "unpaid")
+        self.assertEqual(after_void.json()["settlement"]["confirmed_paid"], 0)
+        voided_allocation = next(p for p in after_void.json()["payments"] if p["id"] == allocation_id)
+        self.assertEqual(voided_allocation["status"], "void")
+        self.assertIsNotNone(voided_allocation["reversal_entry_id"])
+
+        # Never physically deleted - the original allocation row still exists.
+        self.assertEqual(len(after_void.json()["payments"]), 1)
+
+        # A second void attempt on the same (now-void) allocation is rejected.
+        second_void = self.client.post(f"/api/invoice-payments/{allocation_id}/void", headers=admin_headers, json={"reason": "again"})
+        self.assertEqual(second_void.status_code, 409, second_void.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_creation_idempotency_key(self):
+        admin_headers, customer_id, product_id = self._payment_workflow_fixture("idempotency")
+        key = "test-idempotency-key-zzz-001"
+        payload = {
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        }
+
+        first = self.client.post("/invoices", headers={**admin_headers, "Idempotency-Key": key}, json=payload)
+        self.assertEqual(first.status_code, 200, first.text)
+        invoice_id = first.json()["invoice_id"]
+
+        replay = self.client.post("/invoices", headers={**admin_headers, "Idempotency-Key": key}, json=payload)
+        self.assertEqual(replay.status_code, 200, replay.text)
+        self.assertEqual(replay.json()["invoice_id"], invoice_id)
+
+        invoices_after = self.client.get("/invoices", headers=admin_headers).json()
+        matching = [i for i in invoices_after if i["id"] == invoice_id]
+        self.assertEqual(len(matching), 1)
+
+        different_payload = {**payload, "items": [{"product_id": product_id, "quantity": 2, "unit_price": 1000}]}
+        conflict = self.client.post("/invoices", headers={**admin_headers, "Idempotency-Key": key}, json=different_payload)
+        self.assertEqual(conflict.status_code, 409, conflict.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_voice_change_request_manages_reminder_channels(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        second_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Reminder Channel Approver", "username": "ci-admin-reminder", "password": "StrongReminderPass!42", "role": "admin"},
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        second_headers, _ = self._login("ci-admin-reminder", "StrongReminderPass!42")
+
+        # Add a channel via a voice change request, gated by maker-checker approval.
+        add_request = self.client.post("/api/change-requests", headers=admin_headers, json={
+            "source": "in_app", "transcript": "add Bale as a reminder channel",
+            "action_type": "reminder_channel_manage",
+            "proposed_changes": {"operation": "add", "name": "Bale Test", "link_template": "https://ble.ir/share/{phone}?text={message}"},
+        })
+        self.assertEqual(add_request.status_code, 200, add_request.text)
+        add_id = add_request.json()["request_id"]
+
+        submit = self.client.post(f"/api/change-requests/{add_id}/submit", headers=admin_headers)
+        self.assertEqual(submit.status_code, 200, submit.text)
+
+        self_approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=admin_headers, json={"note": "self"})
+        self.assertEqual(self_approve.status_code, 409, self_approve.text)
+
+        approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=second_headers, json={"note": "looks good"})
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.assertEqual(approve.json()["status"], "applied", approve.text)
+
+        settings_after_add = self.client.get("/settings", headers=admin_headers).json()
+        channels = settings_after_add["reminder_channels"]
+        added = next((c for c in channels if c["name"] == "Bale Test"), None)
+        self.assertIsNotNone(added, channels)
+        self.assertEqual(added["link_template"], "https://ble.ir/share/{phone}?text={message}")
+
+        # Remove the same channel via a second voice change request.
+        remove_request = self.client.post("/api/change-requests", headers=admin_headers, json={
+            "source": "in_app", "transcript": "remove the Bale reminder channel",
+            "action_type": "reminder_channel_manage",
+            "proposed_changes": {"operation": "remove", "channel_id": added["id"]},
+        })
+        self.assertEqual(remove_request.status_code, 200, remove_request.text)
+        remove_id = remove_request.json()["request_id"]
+        self.client.post(f"/api/change-requests/{remove_id}/submit", headers=admin_headers)
+        remove_approve = self.client.post(f"/api/change-requests/{remove_id}/approve", headers=second_headers, json={"note": "confirmed"})
+        self.assertEqual(remove_approve.status_code, 200, remove_approve.text)
+        self.assertEqual(remove_approve.json()["status"], "applied", remove_approve.text)
+
+        settings_after_remove = self.client.get("/settings", headers=admin_headers).json()
+        remaining_ids = [c["id"] for c in settings_after_remove["reminder_channels"]]
+        self.assertNotIn(added["id"], remaining_ids)
+
+        # Removing an already-gone channel_id fails cleanly instead of applying silently.
+        bad_remove = self.client.post("/api/change-requests", headers=admin_headers, json={
+            "source": "in_app", "transcript": "remove a channel that no longer exists",
+            "action_type": "reminder_channel_manage",
+            "proposed_changes": {"operation": "remove", "channel_id": added["id"]},
+        })
+        bad_id = bad_remove.json()["request_id"]
+        self.client.post(f"/api/change-requests/{bad_id}/submit", headers=admin_headers)
+        bad_approve = self.client.post(f"/api/change-requests/{bad_id}/approve", headers=second_headers, json={"note": "try anyway"})
+        self.assertEqual(bad_approve.status_code, 200, bad_approve.text)
+        self.assertEqual(bad_approve.json()["status"], "failed", bad_approve.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_message_template_editor_allowlist(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        sales_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Template Sales User", "username": "ci-sales-templates", "password": "StrongTemplatesPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_user.status_code, 200, sales_user.text)
+        sales_id = sales_user.json()["id"]
+        sales_headers, _ = self._login("ci-sales-templates", "StrongTemplatesPass!42")
+
+        # Any staff role can read the templates.
+        listed = self.client.get("/api/message-templates", headers=sales_headers)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        friendly_fa = next(i for i in listed.json()["items"] if i["key"] == "payment_reminder_friendly" and i["language"] == "fa")
+        self.assertFalse(friendly_fa["is_customized"])
+        original_body = friendly_fa["body"]
+
+        # But a sales user with no granted access cannot edit one yet.
+        denied = self.client.put(
+            "/api/message-templates/payment_reminder_friendly/email/fa", headers=sales_headers,
+            json={"subject": "Custom subject", "body": "Custom body {name} {id} {amount} {brand}"},
+        )
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+        # The admin grants this specific user access - not a role change.
+        grant = self.client.post("/api/message-templates/editors", headers=admin_headers, json={"user_id": sales_id})
+        self.assertEqual(grant.status_code, 200, grant.text)
+
+        allowed = self.client.put(
+            "/api/message-templates/payment_reminder_friendly/email/fa", headers=sales_headers,
+            json={"subject": "Custom subject", "body": "Custom body {name} {id} {amount} {brand}"},
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.text)
+
+        after_edit = self.client.get("/api/message-templates", headers=admin_headers).json()
+        updated = next(i for i in after_edit["items"] if i["key"] == "payment_reminder_friendly" and i["language"] == "fa")
+        self.assertTrue(updated["is_customized"])
+        self.assertEqual(updated["body"], "Custom body {name} {id} {amount} {brand}")
+
+        # Resetting restores the original built-in default.
+        reset = self.client.post("/api/message-templates/payment_reminder_friendly/email/fa/reset", headers=sales_headers)
+        self.assertEqual(reset.status_code, 200, reset.text)
+        after_reset = self.client.get("/api/message-templates", headers=admin_headers).json()
+        reset_item = next(i for i in after_reset["items"] if i["key"] == "payment_reminder_friendly" and i["language"] == "fa")
+        self.assertFalse(reset_item["is_customized"])
+        self.assertEqual(reset_item["body"], original_body)
+
+        # Revoking access blocks edits again.
+        revoke = self.client.delete(f"/api/message-templates/editors/{sales_id}", headers=admin_headers)
+        self.assertEqual(revoke.status_code, 200, revoke.text)
+        denied_again = self.client.put(
+            "/api/message-templates/payment_reminder_friendly/email/fa", headers=sales_headers,
+            json={"subject": "x", "body": "y"},
+        )
+        self.assertEqual(denied_again.status_code, 403, denied_again.text)
+
+        # Only an admin can manage the editor allowlist itself.
+        non_admin_grant = self.client.post("/api/message-templates/editors", headers=sales_headers, json={"user_id": sales_id})
+        self.assertEqual(non_admin_grant.status_code, 403, non_admin_grant.text)
 
 
 if __name__ == "__main__":

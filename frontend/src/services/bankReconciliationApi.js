@@ -19,3 +19,15 @@ export const getBankCandidates = (accountId, statementId) => request(`/accounts/
 export const matchBankStatementLine = (statementId, voucherLineId) => request(`/statement/${statementId}/match`, { method: "POST", body: JSON.stringify({ voucher_line_id: voucherLineId }) });
 export const unmatchBankStatementLine = (statementId) => request(`/statement/${statementId}/match`, { method: "DELETE" });
 export const getBankReconciliationSummary = (id) => request(`/accounts/${id}/summary`);
+export async function importBankStatementCsv(accountId, file) {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(`${API_URL}/api/accounting/bank-reconciliation/accounts/${accountId}/statement/import`, {
+    method: "POST",
+    headers: getAuthHeaders({}, false),
+    body,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  return data;
+}

@@ -109,6 +109,24 @@ export const COUNTRY_PROFILES = {
     fiscalYearStart: "configurable",
     taxSystemLabel: { en: "Sales tax profile", fa: "پروفایل مالیات فروش" },
   },
+  TR: {
+    code: "TR",
+    name: { en: "Turkey", fa: "ترکیه", ar: "تركيا", tr: "Türkiye" },
+    locale: { en: "en-TR", fa: "fa-IR", tr: "tr-TR" },
+    direction: "ltr",
+    currency: "TRY",
+    currencyLabel: { en: "Turkish lira", fa: "لیر ترکیه" },
+    currencyDigits: 2,
+    accountingUnit: "major",
+    calendar: "gregory",
+    alternateCalendar: null,
+    timeZone: "Europe/Istanbul",
+    firstDayOfWeek: 1,
+    weekendDays: [0, 6],
+    measurementSystem: "metric",
+    fiscalYearStart: "01-01",
+    taxSystemLabel: { en: "VAT (KDV) profile", fa: "پروفایل مالیات بر ارزش افزوده (KDV)" },
+  },
 };
 
 export const COUNTRY_CODES = Object.keys(COUNTRY_PROFILES);
@@ -143,13 +161,14 @@ export function formatCountryNumber(value, profile, language, options = {}) {
   return new Intl.NumberFormat(localeFor(profile, language), options).format(Number(value || 0));
 }
 
-export function formatCountryMoney(value, profile, language, currencyOverride) {
+export function formatCountryMoney(value, profile, language, currencyOverride, options = {}) {
   const currency = currencyOverride || profile.currency;
   return new Intl.NumberFormat(localeFor(profile, language), {
     style: "currency",
     currency,
     minimumFractionDigits: profile.currencyDigits,
     maximumFractionDigits: profile.currencyDigits,
+    ...options,
   }).format(Number(value || 0));
 }
 

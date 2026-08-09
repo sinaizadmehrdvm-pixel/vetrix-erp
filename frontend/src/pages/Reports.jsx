@@ -58,7 +58,12 @@ import {
   getProductProfitReport,
   getCustomerBalanceReport,
   getInventoryMovementReport,
+  getReportSchedules,
+  createReportSchedule,
+  toggleReportSchedule,
+  deleteReportSchedule,
 } from "../services/api";
+import toast from "react-hot-toast";
 
 import {
   getReportsOffline,
@@ -193,6 +198,7 @@ export default function Reports() {
   const [, setInventoryMovements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState("summary");
+  const [showSchedules, setShowSchedules] = useState(false);
   const [error, setError] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
   const [query, setQuery] = useState("");
@@ -587,8 +593,15 @@ export default function Reports() {
             <RefreshCw size={18} />
             {loading ? tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...") : tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
+
+          <button type="button" onClick={() => setShowSchedules((v) => !v)} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2 border border-[var(--erp-border)]">
+            <CalendarClock size={18} />
+            {tr("زمان‌بندی ارسال ایمیل", "جدولة الإرسال بالبريد", "E-posta zamanlaması", "Schedule email delivery")}
+          </button>
         </div>
       </div>
+
+      {showSchedules && <ScheduledReportsPanel tr={tr} language={language} />}
 
       {error && (
         <div className={`rounded-2xl p-4 flex items-center gap-2 ${offlineMode ? "bg-amber-500/15 border border-amber-400/30 text-amber-100" : "bg-rose-500/15 border border-rose-400/30 text-rose-100"}`}>
@@ -872,6 +885,146 @@ export default function Reports() {
           }
         `}
       </style>
+    </div>
+  );
+}
+
+const SCHEDULE_REPORT_TYPES = [
+  ["sales", "Sales Invoices"],
+  ["purchases", "Purchase Invoices"],
+  ["inventory", "Inventory"],
+  ["customer_balances", "Customer Balances"],
+  ["product_profit", "Product Profitability"],
+  ["open_invoices", "Open (Unsettled) Invoices"],
+  ["inventory_movements", "Stock Movements"],
+];
+
+const WEEKDAY_LABELS = {
+  fa: ["دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه", "شنبه", "یکشنبه"],
+  ar: ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"],
+  tr: ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"],
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+};
+
+function ScheduledReportsPanel({ tr, language }) {
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({
+    report_type: "sales",
+    report_format: "pdf",
+    destination_email: "",
+    frequency: "weekly",
+    hour: 8,
+    day_of_week: 0,
+    day_of_month: 1,
+  });
+
+  async function load() {
+    setLoading(true);
+    try {
+      const rows = await getReportSchedules();
+      setSchedules(Array.isArray(rows) ? rows : []);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.destination_email.trim()) {
+      toast.error(tr("ایمیل مقصد لازم است", "البريد الإلكتروني للمستلم مطلوب", "Alıcı e-postası gereklidir", "Destination email is required"));
+      return;
+    }
+    try {
+      const result = await createReportSchedule({ ...form, hour: Number(form.hour) || 0, day_of_week: Number(form.day_of_week) || 0, day_of_month: Number(form.day_of_month) || 1 });
+      if (result?.status === "error") throw new Error(result.message);
+      toast.success(tr("زمان‌بندی ایجاد شد.", "تم إنشاء الجدولة.", "Zamanlama oluşturuldu.", "Schedule created."));
+      setForm({ ...form, destination_email: "" });
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function handleToggle(id) {
+    try { await toggleReportSchedule(id); await load(); } catch (err) { toast.error(err.message); }
+  }
+  async function handleDelete(id) {
+    try { await deleteReportSchedule(id); await load(); } catch (err) { toast.error(err.message); }
+  }
+
+  const weekdays = WEEKDAY_LABELS[language] || WEEKDAY_LABELS.en;
+
+  return (
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 no-print space-y-4">
+      <h2 className="text-xl font-black text-[var(--erp-accent)]">
+        {tr("زمان‌بندی ارسال ایمیل گزارش‌ها", "جدولة إرسال التقارير بالبريد", "Rapor e-posta zamanlaması", "Scheduled report email delivery")}
+      </h2>
+
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <select value={form.report_type} onChange={(e) => setForm({ ...form, report_type: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
+          {SCHEDULE_REPORT_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <select value={form.report_format} onChange={(e) => setForm({ ...form, report_format: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
+          <option value="pdf">PDF</option>
+          <option value="csv">CSV</option>
+        </select>
+        <input type="email" required placeholder={tr("ایمیل مقصد", "البريد الإلكتروني", "E-posta adresi", "Destination email")} value={form.destination_email} onChange={(e) => setForm({ ...form, destination_email: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none" style={{ direction: "ltr" }} />
+        <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
+          <option value="daily">{tr("روزانه", "يوميًا", "Günlük", "Daily")}</option>
+          <option value="weekly">{tr("هفتگی", "أسبوعيًا", "Haftalık", "Weekly")}</option>
+          <option value="monthly">{tr("ماهانه", "شهريًا", "Aylık", "Monthly")}</option>
+        </select>
+        {form.frequency === "weekly" && (
+          <select value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
+            {weekdays.map((day, index) => <option key={day} value={index}>{day}</option>)}
+          </select>
+        )}
+        {form.frequency === "monthly" && (
+          <input type="number" min="1" max="28" value={form.day_of_month} onChange={(e) => setForm({ ...form, day_of_month: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none" placeholder={tr("روز ماه", "يوم الشهر", "Ayın günü", "Day of month")} />
+        )}
+        <input type="number" min="0" max="23" value={form.hour} onChange={(e) => setForm({ ...form, hour: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none" placeholder={tr("ساعت (UTC)", "الساعة (UTC)", "Saat (UTC)", "Hour (UTC)")} />
+        <button type="submit" className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black xl:col-span-6 md:col-span-2">
+          {tr("افزودن زمان‌بندی", "إضافة جدولة", "Zamanlama ekle", "Add schedule")}
+        </button>
+      </form>
+
+      {!loading && schedules.length === 0 && (
+        <p className="text-[var(--erp-muted)] text-sm">{tr("زمان‌بندی‌ای ثبت نشده است.", "لا توجد جدولات مسجلة.", "Kayıtlı zamanlama yok.", "No schedules yet.")}</p>
+      )}
+
+      {schedules.length > 0 && (
+        <div className="space-y-2">
+          {schedules.map((s) => (
+            <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3 text-sm">
+              <div>
+                <span className="font-bold">{SCHEDULE_REPORT_TYPES.find(([k]) => k === s.report_type)?.[1] || s.report_type}</span>
+                <span className="text-[var(--erp-muted)]"> ({s.report_format.toUpperCase()}) → {s.destination_email}</span>
+                <div className="text-xs text-[var(--erp-muted)] mt-1">
+                  {s.frequency === "daily" && tr(`روزانه ساعت ${s.hour}`, `يوميًا الساعة ${s.hour}`, `Her gün saat ${s.hour}`, `Daily at ${s.hour}:00 UTC`)}
+                  {s.frequency === "weekly" && tr(`هفتگی، ${weekdays[s.day_of_week] || ""} ساعت ${s.hour}`, `أسبوعيًا، ${weekdays[s.day_of_week] || ""} الساعة ${s.hour}`, `Haftalık, ${weekdays[s.day_of_week] || ""} saat ${s.hour}`, `Weekly on ${weekdays[s.day_of_week] || ""} at ${s.hour}:00 UTC`)}
+                  {s.frequency === "monthly" && tr(`ماهانه، روز ${s.day_of_month} ساعت ${s.hour}`, `شهريًا، اليوم ${s.day_of_month} الساعة ${s.hour}`, `Aylık, ayın ${s.day_of_month}. günü saat ${s.hour}`, `Monthly on day ${s.day_of_month} at ${s.hour}:00 UTC`)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleToggle(s.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${s.active ? "bg-emerald-500/20 text-emerald-200" : "bg-[var(--erp-panel)] text-[var(--erp-muted)]"}`}>
+                  {s.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("متوقف", "متوقف", "Duraklatıldı", "Paused")}
+                </button>
+                <button onClick={() => handleDelete(s.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-300">
+                  {tr("حذف", "حذف", "Sil", "Delete")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

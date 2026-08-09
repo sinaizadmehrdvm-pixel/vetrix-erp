@@ -16,3 +16,5 @@ class AccountingEntry(Base):
     credit = Column(Float, default=0)
     balance_after = Column(Float, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
+    company_id = Column(Integer, nullable=True)

@@ -11,11 +11,14 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
-import { createExpense, deleteExpense, getExpenses } from "../services/api";
+import { createExpense, deleteExpense, getExpenses, isNetworkError } from "../services/api";
+import { translateApiError } from "../localization/apiErrors";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import ReceiptScanner from "../components/ReceiptScanner";
+import AttachmentsPanel from "../components/AttachmentsPanel";
+import Select from "../components/ui/Select";
 
 const EXPENSES_CACHE_KEY = "expenses";
 
@@ -88,7 +91,7 @@ export default function Expenses() {
 
   const [form, setForm] = useState({
     title: "",
-    category: "",
+    category: "general",
     amount: "",
     expense_date: "",
     note: "",
@@ -105,6 +108,15 @@ export default function Expenses() {
       : "Business expense tracking",
     expenseTitle: language === "fa" ? "عنوان هزینه" : language === "ar" ? "عنوان المصروف" : language === "tr" ? "Gider Başlığı" : "Expense title",
     category: language === "fa" ? "دسته‌بندی" : language === "ar" ? "التصنيف" : language === "tr" ? "Kategori" : "Category",
+    categoryOptions: {
+      general: language === "fa" ? "اداری و عمومی" : language === "ar" ? "إداري وعام" : language === "tr" ? "Genel ve idari" : "General & administrative",
+      rent_utilities: language === "fa" ? "اجاره و تأسیسات" : language === "ar" ? "الإيجار والمرافق" : language === "tr" ? "Kira ve faturalar" : "Rent & utilities",
+      marketing: language === "fa" ? "بازاریابی و تبلیغات" : language === "ar" ? "التسويق والإعلان" : language === "tr" ? "Pazarlama ve reklam" : "Marketing & advertising",
+      payroll: language === "fa" ? "حقوق و دستمزد" : language === "ar" ? "الرواتب والأجور" : language === "tr" ? "Maaş ve ücretler" : "Salaries & payroll",
+      transport: language === "fa" ? "حمل و نقل" : language === "ar" ? "النقل والشحن" : language === "tr" ? "Nakliye ve kargo" : "Transport & shipping",
+      office_supplies: language === "fa" ? "لوازم و تجهیزات اداری" : language === "ar" ? "لوازم ومعدات مكتبية" : language === "tr" ? "Ofis malzemeleri" : "Office supplies & equipment",
+      maintenance: language === "fa" ? "تعمیر و نگهداری" : language === "ar" ? "الصيانة والإصلاح" : language === "tr" ? "Bakım ve onarım" : "Maintenance & repairs",
+    },
     amount: language === "fa" ? "مبلغ" : language === "ar" ? "المبلغ" : language === "tr" ? "Tutar" : "Amount",
     date: language === "fa" ? "تاریخ شمسی" : language === "ar" ? "التاريخ" : language === "tr" ? "Tarih" : "Date",
     note: language === "fa" ? "توضیحات" : language === "ar" ? "ملاحظة" : language === "tr" ? "Not" : "Note",
@@ -173,7 +185,7 @@ export default function Expenses() {
 
       setForm({
         title: "",
-        category: "",
+        category: "general",
         amount: "",
         expense_date: "",
         note: "",
@@ -182,6 +194,14 @@ export default function Expenses() {
       await load();
     } catch (e) {
       console.error("Create expense error:", e);
+
+      // The server was reached and rejected the request (RBAC, validation,
+      // ...) - retrying later would fail identically, so this must NOT be
+      // queued offline. Surface the real reason immediately instead.
+      if (!isNetworkError(e)) {
+        alert(translateApiError(e.message, language) || (language === "fa" ? "خطا در ثبت هزینه" : language === "ar" ? "خطأ في تسجيل المصروف" : language === "tr" ? "Gider kaydedilirken hata oluştu" : "Error saving expense"));
+        return;
+      }
 
       const offlineExpense = {
         ...payload,
@@ -195,7 +215,7 @@ export default function Expenses() {
       setExpenses(next);
       await setCache(EXPENSES_CACHE_KEY, next);
 
-      setForm({ title: "", category: "", amount: "", expense_date: "", note: "" });
+      setForm({ title: "", category: "general", amount: "", expense_date: "", note: "" });
       setError(language === "fa" ? "سرور در دسترس نبود؛ هزینه در حافظه آفلاین ذخیره شد." : language === "ar" ? "الخادم غير متاح؛ تم حفظ المصروف دون اتصال." : language === "tr" ? "Sunucuya ulaşılamadı; gider çevrimdışı kaydedildi." : "Server unavailable; expense saved offline.");
     }
   }
@@ -344,16 +364,10 @@ export default function Expenses() {
           </Field>
 
           <Field label={label.category}>
-            <input
-              className={inputClass}
-              value={faText(form.category, fa)}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  category: faText(e.target.value, fa),
-                })
-              }
-              placeholder={label.category}
+            <Select
+              value={form.category}
+              onChange={(value) => setForm({ ...form, category: value })}
+              options={Object.entries(label.categoryOptions).map(([key, text]) => ({ value: key, label: text }))}
             />
           </Field>
 
@@ -449,7 +463,7 @@ export default function Expenses() {
                     </h3>
 
                     <div className="text-[var(--erp-muted)] text-sm">
-                      {expense.category ? faText(expense.category, fa) : "-"}
+                      {expense.category ? (label.categoryOptions[expense.category] || faText(expense.category, fa)) : "-"}
                     </div>
 
                     <div className="text-[var(--erp-muted)] text-xs mt-1 flex items-center gap-1">
@@ -464,6 +478,12 @@ export default function Expenses() {
                     {expense.note && (
                       <div className="text-[var(--erp-muted)] text-xs mt-1">
                         {faText(expense.note, fa)}
+                      </div>
+                    )}
+
+                    {!expense.pending_sync && (
+                      <div className="mt-2">
+                        <AttachmentsPanel entityType="expense" entityId={expense.id} compact />
                       </div>
                     )}
                   </div>

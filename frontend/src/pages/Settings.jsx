@@ -12,6 +12,8 @@ import {
   Bell,
   Globe2,
   CalendarDays,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
@@ -59,6 +61,15 @@ const emptySettings = {
   auto_backup: false,
   sms_panel: "",
   sms_api_key: "",
+  smtp_host: "",
+  smtp_port: 587,
+  smtp_user: "",
+  smtp_password: "",
+  smtp_from: "",
+  reminder_channels: [],
+  backup_email: "",
+  backup_email_frequency_hours: 168,
+  last_backup_email_at: "",
 };
 
 function toPersianDigits(value) {
@@ -79,6 +90,7 @@ const CALENDAR_LABELS = {
   persian: { fa: "شمسی", ar: "الهجري الشمسي", tr: "Şemsi (Jalali)", en: "Persian (Jalali)" },
   gregory: { fa: "میلادی", ar: "ميلادي", tr: "Miladi", en: "Gregorian" },
   islamic: { fa: "قمری", ar: "هجري قمري", tr: "Hicri", en: "Islamic (Hijri)" },
+  "islamic-umalqura": { fa: "قمری (ام‌القری)", ar: "هجري (أم القرى)", tr: "Hicri (Ümmülkura)", en: "Islamic (Umm al-Qura)" },
 };
 
 function calendarLabel(value, language) {
@@ -98,6 +110,29 @@ function measurementLabel(value, language) {
   if (!entry) return value;
   return entry[language] || entry.en;
 }
+
+// Every currency already used by a built-in country profile (see
+// localization/countryProfiles.js), so picking any supported country's
+// currency here always has a matching option - plus a couple of common
+// extras. Kept as a flat list (not derived from COUNTRY_PROFILES) since
+// the field is independently editable and shouldn't silently lose an
+// option if a country profile's currency ever changes.
+const CURRENCY_OPTIONS = [
+  { code: "IRR", digits: 0, label: { fa: "ریال ایران (IRR)", ar: "الريال الإيراني (IRR)", tr: "İran riyali (IRR)", en: "Iranian rial (IRR)" } },
+  { code: "TRY", digits: 2, label: { fa: "لیر ترکیه (TRY)", ar: "الليرة التركية (TRY)", tr: "Türk lirası (TRY)", en: "Turkish lira (TRY)" } },
+  { code: "EUR", digits: 2, label: { fa: "یورو (EUR)", ar: "يورو (EUR)", tr: "Euro (EUR)", en: "Euro (EUR)" } },
+  { code: "AED", digits: 2, label: { fa: "درهم امارات (AED)", ar: "الدرهم الإماراتي (AED)", tr: "BAE dirhemi (AED)", en: "UAE dirham (AED)" } },
+  { code: "SAR", digits: 2, label: { fa: "ریال عربستان (SAR)", ar: "الريال السعودي (SAR)", tr: "Suudi riyali (SAR)", en: "Saudi riyal (SAR)" } },
+  { code: "GBP", digits: 2, label: { fa: "پوند بریتانیا (GBP)", ar: "الجنيه الإسترليني (GBP)", tr: "İngiliz sterlini (GBP)", en: "Pound sterling (GBP)" } },
+  { code: "USD", digits: 2, label: { fa: "دلار آمریکا (USD)", ar: "الدولار الأمريكي (USD)", tr: "ABD doları (USD)", en: "US dollar (USD)" } },
+];
+
+// Common zones covering every built-in country profile; free enough to
+// extend later without needing a full IANA-zone picker.
+const TIME_ZONE_OPTIONS = [
+  "Asia/Tehran", "Europe/Istanbul", "Asia/Dubai", "Europe/Berlin",
+  "Europe/Helsinki", "Europe/London", "America/New_York", "UTC",
+];
 
 function cleanNumber(value) {
   return toEnglishDigits(value).replace(/[,،]/g, "").replace(/[^\d.-]/g, "");
@@ -146,7 +181,7 @@ async function compressImage(file) {
 }
 
 export default function Settings() {
-  const { language, setLanguage, languages, dir, t, country, setCountry, setCompanyFormatting, countries, countryProfile } = useLanguage();
+  const { language, setLanguage, languages, dir, t, country, setCountry, setCompanyFormatting, countries, countryProfile, date } = useLanguage();
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
@@ -181,6 +216,49 @@ export default function Settings() {
     saved: fa ? "تنظیمات با موفقیت ذخیره شد." : language === "ar" ? "تم حفظ الإعدادات بنجاح." : language === "tr" ? "Ayarlar başarıyla kaydedildi." : "Settings saved successfully.",
     error: fa ? "خطا در دریافت یا ذخیره تنظیمات." : language === "ar" ? "حدث خطأ أثناء تحميل الإعدادات أو حفظها." : language === "tr" ? "Ayarlar yüklenirken veya kaydedilirken hata oluştu." : "Error loading or saving settings.",
     imageSelect: fa ? "انتخاب تصویر" : language === "ar" ? "اختيار صورة" : language === "tr" ? "Görsel seç" : "Choose image",
+    smtpTitle: fa ? "تنظیمات ایمیل (SMTP)" : language === "ar" ? "إعدادات البريد الإلكتروني (SMTP)" : language === "tr" ? "E-posta ayarları (SMTP)" : "Email settings (SMTP)",
+    smtpHint: fa
+      ? "برای ارسال خودکار یادآوری پرداخت و گزارش‌ها از طریق ایمیل، اطلاعات SMTP ایمیل خودتان را وارد کنید (مثلاً Gmail: smtp.gmail.com، پورت ۵۸۷، و یک App Password به‌جای رمز عبور اصلی)."
+      : language === "ar"
+      ? "لإرسال تذكيرات الدفع والتقارير تلقائيًا عبر البريد الإلكتروني، أدخل بيانات SMTP الخاصة ببريدك (مثلاً Gmail: smtp.gmail.com، المنفذ 587، وكلمة مرور تطبيق بدلاً من كلمة المرور الرئيسية)."
+      : language === "tr"
+      ? "Ödeme hatırlatmalarını ve raporları e-posta ile otomatik göndermek için kendi e-postanızın SMTP bilgilerini girin (örn. Gmail: smtp.gmail.com, port 587, ana şifre yerine bir Uygulama Şifresi)."
+      : "To send payment reminders and reports automatically by email, enter your own email's SMTP details (e.g. Gmail: smtp.gmail.com, port 587, and an App Password instead of your main password).",
+    smtpHost: fa ? "آدرس سرور SMTP" : language === "ar" ? "خادم SMTP" : language === "tr" ? "SMTP sunucusu" : "SMTP host",
+    smtpPort: fa ? "پورت" : language === "ar" ? "المنفذ" : language === "tr" ? "Port" : "Port",
+    smtpUser: fa ? "نام کاربری / ایمیل" : language === "ar" ? "اسم المستخدم / البريد" : language === "tr" ? "Kullanıcı adı / e-posta" : "Username / email",
+    smtpPassword: fa ? "رمز عبور / App Password" : language === "ar" ? "كلمة المرور / App Password" : language === "tr" ? "Şifre / Uygulama Şifresi" : "Password / App Password",
+    smtpFrom: fa ? "ایمیل فرستنده (اختیاری)" : language === "ar" ? "بريد المرسل (اختياري)" : language === "tr" ? "Gönderen e-posta (opsiyonel)" : "From address (optional)",
+    smsHint: fa
+      ? "توجه: در حال حاضر این دو فیلد فقط ذخیره می‌شوند و هنوز به هیچ سرویس پیامکی متصل نیستند — ارسال واقعی پیامک هنوز پیاده‌سازی نشده است."
+      : language === "ar"
+      ? "ملاحظة: هذان الحقلان يُحفظان فقط حاليًا ولم يتم ربطهما بأي مزود رسائل نصية بعد — الإرسال الفعلي للرسائل غير مُفعّل بعد."
+      : language === "tr"
+      ? "Not: Bu iki alan şu anda yalnızca kaydediliyor ve henüz bir SMS sağlayıcısına bağlı değil — gerçek SMS gönderimi henüz uygulanmadı."
+      : "Note: these two fields are currently only saved and are not yet connected to any SMS provider - actual SMS sending is not implemented yet.",
+    reminderChannels: fa ? "کانال‌های یادآوری (واتساپ، تلگرام، ...)" : language === "ar" ? "قنوات التذكير (واتساب، تيليجرام، ...)" : language === "tr" ? "Hatırlatma kanalları (WhatsApp, Telegram, ...)" : "Reminder channels (WhatsApp, Telegram, ...)",
+    reminderChannelsHint: fa
+      ? "واتساپ همیشه فعال است. هر برنامه پیام‌رسان محلی دیگری (بله، ایتا، روبیکا، تلگرام و ...) را با یک لینک اشتراک‌گذاری اضافه کن؛ از {phone} و {message} برای جاگذاری شماره و متن پیام استفاده کن."
+      : language === "ar"
+      ? "واتساب مفعّل دائمًا. أضف أي تطبيق مراسلة محلي آخر برابط مشاركة؛ استخدم {phone} و {message} لإدراج الرقم ونص الرسالة."
+      : language === "tr"
+      ? "WhatsApp her zaman etkindir. Başka bir yerel mesajlaşma uygulamasını bir paylaşım bağlantısıyla ekleyin; numarayı ve mesajı yerleştirmek için {phone} ve {message} kullanın."
+      : "WhatsApp is always on. Add any other local messenger with a share link; use {phone} and {message} placeholders for the number and message text.",
+    channelName: fa ? "نام برنامه" : language === "ar" ? "اسم التطبيق" : language === "tr" ? "Uygulama adı" : "App name",
+    channelLink: fa ? "الگوی لینک اشتراک‌گذاری" : language === "ar" ? "نمط رابط المشاركة" : language === "tr" ? "Paylaşım bağlantısı şablonu" : "Share link template",
+    addChannel: fa ? "افزودن کانال" : language === "ar" ? "إضافة قناة" : language === "tr" ? "Kanal ekle" : "Add channel",
+    noChannels: fa ? "هنوز کانال اضافی‌ای اضافه نشده است." : language === "ar" ? "لم تتم إضافة أي قناة إضافية بعد." : language === "tr" ? "Henüz ek kanal eklenmedi." : "No extra channels added yet.",
+    backupHint: fa
+      ? "وقتی «بکاپ خودکار» روشن باشد، هر ۲۴ ساعت یک نسخه از کل پایگاه‌داده روی همان سرور (پوشه backend/app/backup/files، یا مسیر متغیر محیطی VETRIX_BACKUP_DIR) ذخیره می‌شود، صحت آن بررسی می‌شود و ۳۰ نسخه آخر نگه داشته می‌شود. چون این نسخه‌ها روی همان سرور هستند، برای امنیت بیشتر (مثلاً خرابی دیسک سرور) پایین یک ایمیل مقصد هم تعریف کن تا نسخه‌ها بیرون از سرور هم ارسال شوند."
+      : language === "ar"
+      ? "عند تفعيل «النسخ الاحتياطي التلقائي»، تُحفظ نسخة من قاعدة البيانات كل 24 ساعة على نفس الخادم (مجلد backend/app/backup/files أو مسار VETRIX_BACKUP_DIR)، ويتم التحقق من سلامتها والاحتفاظ بآخر 30 نسخة. ولأنها على نفس الخادم، عرّف بريدًا إلكترونيًا أدناه ليتم إرسال نسخة خارج الخادم أيضًا."
+      : language === "tr"
+      ? "«Otomatik Yedekleme» açıkken, veritabanının bir kopyası her 24 saatte bir aynı sunucuda (backend/app/backup/files klasörü veya VETRIX_BACKUP_DIR yolu) kaydedilir, bütünlüğü kontrol edilir ve son 30 kopya saklanır. Bunlar aynı sunucuda olduğundan, sunucu dışına da gönderilmesi için aşağıya bir e-posta adresi tanımlayın."
+      : "When \"Auto Backup\" is on, a copy of the whole database is saved every 24 hours on this same server (backend/app/backup/files folder, or the VETRIX_BACKUP_DIR path), integrity-checked, and the last 30 copies are kept. Since these live on the same server, set a destination email below so copies are also delivered off-server.",
+    backupEmail: fa ? "ایمیل مقصد بکاپ" : language === "ar" ? "بريد استلام النسخ الاحتياطية" : language === "tr" ? "Yedekleme e-postası" : "Backup destination email",
+    backupFrequency: fa ? "بازه ارسال (ساعت)" : language === "ar" ? "فاصل الإرسال (ساعة)" : language === "tr" ? "Gönderim aralığı (saat)" : "Delivery interval (hours)",
+    lastBackupEmail: fa ? "آخرین ارسال" : language === "ar" ? "آخر إرسال" : language === "tr" ? "Son gönderim" : "Last sent",
+    never: fa ? "هنوز ارسال نشده" : language === "ar" ? "لم يُرسل بعد" : language === "tr" ? "Henüz gönderilmedi" : "Never sent yet",
   };
 
   async function loadSettings() {
@@ -196,7 +274,12 @@ export default function Settings() {
       }
 
       setSettings({ ...emptySettings, ...data });
-      if (data?.theme) setTheme(data.theme);
+      // Deliberately does NOT call setTheme(data.theme) here: theme is a
+      // live, client-side preference (see ThemeProvider, persisted in
+      // localStorage) - silently overriding whatever the user is actively
+      // using with a possibly-stale saved value every time this page loads
+      // was surprising (e.g. dark mode flipping to light on navigation).
+      // The theme swatches below still read/write the live theme directly.
       if (data?.country_code) setCountry(data.country_code);
       if (data) setCompanyFormatting(data);
     } catch (error) {
@@ -257,6 +340,21 @@ export default function Settings() {
 
   function setField(key, value) {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Independently overrides a single locale/formatting field (currency,
+  // calendar, time zone, measurement system, fiscal year start) without
+  // resetting the others - setCompanyFormatting() expects the *full*
+  // formatting shape each call, so this merges the patch into the current
+  // settings first and passes the whole merged object through, rather than
+  // just the one changed key (which would otherwise wipe out every other
+  // already-chosen override back to "").
+  function updateFormatting(patch) {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      setCompanyFormatting(next);
+      return next;
+    });
   }
 
   function setNumberField(key, value) {
@@ -368,11 +466,67 @@ export default function Settings() {
             </Select>
           </Field>
 
-          <InfoCard title={tr("ارز و اعشار", "العملة والكسور العشرية", "Para birimi ve ondalık", "Currency & decimals")} value={`${countryProfile.currency} · ${showDigits(countryProfile.currencyDigits, fa)}`} />
-          <InfoCard title={tr("تقویم اصلی", "التقويم الأساسي", "Ana takvim", "Primary calendar")} value={calendarLabel(countryProfile.calendar, language)} />
-          <InfoCard title={tr("منطقه زمانی", "المنطقة الزمنية", "Saat dilimi", "Time zone")} value={countryProfile.timeZone} />
-          <InfoCard title={tr("سیستم اندازه‌گیری", "نظام القياس", "Ölçüm sistemi", "Measurement system")} value={measurementLabel(countryProfile.measurementSystem, language)} />
-          <InfoCard title={tr("شروع سال مالی", "بداية السنة المالية", "Mali yıl başlangıcı", "Fiscal year start")} value={countryProfile.fiscalYearStart} />
+          <Field label={tr("ارز و اعشار", "العملة والكسور العشرية", "Para birimi ve ondalık", "Currency & decimals")}>
+            <Select
+              value={countryProfile.currency}
+              onChange={(event) => {
+                const option = CURRENCY_OPTIONS.find((item) => item.code === event.target.value);
+                if (!option) return;
+                updateFormatting({
+                  currency_code: option.code,
+                  currency: option.code,
+                  decimal_places: option.digits,
+                });
+              }}
+            >
+              {CURRENCY_OPTIONS.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label[language] || option.label.en}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label={tr("تقویم اصلی", "التقويم الأساسي", "Ana takvim", "Primary calendar")}>
+            <Select
+              value={countryProfile.calendar}
+              onChange={(event) => updateFormatting({ calendar_system: event.target.value })}
+            >
+              {Object.keys(CALENDAR_LABELS).map((value) => (
+                <option key={value} value={value}>{calendarLabel(value, language)}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label={tr("منطقه زمانی", "المنطقة الزمنية", "Saat dilimi", "Time zone")}>
+            <Select
+              value={countryProfile.timeZone}
+              onChange={(event) => updateFormatting({ time_zone: event.target.value })}
+            >
+              {TIME_ZONE_OPTIONS.map((zone) => (
+                <option key={zone} value={zone}>{zone}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label={tr("سیستم اندازه‌گیری", "نظام القياس", "Ölçüm sistemi", "Measurement system")}>
+            <Select
+              value={countryProfile.measurementSystem}
+              onChange={(event) => updateFormatting({ measurement_system: event.target.value })}
+            >
+              {Object.keys(MEASUREMENT_LABELS).map((value) => (
+                <option key={value} value={value}>{measurementLabel(value, language)}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label={tr("شروع سال مالی", "بداية السنة المالية", "Mali yıl başlangıcı", "Fiscal year start")}>
+            <Input
+              value={countryProfile.fiscalYearStart}
+              onChange={(event) => updateFormatting({ fiscal_year_start: event.target.value })}
+              placeholder="MM-DD"
+            />
+          </Field>
         </div>
 
         <Notice tone="info" className="mt-4 flex items-start gap-3">
@@ -456,8 +610,10 @@ export default function Settings() {
             <Select value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
               <option value="IRR">{tr("ریال ایران (IRR)", "الريال الإيراني (IRR)", "İran riyali (IRR)", "Iranian rial (IRR)")}</option>
               <option value="تومان">{tr("تومان (واحد نمایشی)", "تومان (وحدة عرض)", "Tomen (görüntüleme birimi)", "Toman (display unit)")}</option>
+              <option value="TRY">{tr("لیر ترکیه (TRY)", "الليرة التركية (TRY)", "Türk lirası (TRY)", "Turkish lira (TRY)")}</option>
               <option value="EUR">{tr("یورو (EUR)", "يورو (EUR)", "Euro (EUR)", "Euro (EUR)")}</option>
               <option value="AED">{tr("درهم امارات (AED)", "الدرهم الإماراتي (AED)", "BAE dirhemi (AED)", "UAE dirham (AED)")}</option>
+              <option value="SAR">{tr("ریال عربستان (SAR)", "الريال السعودي (SAR)", "Suudi riyali (SAR)", "Saudi riyal (SAR)")}</option>
               <option value="GBP">{tr("پوند بریتانیا (GBP)", "الجنيه الإسترليني (GBP)", "İngiliz sterlini (GBP)", "Pound sterling (GBP)")}</option>
               <option value="USD">{tr("دلار آمریکا (USD)", "الدولار الأمريكي (USD)", "ABD doları (USD)", "US dollar (USD)")}</option>
             </Select>
@@ -527,6 +683,51 @@ export default function Settings() {
             <Input value={settings.sms_api_key || ""} onChange={(e) => setField("sms_api_key", e.target.value)} />
           </Field>
         </div>
+        <p className="text-xs mt-3" style={{ color: "var(--erp-warning, #f59e0b)" }}>{label.smsHint}</p>
+
+        <div className="mt-5 pt-5" style={{ borderTop: "1px solid var(--erp-border)" }}>
+          <p className="text-sm mb-4" style={{ color: "var(--erp-muted)" }}>{label.backupHint}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <Field label={label.backupEmail}>
+              <Input value={settings.backup_email || ""} onChange={(e) => setField("backup_email", e.target.value)} dir="ltr" placeholder="admin@example.com" />
+            </Field>
+            <Field label={label.backupFrequency}>
+              <Input value={showDigits(settings.backup_email_frequency_hours, fa)} onChange={(e) => setNumberField("backup_email_frequency_hours", e.target.value)} dir="ltr" />
+            </Field>
+            <InfoCard title={label.lastBackupEmail} value={settings.last_backup_email_at ? date(settings.last_backup_email_at) : label.never} />
+          </div>
+        </div>
+      </Card>
+
+      <Card icon={Bell} title={label.smtpTitle}>
+        <p className="text-sm mb-4" style={{ color: "var(--erp-muted)" }}>{label.smtpHint}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <Field label={label.smtpHost}>
+            <Input value={settings.smtp_host || ""} onChange={(e) => setField("smtp_host", e.target.value)} placeholder="smtp.gmail.com" dir="ltr" />
+          </Field>
+          <Field label={label.smtpPort}>
+            <Input value={showDigits(settings.smtp_port, fa)} onChange={(e) => setNumberField("smtp_port", e.target.value)} dir="ltr" />
+          </Field>
+          <Field label={label.smtpUser}>
+            <Input value={settings.smtp_user || ""} onChange={(e) => setField("smtp_user", e.target.value)} dir="ltr" />
+          </Field>
+          <Field label={label.smtpPassword}>
+            <Input type="password" value={settings.smtp_password || ""} onChange={(e) => setField("smtp_password", e.target.value)} dir="ltr" />
+          </Field>
+          <Field label={label.smtpFrom}>
+            <Input value={settings.smtp_from || ""} onChange={(e) => setField("smtp_from", e.target.value)} dir="ltr" />
+          </Field>
+        </div>
+      </Card>
+
+      <Card icon={Bell} title={label.reminderChannels}>
+        <p className="text-sm mb-4" style={{ color: "var(--erp-muted)" }}>{label.reminderChannelsHint}</p>
+        <ReminderChannelsEditor
+          channels={settings.reminder_channels || []}
+          onChange={(next) => setField("reminder_channels", next)}
+          label={label}
+          fa={fa}
+        />
       </Card>
 
       <Notice tone="success" className="flex items-center gap-3">
@@ -540,6 +741,58 @@ export default function Settings() {
           )}
         </span>
       </Notice>
+    </div>
+  );
+}
+
+function ReminderChannelsEditor({ channels, onChange, label, fa }) {
+  const [draft, setDraft] = useState({ name: "", link_template: "" });
+
+  function addChannel() {
+    if (!draft.name.trim() || !draft.link_template.trim()) return;
+    onChange([...channels, { id: `${Date.now()}`, name: draft.name.trim(), link_template: draft.link_template.trim() }]);
+    setDraft({ name: "", link_template: "" });
+  }
+
+  function removeChannel(id) {
+    onChange(channels.filter((c) => c.id !== id));
+  }
+
+  return (
+    <div dir={fa ? "rtl" : undefined}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <Field label={label.channelName}>
+          <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder={fa ? "مثلاً: بله" : "e.g. Bale"} />
+        </Field>
+        <Field label={label.channelLink} className="md:col-span-2">
+          <Input value={draft.link_template} onChange={(e) => setDraft({ ...draft, link_template: e.target.value })} placeholder="https://ble.ir/share/{phone}?text={message}" dir="ltr" />
+        </Field>
+      </div>
+      <button
+        type="button"
+        onClick={addChannel}
+        disabled={!draft.name.trim() || !draft.link_template.trim()}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
+        style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}
+      >
+        <Plus size={16} />
+        {label.addChannel}
+      </button>
+
+      <div className="grid gap-2 mt-4">
+        {channels.length === 0 && <p className="text-sm" style={{ color: "var(--erp-muted)" }}>{label.noChannels}</p>}
+        {channels.map((channel) => (
+          <div key={channel.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border" style={{ borderColor: "var(--erp-border)", background: "var(--erp-panel-solid)" }}>
+            <div>
+              <div className="font-bold" style={{ color: "var(--erp-text)" }}>{channel.name}</div>
+              <div className="text-xs" style={{ color: "var(--erp-muted)", direction: "ltr" }}>{channel.link_template}</div>
+            </div>
+            <button type="button" onClick={() => removeChannel(channel.id)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(239,68,68,.12)", color: "#f87171" }}>
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -39,6 +39,8 @@ def _product_dict(product):
         "stock_value_buy": stock * buy_price,
         "stock_value_sell": stock * sell_price,
         "profit_per_unit": sell_price - buy_price,
+        "preferred_supplier_id": getattr(product, "preferred_supplier_id", None),
+        "lead_time_days": int(getattr(product, "lead_time_days", 0) or 0),
     }
 
 

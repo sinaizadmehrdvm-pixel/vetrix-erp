@@ -1,4 +1,45 @@
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { computeInvoiceTotals } from "./invoicePrintHelpers";
+
+// Renders a real, scannable QR code linking to the public invoice
+// verification page (/verify-invoice/:id/:code - see
+// app/invoice_verification.py). `invoice.verification_code` is an HMAC
+// the backend computes from the invoice id + company id, so the link can't
+// be forged by guessing an id. Falls back to a placeholder only while the
+// invoice hasn't loaded yet or has no id (e.g. designer preview mode).
+function InvoiceQrCode({ invoice, n }) {
+  const [dataUrl, setDataUrl] = useState("");
+
+  useEffect(() => {
+    if (!invoice?.id || !invoice?.verification_code) return undefined;
+    const url = `${window.location.origin}/verify-invoice/${invoice.id}/${invoice.verification_code}`;
+    let active = true;
+    QRCode.toDataURL(url, { margin: 1, width: 160 })
+      .then((generated) => { if (active) setDataUrl(generated); })
+      .catch(() => { if (active) setDataUrl(""); });
+    return () => { active = false; };
+  }, [invoice?.id, invoice?.verification_code]);
+
+  if (!dataUrl) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-700">
+        <div className="w-14 h-14 border-4 border-slate-800 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-white">
+          <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
+          <span /><span className="bg-slate-900" /><span />
+          <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
+        </div>
+        <small>QR #{n(invoice?.id || "")}</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <img src={dataUrl} alt={`QR #${invoice?.id ?? ""}`} className="max-w-full max-h-full" />
+    </div>
+  );
+}
 
 export function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, dir }) {
   return (
@@ -127,16 +168,7 @@ export function PrintElement({ element, items, language, n, money, invoice, repl
   if (element.type === "totals") return <TotalsBox totals={computeInvoiceTotals(invoice, items)} language={language} money={money} />;
 
   if (element.type === "qr") {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-700">
-        <div className="w-14 h-14 border-4 border-slate-800 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-white">
-          <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-          <span /><span className="bg-slate-900" /><span />
-          <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-        </div>
-        <small>QR #{n(invoice?.id || "")}</small>
-      </div>
-    );
+    return <InvoiceQrCode invoice={invoice} n={n} />;
   }
 
   if (element.type === "barcode") {

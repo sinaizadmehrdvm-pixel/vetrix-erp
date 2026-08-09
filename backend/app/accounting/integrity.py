@@ -9,7 +9,14 @@ ROUNDING_MODES = {
     "up": ROUND_UP,
 }
 ALLOWED_INVOICE_TYPES = {"sale", "buy", "proforma", "return_sale", "return_buy"}
-ALLOWED_PAYMENT_STATUSES = {"unpaid", "partial", "paid"}
+# "refunded"/"cancelled" are the two exceptions never derived by
+# calculate_payment_status() below - they're set explicitly by the void/
+# refund endpoints in app/invoice_payments.py.
+ALLOWED_PAYMENT_STATUSES = {"unpaid", "partial", "paid", "overpaid", "refunded", "cancelled"}
+ALLOWED_PAYMENT_METHODS = {
+    "cash", "card", "bank_transfer", "cheque", "wallet", "store_credit",
+    "installment", "online_gateway", "crypto", "custom",
+}
 SETTLEMENT_TYPES = {
     "sale": "receipt",
     "buy": "payment",
@@ -105,4 +112,6 @@ def calculate_payment_status(total_amount, settled_amount, decimal_places=2, rou
         return "unpaid"
     if settled < total:
         return "partial"
-    return "paid"
+    if settled == total:
+        return "paid"
+    return "overpaid"

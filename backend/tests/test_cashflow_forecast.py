@@ -32,7 +32,8 @@ class CashflowForecastTests(unittest.TestCase):
                     amount FLOAT NOT NULL,
                     cheque_number VARCHAR NOT NULL,
                     due_date DATE NOT NULL,
-                    status VARCHAR NOT NULL DEFAULT 'pending'
+                    status VARCHAR NOT NULL DEFAULT 'pending',
+                    company_id INTEGER
                 )
             """))
         self.db = Session(bind=self.engine)
@@ -42,7 +43,7 @@ class CashflowForecastTests(unittest.TestCase):
         self.engine.dispose()
         self.temp.cleanup()
 
-    def _add_entry(self, source_type, amount, days_ago=0):
+    def _add_entry(self, source_type, amount, days_ago=0, company_id=1):
         entry = AccountingEntry(
             customer_id=None,
             source_type=source_type,
@@ -52,23 +53,24 @@ class CashflowForecastTests(unittest.TestCase):
             debit=amount if source_type == "payment" else 0,
             credit=amount if source_type == "receipt" else 0,
             created_at=datetime.utcnow() - timedelta(days=days_ago),
+            company_id=company_id,
         )
         self.db.add(entry)
         self.db.commit()
 
-    def _add_cheque(self, direction, amount, due_in_days, status="pending"):
+    def _add_cheque(self, direction, amount, due_in_days, status="pending", company_id=1):
         due = (datetime.utcnow().date() + timedelta(days=due_in_days)).isoformat()
         self.db.execute(
             text(
-                "INSERT INTO treasury_cheques (direction, amount, cheque_number, due_date, status) "
-                "VALUES (:direction, :amount, :cheque_number, :due_date, :status)"
+                "INSERT INTO treasury_cheques (direction, amount, cheque_number, due_date, status, company_id) "
+                "VALUES (:direction, :amount, :cheque_number, :due_date, :status, :company_id)"
             ),
-            {"direction": direction, "amount": amount, "cheque_number": f"CHK-{direction}-{amount}", "due_date": due, "status": status},
+            {"direction": direction, "amount": amount, "cheque_number": f"CHK-{direction}-{amount}", "due_date": due, "status": status, "company_id": company_id},
         )
         self.db.commit()
 
     def test_empty_ledger_produces_zeroed_forecast(self):
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["current_net_cash"], 0)
         self.assertEqual(result["daily_average_net"], 0)
         self.assertEqual(result["trend_projected_net_cash"], 0)
@@ -78,7 +80,7 @@ class CashflowForecastTests(unittest.TestCase):
         self._add_entry("receipt", 1000, days_ago=10)
         self._add_entry("payment", 100, days_ago=5)
 
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["current_net_cash"], 900)
         expected_daily_average = (1000 - 100) / 90
         self.assertAlmostEqual(result["daily_average_net"], expected_daily_average)
@@ -90,7 +92,7 @@ class CashflowForecastTests(unittest.TestCase):
         self._add_entry("receipt", 5000, days_ago=200)  # outside 90-day window
         self._add_entry("receipt", 100, days_ago=1)
 
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["current_net_cash"], 5100)
         self.assertAlmostEqual(result["daily_average_net"], 100 / 90)
 
@@ -99,7 +101,7 @@ class CashflowForecastTests(unittest.TestCase):
         self._add_cheque("issued", 800, due_in_days=20)
         self._add_cheque("received", 500, due_in_days=45)  # outside 30-day horizon
 
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["scheduled_inflow"], 2000)
         self.assertEqual(result["scheduled_outflow"], 800)
         self.assertEqual(result["scheduled_net"], 1200)
@@ -107,19 +109,19 @@ class CashflowForecastTests(unittest.TestCase):
 
     def test_cleared_cheques_are_not_scheduled(self):
         self._add_cheque("received", 2000, due_in_days=5, status="cleared")
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["scheduled_inflow"], 0)
         self.assertEqual(result["scheduled_events"], [])
 
     def test_open_invoices_split_into_receivables_and_payables(self):
-        customer = Customer(name="Forecast Test Customer")
+        customer = Customer(name="Forecast Test Customer", company_id=1)
         self.db.add(customer)
         self.db.commit()
         self.db.refresh(customer)
 
-        sale = Invoice(invoice_type="sale", customer_id=customer.id, total_amount=1000, payment_status="unpaid")
-        buy = Invoice(invoice_type="buy", customer_id=customer.id, total_amount=400, payment_status="unpaid")
-        paid_sale = Invoice(invoice_type="sale", customer_id=customer.id, total_amount=300, payment_status="unpaid")
+        sale = Invoice(invoice_type="sale", customer_id=customer.id, total_amount=1000, payment_status="unpaid", company_id=1)
+        buy = Invoice(invoice_type="buy", customer_id=customer.id, total_amount=400, payment_status="unpaid", company_id=1)
+        paid_sale = Invoice(invoice_type="sale", customer_id=customer.id, total_amount=300, payment_status="unpaid", company_id=1)
         self.db.add_all([sale, buy, paid_sale])
         self.db.commit()
         self.db.refresh(paid_sale)
@@ -128,11 +130,11 @@ class CashflowForecastTests(unittest.TestCase):
         self.db.add(AccountingEntry(
             customer_id=customer.id, source_type="receipt", source_id=paid_sale.id,
             entry_type="credit", description="settle", debit=0, credit=300,
-            created_at=datetime.utcnow(),
+            created_at=datetime.utcnow(), company_id=1,
         ))
         self.db.commit()
 
-        result = build_cashflow_forecast(self.db, horizon_days=30)
+        result = build_cashflow_forecast(self.db, 1, horizon_days=30)
         self.assertEqual(result["open_receivables"], 1000)
         self.assertEqual(result["open_payables"], 400)
 

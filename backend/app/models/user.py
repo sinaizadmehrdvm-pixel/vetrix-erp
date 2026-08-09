@@ -10,6 +10,19 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
     role = Column(String, default="user")
+    # Multi-company milestone 1: every user belongs to exactly one company
+    # (nullable only so an existing pre-migration database can add this
+    # column safely; ensure_database_schema() backfills every row to the
+    # auto-created default company right after, so in practice this is
+    # never actually null once startup has run once).
+    company_id = Column(Integer, nullable=True)
+    # Milestone 4: cross-company super-admin. Deliberately independent of
+    # `role` (role stays feature/RBAC-only, see app/rbac.py) - a super-admin
+    # can create companies, create/move users across companies, and switch
+    # their own JWT's active company_id claim (see app/super_admin.py and
+    # app/companies.py's /switch endpoint). Refreshed from the DB on every
+    # request in main.py's auth middleware, exactly like `role` already is.
+    is_super_admin = Column(Boolean, default=False, nullable=False)
     must_change_password = Column(Boolean, default=False, nullable=False)
     # Tokens carry the generation active when they were issued (see the "gen"
     # JWT claim); bumping this rejects every previously issued token even if

@@ -1,3 +1,4 @@
+import weakref
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -10,6 +11,25 @@ from app.accounting.periods import (
     next_voucher_numbers,
     resolve_open_period,
 )
+
+# post_balanced_voucher() is called once per row by bulk-import flows (e.g.
+# a 1475-product import posts 1475 opening-inventory vouchers in one
+# transaction). _ensure_schema() below is idempotent (CREATE TABLE IF NOT
+# EXISTS, INSERT OR IGNORE) but re-running its ~25 chart-of-accounts inserts
+# and multiple PRAGMA table_info checks on every single call was most of
+# the measured overhead. Keyed by the live Connection object (not a global
+# flag), so it's scoped to exactly one transaction/request and can never
+# make a stale assumption about a different database - a fresh
+# engine.begin() always gets a brand-new Connection, so the cache is
+# naturally empty again for the next request.
+_posting_schema_ready = weakref.WeakSet()
+
+# Structural schema (tables/indexes/migrations) is company-independent and
+# cached above; the default chart-of-accounts seed (POSTING_ACCOUNTS) is
+# per-company (Milestone 3) and cached separately, per (connection, company)
+# pair, since one connection always belongs to exactly one company's
+# transaction but could in principle seed more than one company_id.
+_posting_accounts_seeded = weakref.WeakKeyDictionary()
 
 MONEY_STEP = Decimal("0.01")
 
@@ -43,6 +63,12 @@ POSTING_ACCOUNTS = [
     ("5101", "بهای تمام‌شده کالای فروش‌رفته", "expense", "subsidiary", "5", "debit"),
     ("5102", "هزینه‌های اداری و عمومی", "expense", "subsidiary", "5", "debit"),
     ("5103", "هزینه استهلاک", "expense", "subsidiary", "5", "debit"),
+    ("5104", "اجاره و تأسیسات", "expense", "subsidiary", "5", "debit"),
+    ("5105", "بازاریابی و تبلیغات", "expense", "subsidiary", "5", "debit"),
+    ("5106", "حقوق و دستمزد", "expense", "subsidiary", "5", "debit"),
+    ("5107", "حمل و نقل", "expense", "subsidiary", "5", "debit"),
+    ("5108", "لوازم و تجهیزات اداری", "expense", "subsidiary", "5", "debit"),
+    ("5109", "تعمیر و نگهداری", "expense", "subsidiary", "5", "debit"),
 ]
 
 
@@ -51,6 +77,8 @@ def _money(value):
 
 
 def _ensure_schema(conn):
+    if conn in _posting_schema_ready:
+        return
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS chart_accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +114,24 @@ def _ensure_schema(conn):
             posted_at VARCHAR
         )
     """))
+    from app.company_scope import (
+        ensure_company_id_column,
+        migrate_chart_accounts_composite_unique,
+        migrate_accounting_vouchers_composite_unique,
+    )
+    ensure_company_id_column(conn, "chart_accounts")
+    ensure_company_id_column(conn, "accounting_vouchers")
+    migrate_chart_accounts_composite_unique(conn)
+    migrate_accounting_vouchers_composite_unique(conn)
+    # _delete_source()/assert_source_period_open() both filter by this pair
+    # on every voucher post (bulk imports call post_balanced_voucher once
+    # per row) - (fiscal_period_id, period_voucher_no) already has
+    # ux_voucher_period_number from ensure_fiscal_schema() below, but
+    # (source_type, source_id) had no index at all.
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_accounting_vouchers_source
+        ON accounting_vouchers(source_type, source_id)
+    """))
     ensure_fiscal_schema(conn)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS accounting_voucher_lines (
@@ -113,18 +159,32 @@ def _ensure_schema(conn):
     from app.accounting.currencies import ensure_currency_schema
     ensure_currency_schema(conn)
 
+    ensure_company_id_column(conn, "accounting_voucher_lines")
+    _posting_schema_ready.add(conn)
+
+
+def _ensure_company_accounts_seeded(conn, company_id):
+    """Guarantees this specific company has its own copy of the default
+    chart of accounts (POSTING_ACCOUNTS). Composite UNIQUE(company_id, code)
+    means INSERT OR IGNORE now correctly treats "does *this company* already
+    have code 1101" rather than "does anyone" - each company gets its own
+    independent set of account ids even though the codes/names are shared
+    defaults."""
+    seeded_companies = _posting_accounts_seeded.setdefault(conn, set())
+    if company_id in seeded_companies:
+        return
     now = datetime.utcnow().isoformat()
     for code, name, account_type, level, parent_code, normal_balance in POSTING_ACCOUNTS:
         parent_id = None
         if parent_code:
             parent_id = conn.execute(
-                text("SELECT id FROM chart_accounts WHERE code=:code"),
-                {"code": parent_code},
+                text("SELECT id FROM chart_accounts WHERE code=:code AND company_id=:company_id"),
+                {"code": parent_code, "company_id": company_id},
             ).scalar()
         conn.execute(text("""
             INSERT OR IGNORE INTO chart_accounts
-            (code, name, account_type, level, parent_id, normal_balance, is_active, created_at, updated_at)
-            VALUES (:code, :name, :account_type, :level, :parent_id, :normal_balance, 1, :now, :now)
+            (code, name, account_type, level, parent_id, normal_balance, is_active, created_at, updated_at, company_id)
+            VALUES (:code, :name, :account_type, :level, :parent_id, :normal_balance, 1, :now, :now, :company_id)
         """), {
             "code": code,
             "name": name,
@@ -133,15 +193,17 @@ def _ensure_schema(conn):
             "parent_id": parent_id,
             "normal_balance": normal_balance,
             "now": now,
+            "company_id": company_id,
         })
+    seeded_companies.add(company_id)
 
 
-def _delete_source(conn, source_type, source_id):
+def _delete_source(conn, source_type, source_id, company_id):
     voucher_ids = [
         row[0]
         for row in conn.execute(
-            text("SELECT id FROM accounting_vouchers WHERE source_type=:source_type AND source_id=:source_id"),
-            {"source_type": source_type, "source_id": source_id},
+            text("SELECT id FROM accounting_vouchers WHERE source_type=:source_type AND source_id=:source_id AND company_id=:company_id"),
+            {"source_type": source_type, "source_id": source_id, "company_id": company_id},
         ).fetchall()
     ]
     for voucher_id in voucher_ids:
@@ -150,8 +212,8 @@ def _delete_source(conn, source_type, source_id):
             {"voucher_id": voucher_id},
         )
     conn.execute(
-        text("DELETE FROM accounting_vouchers WHERE source_type=:source_type AND source_id=:source_id"),
-        {"source_type": source_type, "source_id": source_id},
+        text("DELETE FROM accounting_vouchers WHERE source_type=:source_type AND source_id=:source_id AND company_id=:company_id"),
+        {"source_type": source_type, "source_id": source_id, "company_id": company_id},
     )
 
 
@@ -160,6 +222,7 @@ def post_balanced_voucher(
     source_id,
     description,
     lines,
+    company_id,
     voucher_date=None,
     connection=None,
 ):
@@ -187,20 +250,21 @@ def post_balanced_voucher(
     def write(conn):
         now = datetime.utcnow().isoformat()
         _ensure_schema(conn)
+        _ensure_company_accounts_seeded(conn, company_id)
         effective_date = voucher_date or datetime.utcnow().date().isoformat()
-        assert_source_period_open(conn, source_type, source_id)
-        period = resolve_open_period(conn, effective_date)
-        _delete_source(conn, source_type, source_id)
-        voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"])
+        assert_source_period_open(conn, source_type, source_id, company_id)
+        period = resolve_open_period(conn, effective_date, company_id)
+        _delete_source(conn, source_type, source_id, company_id)
+        voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"], company_id)
         result = conn.execute(text("""
             INSERT INTO accounting_vouchers
             (voucher_no, fiscal_period_id, period_voucher_no, voucher_date,
              description, status, source_type, source_id,
-             total_debit, total_credit, created_at, updated_at, posted_at)
+             total_debit, total_credit, created_at, updated_at, posted_at, company_id)
             VALUES
             (:voucher_no, :fiscal_period_id, :period_voucher_no, :voucher_date,
              :description, 'posted', :source_type, :source_id,
-             :total_debit, :total_credit, :now, :now, :now)
+             :total_debit, :total_credit, :now, :now, :now, :company_id)
         """), {
             "voucher_no": voucher_no,
             "fiscal_period_id": period["id"],
@@ -212,20 +276,21 @@ def post_balanced_voucher(
             "total_debit": float(total_debit),
             "total_credit": float(total_credit),
             "now": now,
+            "company_id": company_id,
         })
         voucher_id = result.lastrowid
         for line in normalized:
             account = conn.execute(
-                text("SELECT id, code, name FROM chart_accounts WHERE code=:code"),
-                {"code": line["account_code"]},
+                text("SELECT id, code, name FROM chart_accounts WHERE code=:code AND company_id=:company_id"),
+                {"code": line["account_code"], "company_id": company_id},
             ).mappings().first()
             if not account:
                 raise ValueError(f"Posting account not found: {line['account_code']}")
             conn.execute(text("""
                 INSERT INTO accounting_voucher_lines
-                (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at)
+                (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at, company_id)
                 VALUES
-                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now)
+                (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now, :company_id)
             """), {
                 "voucher_id": voucher_id,
                 "account_id": account["id"],
@@ -240,6 +305,7 @@ def post_balanced_voucher(
                 "foreign_amount": line.get("foreign_amount"),
                 "exchange_rate": line.get("exchange_rate"),
                 "now": now,
+                "company_id": company_id,
             })
         return voucher_id
 
@@ -249,11 +315,11 @@ def post_balanced_voucher(
         return write(conn)
 
 
-def delete_source_voucher(source_type, source_id, connection=None):
+def delete_source_voucher(source_type, source_id, company_id, connection=None):
     def delete(conn):
         _ensure_schema(conn)
-        assert_source_period_open(conn, source_type, source_id)
-        _delete_source(conn, source_type, source_id)
+        assert_source_period_open(conn, source_type, source_id, company_id)
+        _delete_source(conn, source_type, source_id, company_id)
 
     if connection is not None:
         delete(connection)

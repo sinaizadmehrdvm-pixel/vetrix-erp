@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Link2,
   ShieldOff,
+  FileDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
@@ -34,6 +35,11 @@ import {
   getSupplierPortalStatus,
   revokeCustomerPortalAccess,
   revokeSupplierPortalAccess,
+  getCrmNotes,
+  createCrmNote,
+  getCrmTasks,
+  createCrmTask,
+  exportCustomerProfilePdf,
 } from "../services/api";
 
 function toNumber(value) {
@@ -162,6 +168,7 @@ export default function CustomerDetails() {
   const [supplierPortalEnabled, setSupplierPortalEnabled] = useState(false);
   const [supplierPortalLink, setSupplierPortalLink] = useState("");
   const [supplierPortalBusy, setSupplierPortalBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
@@ -282,46 +289,50 @@ export default function CustomerDetails() {
     }
   }
 
+  async function loadCrmState() {
+    try {
+      const [notes, tasks] = await Promise.all([getCrmNotes(id), getCrmTasks(id)]);
+      setCrmNotes(Array.isArray(notes) ? notes : []);
+      const openTasks = (Array.isArray(tasks) ? tasks : [])
+        .filter((t) => t.status !== "done" && t.due_date)
+        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+      setFollowupDate(openTasks[0]?.due_date || "");
+    } catch {
+      setCrmNotes([]);
+      setFollowupDate("");
+    }
+  }
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const saved = JSON.parse(localStorage.getItem(`vetrix_crm_${id}`) || "{}");
-        setCrmNotes(Array.isArray(saved.notes) ? saved.notes : []);
-        setFollowupDate(saved.followupDate || "");
-      } catch {
-        setCrmNotes([]);
-        setFollowupDate("");
-      }
-    }, 0);
+    const timer = setTimeout(() => { void loadCrmState(); }, 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  function saveCrmState(nextNotes = crmNotes, nextFollowup = followupDate) {
-    localStorage.setItem(
-      `vetrix_crm_${id}`,
-      JSON.stringify({ notes: nextNotes, followupDate: nextFollowup, updated_at: new Date().toISOString() })
-    );
-  }
-
-  function addCrmNote() {
+  async function addCrmNote() {
     if (!newNote.trim()) return;
-    const note = {
-      id: Date.now(),
-      text: newNote.trim(),
-      created_at: new Date().toISOString(),
-      type: "note",
-    };
-    const next = [note, ...crmNotes];
-    setCrmNotes(next);
-    saveCrmState(next, followupDate);
-    setNewNote("");
-    setCrmMessage(tr("یادداشت CRM ذخیره شد.", "تم حفظ ملاحظة CRM.", "CRM notu kaydedildi.", "CRM note saved."));
+    try {
+      await createCrmNote(id, { text: newNote.trim() });
+      setNewNote("");
+      setCrmMessage(tr("یادداشت CRM ذخیره شد.", "تم حفظ ملاحظة CRM.", "CRM notu kaydedildi.", "CRM note saved."));
+      await loadCrmState();
+    } catch (err) {
+      toast.error(err.message || tr("خطا در ذخیره یادداشت", "خطأ في حفظ الملاحظة", "Not kaydedilirken hata oluştu", "Error saving note"));
+    }
   }
 
-  function saveFollowupDate(value) {
-    setFollowupDate(value);
-    saveCrmState(crmNotes, value);
-    setCrmMessage(tr("تاریخ پیگیری ذخیره شد.", "تم حفظ تاريخ المتابعة.", "Takip tarihi kaydedildi.", "Follow-up date saved."));
+  async function saveFollowupDate(value) {
+    try {
+      await createCrmTask(id, {
+        title: tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki takip", "Next follow-up"),
+        due_date: value,
+        status: "open",
+      });
+      setFollowupDate(value);
+      setCrmMessage(tr("تاریخ پیگیری ذخیره شد.", "تم حفظ تاريخ المتابعة.", "Takip tarihi kaydedildi.", "Follow-up date saved."));
+    } catch (err) {
+      toast.error(err.message || tr("خطا در ذخیره تاریخ پیگیری", "خطأ في حفظ تاريخ المتابعة", "Takip tarihi kaydedilirken hata oluştu", "Error saving follow-up date"));
+    }
   }
 
   function whatsappMessage() {
@@ -493,6 +504,60 @@ export default function CustomerDetails() {
     window.print();
   }
 
+  async function exportProfilePdf() {
+    setPdfBusy(true);
+    try {
+      const identityPairs = [
+        [tr("نام", "الاسم", "Ad", "Name"), party.name],
+        [tr("نوع طرف‌حساب", "نوع الطرف", "Cari türü", "Party type"), party.customer_type || party.party_type || "-"],
+        [tr("تلفن", "الهاتف", "Telefon", "Phone"), party.phone || party.mobile || "-"],
+        [tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email"), party.email || "-"],
+        [tr("شهر", "المدينة", "Şehir", "City"), party.city || "-"],
+        [tr("آدرس", "العنوان", "Adres", "Address"), party.address || "-"],
+        [tr("شناسه ملی", "الرقم الوطني", "Kimlik no", "National ID"), party.national_id || "-"],
+        [tr("کد اقتصادی", "الرمز الاقتصادي", "Ekonomik kod", "Economic code"), party.economic_code || "-"],
+        [tr("سقف اعتبار", "حد الائتمان", "Kredi limiti", "Credit limit"), money(toNumber(party.credit_limit))],
+      ];
+      const summaryPairs = [
+        [tr("بدهکار", "مدين", "Borçlu", "Debtor"), money(finance.debtor)],
+        [tr("بستانکار", "دائن", "Alacaklı", "Creditor"), money(finance.creditor)],
+        [tr("مانده", "الرصيد", "Bakiye", "Balance"), `${money(Math.abs(finance.balance))} (${balanceLabel(finance.balance, language)})`],
+        [tr("دریافتی‌ها", "المقبوضات", "Tahsilat", "Received"), money(finance.received)],
+        [tr("پرداختی‌ها", "المدفوعات", "Ödemeler", "Paid"), money(finance.paid)],
+      ];
+      const ledgerHeaders = [
+        tr("تاریخ", "التاريخ", "Tarih", "Date"),
+        tr("شرح", "الوصف", "Açıklama", "Description"),
+        tr("بدهکار", "مدين", "Borç", "Debit"),
+        tr("بستانکار", "دائن", "Alacak", "Credit"),
+        tr("مانده", "الرصيد", "Bakiye", "Balance"),
+      ];
+      const ledgerRows = visibleRows.map((row) => [
+        formatDate(row.date || row.created_at),
+        row.description || sourceLabel(row.source_type, language),
+        row.debit ? money(toNumber(row.debit)) : "-",
+        row.credit ? money(toNumber(row.credit)) : "-",
+        money(toNumber(row.shownBalance)),
+      ]);
+
+      await exportCustomerProfilePdf(
+        {
+          title: tr(`پرونده طرف‌حساب: ${party.name}`, `ملف الطرف: ${party.name}`, `Cari profili: ${party.name}`, `Customer profile: ${party.name}`),
+          identity_pairs: identityPairs,
+          summary_pairs: summaryPairs,
+          ledger_headers: ledgerHeaders,
+          ledger_rows: ledgerRows,
+          language,
+        },
+        `vetrix-customer-${id}-profile.pdf`
+      );
+    } catch (err) {
+      toast.error(err.message || tr("خروجی گرفتن ناموفق بود", "فشل التصدير", "Dışa aktarma başarısız oldu", "Export failed"));
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   if (loading && !party) {
     return (
       <div dir={dir} className="text-[var(--erp-accent)] p-8">
@@ -537,6 +602,15 @@ export default function CustomerDetails() {
           >
             <Printer size={18} />
             {tr("چاپ پرونده", "طباعة الملف", "Dosyayı yazdır", "Print")}
+          </button>
+
+          <button
+            onClick={exportProfilePdf}
+            disabled={pdfBusy}
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
+          >
+            <FileDown size={18} />
+            {pdfBusy ? tr("در حال ساخت...", "جارٍ الإنشاء...", "Oluşturuluyor...", "Generating...") : tr("خروجی PDF پرونده", "تصدير PDF للملف", "Profili PDF olarak indir", "Export profile PDF")}
           </button>
 
           <button

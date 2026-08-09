@@ -87,7 +87,10 @@ def _jwt_secret() -> str:
     return "vetrix-development-secret-change-before-production"
 
 
-def create_access_token(user_id: int, username: str, role: str, token_generation: int = 0) -> str:
+def create_access_token(
+    user_id: int, username: str, role: str, token_generation: int = 0, company_id: int | None = None,
+    is_super_admin: bool = False,
+) -> str:
     now = datetime.now(timezone.utc)
     lifetime_hours = max(1, int(os.getenv("VETRIX_TOKEN_HOURS", "12")))
     payload = {
@@ -95,6 +98,15 @@ def create_access_token(user_id: int, username: str, role: str, token_generation
         "username": username,
         "role": role,
         "gen": int(token_generation or 0),
+        # Multi-company milestone 1: the active company is baked into the
+        # token so every request can know it without a DB lookup, exactly
+        # like role/username already work. No query is scoped by this yet
+        # (see app/models/company.py) - it only rides along for now.
+        "company_id": company_id,
+        # Milestone 4: super-admin status, refreshed from the DB on every
+        # request (main.py's auth middleware) exactly like role/username -
+        # this claim is only the value baked in at mint time.
+        "is_super_admin": bool(is_super_admin),
         "iat": now,
         "nbf": now,
         "exp": now + timedelta(hours=lifetime_hours),
@@ -274,6 +286,7 @@ PUBLIC_PATHS = {
     "/api/payments/session",
     "/api/payments/session/simulate",
     "/api/payments/callback",
+    "/api/invoices/verify",
 }
 
 

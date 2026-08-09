@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStableCallback } from "../hooks/useStableCallback";
 import {
   Package,
@@ -12,6 +13,7 @@ import {
   ImagePlus,
   Boxes,
   Trash2,
+  ScanBarcode,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -21,11 +23,17 @@ import {
   getProducts,
   updateProduct,
   deleteProduct,
+  isNetworkError,
 } from "../services/api";
 
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
+import { translateApiError } from "../localization/apiErrors";
+import BarcodeScannerModal from "../components/BarcodeScannerModal";
+import ProductBatchesPanel from "../components/ProductBatchesPanel";
+import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
+import MoneyDisplay from "../components/ui/MoneyDisplay";
 
 const PRODUCTS_CACHE_KEY = "products";
 
@@ -221,7 +229,8 @@ export default function Products() {
       : unitOptionsEn;
 
   const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
   const [form, setForm] = useState({
     ...empty,
     unit:
@@ -238,6 +247,11 @@ export default function Products() {
   const [message, setMessage] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [brandFilter, setBrandFilter] = useState("all");
+  const [unitFilter, setUnitFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortField, setSortField] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
 
   useEffect(() => {
     getProductCategories()
@@ -361,6 +375,22 @@ export default function Products() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerMode, setScannerMode] = useState("form");
+
+  function handleBarcodeDetected(code) {
+    setScannerOpen(false);
+    if (scannerMode === "search") {
+      setSearch(faText(code, fa));
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      barcode: code,
+      code: prev.code || code,
+    }));
+  }
+
   function reset() {
     setEditingId(null);
     setForm({ ...empty, unit: tr("عدد", "قطعة", "Adet", "pcs") });
@@ -450,6 +480,19 @@ export default function Products() {
       console.error("Save product error:", e);
 
       const current = Array.isArray(products) ? [...products] : [];
+
+      // The server was actually reached and rejected the request (403 role
+      // restriction, validation error, ...) - retrying later would just
+      // fail the same way, so this must NOT be queued as offline_created.
+      // `current` here is still the pre-optimistic list (this closure was
+      // captured before this save() call's setProducts), so re-saving it
+      // as-is rolls back the optimistic add/edit cleanly either way.
+      if (!isNetworkError(e)) {
+        await saveCache(current);
+        setOfflineMode(false);
+        setMessage(translateApiError(e.message, language) || tr("خطا در ذخیره کالا", "خطأ في حفظ المنتج", "Ürün kaydedilirken hata oluştu", "Error saving product"));
+        return;
+      }
 
       const offlineItem = normalizeProduct({
         ...payload,
@@ -572,6 +615,17 @@ export default function Products() {
     } catch (e) {
       console.error("Delete product error:", e);
 
+      // The server was reached and rejected the delete (linked invoices,
+      // RBAC, ...) - hiding the product locally while claiming it was
+      // "removed from offline cache" would be misleading since it still
+      // exists on the server. Only a genuine connectivity failure should
+      // fall back to a local-only removal.
+      if (!isNetworkError(e)) {
+        setOfflineMode(false);
+        setMessage(translateApiError(e.message, language) || tr("خطا در حذف کالا", "خطأ في حذف المنتج", "Ürün silinirken hata oluştu", "Error deleting product"));
+        return;
+      }
+
       const filteredItems = products.filter(
         (item) => String(item.id) !== String(product.id)
       );
@@ -583,10 +637,10 @@ export default function Products() {
       setOfflineMode(true);
       setMessage(
         tr(
-          "سرور در دسترس نبود یا حذف آنلاین انجام نشد؛ کالا فقط از حافظه آفلاین حذف شد.",
-          "الخادم غير متاح أو فشل الحذف عبر الإنترنت؛ تم حذف المنتج من الذاكرة غير المتصلة فقط.",
-          "Sunucuya ulaşılamadı veya çevrimiçi silme başarısız oldu; ürün yalnızca çevrimdışı önbellekten kaldırıldı.",
-          "Server unavailable or online delete failed; product removed from offline cache only."
+          "سرور در دسترس نبود؛ کالا فقط از حافظه آفلاین حذف شد.",
+          "الخادم غير متاح؛ تم حذف المنتج من الذاكرة غير المتصلة فقط.",
+          "Sunucuya ulaşılamadı; ürün yalnızca çevrimdışı önbellekten kaldırıldı.",
+          "Server unavailable; product removed from offline cache only."
         )
       );
     }
@@ -625,11 +679,29 @@ export default function Products() {
     reader.readAsDataURL(file);
   }
 
+  const brandOptions = useMemo(
+    () => Array.from(new Set(products.map((p) => p.brand).filter(Boolean))).sort(),
+    [products]
+  );
+  const unitOptionsFromData = useMemo(
+    () => Array.from(new Set(products.map((p) => p.unit).filter(Boolean))).sort(),
+    [products]
+  );
+  const categoryFilterOptions = useMemo(
+    () => Array.from(new Set(products.map((p) => p.main_category).filter(Boolean))).sort(),
+    [products]
+  );
+
+  function onSort(field, dir) {
+    setSortField(field);
+    setSortDir(dir);
+  }
+
   const filtered = useMemo(() => {
     const q = toEnglishDigits(search).toLowerCase();
 
-    return products.filter((p) =>
-      [
+    const matched = products.filter((p) => {
+      const matchesSearch = [
         p.name,
         p.code,
         p.barcode,
@@ -640,9 +712,24 @@ export default function Products() {
       ]
         .join(" ")
         .toLowerCase()
-        .includes(q)
-    );
-  }, [products, search]);
+        .includes(q);
+      const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
+      const matchesUnit = unitFilter === "all" || p.unit === unitFilter;
+      const matchesCategory = categoryFilter === "all" || p.main_category === categoryFilter;
+      return matchesSearch && matchesBrand && matchesUnit && matchesCategory;
+    });
+
+    if (!sortField) return matched;
+
+    const dirMul = sortDir === "asc" ? 1 : -1;
+    return [...matched].sort((a, b) => {
+      if (sortField === "name" || sortField === "brand") {
+        return dirMul * String(a[sortField] || "").localeCompare(String(b[sortField] || ""), fa ? "fa" : language);
+      }
+      const numericField = sortField === "sell_price" ? (a) => toNumber(a.sell_price ?? a.price) : (a) => toNumber(a[sortField]);
+      return dirMul * (numericField(a) - numericField(b));
+    });
+  }, [products, search, brandFilter, unitFilter, categoryFilter, sortField, sortDir, fa, language]);
 
   const totalStock = products.reduce((sum, p) => sum + toNumber(p.stock), 0);
 
@@ -738,7 +825,17 @@ export default function Products() {
           </Field>
 
           <Field label={label.barcode}>
-            <input className={inputClass} value={faText(form.barcode, fa)} onChange={(e) => setField("barcode", faText(e.target.value, fa))} placeholder={label.barcode} />
+            <div className="flex gap-2">
+              <input className={inputClass} value={faText(form.barcode, fa)} onChange={(e) => setField("barcode", faText(e.target.value, fa))} placeholder={label.barcode} />
+              <button
+                type="button"
+                onClick={() => { setScannerMode("form"); setScannerOpen(true); }}
+                className="px-3 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center"
+                title={tr("اسکن بارکد", "مسح الباركود", "Barkod tara", "Scan barcode")}
+              >
+                <ScanBarcode size={18} />
+              </button>
+            </div>
           </Field>
 
           <Field label={label.sku}>
@@ -816,6 +913,12 @@ export default function Products() {
           <img src={form.image} alt="product" className="mt-4 w-24 h-24 object-cover rounded-2xl border border-[var(--erp-border)]" />
         )}
 
+        {editingId && (
+          <div className="mt-5">
+            <ProductBatchesPanel productId={editingId} />
+          </div>
+        )}
+
         <div className="flex gap-3 flex-wrap mt-5">
           <button type="button" onClick={save} className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             {editingId ? <Save size={18} /> : <Plus size={18} />}
@@ -832,47 +935,69 @@ export default function Products() {
       </div>
 
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
+        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-3 flex-wrap">
           <Search size={18} />
-          <input value={faText(search, fa)} onChange={(e) => setSearch(faText(e.target.value, fa))} placeholder={label.search} className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
+          <input value={faText(search, fa)} onChange={(e) => setSearch(faText(e.target.value, fa))} placeholder={label.search} className="bg-transparent outline-none flex-1 min-w-[200px] text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
+          <button
+            type="button"
+            onClick={() => { setScannerMode("search"); setScannerOpen(true); }}
+            className="text-[var(--erp-accent)] flex items-center justify-center shrink-0"
+            title={tr("اسکن بارکد برای جستجو", "مسح الباركود للبحث", "Aramak için barkod tara", "Scan barcode to search")}
+          >
+            <ScanBarcode size={18} />
+          </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px]">
-            <thead>
-              <tr className="text-[var(--erp-accent)] text-sm border-b border-[var(--erp-border)]">
-                <th className="py-3 text-start">{tr("کالا", "المنتج", "Ürün", "Product")}</th>
-                <th className="py-3 text-start">{label.barcode}</th>
-                <th className="py-3 text-start">{label.buy}</th>
-                <th className="py-3 text-start">{label.sell}</th>
-                <th className="py-3 text-start">{label.stock}</th>
-                <th className="py-3 text-start">{label.minStock}</th>
-                <th className="py-3 text-start">{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</th>
-              </tr>
-            </thead>
+        <div className="flex items-center gap-2 flex-wrap mb-5">
+          <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+            <option value="all">{tr("همه برندها", "كل العلامات", "Tüm markalar", "All brands")}</option>
+            {brandOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+            <option value="all">{tr("همه واحدها", "كل الوحدات", "Tüm birimler", "All units")}</option>
+            {unitOptionsFromData.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          {categoryFilterOptions.length > 0 && (
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+              <option value="all">{tr("همه گروه‌های اصلی", "كل التصنيفات الرئيسية", "Tüm ana kategoriler", "All main categories")}</option>
+              {categoryFilterOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+        </div>
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-6 text-[var(--erp-muted)] text-center">
-                    {tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-6 text-[var(--erp-muted)] text-center">
-                    {label.noData}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((raw) => {
-                  const item = normalizeProduct(raw);
-                  const isLow = toNumber(item.min_stock) > 0 && toNumber(item.stock) <= toNumber(item.min_stock);
+        <BarcodeScannerModal
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onDetected={handleBarcodeDetected}
+          fa={fa}
+        />
 
-                  return (
-                    <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-cyan-500/5">
-                      <td className="py-4 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-[var(--erp-glow)] flex items-center justify-center overflow-hidden">
+        <Table className="min-w-[860px]">
+          <Thead>
+            <SortableTh field="name" sortField={sortField} sortDir={sortDir} onSort={onSort}>{tr("کالا", "المنتج", "Ürün", "Product")}</SortableTh>
+            <SortableTh field="brand" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.brand}</SortableTh>
+            <SortableTh field="buy_price" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.buy}</SortableTh>
+            <SortableTh field="sell_price" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.sell}</SortableTh>
+            <SortableTh field="stock" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.stock}</SortableTh>
+            <SortableTh field="min_stock" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.minStock}</SortableTh>
+            <Th>{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
+          </Thead>
+
+          <Tbody>
+            {loading ? (
+              <EmptyRow colSpan={7}>{tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</EmptyRow>
+            ) : filtered.length === 0 ? (
+              <EmptyRow colSpan={7}>{label.noData}</EmptyRow>
+            ) : (
+              filtered.map((raw) => {
+                const item = normalizeProduct(raw);
+                const isLow = toNumber(item.min_stock) > 0 && toNumber(item.stock) <= toNumber(item.min_stock);
+
+                return (
+                  <Tr key={item.id} className="hover:bg-cyan-500/5">
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--erp-glow)] flex items-center justify-center overflow-hidden shrink-0">
                           {item.image ? <img src={item.image} className="w-full h-full object-cover" alt="" /> : <Package size={18} />}
                         </div>
 
@@ -882,41 +1007,41 @@ export default function Products() {
                             {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{tr("آفلاین", "غير متصل", "Çevrimdışı", "Offline")}</span>}
                           </b>
                           <div className="text-[var(--erp-muted)] text-xs">
-                            {faText(item.brand || "-", fa)} • {!fa && item.unit === "عدد" ? tr("", "قطعة", "Adet", "pcs") : faText(item.unit || "-", fa)}
+                            {faText(item.barcode || item.code || "-", fa)} • {!fa && item.unit === "عدد" ? tr("", "قطعة", "Adet", "pcs") : faText(item.unit || "-", fa)}
                           </div>
                         </div>
-                      </td>
+                      </div>
+                    </Td>
 
-                      <td>{faText(item.barcode || item.code || "-", fa)}</td>
-                      <td>{money(item.buy_price || 0)}</td>
-                      <td>{money(item.sell_price ?? item.price ?? 0)}</td>
+                    <Td>{faText(item.brand || "-", fa)}</Td>
+                    <Td><MoneyDisplay value={item.buy_price || 0} /></Td>
+                    <Td><MoneyDisplay value={item.sell_price ?? item.price ?? 0} /></Td>
 
-                      <td className={isLow ? "text-red-300 font-black" : "text-[var(--erp-accent)] font-bold"}>
-                        {n(item.stock || 0)}
-                      </td>
+                    <Td className={isLow ? "text-red-300 font-black" : "text-[var(--erp-accent)] font-bold"}>
+                      {n(item.stock || 0)}
+                    </Td>
 
-                      <td>{n(item.min_stock || 0)}</td>
+                    <Td>{n(item.min_stock || 0)}</Td>
 
-                      <td>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button type="button" onClick={() => edit(item)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center gap-2">
-                            <Edit3 size={16} />
-                            {tr("ویرایش", "تعديل", "Düzenle", "Edit")}
-                          </button>
+                    <Td>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button type="button" onClick={() => edit(item)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] inline-flex items-center gap-2">
+                          <Edit3 size={16} />
+                          {tr("ویرایش", "تعديل", "Düzenle", "Edit")}
+                        </button>
 
-                          <button type="button" onClick={() => handleDeleteProduct(item)} className="px-3 py-2 rounded-xl bg-red-500/20 text-red-300 inline-flex items-center gap-2">
-                            <Trash2 size={16} />
-                            {tr("حذف", "حذف", "Sil", "Delete")}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <button type="button" onClick={() => handleDeleteProduct(item)} className="px-3 py-2 rounded-xl bg-red-500/20 text-red-300 inline-flex items-center gap-2">
+                          <Trash2 size={16} />
+                          {tr("حذف", "حذف", "Sil", "Delete")}
+                        </button>
+                      </div>
+                    </Td>
+                  </Tr>
+                );
+              })
+            )}
+          </Tbody>
+        </Table>
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
+import csv
+import io
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from app.company_scope import current_company_id
 from app.database import engine
 
 router = APIRouter(prefix="/api/accounting/bank-reconciliation", tags=["Bank Reconciliation"])
@@ -71,20 +74,25 @@ def _ensure_schema(conn):
             FOREIGN KEY(voucher_line_id) REFERENCES accounting_voucher_lines(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "bank_accounts")
+    ensure_company_id_column(conn, "bank_statement_lines")
+    ensure_company_id_column(conn, "bank_reconciliation_matches")
 
 
-def _account(conn, account_id):
+def _account(conn, account_id, company_id):
     _ensure_schema(conn)
     row = conn.execute(text(
-        "SELECT * FROM bank_accounts WHERE id=:id"
-    ), {"id": account_id}).mappings().first()
+        "SELECT * FROM bank_accounts WHERE id=:id AND company_id=:company_id"
+    ), {"id": account_id, "company_id": company_id}).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Bank account not found")
     return dict(row)
 
 
 @router.get("/accounts")
-def list_bank_accounts():
+def list_bank_accounts(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -95,14 +103,16 @@ def list_bank_accounts():
             LEFT JOIN bank_statement_lines s ON s.bank_account_id=a.id
             LEFT JOIN bank_reconciliation_matches m
               ON m.statement_line_id=s.id
+            WHERE a.company_id=:company_id
             GROUP BY a.id
             ORDER BY a.active DESC, a.id DESC
-        """)).mappings().all()
+        """), {"company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
 @router.post("/accounts")
-def create_bank_account(data: BankAccountCreate):
+def create_bank_account(data: BankAccountCreate, request: Request):
+    company_id = current_company_id(request)
     name = data.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Account name is required")
@@ -110,17 +120,17 @@ def create_bank_account(data: BankAccountCreate):
         _ensure_schema(conn)
         chart = conn.execute(text("""
             SELECT code, name FROM chart_accounts
-            WHERE code=:code AND account_type='asset'
-        """), {"code": data.ledger_account_code}).mappings().first()
+            WHERE code=:code AND account_type='asset' AND company_id=:company_id
+        """), {"code": data.ledger_account_code, "company_id": company_id}).mappings().first()
         if not chart:
             raise HTTPException(status_code=400, detail="Ledger asset account not found")
         result = conn.execute(text("""
             INSERT INTO bank_accounts
               (name, bank_name, account_number, iban, ledger_account_code,
-               opening_balance, active, created_at)
+               opening_balance, active, created_at, company_id)
             VALUES
               (:name, :bank_name, :account_number, :iban, :ledger_account_code,
-               :opening_balance, 1, :created_at)
+               :opening_balance, 1, :created_at, :company_id)
         """), {
             "name": name,
             "bank_name": data.bank_name.strip(),
@@ -129,14 +139,16 @@ def create_bank_account(data: BankAccountCreate):
             "ledger_account_code": data.ledger_account_code,
             "opening_balance": _money(data.opening_balance),
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "company_id": company_id,
         })
         return {"status": "created", "id": result.lastrowid}
 
 
 @router.delete("/accounts/{account_id}")
-def delete_bank_account(account_id: int):
+def delete_bank_account(account_id: int, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
-        _account(conn, account_id)
+        _account(conn, account_id, company_id)
         count = conn.execute(text("""
             SELECT COUNT(*) FROM bank_statement_lines
             WHERE bank_account_id=:id
@@ -146,18 +158,23 @@ def delete_bank_account(account_id: int):
                 status_code=409,
                 detail="Account has statement history and cannot be deleted",
             )
-        conn.execute(text("DELETE FROM bank_accounts WHERE id=:id"), {"id": account_id})
+        conn.execute(
+            text("DELETE FROM bank_accounts WHERE id=:id AND company_id=:company_id"),
+            {"id": account_id, "company_id": company_id},
+        )
         return {"status": "deleted", "id": account_id}
 
 
 @router.get("/accounts/{account_id}/statement")
 def list_statement_lines(
     account_id: int,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
 ):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
-        _account(conn, account_id)
+        _account(conn, account_id, company_id)
         rows = conn.execute(text("""
             SELECT s.*, m.id AS match_id, m.voucher_line_id,
                    v.id AS voucher_id, v.voucher_no, v.source_type,
@@ -189,19 +206,20 @@ def list_statement_lines(
 
 
 @router.post("/accounts/{account_id}/statement")
-def create_statement_line(account_id: int, data: StatementLineCreate):
+def create_statement_line(account_id: int, data: StatementLineCreate, request: Request):
+    company_id = current_company_id(request)
     amount = _money(data.amount)
     if amount == 0:
         raise HTTPException(status_code=400, detail="Statement amount cannot be zero")
     with engine.begin() as conn:
-        _account(conn, account_id)
+        _account(conn, account_id, company_id)
         result = conn.execute(text("""
             INSERT INTO bank_statement_lines
               (bank_account_id, transaction_date, description, reference,
-               amount, created_at)
+               amount, created_at, company_id)
             VALUES
               (:account_id, :transaction_date, :description, :reference,
-               :amount, :created_at)
+               :amount, :created_at, :company_id)
         """), {
             "account_id": account_id,
             "transaction_date": data.transaction_date.isoformat(),
@@ -209,17 +227,99 @@ def create_statement_line(account_id: int, data: StatementLineCreate):
             "reference": data.reference.strip(),
             "amount": amount,
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "company_id": company_id,
         })
         return {"status": "created", "id": result.lastrowid, "amount": amount}
 
 
+@router.post("/accounts/{account_id}/statement/import")
+async def import_statement_csv(account_id: int, request: Request, file: UploadFile = File(...)):
+    company_id = current_company_id(request)
+    with engine.begin() as conn:
+        _account(conn, account_id, company_id)
+
+    raw = await file.read()
+    try:
+        text_content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text_content = raw.decode("utf-8", errors="ignore")
+
+    reader = csv.DictReader(io.StringIO(text_content))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="Empty or invalid CSV file")
+    normalized = {(name or "").strip().lower(): name for name in reader.fieldnames}
+
+    def field(row, *names):
+        for name in names:
+            key = normalized.get(name)
+            if key is not None:
+                value = (row.get(key) or "").strip()
+                if value:
+                    return value
+        return ""
+
+    imported = 0
+    errors = []
+    with engine.begin() as conn:
+        for line_no, row in enumerate(reader, start=2):
+            date_value = field(row, "date", "transaction_date", "transaction date")
+            description = field(row, "description", "memo", "narrative", "details")
+            reference = field(row, "reference", "ref", "reference number")
+            amount_text = field(row, "amount")
+            deposit_text = field(row, "deposit", "money_in", "inflow", "credit")
+            withdrawal_text = field(row, "withdrawal", "money_out", "outflow", "debit")
+
+            if not date_value:
+                errors.append(f"Row {line_no}: missing date")
+                continue
+            try:
+                parsed_date = datetime.strptime(date_value[:10], "%Y-%m-%d").date()
+            except ValueError:
+                errors.append(f"Row {line_no}: unrecognized date '{date_value}' (expected YYYY-MM-DD)")
+                continue
+
+            try:
+                if amount_text:
+                    amount = float(amount_text.replace(",", ""))
+                else:
+                    deposit = float(deposit_text.replace(",", "")) if deposit_text else 0.0
+                    withdrawal = float(withdrawal_text.replace(",", "")) if withdrawal_text else 0.0
+                    amount = deposit - withdrawal
+            except ValueError:
+                errors.append(f"Row {line_no}: invalid amount")
+                continue
+
+            amount = _money(amount)
+            if amount == 0:
+                errors.append(f"Row {line_no}: amount is zero, skipped")
+                continue
+
+            conn.execute(text("""
+                INSERT INTO bank_statement_lines
+                  (bank_account_id, transaction_date, description, reference, amount, created_at, company_id)
+                VALUES (:account_id, :transaction_date, :description, :reference, :amount, :created_at, :company_id)
+            """), {
+                "account_id": account_id,
+                "transaction_date": parsed_date.isoformat(),
+                "description": description,
+                "reference": reference,
+                "amount": amount,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "company_id": company_id,
+            })
+            imported += 1
+
+    return {"status": "imported", "imported": imported, "skipped": len(errors), "errors": errors[:50]}
+
+
 @router.delete("/statement/{statement_line_id}")
-def delete_statement_line(statement_line_id: int):
+def delete_statement_line(statement_line_id: int, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         row = conn.execute(text("""
-            SELECT id FROM bank_statement_lines WHERE id=:id
-        """), {"id": statement_line_id}).first()
+            SELECT id FROM bank_statement_lines WHERE id=:id AND company_id=:company_id
+        """), {"id": statement_line_id, "company_id": company_id}).first()
         if not row:
             raise HTTPException(status_code=404, detail="Statement line not found")
         conn.execute(text("""
@@ -235,11 +335,13 @@ def delete_statement_line(statement_line_id: int):
 @router.get("/accounts/{account_id}/candidates")
 def match_candidates(
     account_id: int,
+    request: Request,
     statement_line_id: int | None = None,
     limit: int = Query(default=100, ge=1, le=500),
 ):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
-        account = _account(conn, account_id)
+        account = _account(conn, account_id, company_id)
         statement = None
         if statement_line_id is not None:
             statement = conn.execute(text("""
@@ -260,7 +362,7 @@ def match_candidates(
             JOIN accounting_vouchers v ON v.id=l.voucher_id
             LEFT JOIN bank_reconciliation_matches m
               ON m.voucher_line_id=l.id
-            WHERE v.status='posted'
+            WHERE v.status='posted' AND v.company_id=:company_id
               AND l.account_code=:account_code
               AND m.id IS NULL
             ORDER BY v.voucher_date DESC, l.id DESC
@@ -268,6 +370,7 @@ def match_candidates(
         """), {
             "account_code": account["ledger_account_code"],
             "limit": limit,
+            "company_id": company_id,
         }).mappings().all()
         result = []
         for row in rows:
@@ -284,23 +387,24 @@ def match_candidates(
 
 
 @router.post("/statement/{statement_line_id}/match")
-def match_statement_line(statement_line_id: int, data: MatchCreate):
+def match_statement_line(statement_line_id: int, data: MatchCreate, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         statement = conn.execute(text("""
             SELECT s.*, a.ledger_account_code
             FROM bank_statement_lines s
             JOIN bank_accounts a ON a.id=s.bank_account_id
-            WHERE s.id=:id
-        """), {"id": statement_line_id}).mappings().first()
+            WHERE s.id=:id AND s.company_id=:company_id
+        """), {"id": statement_line_id, "company_id": company_id}).mappings().first()
         if not statement:
             raise HTTPException(status_code=404, detail="Statement line not found")
         line = conn.execute(text("""
             SELECT l.*, v.status
             FROM accounting_voucher_lines l
             JOIN accounting_vouchers v ON v.id=l.voucher_id
-            WHERE l.id=:id
-        """), {"id": data.voucher_line_id}).mappings().first()
+            WHERE l.id=:id AND v.company_id=:company_id
+        """), {"id": data.voucher_line_id, "company_id": company_id}).mappings().first()
         if not line or line["status"] != "posted":
             raise HTTPException(status_code=404, detail="Posted ledger line not found")
         if line["account_code"] != statement["ledger_account_code"]:
@@ -311,12 +415,13 @@ def match_statement_line(statement_line_id: int, data: MatchCreate):
         try:
             result = conn.execute(text("""
                 INSERT INTO bank_reconciliation_matches
-                  (statement_line_id, voucher_line_id, matched_at)
-                VALUES (:statement_line_id, :voucher_line_id, :matched_at)
+                  (statement_line_id, voucher_line_id, matched_at, company_id)
+                VALUES (:statement_line_id, :voucher_line_id, :matched_at, :company_id)
             """), {
                 "statement_line_id": statement_line_id,
                 "voucher_line_id": data.voucher_line_id,
                 "matched_at": datetime.now(timezone.utc).isoformat(),
+                "company_id": company_id,
             })
         except Exception as error:
             raise HTTPException(status_code=409, detail="Statement or ledger line is already matched") from error
@@ -324,13 +429,14 @@ def match_statement_line(statement_line_id: int, data: MatchCreate):
 
 
 @router.delete("/statement/{statement_line_id}/match")
-def unmatch_statement_line(statement_line_id: int):
+def unmatch_statement_line(statement_line_id: int, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         result = conn.execute(text("""
             DELETE FROM bank_reconciliation_matches
-            WHERE statement_line_id=:id
-        """), {"id": statement_line_id})
+            WHERE statement_line_id=:id AND company_id=:company_id
+        """), {"id": statement_line_id, "company_id": company_id})
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Match not found")
         return {"status": "unmatched", "statement_line_id": statement_line_id}
@@ -339,16 +445,19 @@ def unmatch_statement_line(statement_line_id: int):
 @router.get("/accounts/{account_id}/summary")
 def reconciliation_summary(
     account_id: int,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
 ):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
-        account = _account(conn, account_id)
+        account = _account(conn, account_id, company_id)
         params = {
             "account_id": account_id,
             "account_code": account["ledger_account_code"],
             "date_from": date_from.isoformat() if date_from else None,
             "date_to": date_to.isoformat() if date_to else None,
+            "company_id": company_id,
         }
         statement = conn.execute(text("""
             SELECT COUNT(*) AS total_count,
@@ -369,7 +478,7 @@ def reconciliation_summary(
             FROM accounting_voucher_lines l
             JOIN accounting_vouchers v ON v.id=l.voucher_id
             LEFT JOIN bank_reconciliation_matches m ON m.voucher_line_id=l.id
-            WHERE v.status='posted' AND l.account_code=:account_code
+            WHERE v.status='posted' AND v.company_id=:company_id AND l.account_code=:account_code
               AND (:date_from IS NULL OR v.voucher_date>=:date_from)
               AND (:date_to IS NULL OR v.voucher_date<=:date_to)
         """), params).mappings().first()

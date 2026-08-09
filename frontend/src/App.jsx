@@ -25,16 +25,19 @@ const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Login = lazy(() => import("./pages/Login"));
 const InvoiceDesigner = lazy(() => import("./designer/InvoiceDesigner"));
-const FinanceCenter = lazy(() => import("./pages/FinanceCenter"));
+const DocumentDesigner = lazy(() => import("./designer/DocumentDesigner"));
 const Customer360 = lazy(() => import("./pages/crm/Customer360"));
 const CrmDashboard = lazy(() => import("./pages/CrmDashboard"));
 const SmartInventory = lazy(() => import("./pages/SmartInventory"));
+const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
+const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
 const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
 const AccountingCore = lazy(() => import("./pages/AccountingCore"));
 const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
 const FiscalPeriods = lazy(() => import("./pages/FiscalPeriods"));
 const AuditTrail = lazy(() => import("./pages/AuditTrail"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
+const CompanyManagement = lazy(() => import("./pages/CompanyManagement"));
 const BackupRecovery = lazy(() => import("./pages/BackupRecovery"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const FinancialStatements = lazy(() => import("./pages/FinancialStatements"));
@@ -56,11 +59,16 @@ const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
 const SupplierPortalView = lazy(() => import("./pages/SupplierPortalView"));
 const PaymentGatewayView = lazy(() => import("./pages/PaymentGatewayView"));
 const PaymentReminders = lazy(() => import("./pages/PaymentReminders"));
+const MessageTemplates = lazy(() => import("./pages/MessageTemplates"));
 const Warehouses = lazy(() => import("./pages/Warehouses"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
+const InvoiceVerifyView = lazy(() => import("./pages/InvoiceVerifyView"));
 const PricingTiers = lazy(() => import("./pages/PricingTiers"));
 const RecurringInvoices = lazy(() => import("./pages/RecurringInvoices"));
+const VisitorHome = lazy(() => import("./pages/visitor/VisitorHome"));
+const VisitorOrder = lazy(() => import("./pages/visitor/VisitorOrder"));
+const VisitorVisits = lazy(() => import("./pages/visitor/VisitorVisits"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -116,11 +124,64 @@ function AppContent() {
           <Route path="/supplier-portal/:token" element={<SupplierPortalView />} />
           <Route path="/pay/:authority" element={<PaymentGatewayView />} />
           <Route path="/catalog/:token" element={<CatalogPublicView />} />
+          <Route path="/verify-invoice/:id/:code" element={<InvoiceVerifyView />} />
         <Route
           path="/invoice-designer"
           element={
             <ProtectedRoute>
               <InvoiceDesigner />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/business-card-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="business_card" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letterhead-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="letterhead" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/banner-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="banner" />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Visitor (field sales rep) module: a separate, minimal,
+            mobile-first shell outside the desktop Sidebar/MainLayout - see
+            pages/visitor/VisitorLayout.jsx. */}
+        <Route
+          path="/visitor"
+          element={
+            <ProtectedRoute>
+              <VisitorHome />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/visitor/order/:customerId"
+          element={
+            <ProtectedRoute>
+              <VisitorOrder />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/visitor/visits"
+          element={
+            <ProtectedRoute>
+              <VisitorVisits />
             </ProtectedRoute>
           }
         />
@@ -145,18 +206,21 @@ function AppContent() {
           <Route path="invoice-print/:id/edit" element={<InvoicePrint />} />
           <Route path="warehouse" element={<Warehouse />} />
           <Route path="smart-inventory" element={<SmartInventory />} />
+          <Route path="purchase-orders" element={<PurchaseOrders />} />
+          <Route path="sales-pipeline" element={<SalesPipeline />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="payments" element={<Payments />} />
           <Route path="receipts" element={<Receipts />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="reports" element={<Reports />} />
           <Route path="ai-bi" element={<AiBusinessIntelligence />} />
-          <Route path="finance" element={<FinanceCenter />} />
+          <Route path="finance" element={<Navigate to="/transactions" replace />} />
           <Route path="accounting" element={<AccountingCore />} />
           <Route path="accounting-entries" element={<AccountingEntries />} />
           <Route path="fiscal-periods" element={<FiscalPeriods />} />
           <Route path="audit-trail" element={<AuditTrail />} />
           <Route path="user-management" element={<UserManagement />} />
+          <Route path="company-management" element={<CompanyManagement />} />
           <Route path="backup-recovery" element={<BackupRecovery />} />
           <Route path="system-health" element={<SystemHealth />} />
           <Route path="financial-statements" element={<FinancialStatements />} />
@@ -180,6 +244,7 @@ function AppContent() {
           <Route path="pricing-tiers" element={<PricingTiers />} />
           <Route path="recurring-invoices" element={<RecurringInvoices />} />
           <Route path="payment-reminders" element={<PaymentReminders />} />
+          <Route path="message-templates" element={<MessageTemplates />} />
           <Route path="warehouses" element={<Warehouses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

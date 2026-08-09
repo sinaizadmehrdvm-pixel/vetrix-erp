@@ -50,8 +50,9 @@ export default function TopProducts({ products = [], to = "/products" }) {
             const price = money(p.price || p.sell_price || 0);
 
             return (
-              <div
+              <Link
                 key={p.id || index}
+                to={`/products?q=${encodeURIComponent(name)}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -61,6 +62,8 @@ export default function TopProducts({ products = [], to = "/products" }) {
                   borderRadius: 16,
                   background: "var(--erp-panel-solid)",
                   minWidth: 0,
+                  textDecoration: "none",
+                  color: "inherit",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
@@ -91,7 +94,7 @@ export default function TopProducts({ products = [], to = "/products" }) {
                 </div>
 
                 <div style={{ fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>{price}</div>
-              </div>
+              </Link>
             );
           })}
         </div>

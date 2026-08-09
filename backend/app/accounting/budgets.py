@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/budgets", tags=["Budgets & Cost Centers"])
 MONEY_STEP = Decimal("0.01")
@@ -92,35 +93,55 @@ def _ensure_schema(conn):
     if table:
         _ensure_column(conn, "accounting_voucher_lines", "cost_center_id", "cost_center_id INTEGER")
         _ensure_column(conn, "accounting_voucher_lines", "project_id", "project_id INTEGER")
+    from app.company_scope import (
+        ensure_company_id_column,
+        migrate_cost_centers_composite_unique,
+        migrate_accounting_projects_composite_unique,
+    )
+    ensure_company_id_column(conn, "cost_centers")
+    ensure_company_id_column(conn, "accounting_projects")
+    ensure_company_id_column(conn, "accounting_budgets")
+    migrate_cost_centers_composite_unique(conn)
+    migrate_accounting_projects_composite_unique(conn)
 
 
-def _dimension(conn, table, dimension_id, label):
-    row = conn.execute(text(f"SELECT * FROM {table} WHERE id=:id"), {"id": dimension_id}).mappings().first()
+def _dimension(conn, table, dimension_id, label, company_id):
+    row = conn.execute(
+        text(f"SELECT * FROM {table} WHERE id=:id AND company_id=:company_id"),
+        {"id": dimension_id, "company_id": company_id},
+    ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail=f"{label} not found")
     return dict(row)
 
 
 @router.get("/dimensions")
-def list_dimensions():
+def list_dimensions(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        centers = conn.execute(text("SELECT * FROM cost_centers ORDER BY active DESC, code")).mappings().all()
-        projects = conn.execute(text("SELECT * FROM accounting_projects ORDER BY active DESC, code")).mappings().all()
+        centers = conn.execute(
+            text("SELECT * FROM cost_centers WHERE company_id=:company_id ORDER BY active DESC, code"),
+            {"company_id": company_id},
+        ).mappings().all()
+        projects = conn.execute(
+            text("SELECT * FROM accounting_projects WHERE company_id=:company_id ORDER BY active DESC, code"),
+            {"company_id": company_id},
+        ).mappings().all()
         return {"cost_centers": [dict(row) for row in centers], "projects": [dict(row) for row in projects]}
 
 
 @router.post("/cost-centers")
-def create_cost_center(data: DimensionCreate):
-    return _create_dimension("cost_centers", data)
+def create_cost_center(data: DimensionCreate, request: Request):
+    return _create_dimension("cost_centers", data, current_company_id(request))
 
 
 @router.post("/projects")
-def create_project(data: DimensionCreate):
-    return _create_dimension("accounting_projects", data)
+def create_project(data: DimensionCreate, request: Request):
+    return _create_dimension("accounting_projects", data, current_company_id(request))
 
 
-def _create_dimension(table, data):
+def _create_dimension(table, data, company_id):
     code, name = data.code.strip(), data.name.strip()
     if not code or not name:
         raise HTTPException(status_code=400, detail="Code and name are required")
@@ -128,11 +149,12 @@ def _create_dimension(table, data):
         with engine.begin() as conn:
             _ensure_schema(conn)
             result = conn.execute(text(f"""
-                INSERT INTO {table} (code, name, description, active, created_at)
-                VALUES (:code, :name, :description, 1, :created_at)
+                INSERT INTO {table} (code, name, description, active, created_at, company_id)
+                VALUES (:code, :name, :description, 1, :created_at, :company_id)
             """), {
                 "code": code, "name": name, "description": data.description.strip(),
                 "created_at": datetime.now(timezone.utc).isoformat(),
+                "company_id": company_id,
             })
             return {"status": "created", "id": result.lastrowid}
     except Exception as error:
@@ -142,79 +164,96 @@ def _create_dimension(table, data):
 
 
 @router.delete("/cost-centers/{dimension_id}")
-def delete_cost_center(dimension_id: int):
-    return _delete_dimension("cost_centers", "cost_center_id", dimension_id, "Cost center")
+def delete_cost_center(dimension_id: int, request: Request):
+    return _delete_dimension("cost_centers", "cost_center_id", dimension_id, "Cost center", current_company_id(request))
 
 
 @router.delete("/projects/{dimension_id}")
-def delete_project(dimension_id: int):
-    return _delete_dimension("accounting_projects", "project_id", dimension_id, "Project")
+def delete_project(dimension_id: int, request: Request):
+    return _delete_dimension("accounting_projects", "project_id", dimension_id, "Project", current_company_id(request))
 
 
-def _delete_dimension(table, column, dimension_id, label):
+def _delete_dimension(table, column, dimension_id, label, company_id):
     with engine.begin() as conn:
         _ensure_schema(conn)
-        _dimension(conn, table, dimension_id, label)
-        used_budget = conn.execute(text(f"SELECT id FROM accounting_budgets WHERE {column}=:id LIMIT 1"), {"id": dimension_id}).first()
-        used_entry = conn.execute(text(f"SELECT id FROM accounting_voucher_lines WHERE {column}=:id LIMIT 1"), {"id": dimension_id}).first()
+        _dimension(conn, table, dimension_id, label, company_id)
+        used_budget = conn.execute(
+            text(f"SELECT id FROM accounting_budgets WHERE {column}=:id AND company_id=:company_id LIMIT 1"),
+            {"id": dimension_id, "company_id": company_id},
+        ).first()
+        used_entry = conn.execute(
+            text(f"SELECT id FROM accounting_voucher_lines WHERE {column}=:id AND company_id=:company_id LIMIT 1"),
+            {"id": dimension_id, "company_id": company_id},
+        ).first()
         if used_budget or used_entry:
             raise HTTPException(status_code=409, detail=f"{label} has accounting history")
-        conn.execute(text(f"DELETE FROM {table} WHERE id=:id"), {"id": dimension_id})
+        conn.execute(
+            text(f"DELETE FROM {table} WHERE id=:id AND company_id=:company_id"),
+            {"id": dimension_id, "company_id": company_id},
+        )
         return {"status": "deleted", "id": dimension_id}
 
 
 @router.post("/lines")
-def upsert_budget_line(data: BudgetLineCreate):
+def upsert_budget_line(data: BudgetLineCreate, request: Request):
+    company_id = current_company_id(request)
     amount = _money(data.amount)
     if amount < 0:
         raise HTTPException(status_code=400, detail="Budget amount cannot be negative")
     with engine.begin() as conn:
         _ensure_schema(conn)
-        period = conn.execute(text("SELECT * FROM fiscal_periods WHERE id=:id"), {"id": data.fiscal_period_id}).mappings().first()
+        period = conn.execute(
+            text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
+            {"id": data.fiscal_period_id, "company_id": company_id},
+        ).mappings().first()
         if not period:
             raise HTTPException(status_code=404, detail="Fiscal period not found")
         account = conn.execute(text("""
             SELECT * FROM chart_accounts
-            WHERE id=:id AND account_type IN ('revenue','expense','contra')
-        """), {"id": data.account_id}).mappings().first()
+            WHERE id=:id AND company_id=:company_id AND account_type IN ('revenue','expense','contra')
+        """), {"id": data.account_id, "company_id": company_id}).mappings().first()
         if not account:
             raise HTTPException(status_code=400, detail="Budget account must be a revenue or expense account")
         if data.cost_center_id:
-            _dimension(conn, "cost_centers", data.cost_center_id, "Cost center")
+            _dimension(conn, "cost_centers", data.cost_center_id, "Cost center", company_id)
         if data.project_id:
-            _dimension(conn, "accounting_projects", data.project_id, "Project")
+            _dimension(conn, "accounting_projects", data.project_id, "Project", company_id)
         existing = conn.execute(text("""
             SELECT id FROM accounting_budgets
-            WHERE fiscal_period_id=:period_id AND account_id=:account_id
+            WHERE fiscal_period_id=:period_id AND account_id=:account_id AND company_id=:company_id
               AND COALESCE(cost_center_id,-1)=COALESCE(:cost_center_id,-1)
               AND COALESCE(project_id,-1)=COALESCE(:project_id,-1)
         """), {
-            "period_id": data.fiscal_period_id, "account_id": data.account_id,
+            "period_id": data.fiscal_period_id, "account_id": data.account_id, "company_id": company_id,
             "cost_center_id": data.cost_center_id, "project_id": data.project_id,
         }).scalar()
         now = datetime.now(timezone.utc).isoformat()
         if existing:
             conn.execute(text("""
                 UPDATE accounting_budgets SET amount=:amount, note=:note, updated_at=:now
-                WHERE id=:id
-            """), {"amount": amount, "note": data.note.strip(), "now": now, "id": existing})
+                WHERE id=:id AND company_id=:company_id
+            """), {"amount": amount, "note": data.note.strip(), "now": now, "id": existing, "company_id": company_id})
             return {"status": "updated", "id": existing}
         result = conn.execute(text("""
             INSERT INTO accounting_budgets
               (fiscal_period_id, account_id, cost_center_id, project_id,
-               amount, note, created_at, updated_at)
+               amount, note, created_at, updated_at, company_id)
             VALUES
               (:fiscal_period_id, :account_id, :cost_center_id, :project_id,
-               :amount, :note, :now, :now)
-        """), {**data.dict(), "amount": amount, "note": data.note.strip(), "now": now})
+               :amount, :note, :now, :now, :company_id)
+        """), {**data.dict(), "amount": amount, "note": data.note.strip(), "now": now, "company_id": company_id})
         return {"status": "created", "id": result.lastrowid}
 
 
 @router.delete("/lines/{line_id}")
-def delete_budget_line(line_id: int):
+def delete_budget_line(line_id: int, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        result = conn.execute(text("DELETE FROM accounting_budgets WHERE id=:id"), {"id": line_id})
+        result = conn.execute(
+            text("DELETE FROM accounting_budgets WHERE id=:id AND company_id=:company_id"),
+            {"id": line_id, "company_id": company_id},
+        )
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Budget line not found")
         return {"status": "deleted", "id": line_id}
@@ -222,13 +261,18 @@ def delete_budget_line(line_id: int):
 
 @router.get("/variance")
 def budget_variance(
+    request: Request,
     fiscal_period_id: int,
     cost_center_id: int | None = None,
     project_id: int | None = None,
 ):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        period = conn.execute(text("SELECT * FROM fiscal_periods WHERE id=:id"), {"id": fiscal_period_id}).mappings().first()
+        period = conn.execute(
+            text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
+            {"id": fiscal_period_id, "company_id": company_id},
+        ).mappings().first()
         if not period:
             raise HTTPException(status_code=404, detail="Fiscal period not found")
         rows = conn.execute(text("""
@@ -247,18 +291,19 @@ def budget_variance(
             LEFT JOIN cost_centers cc ON cc.id=b.cost_center_id
             LEFT JOIN accounting_projects p ON p.id=b.project_id
             LEFT JOIN accounting_vouchers v
-              ON v.fiscal_period_id=b.fiscal_period_id AND v.status='posted'
+              ON v.fiscal_period_id=b.fiscal_period_id AND v.status='posted' AND v.company_id=b.company_id
             LEFT JOIN accounting_voucher_lines l
               ON l.voucher_id=v.id AND l.account_id=b.account_id
              AND (b.cost_center_id IS NULL OR l.cost_center_id=b.cost_center_id)
              AND (b.project_id IS NULL OR l.project_id=b.project_id)
-            WHERE b.fiscal_period_id=:period_id
+            WHERE b.fiscal_period_id=:period_id AND b.company_id=:company_id
               AND (:cost_center_id IS NULL OR b.cost_center_id=:cost_center_id)
               AND (:project_id IS NULL OR b.project_id=:project_id)
             GROUP BY b.id, a.id, cc.id, p.id
             ORDER BY a.code, cc.code, p.code
         """), {
             "period_id": fiscal_period_id,
+            "company_id": company_id,
             "cost_center_id": cost_center_id,
             "project_id": project_id,
         }).mappings().all()

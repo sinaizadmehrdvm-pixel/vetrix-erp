@@ -1,5 +1,11 @@
-from fastapi import APIRouter
+import tempfile
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
+
 from app.database import SessionLocal
+from app.company_scope import current_company_id
+from .canvas_render import KIND_PAGE_SIZES, render_config_to_pdf
 from .models import PdfTemplate
 
 router = APIRouter(prefix="/designer", tags=["designer"])
@@ -98,12 +104,16 @@ def normalize_template(template):
         "id": getattr(template, "id", None),
         "name": getattr(template, "name", "") or "قالب بدون نام",
         "page_size": page_size,
+        "kind": getattr(template, "kind", None) or "invoice",
         "config": normalized_config,
     }
 
 
+ALLOWED_KINDS = {"invoice", "business_card", "letterhead", "banner"}
+
+
 @router.post("/template")
-def create_template(data: dict):
+def create_template(data: dict, request: Request):
     db = SessionLocal()
     try:
         incoming_config = data.get("config", {}) or {}
@@ -111,6 +121,9 @@ def create_template(data: dict):
             incoming_config = {}
 
         page_size = data.get("page_size") or incoming_config.get("page_size") or "A4"
+        kind = data.get("kind") or "invoice"
+        if kind not in ALLOWED_KINDS:
+            kind = "invoice"
 
         # همیشه elements را حفظ/نرمال می‌کنیم تا قالب برای Print Studio قابل خواندن باشد.
         incoming_config = {
@@ -123,7 +136,9 @@ def create_template(data: dict):
         template = PdfTemplate(
             name=data.get("name") or "قالب طراحی فاکتور",
             page_size=page_size,
+            kind=kind,
             config=incoming_config,
+            company_id=current_company_id(request),
         )
 
         db.add(template)
@@ -136,20 +151,25 @@ def create_template(data: dict):
 
 
 @router.get("/templates")
-def get_templates():
+def get_templates(request: Request, kind: str = "invoice"):
+    if kind not in ALLOWED_KINDS:
+        kind = "invoice"
     db = SessionLocal()
     try:
-        templates = db.query(PdfTemplate).order_by(PdfTemplate.id.desc()).all()
+        templates = db.query(PdfTemplate).filter(
+            PdfTemplate.company_id == current_company_id(request),
+            PdfTemplate.kind == kind,
+        ).order_by(PdfTemplate.id.desc()).all()
         return [normalize_template(t) for t in templates]
     finally:
         db.close()
 
 
 @router.get("/template/{id}")
-def get_template(id: int):
+def get_template(id: int, request: Request):
     db = SessionLocal()
     try:
-        template = db.query(PdfTemplate).filter(PdfTemplate.id == id).first()
+        template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
         if not template:
             return {"status": "error", "message": "Template not found"}
         return normalize_template(template)
@@ -158,10 +178,10 @@ def get_template(id: int):
 
 
 @router.delete("/template/{id}")
-def delete_template(id: int):
+def delete_template(id: int, request: Request):
     db = SessionLocal()
     try:
-        template = db.query(PdfTemplate).filter(PdfTemplate.id == id).first()
+        template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
 
         if not template:
             return {"status": "error", "message": "Template not found"}
@@ -172,3 +192,38 @@ def delete_template(id: int):
         return {"status": "success", "message": "Template deleted"}
     finally:
         db.close()
+
+
+@router.get("/template/{id}/pdf")
+def render_template_pdf(id: int, request: Request):
+    """Real, print-ready PDF export for the non-invoice document kinds
+    (business card / letterhead / banner) - renders every canvas element
+    at its exact position via canvas_render, using the company's own logo
+    and contact details from Settings for the logo/QR elements."""
+    from app.settings_routes import AppSettings
+
+    db = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == company_id).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        kind = getattr(template, "kind", None) or "invoice"
+        if kind not in KIND_PAGE_SIZES:
+            raise HTTPException(status_code=400, detail="This document kind is not exportable from this endpoint")
+
+        settings = db.query(AppSettings).filter(AppSettings.company_id == company_id).first()
+        logo_data = (settings.logo_data if settings else "") or ""
+        qr_payload = "\n".join(filter(None, [
+            getattr(settings, "company_name", "") if settings else "",
+            getattr(settings, "website", "") if settings else "",
+            getattr(settings, "phone", "") if settings else "",
+        ])) or (getattr(template, "name", "") or "Vetrix ERP")
+
+        width_pt, height_pt = KIND_PAGE_SIZES[kind]
+        output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        render_config_to_pdf(template.config or {}, width_pt, height_pt, output_path, qr_payload=qr_payload, logo_data=logo_data)
+    finally:
+        db.close()
+
+    return FileResponse(output_path, media_type="application/pdf", filename=f"{kind}-{id}.pdf")

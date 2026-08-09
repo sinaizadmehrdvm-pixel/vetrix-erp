@@ -205,12 +205,13 @@ class WebhookDispatchTests(unittest.TestCase):
                     id INTEGER PRIMARY KEY,
                     full_name VARCHAR,
                     username VARCHAR,
-                    role VARCHAR NOT NULL
+                    role VARCHAR NOT NULL,
+                    company_id INTEGER
                 )
             """))
             conn.execute(text("""
-                INSERT INTO users (id, full_name, username, role)
-                VALUES (7, 'Voice Service', 'voice-service', 'viewer')
+                INSERT INTO users (id, full_name, username, role, company_id)
+                VALUES (7, 'Voice Service', 'voice-service', 'viewer', 1)
             """))
 
     @classmethod

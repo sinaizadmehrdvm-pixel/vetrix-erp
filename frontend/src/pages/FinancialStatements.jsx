@@ -16,11 +16,14 @@ import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
+import JalaliDateField from "../components/forms/JalaliDateField";
 
 export default function FinancialStatements() {
   const { language, dir, money, date, n } = useLanguage();
   const [periods, setPeriods] = useState([]);
   const [periodId, setPeriodId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [data, setData] = useState(null);
   const [active, setActive] = useState("balance");
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,8 @@ export default function FinancialStatements() {
       ? "Bilanço, gelir tablosu ve nakit akışı doğrudan kesinleşmiş büyük defterden"
       : "Balance sheet, income statement, and cash flow directly from the posted ledger",
     allTime: language === "fa" ? "همه دوره‌ها" : language === "ar" ? "جميع الفترات" : language === "tr" ? "Tüm Dönemler" : "All periods",
+    fromDate: language === "fa" ? "از تاریخ" : language === "ar" ? "من تاريخ" : language === "tr" ? "Başlangıç" : "From date",
+    toDate: language === "fa" ? "تا تاریخ" : language === "ar" ? "إلى تاريخ" : language === "tr" ? "Bitiş" : "To date",
     balance: language === "fa" ? "ترازنامه" : language === "ar" ? "الميزانية العمومية" : language === "tr" ? "Bilanço" : "Balance Sheet",
     income: language === "fa" ? "سود و زیان" : language === "ar" ? "قائمة الدخل" : language === "tr" ? "Gelir Tablosu" : "Income Statement",
     cash: language === "fa" ? "گردش نقدی" : language === "ar" ? "التدفق النقدي" : language === "tr" ? "Nakit Akışı" : "Cash Flow",
@@ -69,7 +74,7 @@ export default function FinancialStatements() {
     noRows: language === "fa" ? "گردشی در این بخش وجود ندارد." : language === "ar" ? "لا يوجد نشاط في هذا القسم." : language === "tr" ? "Bu bölümde hareket yok." : "No activity in this section.",
   };
 
-  async function load(nextPeriodId = periodId) {
+  async function load(nextPeriodId = periodId, nextStartDate = startDate, nextEndDate = endDate) {
     setLoading(true);
     setError("");
     try {
@@ -82,7 +87,7 @@ export default function FinancialStatements() {
           setPeriodId(String(nextPeriodId));
         }
       }
-      setData(await getFinancialStatements(nextPeriodId));
+      setData(await getFinancialStatements(nextPeriodId, nextStartDate, nextEndDate));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -99,7 +104,18 @@ export default function FinancialStatements() {
 
   async function changePeriod(value) {
     setPeriodId(value);
-    await load(value);
+    if (value) {
+      setStartDate("");
+      setEndDate("");
+    }
+    await load(value, value ? "" : startDate, value ? "" : endDate);
+  }
+
+  async function changeDateRange(nextStart, nextEnd) {
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
+    setPeriodId("");
+    await load("", nextStart, nextEnd);
   }
 
   function downloadCsv() {
@@ -173,6 +189,22 @@ export default function FinancialStatements() {
             <option value="">{copy.allTime}</option>
             {periods.map((period) => <option key={period.id} value={period.id}>{period.name} — {period.status}</option>)}
           </select>
+          <JalaliDateField
+            value={startDate}
+            onChange={(iso) => changeDateRange(iso, endDate)}
+            fa={language === "fa"}
+            language={language}
+            placeholder={copy.fromDate}
+            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}
+          />
+          <JalaliDateField
+            value={endDate}
+            onChange={(iso) => changeDateRange(startDate, iso)}
+            fa={language === "fa"}
+            language={language}
+            placeholder={copy.toDate}
+            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}
+          />
           <button onClick={() => load()} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)", display: "flex", gap: 7, alignItems: "center" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
           <button onClick={downloadCsv} style={{ ...button, background: "#166534", color: "#dcfce7", display: "flex", gap: 7, alignItems: "center" }}><Download size={16} />{copy.export}</button>
           <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", display: "flex", gap: 7, alignItems: "center" }}><Printer size={16} />{copy.print}</button>
@@ -185,8 +217,15 @@ export default function FinancialStatements() {
         <>
           <section style={{ ...card, padding: 17, marginBottom: 16, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <strong style={{ color: "var(--erp-accent)" }}>{data.period?.name || copy.allTime}</strong>
+              <strong style={{ color: "var(--erp-accent)" }}>
+                {data.period?.name || (data.date_range ? `${copy.fromDate} — ${copy.toDate}` : copy.allTime)}
+              </strong>
               {data.period && <div style={{ color: "var(--erp-muted)", marginTop: 5 }}>{date(data.period.start_date)} — {date(data.period.end_date)}</div>}
+              {data.date_range && (
+                <div style={{ color: "var(--erp-muted)", marginTop: 5 }}>
+                  {data.date_range.start_date ? date(data.date_range.start_date) : "…"} — {data.date_range.end_date ? date(data.date_range.end_date) : "…"}
+                </div>
+              )}
             </div>
             <div style={{ color: "var(--erp-muted)" }}>{copy.posted}: <b style={{ color: "var(--erp-text)" }}>{n(data.posted_vouchers)}</b></div>
             <div className={data.valid ? "text-green-300" : "text-red-300"} style={{ fontWeight: 900, display: "flex", gap: 7, alignItems: "center" }}>

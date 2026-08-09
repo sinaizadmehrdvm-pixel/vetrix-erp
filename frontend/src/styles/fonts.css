@@ -1,5 +1,5 @@
 body {
-  font-family: "Inter Variable", "Vazirmatn Variable", "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: "Inter Variable", "Estedad Variable", "Segoe UI", Tahoma, Arial, sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -7,5 +7,5 @@ body {
 
 [lang="fa"] body,
 [dir="rtl"] body {
-  font-family: "Vazirmatn Variable", "Inter Variable", Tahoma, Arial, sans-serif;
+  font-family: "Estedad Variable", "Inter Variable", Tahoma, Arial, sans-serif;
 }

@@ -30,6 +30,13 @@ class FakeQuery:
     def __init__(self, rows):
         self._rows = rows
 
+    def filter(self, *args, **kwargs):
+        # This fake harness tests the anomaly-detection algorithm itself,
+        # not company scoping (which has its own coverage elsewhere) - the
+        # company_id filter added to detect_anomalies()'s real queries is a
+        # no-op here since fixture rows aren't real ORM-filterable objects.
+        return self
+
     def all(self):
         return self._rows
 
@@ -57,7 +64,7 @@ class UnusualInvoiceAmountTests(unittest.TestCase):
         invoices.append(make_invoice(999, "sale", 20000))
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         flagged_ids = {a["invoice_id"] for a in anomalies if a["type"] == "unusual_invoice_amount"}
         self.assertIn(999, flagged_ids)
         self.assertNotIn(0, flagged_ids)
@@ -67,14 +74,14 @@ class UnusualInvoiceAmountTests(unittest.TestCase):
         invoices.append(make_invoice(99, "sale", 50000))
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         self.assertEqual([a for a in anomalies if a["type"] == "unusual_invoice_amount"], [])
 
     def test_uniform_amounts_produce_no_outliers(self):
         invoices = [make_invoice(i, "sale", 1000) for i in range(10)]
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         self.assertEqual([a for a in anomalies if a["type"] == "unusual_invoice_amount"], [])
 
 
@@ -87,7 +94,7 @@ class DuplicatePaymentTests(unittest.TestCase):
         ]
         db = FakeSession(entries=entries)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         duplicate = [a for a in anomalies if a["type"] == "duplicate_payment"]
         self.assertEqual(len(duplicate), 1)
         self.assertEqual(set(duplicate[0]["entry_ids"]), {1, 2})
@@ -100,7 +107,7 @@ class DuplicatePaymentTests(unittest.TestCase):
         ]
         db = FakeSession(entries=entries)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         self.assertEqual([a for a in anomalies if a["type"] == "duplicate_payment"], [])
 
     def test_does_not_flag_different_customers(self):
@@ -111,7 +118,7 @@ class DuplicatePaymentTests(unittest.TestCase):
         ]
         db = FakeSession(entries=entries)
 
-        anomalies = detect_anomalies(db)
+        anomalies = detect_anomalies(db, 1)
         self.assertEqual([a for a in anomalies if a["type"] == "duplicate_payment"], [])
 
 
@@ -122,7 +129,7 @@ class OffHoursActivityTests(unittest.TestCase):
         invoices = [make_invoice(1, "sale", 1000, created_at=datetime(2026, 1, 1, 2, 0, 0))]
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db, time_zone_name="UTC")
+        anomalies = detect_anomalies(db, 1, time_zone_name="UTC")
         off_hours = [a for a in anomalies if a["type"] == "off_hours_activity"]
         self.assertEqual(len(off_hours), 1)
         self.assertEqual(off_hours[0]["invoice_id"], 1)
@@ -131,14 +138,14 @@ class OffHoursActivityTests(unittest.TestCase):
         invoices = [make_invoice(1, "sale", 1000, created_at=datetime(2026, 1, 1, 14, 0, 0))]
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db, time_zone_name="UTC")
+        anomalies = detect_anomalies(db, 1, time_zone_name="UTC")
         self.assertEqual([a for a in anomalies if a["type"] == "off_hours_activity"], [])
 
     def test_falls_back_to_utc_for_unknown_timezone(self):
         invoices = [make_invoice(1, "sale", 1000, created_at=datetime(2026, 1, 1, 2, 0, 0))]
         db = FakeSession(invoices=invoices)
 
-        anomalies = detect_anomalies(db, time_zone_name="Not/A_Real_Zone")
+        anomalies = detect_anomalies(db, 1, time_zone_name="Not/A_Real_Zone")
         off_hours = [a for a in anomalies if a["type"] == "off_hours_activity"]
         self.assertEqual(len(off_hours), 1)
 

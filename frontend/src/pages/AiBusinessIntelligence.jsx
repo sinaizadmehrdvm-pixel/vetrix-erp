@@ -33,6 +33,144 @@ function scoreColor(score) {
   return "#ef4444";
 }
 
+function pick(dict, language) {
+  if (!dict) return "";
+  return dict[language] || dict.en || "";
+}
+
+// The backend only sends a stable `type` + raw numeric `params` for alerts
+// and recommendations (see app/ai_bi/router.py) - all title/message/action
+// text is composed here so it always follows the viewer's selected UI
+// language instead of always rendering in Persian.
+const ALERT_LABELS = {
+  negative_gross_profit: {
+    title: { fa: "سود ناخالص منفی", ar: "ربح إجمالي سلبي", tr: "Negatif brüt kâr", en: "Negative gross profit" },
+    message: { fa: "خریدها و برگشتی‌ها از فروش ثبت‌شده بیشتر شده‌اند.", ar: "أصبحت المشتريات والمرتجعات أكبر من المبيعات المسجلة.", tr: "Alımlar ve iadeler, kaydedilen satışlardan fazla oldu.", en: "Purchases and returns have exceeded recorded sales." },
+    action: { fa: "گزارش سود و خرید را بررسی کن.", ar: "راجع تقرير الأرباح والمشتريات.", tr: "Kâr ve satın alma raporunu incele.", en: "Review the profit and purchasing report." },
+  },
+  low_stock_risk: {
+    title: { fa: "ریسک کمبود موجودی", ar: "خطر نقص المخزون", tr: "Stok tükenme riski", en: "Low stock risk" },
+    message: (count, n) => ({
+      fa: `${n(count)} کالا به نقطه هشدار موجودی رسیده‌اند.`,
+      ar: `${n(count)} منتج وصل إلى حد التنبيه للمخزون.`,
+      tr: `${n(count)} ürün stok uyarı seviyesine ulaştı.`,
+      en: `${n(count)} product(s) have reached the stock alert threshold.`,
+    }),
+    action: { fa: "لیست سفارش مجدد بساز.", ar: "أنشئ قائمة إعادة الطلب.", tr: "Yeniden sipariş listesi oluştur.", en: "Create a reorder list." },
+  },
+  overdue_receivables: {
+    title: { fa: "مطالبات معوق", ar: "مستحقات متأخرة", tr: "Geciken alacaklar", en: "Overdue receivables" },
+    message: (count, n) => ({
+      fa: `${n(count)} فاکتور بیش از ۳۰ روز مانده باز دارد.`,
+      ar: `${n(count)} فاتورة متبقية مفتوحة منذ أكثر من 30 يوماً.`,
+      tr: `${n(count)} fatura 30 günden fazladır açık kaldı.`,
+      en: `${n(count)} invoice(s) have been open for more than 30 days.`,
+    }),
+    action: { fa: "پیگیری وصول مطالبات را شروع کن.", ar: "ابدأ متابعة تحصيل المستحقات.", tr: "Alacak tahsilat takibini başlat.", en: "Start following up on collections." },
+  },
+  negative_cashflow: {
+    title: { fa: "جریان نقدی منفی", ar: "تدفق نقدي سلبي", tr: "Negatif nakit akışı", en: "Negative cashflow" },
+    message: { fa: "پرداختی‌ها از دریافتی‌ها بیشتر است.", ar: "المدفوعات أكبر من المقبوضات.", tr: "Ödemeler tahsilatlardan fazla.", en: "Payments exceed receipts." },
+    action: { fa: "پرداخت‌های غیرضروری را کنترل کن.", ar: "راقب المدفوعات غير الضرورية.", tr: "Gereksiz ödemeleri kontrol et.", en: "Control unnecessary payments." },
+  },
+  stable: {
+    title: { fa: "وضعیت پایدار", ar: "وضع مستقر", tr: "İstikrarlı durum", en: "Stable status" },
+    message: { fa: "هشدار بحرانی در فروش، نقدینگی و موجودی دیده نشد.", ar: "لم يتم رصد أي تنبيه حرج في المبيعات أو السيولة أو المخزون.", tr: "Satış, nakit akışı ve stokta kritik bir uyarı görülmedi.", en: "No critical alerts detected in sales, cashflow, or inventory." },
+    action: { fa: "پایش روزانه را ادامه بده.", ar: "واصل المراقبة اليومية.", tr: "Günlük izlemeye devam et.", en: "Continue daily monitoring." },
+  },
+};
+
+const RECOMMENDATION_LABELS = {
+  dead_stock: {
+    title: { fa: "کالاهای راکد", ar: "منتجات راكدة", tr: "Durgun stok", en: "Dead stock" },
+    text: (count, n) => ({
+      fa: `${n(count)} کالا موجودی دارند اما فروش ثبت‌شده ندارند.`,
+      ar: `${n(count)} منتج لديه مخزون لكن بدون مبيعات مسجلة.`,
+      tr: `${n(count)} ürünün stoğu var ancak kayıtlı satışı yok.`,
+      en: `${n(count)} product(s) have stock but no recorded sales.`,
+    }),
+    impact: { fa: "کاهش خواب سرمایه", ar: "تقليل تجميد رأس المال", tr: "Atıl sermayeyi azalt", en: "Reduce idle capital" },
+  },
+  sales_decline: {
+    title: { fa: "افت فروش نسبت به ماه قبل", ar: "انخفاض المبيعات مقارنة بالشهر الماضي", tr: "Geçen aya göre satış düşüşü", en: "Sales decline vs. last month" },
+    text: { fa: "فروش ماه جاری کمتر از ماه قبل است. روی مشتریان فعال و کالاهای پرفروش تمرکز کن.", ar: "مبيعات هذا الشهر أقل من الشهر الماضي. ركّز على العملاء النشطين والمنتجات الأكثر مبيعاً.", tr: "Bu ayki satışlar geçen aydan düşük. Aktif müşterilere ve çok satan ürünlere odaklan.", en: "This month's sales are lower than last month. Focus on active customers and best-selling products." },
+    impact: { fa: "افزایش فروش", ar: "زيادة المبيعات", tr: "Satışları artır", en: "Increase sales" },
+  },
+  risky_customers_followup: {
+    title: { fa: "پیگیری مشتریان بدهکار", ar: "متابعة العملاء المدينين", tr: "Borçlu müşteri takibi", en: "Follow up on at-risk customers" },
+    text: { fa: "برای مشتریان پرریسک یادآور تماس و برنامه وصول مطالبات بساز.", ar: "أنشئ تذكيراً بالاتصال وخطة تحصيل للعملاء عاليي المخاطر.", tr: "Riskli müşteriler için arama hatırlatıcısı ve tahsilat planı oluştur.", en: "Create a call reminder and collection plan for high-risk customers." },
+    impact: { fa: "بهبود نقدینگی", ar: "تحسين السيولة", tr: "Nakit akışını iyileştir", en: "Improve cashflow" },
+  },
+  growth_opportunity: {
+    title: { fa: "فرصت رشد", ar: "فرصة نمو", tr: "Büyüme fırsatı", en: "Growth opportunity" },
+    text: { fa: "داده‌ها پایدار است؛ روی کمپین فروش مجدد مشتریان قبلی تمرکز کن.", ar: "البيانات مستقرة؛ ركّز على حملة إعادة البيع للعملاء السابقين.", tr: "Veriler istikrarlı; önceki müşterilere yeniden satış kampanyasına odaklan.", en: "Data is stable; focus on a repeat-sales campaign for past customers." },
+    impact: { fa: "رشد درآمد", ar: "نمو الإيرادات", tr: "Gelir artışı", en: "Revenue growth" },
+  },
+};
+
+const HEALTH_LEVEL_TEXT = {
+  stable: { fa: "وضعیت کلی کسب‌وکار پایدار و قابل قبول است.", ar: "الوضع العام للأعمال مستقر ومقبول.", tr: "İşletmenin genel durumu istikrarlı ve kabul edilebilir.", en: "The overall business status is stable and acceptable." },
+  needs_attention: { fa: "وضعیت کسب‌وکار نیازمند پیگیری مدیریتی است.", ar: "وضع الأعمال يحتاج إلى متابعة إدارية.", tr: "İşletme durumu yönetimsel takip gerektiriyor.", en: "The business status requires management follow-up." },
+  high_risk: { fa: "وضعیت کسب‌وکار در محدوده پرریسک قرار دارد و باید فوری بررسی شود.", ar: "وضع الأعمال في نطاق عالي المخاطر ويجب مراجعته فوراً.", tr: "İşletme durumu yüksek risk aralığında ve acilen incelenmeli.", en: "The business status is in a high-risk range and needs immediate review." },
+};
+
+function buildNarrative(narrative, language, n) {
+  if (!narrative) return "";
+  const parts = [];
+  const healthText = HEALTH_LEVEL_TEXT[narrative.health_level];
+  if (healthText) parts.push(pick(healthText, language));
+
+  const growthPercent = n(narrative.growth_percent || 0);
+  if (narrative.growth_direction === "up") {
+    parts.push(pick({
+      fa: `فروش ماه جاری نسبت به ماه قبل حدود ${growthPercent} درصد رشد داشته است.`,
+      ar: `نمت مبيعات هذا الشهر بنحو ${growthPercent}% مقارنة بالشهر الماضي.`,
+      tr: `Bu ayki satışlar geçen aya göre yaklaşık %${growthPercent} arttı.`,
+      en: `This month's sales grew by about ${growthPercent}% compared to last month.`,
+    }, language));
+  } else if (narrative.growth_direction === "down") {
+    parts.push(pick({
+      fa: `فروش ماه جاری نسبت به ماه قبل حدود ${growthPercent} درصد کاهش داشته است.`,
+      ar: `انخفضت مبيعات هذا الشهر بنحو ${growthPercent}% مقارنة بالشهر الماضي.`,
+      tr: `Bu ayki satışlar geçen aya göre yaklaşık %${growthPercent} azaldı.`,
+      en: `This month's sales dropped by about ${growthPercent}% compared to last month.`,
+    }, language));
+  } else {
+    parts.push(pick({
+      fa: "تغییر قابل توجهی در فروش ماه جاری نسبت به ماه قبل دیده نمی‌شود.",
+      ar: "لا يوجد تغيير ملحوظ في مبيعات هذا الشهر مقارنة بالشهر الماضي.",
+      tr: "Bu ayki satışlarda geçen aya göre önemli bir değişiklik görülmüyor.",
+      en: "No significant change is seen in this month's sales compared to last month.",
+    }, language));
+  }
+
+  if (narrative.low_stock_count > 0) {
+    parts.push(pick({
+      fa: `${n(narrative.low_stock_count)} کالا در وضعیت هشدار موجودی قرار دارد.`,
+      ar: `${n(narrative.low_stock_count)} منتج في حالة تنبيه المخزون.`,
+      tr: `${n(narrative.low_stock_count)} ürün stok uyarısı durumunda.`,
+      en: `${n(narrative.low_stock_count)} product(s) are in stock-alert status.`,
+    }, language));
+  }
+  if (narrative.overdue_count > 0) {
+    parts.push(pick({
+      fa: `${n(narrative.overdue_count)} فاکتور باز نیازمند پیگیری وصول مطالبات است.`,
+      ar: `${n(narrative.overdue_count)} فاتورة مفتوحة تحتاج إلى متابعة التحصيل.`,
+      tr: `${n(narrative.overdue_count)} açık fatura tahsilat takibi gerektiriyor.`,
+      en: `${n(narrative.overdue_count)} open invoice(s) need collection follow-up.`,
+    }, language));
+  }
+  if (narrative.net_cash_negative) {
+    parts.push(pick({
+      fa: "جریان نقدی خالص منفی است و باید پرداخت‌ها کنترل شوند.",
+      ar: "صافي التدفق النقدي سلبي ويجب التحكم في المدفوعات.",
+      tr: "Net nakit akışı negatif ve ödemeler kontrol edilmeli.",
+      en: "Net cashflow is negative and payments should be controlled.",
+    }, language));
+  }
+  return parts.join(" ");
+}
+
 export default function AiBusinessIntelligence() {
   const { language, dir, n, money } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
@@ -150,7 +288,7 @@ export default function AiBusinessIntelligence() {
                     style={{ width: `${score}%`, background: scoreColor(score) }}
                   />
                 </div>
-                <p className="text-[var(--erp-muted)] mt-5 leading-8">{data.narrative}</p>
+                <p className="text-[var(--erp-muted)] mt-5 leading-8">{buildNarrative(data.narrative, language, n)}</p>
               </div>
             </div>
 
@@ -167,19 +305,25 @@ export default function AiBusinessIntelligence() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
             <Panel title={tr("هشدارهای هوشمند", "التنبيهات الذكية", "Akıllı uyarılar", "Smart alerts")} icon={<AlertTriangle />}>
               <div className="space-y-3">
-                {alerts.map((item, index) => <AlertRow key={index} item={item} />)}
+                {alerts.map((item, index) => <AlertRow key={index} item={item} language={language} n={n} />)}
               </div>
             </Panel>
 
             <Panel title={tr("پیشنهادهای مدیریتی", "التوصيات الإدارية", "Yönetim önerileri", "Management recommendations")} icon={<Sparkles />}>
               <div className="space-y-3">
-                {recommendations.map((item, index) => (
-                  <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
-                    <div className="text-[var(--erp-text)] font-black">{item.title}</div>
-                    <div className="text-[var(--erp-muted)] text-sm mt-2 leading-7">{item.text}</div>
-                    <div className="text-[var(--erp-accent)] text-xs font-bold mt-3">{tr("اثر مورد انتظار: ", "التأثير المتوقع: ", "Beklenen etki: ", "Expected impact: ")}{item.impact}</div>
-                  </div>
-                ))}
+                {recommendations.map((item, index) => {
+                  const label = RECOMMENDATION_LABELS[item.type];
+                  if (!label) return null;
+                  const count = item.params?.count;
+                  const text = typeof label.text === "function" ? pick(label.text(count, n), language) : pick(label.text, language);
+                  return (
+                    <div key={index} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
+                      <div className="text-[var(--erp-text)] font-black">{pick(label.title, language)}</div>
+                      <div className="text-[var(--erp-muted)] text-sm mt-2 leading-7">{text}</div>
+                      <div className="text-[var(--erp-accent)] text-xs font-bold mt-3">{tr("اثر مورد انتظار: ", "التأثير المتوقع: ", "Beklenen etki: ", "Expected impact: ")}{pick(label.impact, language)}</div>
+                    </div>
+                  );
+                })}
               </div>
             </Panel>
           </div>
@@ -308,7 +452,9 @@ function Panel({ title, icon, children }) {
   );
 }
 
-function AlertRow({ item }) {
+function AlertRow({ item, language, n }) {
+  const label = ALERT_LABELS[item.type];
+  if (!label) return null;
   const color = item.level === "danger" ? "rose" : item.level === "warning" ? "amber" : item.level === "success" ? "emerald" : "cyan";
   const cls = {
     rose: "bg-rose-500/10 border-rose-400/20 text-rose-200",
@@ -316,11 +462,13 @@ function AlertRow({ item }) {
     emerald: "bg-emerald-500/10 border-emerald-400/20 text-emerald-200",
     cyan: "bg-[var(--erp-glow)] border-[var(--erp-border)] text-[var(--erp-accent)]",
   }[color];
+  const count = item.params?.count;
+  const message = typeof label.message === "function" ? pick(label.message(count, n), language) : pick(label.message, language);
   return (
     <div className={`rounded-2xl border p-4 ${cls}`}>
-      <div className="font-black">{item.title}</div>
-      <div className="text-sm mt-2 leading-7 text-[var(--erp-text)]">{item.message}</div>
-      <div className="text-xs mt-3 font-bold">{item.action}</div>
+      <div className="font-black">{pick(label.title, language)}</div>
+      <div className="text-sm mt-2 leading-7 text-[var(--erp-text)]">{message}</div>
+      <div className="text-xs mt-3 font-bold">{pick(label.action, language)}</div>
     </div>
   );
 }

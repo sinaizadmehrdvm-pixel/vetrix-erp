@@ -15,6 +15,7 @@ import {
 } from "../services/accountingEntriesApi";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
+import AttachmentsPanel from "../components/AttachmentsPanel";
 
 const ACCOUNT_TYPE_FA = { asset: "دارایی", liability: "بدهی", equity: "سرمایه", revenue: "درآمد", expense: "هزینه", contra: "کاهنده" };
 const ACCOUNT_TYPE_AR = { asset: "الأصول", liability: "الالتزامات", equity: "حقوق الملكية", revenue: "الإيرادات", expense: "المصروفات", contra: "حساب مقابل" };
@@ -175,7 +176,7 @@ export default function AccountingEntries() {
     return h("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.25fr) minmax(360px,.75fr)", gap: 20 } },
       h("section", { style: styles.card },
         h("h2", { style: { color: "var(--erp-accent)", fontSize: 24, fontWeight: 900 } }, language === "fa" ? "ثبت سند جدید" : language === "ar" ? "سند جديد" : language === "tr" ? "Yeni Fiş" : "New Voucher"),
-        h("div", { style: { display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, marginBottom: 16 } },
+        h("div", { style: { display: "grid", gridTemplateColumns: "minmax(220px,auto) 1fr", gap: 12, marginBottom: 16 } },
           h(JalaliDateField, { className: dateInputClass, value: form.voucher_date, onChange: iso => setForm({ ...form, voucher_date: iso }), fa: language === "fa", language }),
           h("input", { style: styles.input, value: form.description, onChange: e => setForm({ ...form, description: language === "fa" ? toPersianDigits(e.target.value) : e.target.value }), placeholder: language === "fa" ? "شرح سند" : language === "ar" ? "وصف السند" : language === "tr" ? "Fiş Açıklaması" : "Voucher description" })
         ),
@@ -230,6 +231,7 @@ export default function AccountingEntries() {
           h("div", { style: { color: "var(--erp-muted)", marginTop: 6 } }, date(v.voucher_date)),
           h("div", { style: { color: "var(--erp-text)", marginTop: 6 } }, v.description || "-"),
           h("div", { style: { color: "var(--erp-accent)", marginTop: 6, fontWeight: 900 } }, money(v.total_debit || 0)),
+          h("div", { style: { marginTop: 10 } }, h(AttachmentsPanel, { entityType: "voucher", entityId: v.id, compact: true })),
           h("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" } },
             v.status !== "posted" && h("button", { onClick: () => post(v.id), style: { ...styles.btn, background: "#16a34a", color: "white" } }, language === "fa" ? "قطعی" : language === "ar" ? "ترحيل" : language === "tr" ? "Kesinleştir" : "Post"),
             v.status !== "cancelled" && h("button", { onClick: () => cancel(v.id), style: { ...styles.btn, background: "#f59e0b", color: "#111827" } }, language === "fa" ? "ابطال" : language === "ar" ? "إلغاء" : language === "tr" ? "İptal" : "Cancel"),

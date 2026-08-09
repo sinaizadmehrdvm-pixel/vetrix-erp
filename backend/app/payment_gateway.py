@@ -36,6 +36,7 @@ from app.database import Base, SessionLocal, engine
 from app.financial_policy import financial_policy_values
 from app.models.customer import Customer
 from app.models.invoice import Invoice
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/payments", tags=["Online Payment Gateway"])
 
@@ -59,6 +60,7 @@ class PaymentSession(Base):
     payment_entry_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    company_id = Column(Integer, nullable=True)
 
 
 PaymentSession.__table__.create(bind=engine, checkfirst=True)
@@ -85,7 +87,7 @@ def _frontend_base() -> str:
 def _remaining_amount(db: Session, invoice: Invoice) -> float:
     import main  # deferred - see module docstring
 
-    policy = financial_policy_values(db.connection())
+    policy = financial_policy_values(db.connection(), invoice.company_id)
     settled = main.invoice_settled_amount(db, invoice, policy)
     return float(main.accounting_money(invoice.total_amount - settled, policy["decimal_places"], policy["rounding_mode"]))
 
@@ -103,6 +105,7 @@ def _create_session(db: Session, invoice: Invoice, provider: str) -> PaymentSess
         amount=remaining,
         provider=provider,
         status="pending",
+        company_id=invoice.company_id,
     )
     db.add(session)
     db.commit()
@@ -161,14 +164,14 @@ def _zarinpal_verify(session: PaymentSession) -> bool:
 def _finalize_success(db: Session, session: PaymentSession):
     import main  # deferred - see module docstring
 
-    result = main.create_payment_or_receipt(main.PaymentCreate(
+    result = main._create_payment_or_receipt_impl(main.PaymentCreate(
         customer_id=session.customer_id,
         amount=session.amount,
         transaction_type="receipt",
         method="online",
         invoice_id=session.invoice_id,
         note=f"Paid online via {session.provider} gateway",
-    ))
+    ), session.company_id)
     if result.get("status") != "created":
         raise HTTPException(status_code=502, detail=result.get("message", "Could not record the payment"))
 
@@ -218,7 +221,13 @@ def request_payment_for_invoice(invoice_id: int) -> dict:
 
 
 @router.post("/invoices/{invoice_id}/request")
-def request_payment(invoice_id: int):
+def request_payment(invoice_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        if not db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == current_company_id(request)).first():
+            raise HTTPException(status_code=404, detail="Invoice not found")
+    finally:
+        db.close()
     return request_payment_for_invoice(invoice_id)
 
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
+from app.company_scope import current_company_id, ensure_company_id_column, migrate_financial_policy_versions_composite_unique
 from app.database import engine
 
 router = APIRouter(prefix="/api/financial-policy", tags=["Financial Policy"])
@@ -80,17 +81,23 @@ def _ensure_schema(conn):
             FOREIGN KEY(actor_user_id) REFERENCES users(id)
         )
     """))
+    ensure_company_id_column(conn, "financial_policy_versions")
+    ensure_company_id_column(conn, "financial_policy_events")
+    migrate_financial_policy_versions_composite_unique(conn)
 
 
-def _event(conn, policy_id, event_type, actor, detail=""):
+def _event(conn, policy_id, event_type, actor, company_id, detail=""):
     conn.execute(text("""
         INSERT INTO financial_policy_events
-          (policy_id, event_type, actor_user_id, detail, created_at)
-        VALUES (:policy_id, :event_type, :actor, :detail, :created_at)
-    """), {"policy_id": policy_id, "event_type": event_type, "actor": actor, "detail": detail, "created_at": _now()})
+          (policy_id, event_type, actor_user_id, detail, created_at, company_id)
+        VALUES (:policy_id, :event_type, :actor, :detail, :created_at, :company_id)
+    """), {
+        "policy_id": policy_id, "event_type": event_type, "actor": actor, "detail": detail,
+        "created_at": _now(), "company_id": company_id,
+    })
 
 
-def financial_policy_values(conn, business_date=None):
+def financial_policy_values(conn, company_id, business_date=None):
     _ensure_schema(conn)
     effective_date = business_date or date.today().isoformat()
     row = conn.execute(text("""
@@ -100,8 +107,9 @@ def financial_policy_values(conn, business_date=None):
         FROM financial_policy_versions
         WHERE status='active' AND effective_from<=:effective_date
           AND (effective_to IS NULL OR effective_to>=:effective_date)
+          AND company_id=:company_id
         ORDER BY effective_from DESC, id DESC LIMIT 1
-    """), {"effective_date": effective_date}).mappings().first()
+    """), {"effective_date": effective_date, "company_id": company_id}).mappings().first()
     if not row:
         return {
             "decimal_places": 2,
@@ -159,6 +167,7 @@ def _validate(payload: PolicyDraft):
 @router.get("")
 def list_policies(request: Request):
     _admin(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -167,16 +176,18 @@ def list_policies(request: Request):
             FROM financial_policy_versions p
             LEFT JOIN users creator ON creator.id=p.created_by
             LEFT JOIN users verifier ON verifier.id=p.verified_by
+            WHERE p.company_id=:company_id
             ORDER BY p.effective_from DESC, p.id DESC
-        """)).mappings().all()
+        """), {"company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
 @router.get("/active")
-def active_policy():
+def active_policy(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        policy = financial_policy_values(conn)
+        policy = financial_policy_values(conn, company_id)
         policy["status"] = "active" if policy.get("verified") else "compatibility_default"
         return policy
 
@@ -184,6 +195,7 @@ def active_policy():
 @router.post("")
 def create_policy(payload: PolicyDraft, request: Request):
     actor = _admin(request)
+    company_id = current_company_id(request)
     _validate(payload)
     with engine.begin() as conn:
         _ensure_schema(conn)
@@ -193,29 +205,34 @@ def create_policy(payload: PolicyDraft, request: Request):
                   (version, country_code, currency_code, decimal_places,
                    rounding_mode, effective_from, calendar_system, time_zone,
                    first_day_of_week, fiscal_year_start, measurement_system,
-                   tax_percent, status, created_by, created_at)
+                   tax_percent, status, created_by, created_at, company_id)
                 VALUES
                   (:version, :country_code, :currency_code, :decimal_places,
                    :rounding_mode, :effective_from, :calendar_system, :time_zone,
                    :first_day_of_week, :fiscal_year_start, :measurement_system,
-                   :tax_percent, 'draft', :actor, :now)
+                   :tax_percent, 'draft', :actor, :now, :company_id)
             """), {**payload.dict(), "country_code": payload.country_code.upper(),
-                   "currency_code": payload.currency_code.upper(), "actor": actor, "now": _now()})
+                   "currency_code": payload.currency_code.upper(), "actor": actor, "now": _now(),
+                   "company_id": company_id})
         except Exception as error:
             if "UNIQUE" in str(error).upper():
                 raise HTTPException(status_code=409, detail="Policy version already exists")
             raise
         policy_id = result.lastrowid
-        _event(conn, policy_id, "created", actor)
+        _event(conn, policy_id, "created", actor, company_id)
         return {"status": "draft", "policy_id": policy_id}
 
 
 @router.post("/{policy_id}/activate")
 def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
     actor = _admin(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        policy = conn.execute(text("SELECT * FROM financial_policy_versions WHERE id=:id"), {"id": policy_id}).mappings().first()
+        policy = conn.execute(
+            text("SELECT * FROM financial_policy_versions WHERE id=:id AND company_id=:company_id"),
+            {"id": policy_id, "company_id": company_id},
+        ).mappings().first()
         if not policy:
             raise HTTPException(status_code=404, detail="Financial policy not found")
         if policy["status"] != "draft":
@@ -228,13 +245,13 @@ def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
         conn.execute(text("""
             UPDATE financial_policy_versions
             SET status='retired', effective_to=:yesterday
-            WHERE status='active' AND id<>:id
-        """), {"yesterday": previous_effective_to, "id": policy_id})
+            WHERE status='active' AND id<>:id AND company_id=:company_id
+        """), {"yesterday": previous_effective_to, "id": policy_id, "company_id": company_id})
         conn.execute(text("""
             UPDATE financial_policy_versions
             SET status='active', verified_by=:actor, verified_at=:now,
-                verification_note=:note WHERE id=:id
-        """), {"actor": actor, "now": now, "note": decision.note.strip(), "id": policy_id})
+                verification_note=:note WHERE id=:id AND company_id=:company_id
+        """), {"actor": actor, "now": now, "note": decision.note.strip(), "id": policy_id, "company_id": company_id})
         conn.execute(text("""
             UPDATE app_settings SET decimal_places=:decimal_places,
               rounding_mode=:rounding_mode, currency_code=:currency_code,
@@ -243,16 +260,24 @@ def activate_policy(policy_id: int, decision: PolicyDecision, request: Request):
               fiscal_year_start=:fiscal_year_start,
               measurement_system=:measurement_system, tax_percent=:tax_percent,
               tax_profile_version=:version, tax_profile_verified_at=:now
-        """), {**dict(policy), "now": now})
-        _event(conn, policy_id, "verified_and_activated", actor, decision.note.strip())
+            WHERE company_id=:company_id
+        """), {**dict(policy), "now": now, "company_id": company_id})
+        _event(conn, policy_id, "verified_and_activated", actor, company_id, decision.note.strip())
         return {"status": "active", "policy_id": policy_id, "version": policy["version"]}
 
 
 @router.get("/{policy_id}/events")
 def policy_events(policy_id: int, request: Request):
     _admin(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
+        policy_exists = conn.execute(
+            text("SELECT id FROM financial_policy_versions WHERE id=:id AND company_id=:company_id"),
+            {"id": policy_id, "company_id": company_id},
+        ).first()
+        if not policy_exists:
+            raise HTTPException(status_code=404, detail="Financial policy not found")
         rows = conn.execute(text("""
             SELECT e.*, u.full_name actor_name, u.username actor_username
             FROM financial_policy_events e

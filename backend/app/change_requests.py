@@ -12,11 +12,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/change-requests", tags=["Managed Change Requests"])
 
 ALLOWED_SOURCES = {"in_app", "telegram", "whatsapp", "other"}
-ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"}
+ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage"}
 ALLOWED_PRODUCT_FIELDS = {"is_published", "sync_stock", "online_price", "discount_percent", "sale_start", "sale_end", "website_slug"}
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".opus"}
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
@@ -103,6 +104,9 @@ def _ensure_schema(conn):
             FOREIGN KEY(actor_user_id) REFERENCES users(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "managed_change_requests")
+    ensure_company_id_column(conn, "managed_change_events")
 
 
 def _event(conn, request_id, event_type, actor, detail=""):
@@ -113,15 +117,20 @@ def _event(conn, request_id, event_type, actor, detail=""):
     """), {"request_id": request_id, "event_type": event_type, "actor": actor, "detail": detail, "created_at": _now()})
 
 
-def _row(conn, request_id):
-    row = conn.execute(text("""
+def _row(conn, request_id, company_id=None):
+    query = """
         SELECT r.*, requester.full_name requested_by_name,
                decider.full_name decided_by_name
         FROM managed_change_requests r
         LEFT JOIN users requester ON requester.id=r.requested_by
         LEFT JOIN users decider ON decider.id=r.decided_by
         WHERE r.id=:id
-    """), {"id": request_id}).mappings().first()
+    """
+    params = {"id": request_id}
+    if company_id is not None:
+        query += " AND r.company_id=:company_id"
+        params["company_id"] = company_id
+    row = conn.execute(text(query), params).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Change request not found")
     result = dict(row)
@@ -184,6 +193,22 @@ def _validate(action_type, target_id, changes):
         destination_email = str(changes.get("destination_email") or "").strip()
         if "@" not in destination_email or "." not in destination_email.split("@")[-1]:
             raise HTTPException(status_code=400, detail="A valid destination_email is required")
+    if action_type == "reminder_channel_manage":
+        operation = changes.get("operation")
+        if operation not in {"add", "remove"}:
+            raise HTTPException(status_code=400, detail="operation must be 'add' or 'remove'")
+        if operation == "add":
+            name = str(changes.get("name") or "").strip()
+            link_template = str(changes.get("link_template") or "").strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="A channel name is required")
+            if not link_template.startswith(("http://", "https://")):
+                raise HTTPException(status_code=400, detail="link_template must be a full URL")
+            if "{phone}" not in link_template and "{message}" not in link_template:
+                raise HTTPException(status_code=400, detail="link_template must contain {phone} and/or {message}")
+        else:
+            if not str(changes.get("channel_id") or "").strip():
+                raise HTTPException(status_code=400, detail="A channel_id is required to remove a channel")
 
 
 class ChangeRequestPayload(BaseModel):
@@ -191,7 +216,7 @@ class ChangeRequestPayload(BaseModel):
     source_reference: str = Field(default="", max_length=500)
     audio_reference: str = Field(default="", max_length=2000)
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -202,7 +227,7 @@ class DecisionPayload(BaseModel):
 
 class TranscriptReviewPayload(BaseModel):
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -258,7 +283,7 @@ def download_audio(reference: str, request: Request):
 
 
 @router.get("")
-def list_requests(status: str = "all"):
+def list_requests(request: Request, status: str = "all"):
     allowed = {"all", "draft", "needs_transcript_review", "pending_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
     if status not in allowed:
         raise HTTPException(status_code=400, detail="Invalid request status")
@@ -270,14 +295,14 @@ def list_requests(status: str = "all"):
             FROM managed_change_requests r
             LEFT JOIN users requester ON requester.id=r.requested_by
             LEFT JOIN users decider ON decider.id=r.decided_by
-            WHERE (:status='all' OR r.status=:status)
+            WHERE (:status='all' OR r.status=:status) AND r.company_id=:company_id
             ORDER BY CASE
                        WHEN r.status='needs_transcript_review' THEN 0
                        WHEN r.status='pending_approval' THEN 1
                        ELSE 2
                      END,
                      r.id DESC
-        """), {"status": status}).mappings().all()
+        """), {"status": status, "company_id": current_company_id(request)}).mappings().all()
         result = []
         for row in rows:
             item = dict(row)
@@ -290,10 +315,10 @@ def list_requests(status: str = "all"):
 
 
 @router.get("/{request_id}")
-def request_detail(request_id: int):
+def request_detail(request_id: int, request: Request):
     with engine.begin() as conn:
         _ensure_schema(conn)
-        result = _row(conn, request_id)
+        result = _row(conn, request_id, current_company_id(request))
         events = conn.execute(text("""
             SELECT e.*, u.full_name actor_name, u.username actor_username
             FROM managed_change_events e
@@ -307,26 +332,28 @@ def request_detail(request_id: int):
 @router.post("")
 def create_request(payload: ChangeRequestPayload, request: Request):
     actor, _ = _auth(request)
+    company_id = current_company_id(request)
     _validate(payload.action_type, payload.target_id, payload.proposed_changes)
     if payload.audio_reference:
         _require_managed_audio(payload.audio_reference)
     with engine.begin() as conn:
         _ensure_schema(conn)
         if payload.action_type == "online_product_update":
-            if not conn.execute(text("SELECT id FROM products WHERE id=:id"), {"id": payload.target_id}).first():
+            if not conn.execute(text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"), {"id": payload.target_id, "company_id": company_id}).first():
                 raise HTTPException(status_code=404, detail="Product not found")
         result = conn.execute(text("""
             INSERT INTO managed_change_requests
               (source, source_reference, audio_reference, transcript, action_type,
-               target_id, proposed_changes, status, requested_by, requested_at)
+               target_id, proposed_changes, status, requested_by, requested_at, company_id)
             VALUES
               (:source, :source_reference, :audio_reference, :transcript, :action_type,
-               :target_id, :proposed_changes, 'draft', :actor, :now)
+               :target_id, :proposed_changes, 'draft', :actor, :now, :company_id)
         """), {
             **payload.dict(exclude={"proposed_changes"}),
             "proposed_changes": json.dumps(payload.proposed_changes, ensure_ascii=False, sort_keys=True),
             "actor": actor,
             "now": _now(),
+            "company_id": company_id,
         })
         request_id = result.lastrowid
         _event(conn, request_id, "created", actor, f"source={payload.source}")
@@ -340,11 +367,12 @@ def review_transcript(
     request: Request,
 ):
     actor = _require_admin(request)
+    company_id = current_company_id(request)
     transcript = payload.transcript.strip()
     _validate(payload.action_type, payload.target_id, payload.proposed_changes)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, company_id)
         if item["status"] != "needs_transcript_review":
             raise HTTPException(
                 status_code=409,
@@ -352,8 +380,8 @@ def review_transcript(
             )
         if payload.action_type == "online_product_update":
             product = conn.execute(
-                text("SELECT id FROM products WHERE id=:id"),
-                {"id": payload.target_id},
+                text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"),
+                {"id": payload.target_id, "company_id": company_id},
             ).first()
             if not product:
                 raise HTTPException(status_code=404, detail="Product not found")
@@ -393,7 +421,7 @@ def submit_request(request_id: int, request: Request):
     actor, _ = _auth(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, current_company_id(request))
         if item["requested_by"] != actor:
             raise HTTPException(status_code=403, detail="Only the requester can submit")
         if item["status"] not in {"draft", "rejected"}:
@@ -485,11 +513,46 @@ def _apply(conn, item, actor):
             f"Sale invoice draft ready for {customer['name']}: "
             + ", ".join(item_descriptions)
         )
+    if item["action_type"] == "reminder_channel_manage":
+        row = conn.execute(text("""
+            SELECT id, reminder_channels_json FROM app_settings WHERE company_id=:company_id
+        """), {"company_id": item["company_id"]}).mappings().first()
+        try:
+            channels = json.loads((row["reminder_channels_json"] if row else None) or "[]")
+            if not isinstance(channels, list):
+                channels = []
+        except json.JSONDecodeError:
+            channels = []
+        if changes["operation"] == "add":
+            channels.append({
+                "id": secrets.token_hex(6),
+                "name": str(changes["name"]).strip(),
+                "link_template": str(changes["link_template"]).strip(),
+            })
+            summary = f"Added reminder channel '{changes['name']}'"
+        else:
+            channel_id = str(changes["channel_id"])
+            before = len(channels)
+            channels = [c for c in channels if str(c.get("id")) != channel_id]
+            if len(channels) == before:
+                raise ValueError(f"Reminder channel {channel_id} was not found")
+            summary = f"Removed reminder channel {channel_id}"
+        channels_json = json.dumps(channels, ensure_ascii=False)
+        if row:
+            conn.execute(text("""
+                UPDATE app_settings SET reminder_channels_json=:channels, updated_at=:now WHERE id=:id
+            """), {"channels": channels_json, "now": _now(), "id": row["id"]})
+        else:
+            conn.execute(text("""
+                INSERT INTO app_settings (company_id, reminder_channels_json, updated_at)
+                VALUES (:company_id, :channels, :now)
+            """), {"company_id": item["company_id"], "channels": channels_json, "now": _now()})
+        return summary
     if item["action_type"] == "report_delivery":
         from app.report_delivery import generate_and_send_report
 
         result = generate_and_send_report(
-            changes["report_type"], changes["format"], changes["destination_email"],
+            changes["report_type"], changes["format"], changes["destination_email"], item["company_id"],
         )
         return (
             f"Report '{changes['report_type']}' ({changes['format'].upper()}) "
@@ -503,7 +566,7 @@ def approve_request(request_id: int, payload: DecisionPayload, request: Request)
     actor = _require_admin(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, current_company_id(request))
         if item["status"] != "pending_approval":
             raise HTTPException(status_code=409, detail="Request is not pending approval")
         if item["requested_by"] == actor:
@@ -537,7 +600,7 @@ def reject_request(request_id: int, payload: DecisionPayload, request: Request):
         raise HTTPException(status_code=400, detail="Rejection reason is required")
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, current_company_id(request))
         if item["status"] != "pending_approval":
             raise HTTPException(status_code=409, detail="Request is not pending approval")
         conn.execute(text("""

@@ -1,10 +1,12 @@
+import json
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 from sqlalchemy.orm import Session
 
+from app.company_scope import current_company_id
 from app.database import Base, SessionLocal
 
 router = APIRouter()
@@ -14,6 +16,11 @@ class AppSettings(Base):
     __tablename__ = "app_settings"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Milestone 5: each company has its own settings/branding row - see
+    # get_or_create_settings(db, company_id). Nullable only for the same
+    # add-then-backfill reason company_id is nullable on every other table
+    # (see app/company_scope.py's ensure_company_id_column convention).
+    company_id = Column(Integer, nullable=True)
     company_name = Column(String, default="Vetrix ERP")
     manager_name = Column(String, default="")
     phone = Column(String, default="")
@@ -49,8 +56,22 @@ class AppSettings(Base):
     theme = Column(String, default="dark")
     low_stock_default = Column(Float, default=5)
     auto_backup = Column(Boolean, default=False)
+    backup_email = Column(String, default="")
+    backup_email_frequency_hours = Column(Integer, default=168)
+    last_backup_email_at = Column(String, default="")
     sms_panel = Column(String, default="")
     sms_api_key = Column(String, default="")
+    smtp_host = Column(String, default="")
+    smtp_port = Column(Integer, default=587)
+    smtp_user = Column(String, default="")
+    smtp_password = Column(String, default="")
+    smtp_from = Column(String, default="")
+    # JSON array of {id, name, link_template} - additional local/regional
+    # messengers (beyond the built-in WhatsApp share link) the admin wants
+    # payment reminders offered through. link_template supports {phone} and
+    # {message} placeholders, mirroring the wa.me manual-share-link pattern
+    # already used for WhatsApp - no provider API/credentials required.
+    reminder_channels_json = Column(Text, default="[]")
     updated_at = Column(String, default="")
 
 
@@ -90,8 +111,16 @@ class AppSettingsUpdate(BaseModel):
     theme: str = "dark"
     low_stock_default: float = 5
     auto_backup: bool = False
+    backup_email: str = ""
+    backup_email_frequency_hours: int = 168
     sms_panel: str = ""
     sms_api_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    reminder_channels: list = []
 
 
 def settings_to_dict(settings: AppSettings):
@@ -132,16 +161,33 @@ def settings_to_dict(settings: AppSettings):
         "theme": settings.theme or "dark",
         "low_stock_default": float(settings.low_stock_default or 0),
         "auto_backup": bool(settings.auto_backup),
+        "backup_email": settings.backup_email or "",
+        "backup_email_frequency_hours": int(settings.backup_email_frequency_hours or 168),
+        "last_backup_email_at": settings.last_backup_email_at or "",
         "sms_panel": settings.sms_panel or "",
         "sms_api_key": settings.sms_api_key or "",
+        "smtp_host": settings.smtp_host or "",
+        "smtp_port": int(settings.smtp_port or 587),
+        "smtp_user": settings.smtp_user or "",
+        "smtp_password": settings.smtp_password or "",
+        "smtp_from": settings.smtp_from or "",
+        "reminder_channels": _load_reminder_channels(settings.reminder_channels_json),
         "updated_at": settings.updated_at or "",
     }
 
 
-def get_or_create_settings(db: Session):
-    settings = db.query(AppSettings).first()
+def _load_reminder_channels(raw):
+    try:
+        parsed = json.loads(raw or "[]")
+        return parsed if isinstance(parsed, list) else []
+    except (TypeError, ValueError):
+        return []
+
+
+def get_or_create_settings(db: Session, company_id: int):
+    settings = db.query(AppSettings).filter(AppSettings.company_id == company_id).first()
     if not settings:
-        settings = AppSettings(updated_at=datetime.utcnow().isoformat())
+        settings = AppSettings(updated_at=datetime.utcnow().isoformat(), company_id=company_id)
         db.add(settings)
         db.commit()
         db.refresh(settings)
@@ -149,10 +195,10 @@ def get_or_create_settings(db: Session):
 
 
 @router.get("/settings")
-def get_settings():
+def get_settings(request: Request):
     db: Session = SessionLocal()
     try:
-        settings = get_or_create_settings(db)
+        settings = get_or_create_settings(db, current_company_id(request))
         result = settings_to_dict(settings)
         db.close()
         return result
@@ -163,15 +209,19 @@ def get_settings():
 
 
 @router.post("/settings")
-def save_settings(data: AppSettingsUpdate):
+def save_settings(data: AppSettingsUpdate, request: Request):
     db: Session = SessionLocal()
     try:
-        settings = get_or_create_settings(db)
+        settings = get_or_create_settings(db, current_company_id(request))
         payload = data.dict()
+        reminder_channels = payload.pop("reminder_channels", None)
 
         for key, value in payload.items():
             if hasattr(settings, key):
                 setattr(settings, key, value)
+
+        if reminder_channels is not None:
+            settings.reminder_channels_json = json.dumps(reminder_channels, ensure_ascii=False)
 
         settings.updated_at = datetime.utcnow().isoformat()
         db.commit()
@@ -187,5 +237,5 @@ def save_settings(data: AppSettingsUpdate):
 
 
 @router.put("/settings")
-def update_settings(data: AppSettingsUpdate):
-    return save_settings(data)
+def update_settings(data: AppSettingsUpdate, request: Request):
+    return save_settings(data, request)

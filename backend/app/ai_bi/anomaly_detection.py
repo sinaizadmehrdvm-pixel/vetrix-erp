@@ -113,9 +113,9 @@ def _detect_off_hours_activity(invoices, time_zone_name):
     return anomalies
 
 
-def detect_anomalies(db: Session, time_zone_name: str = "UTC") -> list[dict]:
-    invoices = db.query(Invoice).all()
-    entries = db.query(AccountingEntry).all()
+def detect_anomalies(db: Session, company_id: int, time_zone_name: str = "UTC") -> list[dict]:
+    invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
+    entries = db.query(AccountingEntry).filter(AccountingEntry.company_id == company_id).all()
 
     anomalies = []
     anomalies.extend(_detect_unusual_invoice_amounts(invoices))

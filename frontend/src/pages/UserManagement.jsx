@@ -14,13 +14,20 @@ import toast from "react-hot-toast";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
-import { createUser, getRoles, getUsers, resetUserPassword, updateUserRole } from "../services/usersApi";
+import {
+  createUser, getRoles, getUsers, resetUserPassword, updateUserRole,
+  updateUserCompany, updateUserSuperAdmin,
+  getCustomRoles, createCustomRole, deleteCustomRole,
+} from "../services/usersApi";
+import { getCompanies } from "../services/companiesApi";
 
 const emptyForm = {
   full_name: "",
   username: "",
   password: "",
   role: "viewer",
+  company_id: "",
+  is_super_admin: false,
 };
 
 export default function UserManagement() {
@@ -28,9 +35,15 @@ export default function UserManagement() {
   const { language, dir, n } = useLanguage();
   const fa = language === "fa";
   const isAdmin = user?.role === "admin";
+  const isSuperAdmin = !!user?.is_super_admin;
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [moveTargets, setMoveTargets] = useState({});
+  const [customRoles, setCustomRoles] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [customRoleForm, setCustomRoleForm] = useState({ code: "", label: "", base_role: "sales", restrict_customers_to_own: false });
+  const [creatingCustomRole, setCreatingCustomRole] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -64,6 +77,12 @@ export default function UserManagement() {
     forceNextLogin: fa ? "اجبار تغییر در ورود بعدی" : language === "ar" ? "إجبار التغيير عند تسجيل الدخول التالي" : language === "tr" ? "Bir sonraki girişte değişikliği zorunlu kıl" : "Force change on next login",
     resetPrompt: fa ? "رمز موقت فقط برای بازیابی اضطراری است و نباید از کانال ناامن ارسال شود." : language === "ar" ? "كلمات المرور المؤقتة مخصصة للاستعادة الطارئة فقط ويجب عدم مشاركتها عبر قنوات غير آمنة." : language === "tr" ? "Geçici şifreler yalnızca acil durum kurtarma içindir ve güvensiz kanallar üzerinden paylaşılmamalıdır." : "Temporary passwords are for emergency recovery only and must not be shared over insecure channels.",
     forced: fa ? "تغییر رمز اجباری" : language === "ar" ? "يلزم تغيير كلمة المرور" : language === "tr" ? "Şifre değişikliği gerekli" : "Password change required",
+    company: fa ? "شرکت" : language === "ar" ? "الشركة" : language === "tr" ? "Şirket" : "Company",
+    superAdmin: fa ? "سوپرادمین" : language === "ar" ? "مسؤول عام" : language === "tr" ? "Süper yönetici" : "Super-admin",
+    moveCompany: fa ? "انتقال به شرکت" : language === "ar" ? "نقل إلى شركة" : language === "tr" ? "Şirkete taşı" : "Move to company",
+    move: fa ? "انتقال" : language === "ar" ? "نقل" : language === "tr" ? "Taşı" : "Move",
+    grantSuperAdmin: fa ? "اعطای سوپرادمین" : language === "ar" ? "منح صلاحية المسؤول العام" : language === "tr" ? "Süper yönetici yap" : "Grant super-admin",
+    revokeSuperAdmin: fa ? "لغو سوپرادمین" : language === "ar" ? "سحب صلاحية المسؤول العام" : language === "tr" ? "Süper yöneticiliği kaldır" : "Revoke super-admin",
   };
 
   const roleNames = {
@@ -94,9 +113,23 @@ export default function UserManagement() {
     setLoading(true);
     setError("");
     try {
-      const [userData, roleData] = await Promise.all([getUsers(), getRoles()]);
+      const [userData, roleData, customRoleData, companyData] = await Promise.all([
+        getUsers(),
+        getRoles(),
+        getCustomRoles().catch(() => []),
+        isSuperAdmin ? getCompanies().catch(() => []) : Promise.resolve([]),
+      ]);
+      const customRoleList = Array.isArray(customRoleData) ? customRoleData : [];
       setUsers(Array.isArray(userData) ? userData : []);
-      setRoles(Array.isArray(roleData) ? roleData : []);
+      setCustomRoles(customRoleList);
+      setCompanies(Array.isArray(companyData) ? companyData : []);
+      const builtIn = Array.isArray(roleData) ? roleData : [];
+      const customAsRoles = customRoleList.map((cr) => ({
+        code: cr.code,
+        label: cr.label,
+        capabilities: (builtIn.find((r) => r.code === cr.base_role) || {}).capabilities || [],
+      }));
+      setRoles([...builtIn, ...customAsRoles]);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -109,7 +142,7 @@ export default function UserManagement() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, isAdmin]);
+  }, [language, isAdmin, isSuperAdmin]);
 
   async function submit(event) {
     event.preventDefault();
@@ -123,11 +156,17 @@ export default function UserManagement() {
     }
     setCreating(true);
     try {
-      await createUser({
-        ...form,
+      const payload = {
         full_name: form.full_name.trim(),
         username: form.username.trim(),
-      });
+        password: form.password,
+        role: form.role,
+      };
+      if (isSuperAdmin) {
+        payload.is_super_admin = form.is_super_admin;
+        if (form.company_id) payload.company_id = Number(form.company_id);
+      }
+      await createUser(payload);
       toast.success(fa ? "کاربر ایجاد شد." : language === "ar" ? "تم إنشاء المستخدم." : language === "tr" ? "Kullanıcı oluşturuldu." : "User created.");
       setForm(emptyForm);
       await load();
@@ -135,6 +174,36 @@ export default function UserManagement() {
       toast.error(requestError.message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function submitCustomRole(event) {
+    event.preventDefault();
+    if (!customRoleForm.code.trim() || !customRoleForm.label.trim()) {
+      toast.error(fa ? "کد و عنوان نقش الزامی است." : language === "ar" ? "رمز الدور وعنوانه مطلوبان." : language === "tr" ? "Rol kodu ve etiketi gereklidir." : "Role code and label are required.");
+      return;
+    }
+    setCreatingCustomRole(true);
+    try {
+      const result = await createCustomRole(customRoleForm);
+      if (result?.status === "error") throw new Error(result.message);
+      toast.success(fa ? "نقش سفارشی ایجاد شد." : language === "ar" ? "تم إنشاء الدور المخصص." : language === "tr" ? "Özel rol oluşturuldu." : "Custom role created.");
+      setCustomRoleForm({ code: "", label: "", base_role: "sales", restrict_customers_to_own: false });
+      await load();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setCreatingCustomRole(false);
+    }
+  }
+
+  async function removeCustomRole(id) {
+    try {
+      await deleteCustomRole(id);
+      toast.success(fa ? "نقش سفارشی حذف شد." : language === "ar" ? "تم حذف الدور المخصص." : language === "tr" ? "Özel rol silindi." : "Custom role deleted.");
+      await load();
+    } catch (requestError) {
+      toast.error(requestError.message);
     }
   }
 
@@ -203,6 +272,34 @@ export default function UserManagement() {
     }
   }
 
+  async function moveUserCompany(target) {
+    const companyId = Number(moveTargets[target.id]);
+    if (!companyId || companyId === target.company_id) return;
+    setBusyId(target.id);
+    try {
+      await updateUserCompany(target.id, companyId);
+      toast.success(fa ? "کاربر منتقل شد." : language === "ar" ? "تم نقل المستخدم." : language === "tr" ? "Kullanıcı taşındı." : "User moved.");
+      await load();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleSuperAdmin(target) {
+    setBusyId(target.id);
+    try {
+      await updateUserSuperAdmin(target.id, !target.is_super_admin);
+      toast.success(fa ? "وضعیت سوپرادمین به‌روزرسانی شد." : language === "ar" ? "تم تحديث حالة المسؤول العام." : language === "tr" ? "Süper yönetici durumu güncellendi." : "Super-admin status updated.");
+      await load();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const card = {
     background: "var(--erp-panel)",
     border: "1px solid var(--erp-border)",
@@ -260,10 +357,72 @@ export default function UserManagement() {
           <select style={input} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
             {roles.map((role) => <option key={role.code} value={role.code}>{roleNames[role.code] || role.label}</option>)}
           </select>
+          {isSuperAdmin && (
+            <select style={input} value={form.company_id} onChange={(e) => setForm({ ...form, company_id: e.target.value })}>
+              <option value="">{copy.company}</option>
+              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+            </select>
+          )}
+          {isSuperAdmin && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--erp-text)" }}>
+              <input type="checkbox" checked={form.is_super_admin} onChange={(e) => setForm({ ...form, is_super_admin: e.target.checked })} />
+              {copy.superAdmin}
+            </label>
+          )}
           <button disabled={creating} type="submit" style={{ border: 0, borderRadius: 13, minHeight: 45, padding: "11px 16px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03111f", fontWeight: 950, cursor: "pointer" }}>
             {creating ? "..." : copy.add}
           </button>
         </div>
+      </form>
+
+      <form onSubmit={submitCustomRole} style={{ ...card, padding: 20, marginBottom: 20 }}>
+        <h2 style={{ margin: "0 0 16px", color: "var(--erp-accent-2)", display: "flex", gap: 8, alignItems: "center" }}>
+          <Shield size={20} />
+          {fa ? "نقش‌های سفارشی" : language === "ar" ? "الأدوار المخصصة" : language === "tr" ? "Özel Roller" : "Custom Roles"}
+        </h2>
+        <p style={{ margin: "0 0 14px", color: "var(--erp-muted)", fontSize: 13 }}>
+          {fa
+            ? "نقش سفارشی دقیقاً همان دسترسی‌های یکی از نقش‌های پایه را دارد، فقط با نامی متفاوت؛ می‌توانید همچنین آن را به «فقط مشتریان اختصاص‌یافته به خودم» محدود کنید."
+            : language === "ar"
+            ? "الدور المخصص يحصل بالضبط على صلاحيات أحد الأدوار الأساسية، تحت اسم مختلف فقط؛ يمكنك أيضًا تقييده بعرض عملائه المخصصين فقط."
+            : language === "tr"
+            ? "Özel bir rol, temel rollerden birinin yetkilerini birebir alır, sadece adı farklıdır; isterseniz yalnızca kendisine atanan müşterileri görecek şekilde kısıtlayabilirsiniz."
+            : "A custom role gets exactly the permissions of one base role, just under a different name; you can also restrict it to only its own assigned customers."}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 11, alignItems: "end" }}>
+          <input style={input} value={customRoleForm.code} onChange={(e) => setCustomRoleForm({ ...customRoleForm, code: e.target.value.toLowerCase().replace(/\s+/g, "_") })} placeholder={fa ? "کد (مثلاً senior_sales)" : "code (e.g. senior_sales)"} />
+          <input style={input} value={customRoleForm.label} onChange={(e) => setCustomRoleForm({ ...customRoleForm, label: e.target.value })} placeholder={fa ? "عنوان نمایشی" : language === "ar" ? "العنوان المعروض" : language === "tr" ? "Görünen ad" : "Display label"} />
+          <select style={input} value={customRoleForm.base_role} onChange={(e) => setCustomRoleForm({ ...customRoleForm, base_role: e.target.value })}>
+            {roles.filter((r) => !customRoles.some((cr) => cr.code === r.code) && r.code !== "admin" && r.code !== "user").map((r) => (
+              <option key={r.code} value={r.code}>{roleNames[r.code] || r.label}</option>
+            ))}
+          </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--erp-text)" }}>
+            <input type="checkbox" checked={customRoleForm.restrict_customers_to_own} onChange={(e) => setCustomRoleForm({ ...customRoleForm, restrict_customers_to_own: e.target.checked })} />
+            {fa ? "فقط مشتریان خودش" : language === "ar" ? "عملاؤه فقط" : language === "tr" ? "Sadece kendi müşterileri" : "Own customers only"}
+          </label>
+          <button disabled={creatingCustomRole} type="submit" style={{ border: 0, borderRadius: 13, minHeight: 45, padding: "11px 16px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03111f", fontWeight: 950, cursor: "pointer" }}>
+            {creatingCustomRole ? "..." : (fa ? "ایجاد نقش" : language === "ar" ? "إنشاء الدور" : language === "tr" ? "Rol oluştur" : "Create role")}
+          </button>
+        </div>
+
+        {customRoles.length > 0 && (
+          <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
+            {customRoles.map((cr) => (
+              <div key={cr.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: "var(--erp-panel-solid)" }}>
+                <div>
+                  <b>{cr.label}</b>{" "}
+                  <span style={{ color: "var(--erp-muted)", fontSize: 12 }}>
+                    ({cr.code} → {roleNames[cr.base_role] || cr.base_role}{cr.restrict_customers_to_own ? `, ${fa ? "فقط مشتریان خودش" : "own customers only"}` : ""})
+                  </span>
+                </div>
+                <button type="button" onClick={() => removeCustomRole(cr.id)} style={{ border: 0, borderRadius: 10, padding: "7px 12px", background: "rgba(248,113,113,.15)", color: "#fca5a5", fontWeight: 800, cursor: "pointer" }}>
+                  {fa ? "حذف" : language === "ar" ? "حذف" : language === "tr" ? "Sil" : "Delete"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </form>
 
       <section style={{ ...card, padding: 20 }}>
@@ -281,6 +440,12 @@ export default function UserManagement() {
                     <div style={{ color: "var(--erp-muted)", marginTop: 4, direction: "ltr", textAlign: dir === "rtl" ? "right" : "left" }}>@{target.username}</div>
                     {self && <span style={{ display: "inline-block", marginTop: 6, color: "var(--erp-accent)", fontSize: 12 }}>{copy.current}</span>}
                     {target.must_change_password && <span style={{ display: "inline-block", marginTop: 6, marginInlineStart: 6, color: "#fbbf24", fontSize: 12 }}>{copy.forced}</span>}
+                    {isSuperAdmin && target.company_name && (
+                      <div style={{ marginTop: 6, color: "var(--erp-muted)", fontSize: 12 }}>{copy.company}: {target.company_name}</div>
+                    )}
+                    {target.is_super_admin && (
+                      <span style={{ display: "inline-block", marginTop: 6, color: "var(--erp-accent-2)", fontSize: 12, fontWeight: 900 }}>{copy.superAdmin}</span>
+                    )}
                   </div>
                   <select id={`role-${target.id}`} defaultValue={target.role === "user" ? "viewer" : target.role} disabled={self} style={input}>
                     {roles.map((item) => <option key={item.code} value={item.code}>{roleNames[item.code] || item.label}</option>)}
@@ -322,6 +487,36 @@ export default function UserManagement() {
                       <KeyRound size={16} />{busyId === target.id ? "..." : copy.resetPassword}
                     </button>
                     <small style={{ color: "#fb923c", lineHeight: 1.5 }}>{copy.resetPrompt}</small>
+                    {isSuperAdmin && (
+                      <>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <select
+                            value={moveTargets[target.id] || ""}
+                            onChange={(event) => setMoveTargets((current) => ({ ...current, [target.id]: event.target.value }))}
+                            style={{ ...input, padding: "9px 10px", flex: 1 }}
+                          >
+                            <option value="">{copy.moveCompany}</option>
+                            {companies.filter((company) => company.id !== target.company_id).map((company) => (
+                              <option key={company.id} value={company.id}>{company.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => moveUserCompany(target)}
+                            disabled={busyId === target.id || !moveTargets[target.id]}
+                            style={{ border: 0, borderRadius: 12, padding: "9px 13px", background: "var(--erp-glow)", color: "var(--erp-accent)", fontWeight: 900, cursor: "pointer" }}
+                          >
+                            {copy.move}
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => toggleSuperAdmin(target)}
+                          disabled={self || busyId === target.id}
+                          style={{ border: 0, borderRadius: 12, padding: "10px 13px", background: target.is_super_admin ? "rgba(248,113,113,.15)" : "var(--erp-glow)", color: target.is_super_admin ? "#fca5a5" : "var(--erp-accent)", fontWeight: 900, cursor: self ? "not-allowed" : "pointer" }}
+                        >
+                          {target.is_super_admin ? copy.revokeSuperAdmin : copy.grantSuperAdmin}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </article>

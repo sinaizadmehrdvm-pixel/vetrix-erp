@@ -21,7 +21,7 @@ import {
 import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
-import { API_URL, getAuthHeaders, getCustomers } from "../services/api";
+import { getCustomers, getCrmCustomerProfile } from "../services/api";
 
 function toNumber(value) {
   return Number(
@@ -162,9 +162,7 @@ export default function CrmDashboard() {
       await Promise.all(
         normalized.slice(0, 30).map(async (c) => {
           try {
-            const res = await fetch(`${API_URL}/api/crm/customer-insight/${c.id}`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            insightMap[c.id] = data;
+            insightMap[c.id] = await getCrmCustomerProfile(c.id);
           } catch {
             insightMap[c.id] = null;
           }
@@ -438,7 +436,12 @@ function TopCustomers({ language, n, money, items }) {
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-[var(--erp-panel-solid)] p-4 border border-[var(--erp-border)]">
+          <Link
+            key={item.id}
+            to={`/customers/${item.id}`}
+            className="block rounded-2xl bg-[var(--erp-panel-solid)] p-4 border border-[var(--erp-border)] hover:border-[var(--erp-accent)] transition-colors erp-focus"
+            aria-label={language === "fa" ? `باز کردن پرونده ${item.name}` : `Open ${item.name}'s profile`}
+          >
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
                 <div className="font-black text-[var(--erp-text)]">{item.name}</div>
@@ -455,7 +458,7 @@ function TopCustomers({ language, n, money, items }) {
               <span className="text-[var(--erp-muted)]">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}: {n(item.score)}</span>
               <span className="text-[var(--erp-muted)] font-bold">{money(Math.abs(getBalance(item)))}</span>
             </div>
-          </div>
+          </Link>
         ))}
 
         {items.length === 0 && <div className="text-[var(--erp-muted)]">{language === "fa" ? "داده‌ای وجود ندارد." : language === "ar" ? "لا توجد بيانات." : language === "tr" ? "Veri yok." : "No data."}</div>}

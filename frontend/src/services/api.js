@@ -58,32 +58,99 @@ export async function downloadAuthenticatedFile(urlOrPath, filename) {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const { headers, ...requestOptions } = options;
-  const response = await fetch(`${API_URL}${path}`, {
-    ...requestOptions,
-    headers: getAuthHeaders(headers),
-  });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...requestOptions,
+      headers: getAuthHeaders(headers),
+    });
+  } catch (networkError) {
+    // fetch() itself threw before any response arrived (offline, DNS
+    // failure, server not running). This is the only case a caller should
+    // treat as "queue for offline retry" - see isNetworkError below. Once a
+    // response comes back at all (403, 400, 404, a soft {status:"error"}
+    // body, ...) the server was reached and rejected the request for a
+    // reason that will not change on blind retry, so it must surface as a
+    // real error instead of silently vanishing into an offline queue that
+    // keeps failing forever.
+    const error = new Error(networkError?.message || "Network error");
+    error.isNetworkError = true;
+    throw error;
+  }
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.detail || `API error ${response.status}`);
+    const error = new Error(data?.message || data?.detail || `API error ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
   if (data?.status === "error") {
-    throw new Error(data?.message || "Server error");
+    const error = new Error(data?.message || "Server error");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
 }
 
-export async function getCustomers() { return await request("/customers"); }
+// True only when the request never reached the server at all (see request()
+// above) - the one case where offline-queueing a create/update for later
+// retry is actually correct. Any error with an HTTP status (403, 400, a
+// soft {status:"error"} body, ...) means the server rejected the request
+// for a reason retrying won't fix, and must be shown to the user instead.
+export function isNetworkError(error) {
+  return Boolean(error?.isNetworkError);
+}
+
+export async function getCustomers(assignedRepId) {
+  return await request(assignedRepId ? `/customers?assigned_rep_id=${encodeURIComponent(assignedRepId)}` : "/customers");
+}
 export async function getCustomer(id) { return await request(`/customers/${id}`); }
 export async function getCustomerLedger(id) { return await request(`/customers/${id}/ledger`); }
 export async function createCustomer(data) { return await request("/customers", { method: "POST", body: JSON.stringify(data) }); }
 export async function updateCustomer(id, data) { return await request(`/customers/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteCustomer(id) { return await request(`/customers/${id}`, { method: "DELETE" }); }
+
+async function requestBlob(path, options = {}) {
+  const { headers, ...requestOptions } = options;
+  const response = await fetch(`${API_URL}${path}`, {
+    ...requestOptions,
+    headers: getAuthHeaders(headers, true),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  }
+  return response.blob();
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function exportCustomersListPdf(payload, filename) {
+  const blob = await requestBlob("/export/customers/list-pdf", { method: "POST", body: JSON.stringify(payload) });
+  triggerBlobDownload(blob, filename || "vetrix-customers.pdf");
+}
+export async function exportCustomersListExcel(payload, filename) {
+  const blob = await requestBlob("/export/customers/list-excel", { method: "POST", body: JSON.stringify(payload) });
+  triggerBlobDownload(blob, filename || "vetrix-customers.xlsx");
+}
+export async function exportCustomerProfilePdf(payload, filename) {
+  const blob = await requestBlob("/export/customers/profile-pdf", { method: "POST", body: JSON.stringify(payload) });
+  triggerBlobDownload(blob, filename || "vetrix-customer-profile.pdf");
+}
 
 export async function getProducts() { return await request("/products"); }
 export async function lookupProductByCode(code) {
@@ -93,15 +160,58 @@ export async function createProduct(data) { return await request("/products", { 
 export async function updateProduct(id, data) { return await request(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteProduct(id) { return await request(`/products/${id}`, { method: "DELETE" }); }
 
+export async function getSettings() { return await request("/settings"); }
+
+export async function getMessageTemplates() { return await request("/api/message-templates"); }
+export async function updateMessageTemplate(key, channel, language, data) {
+  return await request(`/api/message-templates/${key}/${channel}/${language}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function resetMessageTemplate(key, channel, language) {
+  return await request(`/api/message-templates/${key}/${channel}/${language}/reset`, { method: "POST" });
+}
+export async function getMessageTemplateEditors() { return await request("/api/message-templates/editors"); }
+export async function grantMessageTemplateEditor(userId) {
+  return await request("/api/message-templates/editors", { method: "POST", body: JSON.stringify({ user_id: userId }) });
+}
+export async function revokeMessageTemplateEditor(userId) {
+  return await request(`/api/message-templates/editors/${userId}`, { method: "DELETE" });
+}
 export async function getProductCategories() { return await request("/product-categories"); }
 export async function createProductCategory(data) { return await request("/product-categories", { method: "POST", body: JSON.stringify(data) }); }
 export async function deleteProductCategory(id) { return await request(`/product-categories/${id}`, { method: "DELETE" }); }
+export async function updateProductCategory(id, data) { return await request(`/product-categories/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 
 export async function getInvoices() { return await request("/invoices"); }
 export async function getInvoice(id) { return await request(`/invoices/${id}`); }
-export async function createInvoice(data) { return await request("/invoices", { method: "POST", body: JSON.stringify(data) }); }
+export async function createInvoice(data, idempotencyKey) {
+  return await request("/invoices", {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+  });
+}
 export async function updateInvoice(id, data) { return await request(`/invoices/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteInvoice(id) { return await request(`/invoices/${id}`, { method: "DELETE" }); }
+export async function voidInvoicePaymentAllocation(allocationId, reason) {
+  return await request(`/api/invoice-payments/${allocationId}/void`, { method: "POST", body: JSON.stringify({ reason }) });
+}
+export async function refundInvoicePaymentAllocation(allocationId, payload) {
+  return await request(`/api/invoice-payments/${allocationId}/refund`, { method: "POST", body: JSON.stringify(payload) });
+}
+export async function listPendingApprovals(status = "pending") {
+  return await request(`/api/approvals?status=${encodeURIComponent(status)}`);
+}
+export async function getApprovalDetail(id) { return await request(`/api/approvals/${id}`); }
+export async function approveApprovalRequest(id, note = "") {
+  return await request(`/api/approvals/${id}/approve`, { method: "POST", body: JSON.stringify({ note }) });
+}
+export async function rejectApprovalRequest(id, note) {
+  return await request(`/api/approvals/${id}/reject`, { method: "POST", body: JSON.stringify({ note }) });
+}
+export async function withdrawApprovalRequest(id) {
+  return await request(`/api/approvals/${id}/withdraw`, { method: "POST" });
+}
+export async function getApprovalsDashboardSummary() { return await request("/api/approvals/dashboard-summary"); }
 export async function getInvoicePrint(id) { return await request(`/print/invoice/${id}`); }
 export async function convertProformaToInvoice(invoiceId) {
   return await request(`/invoices/${invoiceId}/convert`, { method: "POST" });
@@ -138,8 +248,8 @@ export async function getProductProfitReport() { return await request("/reports/
 export async function getCustomerBalanceReport() { return await request("/reports/customer-balances"); }
 export async function getInventoryMovementReport() { return await request("/reports/inventory-movements"); }
 
-export async function getPdfTemplates() {
-  const res = await fetch(`${API_URL}/designer/templates`, { headers: getAuthHeaders() });
+export async function getPdfTemplates(kind = "invoice") {
+  const res = await fetch(`${API_URL}/designer/templates?kind=${encodeURIComponent(kind)}`, { headers: getAuthHeaders() });
   return await res.json();
 }
 
@@ -241,6 +351,36 @@ export async function getPaymentReminderLog() { return await request("/api/payme
 export async function sendPaymentReminderNow(invoiceId) {
   return await request(`/api/payment-reminders/send/${invoiceId}`, { method: "POST" });
 }
+export async function getWhatsappReminderLink(invoiceId) {
+  return await request(`/api/payment-reminders/whatsapp-link/${invoiceId}`);
+}
+
+// Scheduled report delivery
+export async function getReportSchedules() { return await request("/api/report-delivery/schedules"); }
+export async function createReportSchedule(data) {
+  return await request("/api/report-delivery/schedules", { method: "POST", body: JSON.stringify(data) });
+}
+export async function toggleReportSchedule(id) {
+  return await request(`/api/report-delivery/schedules/${id}/toggle`, { method: "POST" });
+}
+export async function deleteReportSchedule(id) {
+  return await request(`/api/report-delivery/schedules/${id}`, { method: "DELETE" });
+}
+
+// Sales reps (non-admin-gated, minimal fields - for customer assignment dropdowns)
+export async function getSalesReps() { return await request("/api/sales-reps"); }
+
+// Serial/batch/expiry tracking
+export async function getProductBatches(productId) { return await request(`/api/product-batches/product/${productId}`); }
+export async function createProductBatch(productId, data) {
+  return await request(`/api/product-batches/product/${productId}`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function consumeProductBatch(id, quantity) {
+  return await request(`/api/product-batches/${id}/consume`, { method: "POST", body: JSON.stringify({ quantity }) });
+}
+export async function deleteProductBatch(id) { return await request(`/api/product-batches/${id}`, { method: "DELETE" }); }
+export async function getExpiringBatches(days) { return await request(`/api/product-batches/expiring?days=${days || 30}`); }
+export async function lookupProductBatch(batchNumber) { return await request(`/api/product-batches/lookup/${encodeURIComponent(batchNumber)}`); }
 
 // Multi-branch / multi-warehouse inventory
 export async function getWarehouses() { return await request("/api/warehouses"); }
@@ -258,6 +398,52 @@ export async function getWarehouseProducts(warehouseId) {
 }
 export async function transferWarehouseStock(data) {
   return await request("/api/warehouses/transfer", { method: "POST", body: JSON.stringify(data) });
+}
+
+// Purchase orders
+export async function getPurchaseOrders() { return await request("/api/purchase-orders"); }
+export async function getPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}`); }
+export async function createPurchaseOrder(data) {
+  return await request("/api/purchase-orders", { method: "POST", body: JSON.stringify(data) });
+}
+export async function sendPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/send`, { method: "POST" }); }
+export async function cancelPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/cancel`, { method: "POST" }); }
+export async function receivePurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/receive`, { method: "POST" }); }
+
+// Sales pipeline
+export async function getPipelineDeals() { return await request("/crm/pipeline/deals"); }
+export async function createPipelineDeal(data) {
+  return await request("/crm/pipeline/deals", { method: "POST", body: JSON.stringify(data) });
+}
+export async function updatePipelineDeal(id, data) {
+  return await request(`/crm/pipeline/deals/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function deletePipelineDeal(id) {
+  return await request(`/crm/pipeline/deals/${id}`, { method: "DELETE" });
+}
+
+// Accounting attachments (vouchers / expenses / cheques / fixed assets)
+export async function getAccountingAttachments(entityType, entityId) {
+  return await request(`/api/accounting/attachments/${entityType}/${entityId}`);
+}
+export async function uploadAccountingAttachment(entityType, entityId, file, title = "") {
+  const body = new FormData();
+  body.append("file", file);
+  if (title) body.append("title", title);
+  const response = await fetch(`${API_URL}/api/accounting/attachments/${entityType}/${entityId}`, {
+    method: "POST",
+    headers: getAuthHeaders({}, false),
+    body,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  return data;
+}
+export async function deleteAccountingAttachment(id) {
+  return await request(`/api/accounting/attachments/file/${id}`, { method: "DELETE" });
+}
+export function accountingAttachmentDownloadUrl(id) {
+  return `${API_URL}/api/accounting/attachments/file/${id}/download`;
 }
 
 // Digital & print product catalog

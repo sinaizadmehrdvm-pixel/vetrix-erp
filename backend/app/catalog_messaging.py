@@ -11,11 +11,12 @@ import json
 import re
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from sqlalchemy import Column, DateTime, Integer, String, Text, UniqueConstraint
 
 from app.catalog import CatalogLink, CatalogOrder, _resolve_products
 from app.database import Base, SessionLocal, engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/catalog/messages", tags=["Catalog Ordering via Chat"])
 
@@ -36,6 +37,7 @@ class InboundCatalogMessage(Base):
     status = Column(String, nullable=False)  # created / duplicate / rejected / ignored
     detail = Column(Text, nullable=True)
     received_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    company_id = Column(Integer, nullable=True)
 
 
 InboundCatalogMessage.__table__.create(bind=engine, checkfirst=True)
@@ -86,7 +88,7 @@ def _match_product(product, code):
     return code in candidates and code != ""
 
 
-def _record_event(db, source, event_id, sender, status, detail, order_id=None):
+def _record_event(db, source, event_id, sender, status, detail, order_id=None, company_id=None):
     entry = InboundCatalogMessage(
         source=source,
         external_event_id=str(event_id or "")[:300],
@@ -94,6 +96,7 @@ def _record_event(db, source, event_id, sender, status, detail, order_id=None):
         catalog_order_id=order_id,
         status=status,
         detail=str(detail or "")[:2000],
+        company_id=company_id,
     )
     db.add(entry)
     db.commit()
@@ -145,6 +148,7 @@ def ingest_catalog_order_message(source, event_id, sender, sender_name, message_
             _record_event(
                 db, source, clean_event, sender, "rejected",
                 f"No catalog items matched: {', '.join(unmatched) or 'no items provided'}",
+                company_id=catalog.company_id,
             )
             return {"status": "rejected", "detail": "No matching catalog items"}
 
@@ -155,6 +159,7 @@ def ingest_catalog_order_message(source, event_id, sender, sender_name, message_
             items_json=json.dumps(resolved_items),
             note=parsed["note"],
             status="pending",
+            company_id=catalog.company_id,
         )
         db.add(order)
         db.commit()
@@ -163,18 +168,19 @@ def ingest_catalog_order_message(source, event_id, sender, sender_name, message_
         detail = f"source_reference={message_reference}"
         if unmatched:
             detail += f"; unmatched={', '.join(unmatched)}"
-        _record_event(db, source, clean_event, sender, "created", detail, order_id=order.id)
+        _record_event(db, source, clean_event, sender, "created", detail, order_id=order.id, company_id=catalog.company_id)
         return {"status": "created", "order_id": order.id, "unmatched": unmatched}
     finally:
         db.close()
 
 
 @router.get("")
-def list_inbound_catalog_messages():
+def list_inbound_catalog_messages(request: Request):
     db = SessionLocal()
     try:
         rows = (
             db.query(InboundCatalogMessage)
+            .filter(InboundCatalogMessage.company_id == current_company_id(request))
             .order_by(InboundCatalogMessage.id.desc())
             .limit(200)
             .all()

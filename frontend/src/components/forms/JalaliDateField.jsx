@@ -208,7 +208,7 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
             : tr("", "", "2026-05-30", "2026-05-30"))
         }
         className={className}
-        style={{ width: "100%", minWidth: 0 }}
+        style={{ width: "100%", minWidth: "9.5em" }}
       />
       <button
         type="button"

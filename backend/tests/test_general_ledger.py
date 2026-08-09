@@ -18,6 +18,7 @@ class GeneralLedgerPostingTests(unittest.TestCase):
                     {"account_code": "1101", "debit": 100},
                     {"account_code": "4101", "credit": 99},
                 ],
+                1,
             )
 
     def test_return_settlements_use_correct_counterpart_accounts(self):

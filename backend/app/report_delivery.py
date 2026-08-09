@@ -16,47 +16,59 @@ the outcome is still returned honestly rather than pretending success.
 import csv
 import io
 import os
-import smtplib
 import tempfile
-from email.message import EmailMessage
+from datetime import datetime, timedelta
 
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, text
 
+from app.database import Base, SessionLocal, engine
+from app.email_utils import send_email_with_attachment, smtp_configured
 from app.export.pdf_export import _p, _register_font
+from app.company_scope import current_company_id
 
 FORMATS = {"pdf", "csv"}
+FREQUENCIES = {"daily", "weekly", "monthly"}
+router = APIRouter(prefix="/api/report-delivery", tags=["Scheduled Report Delivery"])
 
 
-def _load_sales(main):
-    return main.reports_sales()
+def _load_sales(main, company_id):
+    return main._reports_sales_impl(company_id)
 
 
-def _load_purchases(main):
-    return main.reports_purchases()
+def _load_purchases(main, company_id):
+    return main._reports_purchases_impl(company_id)
 
 
-def _load_inventory(main):
-    return main.reports_inventory().get("products", [])
+def _load_inventory(main, company_id):
+    return main._reports_inventory_impl(company_id).get("products", [])
 
 
-def _load_customer_balances(main):
-    return main.reports_customer_balances().get("all", [])
+def _load_customer_balances(main, company_id):
+    return main._reports_customer_balances_impl(company_id).get("all", [])
 
 
-def _load_product_profit(main):
-    return main.reports_product_profit().get("items", [])
+def _load_product_profit(main, company_id):
+    return main._reports_product_profit_impl(company_id).get("items", [])
 
 
-def _load_open_invoices(main):
-    return main.reports_open_invoices().get("items", [])
+def _load_open_invoices(main, company_id):
+    return main._reports_open_invoices_impl(company_id).get("items", [])
 
 
-def _load_inventory_movements(main):
-    return main.reports_inventory_movements().get("items", [])
+def _load_inventory_movements(main, company_id):
+    with main.engine.connect() as conn:
+        rows = conn.execute(
+            main.text("SELECT * FROM stock_movements WHERE company_id=:company_id ORDER BY id DESC"),
+            {"company_id": company_id},
+        ).mappings().all()
+        return [dict(row) for row in rows]
 
 
 REPORT_REGISTRY = {
@@ -119,13 +131,13 @@ REPORT_REGISTRY = {
 }
 
 
-def _rows_for(report_type):
+def _rows_for(report_type, company_id):
     import main  # deferred - see module docstring
 
     spec = REPORT_REGISTRY.get(report_type)
     if not spec:
         raise ValueError(f"Unknown report_type: {report_type}. Choose one of: {', '.join(sorted(REPORT_REGISTRY))}")
-    rows = spec["loader"](main)
+    rows = spec["loader"](main, company_id)
     if not isinstance(rows, list):
         raise ValueError(f"Report '{report_type}' did not return a row list")
     return spec, rows
@@ -141,8 +153,8 @@ def _format_cell(value):
     return str(value)
 
 
-def generate_csv(report_type: str) -> bytes:
-    spec, rows = _rows_for(report_type)
+def generate_csv(report_type: str, company_id: int) -> bytes:
+    spec, rows = _rows_for(report_type, company_id)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow([label for _, label in spec["columns"]])
@@ -152,8 +164,8 @@ def generate_csv(report_type: str) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def generate_pdf(report_type: str) -> bytes:
-    spec, rows = _rows_for(report_type)
+def generate_pdf(report_type: str, company_id: int) -> bytes:
+    spec, rows = _rows_for(report_type, company_id)
     font_name = _register_font()
 
     output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
@@ -197,46 +209,20 @@ def generate_pdf(report_type: str) -> bytes:
             pass
 
 
-def generate_report(report_type: str, report_format: str) -> bytes:
+def generate_report(report_type: str, report_format: str, company_id: int) -> bytes:
     if report_format not in FORMATS:
         raise ValueError(f"format must be one of: {', '.join(sorted(FORMATS))}")
     if report_format == "csv":
-        return generate_csv(report_type)
-    return generate_pdf(report_type)
+        return generate_csv(report_type, company_id)
+    return generate_pdf(report_type, company_id)
 
 
-def _smtp_configured() -> bool:
-    return bool(os.getenv("VETRIX_SMTP_HOST", "").strip())
-
-
-def _send_email_with_attachment(to_email: str, subject: str, body: str, filename: str, content: bytes, mime_type: str):
-    host = os.getenv("VETRIX_SMTP_HOST", "")
-    port = int(os.getenv("VETRIX_SMTP_PORT", "587"))
-    user = os.getenv("VETRIX_SMTP_USER", "")
-    password = os.getenv("VETRIX_SMTP_PASSWORD", "")
-    sender = os.getenv("VETRIX_SMTP_FROM", "").strip() or user or "no-reply@vetrix-erp.local"
-
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = sender
-    message["To"] = to_email
-    message.set_content(body)
-    maintype, _, subtype = mime_type.partition("/")
-    message.add_attachment(content, maintype=maintype, subtype=subtype, filename=filename)
-
-    with smtplib.SMTP(host, port, timeout=20) as server:
-        server.starttls()
-        if user:
-            server.login(user, password)
-        server.send_message(message)
-
-
-def generate_and_send_report(report_type: str, report_format: str, destination_email: str) -> dict:
+def generate_and_send_report(report_type: str, report_format: str, destination_email: str, company_id: int) -> dict:
     """Returns {"status": "sent"|"failed"|"skipped_not_configured", "detail": str}."""
-    spec, _ = _rows_for(report_type)  # validates report_type/raises before anything else
-    content = generate_report(report_type, report_format)
+    spec, _ = _rows_for(report_type, company_id)  # validates report_type/raises before anything else
+    content = generate_report(report_type, report_format, company_id)
 
-    if not _smtp_configured():
+    if not smtp_configured(company_id):
         return {"status": "skipped_not_configured", "detail": "SMTP is not configured"}
 
     extension = "csv" if report_format == "csv" else "pdf"
@@ -244,7 +230,8 @@ def generate_and_send_report(report_type: str, report_format: str, destination_e
     filename = f"{report_type}.{extension}"
 
     try:
-        _send_email_with_attachment(
+        send_email_with_attachment(
+            company_id,
             destination_email,
             f"Vetrix ERP report: {spec['title']}",
             f"Attached: {spec['title']} ({report_format.upper()}).",
@@ -253,3 +240,171 @@ def generate_and_send_report(report_type: str, report_format: str, destination_e
         return {"status": "sent", "detail": f"Sent to {destination_email}"}
     except Exception as error:
         return {"status": "failed", "detail": str(error)}
+
+
+# ---------------------------------------------------------------------------
+# Scheduling: this app has no real background task runner (see
+# app/payment_reminders.py's docstring for the same constraint), so "due"
+# schedules are checked on the same per-request hook main.py already uses
+# for auto-backup/recurring invoices/payment reminders, not a real cron.
+# ---------------------------------------------------------------------------
+
+class ScheduledReport(Base):
+    __tablename__ = "report_delivery_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    report_type = Column(String, nullable=False)
+    report_format = Column(String, nullable=False, default="pdf")
+    destination_email = Column(String, nullable=False)
+    frequency = Column(String, nullable=False, default="weekly")  # daily / weekly / monthly
+    hour = Column(Integer, nullable=False, default=8)  # UTC hour to send at, 0-23
+    day_of_week = Column(Integer, nullable=True)  # 0=Monday .. 6=Sunday, weekly only
+    day_of_month = Column(Integer, nullable=True)  # 1-28, monthly only
+    active = Column(Boolean, nullable=False, default=True)
+    last_sent_at = Column(DateTime, nullable=True)
+    last_status = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
+
+
+ScheduledReport.__table__.create(bind=engine, checkfirst=True)
+
+
+class ScheduledReportCreate(BaseModel):
+    report_type: str
+    report_format: str = "pdf"
+    destination_email: str
+    frequency: str = "weekly"
+    hour: int = 8
+    day_of_week: int = 0
+    day_of_month: int = 1
+
+
+def _schedule_dict(row: ScheduledReport) -> dict:
+    return {
+        "id": row.id,
+        "report_type": row.report_type,
+        "report_format": row.report_format,
+        "destination_email": row.destination_email,
+        "frequency": row.frequency,
+        "hour": row.hour,
+        "day_of_week": row.day_of_week,
+        "day_of_month": row.day_of_month,
+        "active": row.active,
+        "last_sent_at": row.last_sent_at,
+        "last_status": row.last_status,
+        "created_at": row.created_at,
+    }
+
+
+def _is_due(schedule: ScheduledReport, now: datetime) -> bool:
+    if not schedule.active:
+        return False
+    if now.hour != int(schedule.hour or 0):
+        return False
+    if schedule.frequency == "weekly" and now.weekday() != int(schedule.day_of_week or 0):
+        return False
+    if schedule.frequency == "monthly" and now.day != min(int(schedule.day_of_month or 1), 28):
+        return False
+    # Once-per-window guard: never resend inside the same hour it already ran.
+    if schedule.last_sent_at and (now - schedule.last_sent_at) < timedelta(minutes=55):
+        return False
+    return True
+
+
+def maybe_send_scheduled_reports():
+    try:
+        with engine.connect() as conn:
+            table = conn.execute(text("""
+                SELECT name FROM sqlite_master WHERE type='table' AND name='report_delivery_schedules'
+            """)).fetchone()
+            if not table:
+                return
+        db = SessionLocal()
+        try:
+            now = datetime.utcnow()
+            schedules = db.query(ScheduledReport).filter(ScheduledReport.active.is_(True)).all()
+            for schedule in schedules:
+                if not _is_due(schedule, now):
+                    continue
+                result = generate_and_send_report(schedule.report_type, schedule.report_format, schedule.destination_email, schedule.company_id)
+                schedule.last_sent_at = now
+                schedule.last_status = result.get("status")
+                db.commit()
+        finally:
+            db.close()
+    except Exception:
+        # Scheduled delivery must never turn a completed business operation
+        # into a client-visible failure - same discipline as the reminder
+        # sweep and auto-backup hooks it shares this middleware pass with.
+        pass
+
+
+@router.get("/schedules")
+def list_schedules(request: Request):
+    db = SessionLocal()
+    try:
+        rows = db.query(ScheduledReport).filter(ScheduledReport.company_id == current_company_id(request)).order_by(ScheduledReport.id.desc()).all()
+        return [_schedule_dict(row) for row in rows]
+    finally:
+        db.close()
+
+
+@router.post("/schedules")
+def create_schedule(data: ScheduledReportCreate, request: Request):
+    if data.report_type not in REPORT_REGISTRY:
+        raise HTTPException(status_code=400, detail=f"report_type must be one of: {', '.join(sorted(REPORT_REGISTRY))}")
+    if data.report_format not in FORMATS:
+        raise HTTPException(status_code=400, detail=f"report_format must be one of: {', '.join(sorted(FORMATS))}")
+    if data.frequency not in FREQUENCIES:
+        raise HTTPException(status_code=400, detail=f"frequency must be one of: {', '.join(sorted(FREQUENCIES))}")
+    if not (0 <= data.hour <= 23):
+        raise HTTPException(status_code=400, detail="hour must be between 0 and 23")
+
+    db = SessionLocal()
+    try:
+        schedule = ScheduledReport(
+            report_type=data.report_type,
+            report_format=data.report_format,
+            destination_email=data.destination_email,
+            frequency=data.frequency,
+            hour=data.hour,
+            day_of_week=data.day_of_week if data.frequency == "weekly" else None,
+            day_of_month=data.day_of_month if data.frequency == "monthly" else None,
+            active=True,
+            company_id=current_company_id(request),
+        )
+        db.add(schedule)
+        db.commit()
+        db.refresh(schedule)
+        return {"status": "created", "id": schedule.id}
+    finally:
+        db.close()
+
+
+@router.post("/schedules/{schedule_id}/toggle")
+def toggle_schedule(schedule_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        schedule = db.query(ScheduledReport).filter(ScheduledReport.id == schedule_id, ScheduledReport.company_id == current_company_id(request)).first()
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+        schedule.active = not schedule.active
+        db.commit()
+        return {"status": "active" if schedule.active else "paused", "id": schedule_id}
+    finally:
+        db.close()
+
+
+@router.delete("/schedules/{schedule_id}")
+def delete_schedule(schedule_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        schedule = db.query(ScheduledReport).filter(ScheduledReport.id == schedule_id, ScheduledReport.company_id == current_company_id(request)).first()
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+        db.delete(schedule)
+        db.commit()
+        return {"status": "deleted", "id": schedule_id}
+    finally:
+        db.close()

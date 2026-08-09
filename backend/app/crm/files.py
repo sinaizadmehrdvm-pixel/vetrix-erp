@@ -1,10 +1,14 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse
 from pathlib import Path
 from datetime import datetime
 import json
 import shutil
 import uuid
+
+from app.database import SessionLocal
+from app.models.customer import Customer
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/crm", tags=["CRM Files"])
 
@@ -39,8 +43,19 @@ def _safe_name(name: str) -> str:
     return cleaned or "file"
 
 
+def _require_customer_in_company(customer_id: int, company_id: int):
+    db = SessionLocal()
+    try:
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+    finally:
+        db.close()
+
+
 @router.get("/customers/{customer_id}/files")
-def get_customer_files(customer_id: int):
+def get_customer_files(customer_id: int, request: Request):
+    _require_customer_in_company(customer_id, current_company_id(request))
     rows = _load_index()
     return [row for row in rows if int(row.get("customer_id", 0)) == int(customer_id)]
 
@@ -48,11 +63,13 @@ def get_customer_files(customer_id: int):
 @router.post("/customers/{customer_id}/files")
 async def upload_customer_file(
     customer_id: int,
+    request: Request,
     file: UploadFile = File(...),
     title: str = Form(""),
     description: str = Form(""),
     category: str = Form("document"),
 ):
+    _require_customer_in_company(customer_id, current_company_id(request))
     _ensure_storage()
 
     if not file.filename:
@@ -94,11 +111,12 @@ async def upload_customer_file(
 
 
 @router.get("/files/{file_id}/download")
-def download_customer_file(file_id: str):
+def download_customer_file(file_id: str, request: Request):
     rows = _load_index()
     row = next((item for item in rows if str(item.get("id")) == str(file_id)), None)
     if not row:
         raise HTTPException(status_code=404, detail="File not found")
+    _require_customer_in_company(int(row.get("customer_id", 0)), current_company_id(request))
 
     path = Path(row.get("path", ""))
     if not path.exists():
@@ -108,11 +126,12 @@ def download_customer_file(file_id: str):
 
 
 @router.delete("/files/{file_id}")
-def delete_customer_file(file_id: str):
+def delete_customer_file(file_id: str, request: Request):
     rows = _load_index()
     row = next((item for item in rows if str(item.get("id")) == str(file_id)), None)
     if not row:
         raise HTTPException(status_code=404, detail="File not found")
+    _require_customer_in_company(int(row.get("customer_id", 0)), current_company_id(request))
 
     path = Path(row.get("path", ""))
     if path.exists():

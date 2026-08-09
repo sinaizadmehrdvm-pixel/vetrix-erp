@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.accounting.integrity import ALLOWED_INVOICE_TYPES
 from app.database import Base, SessionLocal, engine
 from app.models.customer import Customer
+from app.company_scope import company_id_from_auth, current_company_id
 
 router = APIRouter(prefix="/api/recurring-invoices", tags=["Recurring Invoices"])
 
@@ -45,6 +46,7 @@ class RecurringInvoiceTemplate(Base):
     last_generation_error = Column(String, nullable=True)
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
 
 
 RecurringInvoiceTemplate.__table__.create(bind=engine, checkfirst=True)
@@ -119,7 +121,7 @@ def create_template(data: RecurringInvoiceCreate, request: Request):
 
     db: Session = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == data.customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -129,7 +131,8 @@ def create_template(data: RecurringInvoiceCreate, request: Request):
         except ValueError:
             raise HTTPException(status_code=400, detail="start_date must be an ISO date (YYYY-MM-DD)")
 
-        actor = getattr(request.state, "auth", {}).get("sub")
+        auth = getattr(request.state, "auth", {})
+        actor = auth.get("sub")
         template = RecurringInvoiceTemplate(
             customer_id=data.customer_id,
             invoice_type=data.invoice_type,
@@ -143,6 +146,7 @@ def create_template(data: RecurringInvoiceCreate, request: Request):
             next_run_date=start,
             active=True,
             created_by=int(actor) if actor is not None else None,
+            company_id=company_id_from_auth(auth),
         )
         db.add(template)
         db.commit()
@@ -153,11 +157,12 @@ def create_template(data: RecurringInvoiceCreate, request: Request):
 
 
 @router.get("")
-def list_templates():
+def list_templates(request: Request):
     db: Session = SessionLocal()
     try:
-        templates = db.query(RecurringInvoiceTemplate).order_by(RecurringInvoiceTemplate.id.desc()).all()
-        customers = {c.id: c.name for c in db.query(Customer).all()}
+        company_id = current_company_id(request)
+        templates = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.company_id == company_id).order_by(RecurringInvoiceTemplate.id.desc()).all()
+        customers = {c.id: c.name for c in db.query(Customer).filter(Customer.company_id == company_id).all()}
         return {
             "items": [
                 _template_dict(template, customers.get(template.customer_id, ""))
@@ -169,10 +174,10 @@ def list_templates():
 
 
 @router.post("/{template_id}/pause")
-def pause_template(template_id: int):
+def pause_template(template_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id).first()
+        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id, RecurringInvoiceTemplate.company_id == current_company_id(request)).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         template.active = False
@@ -183,10 +188,10 @@ def pause_template(template_id: int):
 
 
 @router.post("/{template_id}/resume")
-def resume_template(template_id: int):
+def resume_template(template_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id).first()
+        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id, RecurringInvoiceTemplate.company_id == current_company_id(request)).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         # A long-paused template shouldn't dump a backlog of missed invoices
@@ -202,10 +207,10 @@ def resume_template(template_id: int):
 
 
 @router.delete("/{template_id}")
-def delete_template(template_id: int):
+def delete_template(template_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id).first()
+        template = db.query(RecurringInvoiceTemplate).filter(RecurringInvoiceTemplate.id == template_id, RecurringInvoiceTemplate.company_id == current_company_id(request)).first()
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         db.delete(template)
@@ -230,7 +235,7 @@ def _generate_from_template(db: Session, template: RecurringInvoiceTemplate):
             payment_status="unpaid",
             invoice_note=template.invoice_note,
         )
-        result = main.create_invoice(payload)
+        result = main._create_invoice_impl(payload, template.company_id)
         if result.get("status") != "created":
             template.last_generation_error = result.get("message", "Unknown error")
             db.commit()

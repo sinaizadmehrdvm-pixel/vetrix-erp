@@ -13,6 +13,10 @@ const SESSION_EXPIRED_DETAILS = new Set(["Invalid or expired token", "Authentica
 const AuthContext = createContext(null);
 const USER_STORAGE_KEY = "vetrix_user";
 const TOKEN_STORAGE_KEY = "vetrix_access_token";
+// Milestone 4: the company context currently active on this token - only
+// ever differs from user.company_id for a super-admin who has switched
+// (see CompanySwitcher.jsx / switchCompanyContext below).
+const ACTIVE_COMPANY_STORAGE_KEY = "vetrix_active_company";
 
 function readStoredUser() {
   try {
@@ -24,9 +28,20 @@ function readStoredUser() {
   }
 }
 
+function readStoredActiveCompany() {
+  try {
+    const value = localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY));
+  const [activeCompany, setActiveCompany] = useState(readStoredActiveCompany);
   const [authReady, setAuthReady] = useState(false);
   const { language } = useLanguage();
   const expiredHandledRef = useRef(false);
@@ -90,13 +105,19 @@ export function AuthProvider({ children }) {
 
         if (response.ok && data?.status === "success" && data.user) {
           localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
-          if (active) setUser(data.user);
+          localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, JSON.stringify(data.active_company || null));
+          if (active) {
+            setUser(data.user);
+            setActiveCompany(data.active_company || null);
+          }
         } else {
           localStorage.removeItem(USER_STORAGE_KEY);
           localStorage.removeItem(TOKEN_STORAGE_KEY);
+          localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
           if (active) {
             setUser(null);
             setToken(null);
+            setActiveCompany(null);
           }
         }
       } catch {
@@ -159,11 +180,24 @@ export function AuthProvider({ children }) {
   function applySignedInSession(data) {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
     localStorage.setItem(TOKEN_STORAGE_KEY, data.access_token);
+    localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, JSON.stringify(data.active_company || null));
     setUser(data.user);
     setToken(data.access_token);
+    setActiveCompany(data.active_company || null);
     setAuthReady(true);
     expiredHandledRef.current = false;
     return data.user;
+  }
+
+  // Milestone 4: a super-admin entering a different company's context.
+  // `result` is companiesApi.switchCompany()'s response
+  // ({ access_token, active_company }) - identity/role stay the same,
+  // only the JWT's company_id claim (and therefore every company-scoped
+  // query in the app) changes.
+  async function switchCompanyContext(result) {
+    applyRefreshedToken(result.access_token);
+    localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, JSON.stringify(result.active_company || null));
+    setActiveCompany(result.active_company || null);
   }
 
   async function login(username, password) {
@@ -213,8 +247,10 @@ export function AuthProvider({ children }) {
     }
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
     setUser(null);
     setToken(null);
+    setActiveCompany(null);
     setAuthReady(true);
   }
 
@@ -223,12 +259,14 @@ export function AuthProvider({ children }) {
       value={{
         user,
         token,
+        activeCompany,
         authReady,
         login,
         logout,
         changePassword,
         refreshCurrentUser,
         applyRefreshedToken,
+        switchCompanyContext,
         completeTotpLogin,
       }}
     >

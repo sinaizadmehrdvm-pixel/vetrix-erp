@@ -5,7 +5,7 @@ import App from "./App";
 import { LanguageProvider } from "./localization/LanguageProvider";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import "@fontsource-variable/inter";
-import "@fontsource-variable/vazirmatn";
+import "@fontsource-variable/estedad";
 import "./index.css";
 import "./styles/rtl.css";
 import "./styles/fonts.css";

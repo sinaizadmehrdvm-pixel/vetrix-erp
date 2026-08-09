@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
-import { fetchAuthenticatedResource, getDashboardStats, getReportsOverview } from "../services/api";
+import { fetchAuthenticatedResource, getAiBiSummary, getDashboardStats, getReportsOverview } from "../services/api";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
@@ -255,23 +255,6 @@ function buildSmartAlerts({ language, reports, stats, n }) {
   return alerts;
 }
 
-function buildBusinessScore({ reports, stats }) {
-  const profit = reports?.profit_loss || {};
-  const cash = reports?.cashflow || {};
-  const invoices = reports?.invoice_summary || {};
-  const inventory = reports?.inventory || {};
-
-  let score = 100;
-
-  if (toNumber(profit.net_profit ?? stats?.net_profit) < 0) score -= 25;
-  if (toNumber(cash.net_cashflow) < 0) score -= 15;
-  if (toNumber(invoices.open_count) > 0) score -= Math.min(20, toNumber(invoices.open_count) * 3);
-  if (toNumber(inventory.low_stock_count ?? stats?.low_stock) > 0) score -= Math.min(20, toNumber(inventory.low_stock_count ?? stats?.low_stock) * 4);
-  if (toNumber(profit.net_sales ?? stats?.total_revenue) === 0) score -= 15;
-
-  return Math.max(0, Math.min(100, score));
-}
-
 function buildQuickActions(language) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
@@ -291,6 +274,7 @@ export default function Dashboard() {
 
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
+  const [healthScore, setHealthScore] = useState(null);
   const [activity, setActivity] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -301,10 +285,11 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError("");
-      const [statsData, activityResponse, reportsData] = await Promise.all([
+      const [statsData, activityResponse, reportsData, aiBiSummary] = await Promise.all([
         getDashboardStats(),
         fetchAuthenticatedResource("/activity").catch(() => null),
         getReportsOverview().catch(() => null),
+        getAiBiSummary().catch(() => null),
       ]);
       const activityData = activityResponse
         ? await activityResponse.json().catch(() => [])
@@ -312,6 +297,9 @@ export default function Dashboard() {
 
       setStats(statsData || {});
       setReports(reportsData || {});
+      // Sourced from the same /api/ai-bi/summary endpoint the AI-BI page
+      // reads, so the business health score never drifts between pages.
+      setHealthScore(aiBiSummary ? Number(aiBiSummary.health_score || 0) : null);
       setActivity(safeArray(activityData));
       setLastUpdate(new Date());
     } catch (error) {
@@ -366,7 +354,7 @@ export default function Dashboard() {
   const todayMonth = reports?.today_month || {};
   const inventory = reports?.inventory || {};
   const openInvoices = safeArray(reports?.open_invoices);
-  const businessScore = buildBusinessScore({ reports, stats: dashboardData });
+  const businessScore = healthScore ?? 0;
   const smartAlerts = buildSmartAlerts({ language, reports, stats: dashboardData, n });
   const quickActions = buildQuickActions(language);
   const netProfit = toNumber(profit.net_profit ?? dashboardData.net_profit);

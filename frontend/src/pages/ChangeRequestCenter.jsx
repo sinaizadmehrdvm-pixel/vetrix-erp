@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, FileAudio, FileText, Mic, MicOff, PencilLine, Plus, RefreshCw, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
-import { API_URL, getAuthHeaders } from "../services/api";
+import { API_URL, getAuthHeaders, getSettings } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
@@ -38,6 +38,7 @@ export default function ChangeRequestCenter() {
   const [requests, setRequests] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [reminderChannels, setReminderChannels] = useState([]);
   const [recording, setRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [audioName, setAudioName] = useState("");
@@ -50,19 +51,22 @@ export default function ChangeRequestCenter() {
     action_type: "note_only", target_id: "", field: "online_price", value: "",
     invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
     report_type: "sales", report_format: "pdf", destination_email: "",
+    reminder_operation: "add", reminder_name: "", reminder_link_template: "", reminder_channel_id: "",
   });
 
   async function load() {
     setLoading(true);
     try {
-      const [requestData, productResponse, customerResponse] = await Promise.all([
+      const [requestData, productResponse, customerResponse, settingsData] = await Promise.all([
         api(""),
         fetch(`${API_URL}/products`, { headers: getAuthHeaders() }).then((res) => res.ok ? res.json() : []),
         fetch(`${API_URL}/customers`, { headers: getAuthHeaders() }).then((res) => res.ok ? res.json() : []),
+        getSettings().catch(() => null),
       ]);
       setRequests(requestData);
       setProducts(Array.isArray(productResponse) ? productResponse : []);
       setCustomers(Array.isArray(customerResponse) ? customerResponse : []);
+      setReminderChannels(Array.isArray(settingsData?.reminder_channels) ? settingsData.reminder_channels : []);
     } catch (error) { toast.error(error.message); }
     finally { setLoading(false); }
   }
@@ -127,6 +131,11 @@ export default function ChangeRequestCenter() {
         destination_email: form.destination_email.trim(),
       };
     }
+    if (form.action_type === "reminder_channel_manage") {
+      return form.reminder_operation === "add"
+        ? { operation: "add", name: form.reminder_name.trim(), link_template: form.reminder_link_template.trim() }
+        : { operation: "remove", channel_id: form.reminder_channel_id };
+    }
     let value = form.value;
     if (["online_price", "discount_percent"].includes(form.field)) value = Number(value);
     if (["is_published", "sync_stock"].includes(form.field)) value = value === "true";
@@ -162,6 +171,7 @@ export default function ChangeRequestCenter() {
         source: "in_app", source_reference: "", transcript: "", action_type: "note_only", target_id: "", field: "online_price", value: "",
         invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
         report_type: "sales", report_format: "pdf", destination_email: "",
+        reminder_operation: "add", reminder_name: "", reminder_link_template: "", reminder_channel_id: "",
       });
       setAudioName("");
       setAudioFile(null);
@@ -256,8 +266,24 @@ export default function ChangeRequestCenter() {
               <option value="campaign_draft">{tr("ساخت پیش‌نویس تبلیغ", "إنشاء مسودة حملة", "Kampanya taslağı oluştur", "Create campaign draft")}</option>
               <option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option>
               <option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option>
+              <option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری پرداخت", "إضافة/حذف قناة تذكير الدفع", "Ödeme hatırlatma kanalı ekle/kaldır", "Add/remove a payment reminder channel")}</option>
             </select>
           </Field>
+
+          {form.action_type === "reminder_channel_manage" && (
+            <ReminderChannelFields
+              language={language}
+              existingChannels={reminderChannels}
+              operation={form.reminder_operation}
+              name={form.reminder_name}
+              linkTemplate={form.reminder_link_template}
+              channelId={form.reminder_channel_id}
+              onOperationChange={(value) => setForm({ ...form, reminder_operation: value })}
+              onNameChange={(value) => setForm({ ...form, reminder_name: language === "fa" ? toPersianDigits(value) : value })}
+              onLinkTemplateChange={(value) => setForm({ ...form, reminder_link_template: value })}
+              onChannelIdChange={(value) => setForm({ ...form, reminder_channel_id: value })}
+            />
+          )}
 
           {form.action_type === "online_product_update" && <>
             <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select required style={inputStyle} value={form.target_id} onChange={(e) => setForm({ ...form, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
@@ -296,7 +322,7 @@ export default function ChangeRequestCenter() {
 
         <section className="space-y-3">
           <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{tr("امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است.", "الأمان: لا يمكن لمقدّم الطلب الموافقة على طلبه الخاص، ويُمنع تنفيذ أي أوامر حرة.", "Güvenlik: talep sahibi kendi talebini onaylayamaz ve serbest komut çalıştırma yasaktır.", "Security: requesters cannot approve their own request and arbitrary commands are forbidden.")}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} language={language} products={products} customers={customers} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
+          {requests.map((item) => <RequestCard key={item.id} item={item} language={language} products={products} customers={customers} reminderChannels={reminderChannels} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
           {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{tr("درخواستی وجود ندارد.", "لا توجد طلبات حتى الآن.", "Henüz talep yok.", "No requests yet.")}</div>}
         </section>
       </div>
@@ -396,7 +422,40 @@ function ReportDeliveryFields({ language, reportType, reportFormat, destinationE
   );
 }
 
-function RequestCard({ item, language, products, customers, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
+function ReminderChannelFields({ language, existingChannels, operation, name, linkTemplate, channelId, onOperationChange, onNameChange, onLinkTemplateChange, onChannelIdChange }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+
+  return (
+    <>
+      <Field label={tr("عملیات", "العملية", "İşlem", "Operation")}>
+        <select style={inputStyle} value={operation} onChange={(e) => onOperationChange(e.target.value)}>
+          <option value="add">{tr("افزودن کانال جدید", "إضافة قناة جديدة", "Yeni kanal ekle", "Add a new channel")}</option>
+          <option value="remove">{tr("حذف کانال موجود", "حذف قناة موجودة", "Mevcut kanalı kaldır", "Remove an existing channel")}</option>
+        </select>
+      </Field>
+      {operation === "add" ? (
+        <>
+          <Field label={tr("نام برنامه", "اسم التطبيق", "Uygulama adı", "App name")}>
+            <input required style={inputStyle} value={name} onChange={(e) => onNameChange(e.target.value)} placeholder={tr("مثلاً: بله", "مثال: Bale", "örn. Bale", "e.g. Bale")} />
+          </Field>
+          <Field label={tr("الگوی لینک اشتراک‌گذاری", "نمط رابط المشاركة", "Paylaşım bağlantısı şablonu", "Share link template")}>
+            <input required style={{ ...inputStyle, direction: "ltr" }} value={linkTemplate} onChange={(e) => onLinkTemplateChange(e.target.value)} placeholder="https://ble.ir/share/{phone}?text={message}" />
+          </Field>
+        </>
+      ) : (
+        <Field label={tr("کانال مورد نظر", "القناة المطلوبة", "Hedef kanal", "Channel to remove")}>
+          <select required style={inputStyle} value={channelId} onChange={(e) => onChannelIdChange(e.target.value)}>
+            <option value="">{tr("انتخاب کنید", "اختر", "Seçin", "Choose")}</option>
+            {existingChannels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+      )}
+    </>
+  );
+}
+
+function RequestCard({ item, language, products, customers, reminderChannels, canReview, canApprove, onReview, onApprove, onReject, onAudio, onCreateInvoice }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const statusMaps = {
@@ -454,12 +513,12 @@ function RequestCard({ item, language, products, customers, canReview, canApprov
         {tr("ساخت فاکتور از این درخواست", "إنشاء فاتورة من هذا الطلب", "Bu talepten fatura oluştur", "Create invoice from this")}
       </button>
     )}
-    {canReview && <TranscriptReviewer item={item} products={products} customers={customers} language={language} onReview={onReview} />}
+    {canReview && <TranscriptReviewer item={item} products={products} customers={customers} reminderChannels={reminderChannels} language={language} onReview={onReview} />}
     {canApprove && <div className="flex gap-2 mt-4"><button onClick={onApprove} className="rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Check size={17} />{tr("تأیید و اعمال", "الموافقة والتطبيق", "Onayla ve uygula", "Approve & apply")}</button><button onClick={onReject} className="rounded-xl px-4 py-2 font-black flex gap-2 bg-red-500 text-white"><X size={17} />{tr("رد", "رفض", "Reddet", "Reject")}</button></div>}
   </article>;
 }
 
-function TranscriptReviewer({ item, products, customers, language, onReview }) {
+function TranscriptReviewer({ item, products, customers, reminderChannels, language, onReview }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [open, setOpen] = useState(false);
@@ -477,6 +536,10 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
     report_type: "sales",
     report_format: "pdf",
     destination_email: "",
+    reminder_operation: "add",
+    reminder_name: "",
+    reminder_link_template: "",
+    reminder_channel_id: "",
   });
 
   async function submitReview() {
@@ -511,6 +574,11 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
         destination_email: review.destination_email.trim(),
       };
     }
+    if (review.action_type === "reminder_channel_manage") {
+      proposed_changes = review.reminder_operation === "add"
+        ? { operation: "add", name: review.reminder_name.trim(), link_template: review.reminder_link_template.trim() }
+        : { operation: "remove", channel_id: review.reminder_channel_id };
+    }
     setSaving(true);
     try {
       await onReview({
@@ -529,7 +597,21 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
 
   return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
     <Field label={tr("متن نهایی تأییدشده توسط مدیر", "النص النهائي الذي راجعه المدير", "Yönetici tarafından incelenen nihai metin", "Manager-reviewed final transcript")}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
-    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option></select></Field>
+    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option><option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel")}</option></select></Field>
+    {review.action_type === "reminder_channel_manage" && (
+      <ReminderChannelFields
+        language={language}
+        existingChannels={reminderChannels}
+        operation={review.reminder_operation}
+        name={review.reminder_name}
+        linkTemplate={review.reminder_link_template}
+        channelId={review.reminder_channel_id}
+        onOperationChange={(value) => setReview({ ...review, reminder_operation: value })}
+        onNameChange={(value) => setReview({ ...review, reminder_name: language === "fa" ? toPersianDigits(value) : value })}
+        onLinkTemplateChange={(value) => setReview({ ...review, reminder_link_template: value })}
+        onChannelIdChange={(value) => setReview({ ...review, reminder_channel_id: value })}
+      />
+    )}
     {review.action_type === "sale_invoice_draft" && (
       <InvoiceItemsBuilder
         language={language}
@@ -561,6 +643,6 @@ function TranscriptReviewer({ item, products, customers, language, onReview }) {
       <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
       <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
     </>}
-    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim())} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim()) || (review.action_type === "reminder_channel_manage" && (review.reminder_operation === "add" ? (!review.reminder_name.trim() || !review.reminder_link_template.trim()) : !review.reminder_channel_id))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
   </div>;
 }

@@ -1,10 +1,149 @@
 import { useEffect,useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { CheckCircle2,Clock3,FileCheck2,RefreshCw,Send,ShieldCheck,XCircle } from "lucide-react";
+import { CheckCircle2,Clock3,FileCheck2,RefreshCw,Send,ShieldCheck,Wallet,XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import { approveVoucher,getApprovalRequests,getDraftVouchers,rejectVoucher,submitVoucherForApproval,withdrawApproval } from "../services/approvalApi";
+import { listPendingApprovals, approveApprovalRequest, rejectApprovalRequest, withdrawApprovalRequest } from "../services/api";
+
+// Phase 1 payment-workflow generic approval engine (app/approvals/engine.py)
+// - a separate, resource_type-agnostic system from the voucher maker-checker
+// flow above (app/accounting/approvals.py). Today's only registered
+// resource_types are invoice payment voids/refunds; the engine is designed
+// to be reused later by other ERP actions without redesign.
+const RESOURCE_TYPE_LABELS = {
+  invoice_payment_void: { fa: "ابطال پرداخت فاکتور", ar: "إبطال دفعة فاتورة", tr: "Fatura ödemesi iptali", en: "Invoice payment void" },
+  invoice_payment_refund: { fa: "استرداد پرداخت فاکتور", ar: "استرداد دفعة فاتورة", tr: "Fatura ödemesi iadesi", en: "Invoice payment refund" },
+};
+
+function GenericApprovalsSection({ language, money, card, button, input }) {
+  const [status, setStatus] = useState("pending");
+  const [requests, setRequests] = useState([]);
+  const [notes, setNotes] = useState({});
+  const [loading, setLoading] = useState(true);
+  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
+
+  async function load(next = status) {
+    setLoading(true);
+    try {
+      setRequests(await listPendingApprovals(next));
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  const stableLoad = useStableCallback(load);
+  useEffect(() => {
+    const timer = setTimeout(() => { void stableLoad(); }, 0);
+    return () => clearTimeout(timer);
+  }, [language, stableLoad]);
+
+  async function changeStatus(next) {
+    setStatus(next);
+    await load(next);
+  }
+  async function decide(id, kind) {
+    try {
+      const note = notes[id] || "";
+      if (kind === "approve") await approveApprovalRequest(id, note);
+      else await rejectApprovalRequest(id, note);
+      setNotes({ ...notes, [id]: "" });
+      await load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }
+  async function withdraw(id) {
+    try {
+      await withdrawApprovalRequest(id);
+      await load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }
+
+  const statusLabel = {
+    pending: tr("در انتظار", "قيد الانتظار", "Beklemede", "Pending"),
+    approved: tr("تأییدشده", "معتمد", "Onaylandı", "Approved"),
+    rejected: tr("ردشده", "مرفوض", "Reddedildi", "Rejected"),
+    all: tr("همه", "الكل", "Tümü", "All"),
+  };
+
+  return (
+    <section style={{ ...card, overflowX: "auto", marginTop: 20 }}>
+      <h3 style={{ margin: "16px 0 0 16px", color: "var(--erp-accent)", display: "flex", alignItems: "center", gap: 7 }}>
+        <Wallet size={18} /> {tr("درخواست‌های تایید عمومی (پرداخت فاکتور)", "طلبات الموافقة العامة (دفعات الفواتير)", "Genel onay talepleri (fatura ödemeleri)", "General approval requests (invoice payments)")}
+      </h3>
+      <nav style={{ display: "flex", gap: 7, margin: 12, flexWrap: "wrap" }}>
+        {["pending", "approved", "rejected", "all"].map((x) => (
+          <button key={x} onClick={() => changeStatus(x)} style={{ ...button, background: status === x ? "var(--erp-accent)" : "var(--erp-panel-solid)", color: status === x ? "#05202a" : "var(--erp-muted)" }}>
+            {statusLabel[x]}
+          </button>
+        ))}
+      </nav>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 950 }}>
+        <thead>
+          <tr>
+            {[tr("نوع", "النوع", "Tür", "Type"), tr("درخواست‌کننده", "مقدّم الطلب", "Talep eden", "Requester"), tr("مبلغ", "المبلغ", "Tutar", "Amount"), tr("دلیل", "السبب", "Neden", "Reason"), tr("وضعیت", "الحالة", "Durum", "Status"), tr("یادداشت تصمیم", "ملاحظة القرار", "Karar notu", "Decision note"), ""].map((h) => (
+              <th key={h} style={{ padding: 12, textAlign: "start", color: "var(--erp-accent)" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {!loading && requests.length === 0 && (
+            <tr><td colSpan={7} style={{ padding: 25, textAlign: "center", color: "var(--erp-muted)" }}>{tr("موردی وجود ندارد.", "لا توجد عناصر.", "Kayıt yok.", "No items.")}</td></tr>
+          )}
+          {requests.map((r) => {
+            const typeLabel = RESOURCE_TYPE_LABELS[r.resource_type];
+            return (
+              <tr key={r.id}>
+                <td style={{ padding: 12, borderTop: "1px solid var(--erp-border)", fontWeight: 900 }}>
+                  {typeLabel ? (typeLabel[language] || typeLabel.en) : r.resource_type}
+                  <div style={{ color: "var(--erp-muted)", fontSize: 12 }}>#{r.resource_id}</div>
+                </td>
+                <td style={{ padding: 12 }}>{r.requested_by_name || r.requested_by}</td>
+                <td style={{ padding: 12 }}>{money(r.amount)}</td>
+                <td style={{ padding: 12 }}>{r.reason}</td>
+                <td style={{ padding: 12, color: r.status === "approved" ? "#86efac" : r.status === "rejected" ? "#fda4af" : "#fbbf24" }}>
+                  {r.status === "pending" ? <Clock3 size={15} style={{ display: "inline" }} /> : r.status === "approved" ? <CheckCircle2 size={15} style={{ display: "inline" }} /> : <XCircle size={15} style={{ display: "inline" }} />}
+                  {" "}{statusLabel[r.status] || r.status}
+                </td>
+                <td style={{ padding: 12 }}>
+                  {r.status === "pending" ? (
+                    <input
+                      placeholder={tr("یادداشت تصمیم", "ملاحظة القرار", "Karar notu", "Decision note")}
+                      value={notes[r.id] || ""}
+                      onChange={(e) => setNotes({ ...notes, [r.id]: fa ? toPersianDigits(e.target.value) : e.target.value })}
+                      style={input}
+                    />
+                  ) : "—"}
+                </td>
+                <td style={{ padding: 12, whiteSpace: "nowrap" }}>
+                  {r.status === "pending" && (
+                    <>
+                      <button onClick={() => decide(r.id, "approve")} style={{ ...button, background: "#166534", color: "#dcfce7" }}>
+                        <CheckCircle2 size={15} />{tr("تأیید", "اعتماد", "Onayla", "Approve")}
+                      </button>{" "}
+                      <button onClick={() => decide(r.id, "reject")} style={{ ...button, background: "#7f1d1d", color: "#fee2e2" }}>
+                        <XCircle size={15} />{tr("رد", "رفض", "Reddet", "Reject")}
+                      </button>{" "}
+                      <button onClick={() => withdraw(r.id)} style={{ ...button, background: "#78350f", color: "#fef3c7" }}>
+                        {tr("انصراف", "سحب", "Geri çek", "Withdraw")}
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
 
 export default function ApprovalCenter(){
  const {language,dir,money,date}=useLanguage();
@@ -28,5 +167,6 @@ export default function ApprovalCenter(){
   <section style={{...card,padding:16,marginBottom:15}}><h3 style={{marginTop:0,color:"var(--erp-accent)"}}><FileCheck2 size={18} style={{display:"inline",marginInlineEnd:7}}/>{c.drafts}</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:9}}>{!drafts.length&&<span style={{color:"var(--erp-muted)"}}>{c.none}</span>}{drafts.map(v=><div key={v.id} style={{background:"var(--erp-panel-solid)",borderRadius:15,padding:13}}><strong>#{v.voucher_no} — {v.description||"—"}</strong><div style={{color:"var(--erp-muted)",margin:"6px 0"}}>{date(v.voucher_date)} · {money(v.total_debit)}</div><button onClick={()=>submit(v.id)} style={{...button,background:"#166534",color:"#dcfce7"}}><Send size={15}/>{c.submit}</button></div>)}</div></section>
   <nav style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>{["pending","approved","rejected","all"].map(x=><button key={x} onClick={()=>changeStatus(x)} style={{...button,background:status===x?"var(--erp-accent)":"var(--erp-panel-solid)",color:status===x?"#05202a":"var(--erp-muted)"}}>{c[x]}</button>)}</nav>
   <section style={{...card,overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:950}}><thead><tr>{[c.voucher,c.requester,c.date,c.amount,c.status,c.note,""].map(x=><th key={x} style={{padding:12,textAlign:"start",color:"var(--erp-accent)"}}>{x}</th>)}</tr></thead><tbody>{!approvals.length&&<tr><td colSpan={7} style={{padding:25,textAlign:"center",color:"var(--erp-muted)"}}>{c.none}</td></tr>}{approvals.map(a=><tr key={a.id}><td style={{padding:12,borderTop:"1px solid var(--erp-border)",fontWeight:900}}>#{a.voucher_no}<div style={{color:"var(--erp-muted)",fontSize:12}}>{a.description}</div></td><td style={{padding:12}}>{a.requested_by_name||a.requested_by}</td><td style={{padding:12}}>{date(a.voucher_date)}</td><td style={{padding:12}}>{money(a.total_debit)}</td><td style={{padding:12,color:a.status==="approved"?"#86efac":a.status==="rejected"?"#fda4af":"#fbbf24"}}>{a.status==="pending"?<Clock3 size={15} style={{display:"inline"}}/>:a.status==="approved"?<CheckCircle2 size={15} style={{display:"inline"}}/>:<XCircle size={15} style={{display:"inline"}}/>} {c[a.status]||a.status}</td><td style={{padding:12}}>{a.status==="pending"?<input placeholder={c.note} value={notes[a.id]||""} onChange={e=>setNotes({...notes,[a.id]:language==="fa"?toPersianDigits(e.target.value):e.target.value})} style={input}/>:a.decision_note||"—"}</td><td style={{padding:12,whiteSpace:"nowrap"}}>{a.status==="pending"&&<><button onClick={()=>decide(a.id,"approve")} style={{...button,background:"#166534",color:"#dcfce7"}}><CheckCircle2 size={15}/>{c.approve}</button> <button onClick={()=>decide(a.id,"reject")} style={{...button,background:"#7f1d1d",color:"#fee2e2"}}><XCircle size={15}/>{c.reject}</button> <button onClick={()=>withdraw(a.id)} style={{...button,background:"#78350f",color:"#fef3c7"}}>{c.withdraw}</button></>}</td></tr>)}</tbody></table></section>
+  <GenericApprovalsSection language={language} money={money} card={card} button={button} input={input} />
  </div>
 }

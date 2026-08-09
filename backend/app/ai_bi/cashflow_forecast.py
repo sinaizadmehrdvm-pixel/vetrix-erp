@@ -17,15 +17,17 @@ def _num(value):
         return 0.0
 
 
-def _settlement(db: Session, invoice):
+def _settlement(db: Session, company_id: int, invoice):
     total = _num(invoice.total_amount)
     receipt_entries = db.query(AccountingEntry).filter(
         AccountingEntry.source_type == "receipt",
         AccountingEntry.source_id == invoice.id,
+        AccountingEntry.company_id == company_id,
     ).all()
     payment_entries = db.query(AccountingEntry).filter(
         AccountingEntry.source_type == "payment",
         AccountingEntry.source_id == invoice.id,
+        AccountingEntry.company_id == company_id,
     ).all()
     received = sum(_num(e.credit) for e in receipt_entries)
     paid = sum(_num(e.debit) for e in payment_entries)
@@ -37,12 +39,13 @@ def _settlement(db: Session, invoice):
     return max(total - settled, 0)
 
 
-def build_cashflow_forecast(db: Session, horizon_days: int = FORECAST_HORIZON_DAYS) -> dict:
+def build_cashflow_forecast(db: Session, company_id: int, horizon_days: int = FORECAST_HORIZON_DAYS) -> dict:
     today = datetime.utcnow().date()
     horizon_date = today + timedelta(days=horizon_days)
 
     entries = db.query(AccountingEntry).filter(
-        AccountingEntry.source_type.in_(["receipt", "payment"])
+        AccountingEntry.source_type.in_(["receipt", "payment"]),
+        AccountingEntry.company_id == company_id,
     ).all()
     current_net_cash = sum(_num(e.credit) for e in entries if e.source_type == "receipt") - sum(
         _num(e.debit) for e in entries if e.source_type == "payment"
@@ -61,11 +64,11 @@ def build_cashflow_forecast(db: Session, horizon_days: int = FORECAST_HORIZON_DA
             """
             SELECT direction, amount, due_date, cheque_number
             FROM treasury_cheques
-            WHERE status = 'pending' AND due_date <= :horizon
+            WHERE status = 'pending' AND due_date <= :horizon AND company_id = :company_id
             ORDER BY due_date ASC
             """
         ),
-        {"horizon": horizon_date.isoformat()},
+        {"horizon": horizon_date.isoformat(), "company_id": company_id},
     ).mappings().all()
 
     scheduled_events = []
@@ -88,12 +91,13 @@ def build_cashflow_forecast(db: Session, horizon_days: int = FORECAST_HORIZON_DA
         })
 
     invoices = db.query(Invoice).filter(
-        Invoice.invoice_type.in_(["sale", "buy", "return_sale", "return_buy"])
+        Invoice.invoice_type.in_(["sale", "buy", "return_sale", "return_buy"]),
+        Invoice.company_id == company_id,
     ).all()
     open_receivables = 0.0
     open_payables = 0.0
     for invoice in invoices:
-        remaining = _settlement(db, invoice)
+        remaining = _settlement(db, company_id, invoice)
         if remaining <= 0:
             continue
         if invoice.invoice_type in ("sale", "return_buy"):

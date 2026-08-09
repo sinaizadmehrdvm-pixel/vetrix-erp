@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/online-commerce", tags=["Online Commerce"])
 
@@ -90,6 +91,10 @@ def _ensure_schema(conn):
             FOREIGN KEY(updated_by) REFERENCES users(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "online_product_settings")
+    ensure_company_id_column(conn, "social_campaigns")
+    ensure_company_id_column(conn, "commerce_connections")
 
 
 class ProductPublicationPayload(BaseModel):
@@ -125,21 +130,27 @@ class ConnectionPayload(BaseModel):
 
 
 @router.get("/summary")
-def summary():
+def summary(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         products = conn.execute(text("""
             SELECT COUNT(*) total,
                    SUM(CASE WHEN is_published=1 THEN 1 ELSE 0 END) published,
                    SUM(CASE WHEN discount_percent>0 THEN 1 ELSE 0 END) discounted
-            FROM online_product_settings
-        """)).mappings().first()
+            FROM online_product_settings WHERE company_id=:company_id
+        """), {"company_id": company_id}).mappings().first()
         campaigns = conn.execute(text("""
             SELECT COUNT(*) total,
                    SUM(CASE WHEN status='pending_approval' THEN 1 ELSE 0 END) pending,
                    SUM(CASE WHEN status='published' THEN 1 ELSE 0 END) published
-            FROM social_campaigns
-        """)).mappings().first()
+            FROM social_campaigns WHERE company_id=:company_id
+        """), {"company_id": company_id}).mappings().first()
+        # commerce_connections stays global for now: `channel` is UNIQUE across
+        # the whole table (one row per channel like "instagram"), the same
+        # shared-natural-key pattern flagged for the accounting/GL subsystem -
+        # scoping it needs a composite UNIQUE(company_id, channel) migration,
+        # not just a WHERE filter.
         connections = conn.execute(text("SELECT COUNT(*) FROM commerce_connections WHERE enabled=1")).scalar() or 0
         return {
             "products": {key: int(value or 0) for key, value in dict(products).items()},
@@ -149,7 +160,8 @@ def summary():
 
 
 @router.get("/products")
-def products():
+def products(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -160,38 +172,40 @@ def products():
                    COALESCE(s.sale_start, '') sale_start, COALESCE(s.sale_end, '') sale_end,
                    COALESCE(s.website_slug, '') website_slug, s.updated_at
             FROM products p
-            LEFT JOIN online_product_settings s ON s.product_id=p.id
+            LEFT JOIN online_product_settings s ON s.product_id=p.id AND s.company_id=:company_id
+            WHERE p.company_id=:company_id
             ORDER BY p.name, p.id
-        """)).mappings().all()
+        """), {"company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
 @router.put("/products/{product_id}")
 def update_product(product_id: int, payload: ProductPublicationPayload, request: Request):
     actor = _require_manager(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        if not conn.execute(text("SELECT id FROM products WHERE id=:id"), {"id": product_id}).first():
+        if not conn.execute(text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"), {"id": product_id, "company_id": company_id}).first():
             raise HTTPException(status_code=404, detail="Product not found")
         conn.execute(text("""
             INSERT INTO online_product_settings
               (product_id, is_published, sync_stock, online_price, discount_percent,
-               sale_start, sale_end, website_slug, updated_by, updated_at)
+               sale_start, sale_end, website_slug, updated_by, updated_at, company_id)
             VALUES
               (:product_id, :is_published, :sync_stock, :online_price, :discount_percent,
-               :sale_start, :sale_end, :website_slug, :actor, :now)
+               :sale_start, :sale_end, :website_slug, :actor, :now, :company_id)
             ON CONFLICT(product_id) DO UPDATE SET
               is_published=excluded.is_published, sync_stock=excluded.sync_stock,
               online_price=excluded.online_price, discount_percent=excluded.discount_percent,
               sale_start=excluded.sale_start, sale_end=excluded.sale_end,
               website_slug=excluded.website_slug, updated_by=excluded.updated_by,
               updated_at=excluded.updated_at
-        """), {**payload.dict(), "product_id": product_id, "actor": actor, "now": _now()})
+        """), {**payload.dict(), "product_id": product_id, "actor": actor, "now": _now(), "company_id": company_id})
         return {"status": "saved", "product_id": product_id}
 
 
 @router.get("/campaigns")
-def campaigns(status: str = "all"):
+def campaigns(request: Request, status: str = "all"):
     if status != "all" and status not in CAMPAIGN_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid campaign status")
     with engine.begin() as conn:
@@ -203,27 +217,28 @@ def campaigns(status: str = "all"):
             LEFT JOIN products p ON p.id=c.product_id
             LEFT JOIN users creator ON creator.id=c.created_by
             LEFT JOIN users decider ON decider.id=c.decided_by
-            WHERE (:status='all' OR c.status=:status)
+            WHERE (:status='all' OR c.status=:status) AND c.company_id=:company_id
             ORDER BY c.id DESC
-        """), {"status": status}).mappings().all()
+        """), {"status": status, "company_id": current_company_id(request)}).mappings().all()
         return [dict(row) for row in rows]
 
 
 @router.post("/campaigns")
 def create_campaign(payload: CampaignPayload, request: Request):
     actor, _ = _auth(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        if payload.product_id and not conn.execute(text("SELECT id FROM products WHERE id=:id"), {"id": payload.product_id}).first():
+        if payload.product_id and not conn.execute(text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"), {"id": payload.product_id, "company_id": company_id}).first():
             raise HTTPException(status_code=404, detail="Product not found")
         result = conn.execute(text("""
             INSERT INTO social_campaigns
               (title, body, channel, product_id, media_url, destination_url,
-               scheduled_at, status, created_by, created_at)
+               scheduled_at, status, created_by, created_at, company_id)
             VALUES
               (:title, :body, :channel, :product_id, :media_url, :destination_url,
-               :scheduled_at, 'draft', :actor, :now)
-        """), {**payload.dict(), "actor": actor, "now": _now()})
+               :scheduled_at, 'draft', :actor, :now, :company_id)
+        """), {**payload.dict(), "actor": actor, "now": _now(), "company_id": company_id})
         return {"status": "draft", "campaign_id": result.lastrowid}
 
 
@@ -232,7 +247,7 @@ def submit_campaign(campaign_id: int, request: Request):
     actor, _ = _auth(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id"), {"id": campaign_id}).mappings().first()
+        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id AND company_id=:company_id"), {"id": campaign_id, "company_id": current_company_id(request)}).mappings().first()
         if not row:
             raise HTTPException(status_code=404, detail="Campaign not found")
         if row["created_by"] != actor:
@@ -251,7 +266,7 @@ def approve_campaign(campaign_id: int, payload: DecisionPayload, request: Reques
     actor = _require_manager(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id"), {"id": campaign_id}).mappings().first()
+        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id AND company_id=:company_id"), {"id": campaign_id, "company_id": current_company_id(request)}).mappings().first()
         if not row:
             raise HTTPException(status_code=404, detail="Campaign not found")
         if row["status"] != "pending_approval":
@@ -274,7 +289,7 @@ def reject_campaign(campaign_id: int, payload: DecisionPayload, request: Request
         raise HTTPException(status_code=400, detail="Rejection note is required")
     with engine.begin() as conn:
         _ensure_schema(conn)
-        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id"), {"id": campaign_id}).mappings().first()
+        row = conn.execute(text("SELECT * FROM social_campaigns WHERE id=:id AND company_id=:company_id"), {"id": campaign_id, "company_id": current_company_id(request)}).mappings().first()
         if not row:
             raise HTTPException(status_code=404, detail="Campaign not found")
         if row["status"] != "pending_approval":

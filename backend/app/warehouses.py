@@ -20,13 +20,14 @@ quantity doesn't change when stock moves between its own locations.
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine
 from app.models.product import Product
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/warehouses", tags=["Multi-Branch Warehouses"])
 
@@ -43,6 +44,7 @@ class Warehouse(Base):
     is_default = Column(Boolean, default=False, nullable=False)
     active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
 
 
 class WarehouseStock(Base):
@@ -53,6 +55,7 @@ class WarehouseStock(Base):
     warehouse_id = Column(Integer, nullable=False)
     product_id = Column(Integer, nullable=False)
     quantity = Column(Float, default=0, nullable=False)
+    company_id = Column(Integer, nullable=True)
 
 
 Warehouse.__table__.create(bind=engine, checkfirst=True)
@@ -73,33 +76,37 @@ class TransferRequest(BaseModel):
     note: str = ""
 
 
-def _ensure_default_warehouse(db: Session) -> Warehouse:
-    default = db.query(Warehouse).filter(Warehouse.is_default.is_(True)).first()
+def _ensure_default_warehouse(db: Session, company_id: int) -> Warehouse:
+    default = db.query(Warehouse).filter(Warehouse.is_default.is_(True), Warehouse.company_id == company_id).first()
     if default:
         return default
-    default = Warehouse(name=DEFAULT_WAREHOUSE_NAME, is_default=True, active=True)
+    default = Warehouse(name=DEFAULT_WAREHOUSE_NAME, is_default=True, active=True, company_id=company_id)
     db.add(default)
     db.commit()
     db.refresh(default)
     return default
 
 
-def _non_default_rows(db: Session, product_id: int):
+def _non_default_rows(db: Session, product_id: int, company_id: int):
     return (
         db.query(WarehouseStock)
         .join(Warehouse, Warehouse.id == WarehouseStock.warehouse_id)
-        .filter(WarehouseStock.product_id == product_id, Warehouse.is_default.is_(False))
+        .filter(
+            WarehouseStock.product_id == product_id,
+            Warehouse.is_default.is_(False),
+            Warehouse.company_id == company_id,
+        )
         .all()
     )
 
 
-def stock_breakdown(db: Session, product_id: int) -> dict:
+def stock_breakdown(db: Session, product_id: int, company_id: int) -> dict:
     """{warehouse_id: quantity} for every active warehouse, for one product."""
-    default = _ensure_default_warehouse(db)
-    product = db.query(Product).filter(Product.id == product_id).first()
+    default = _ensure_default_warehouse(db, company_id)
+    product = db.query(Product).filter(Product.id == product_id, Product.company_id == company_id).first()
     total = float(product.stock or 0) if product else 0.0
 
-    other_rows = _non_default_rows(db, product_id)
+    other_rows = _non_default_rows(db, product_id, company_id)
     allocated_elsewhere = sum(float(row.quantity or 0) for row in other_rows)
 
     breakdown = {default.id: total - allocated_elsewhere}
@@ -108,7 +115,7 @@ def stock_breakdown(db: Session, product_id: int) -> dict:
     return breakdown
 
 
-def _get_or_create_row(db: Session, warehouse_id: int, product_id: int) -> WarehouseStock:
+def _get_or_create_row(db: Session, warehouse_id: int, product_id: int, company_id: int) -> WarehouseStock:
     row = (
         db.query(WarehouseStock)
         .filter(WarehouseStock.warehouse_id == warehouse_id, WarehouseStock.product_id == product_id)
@@ -116,23 +123,23 @@ def _get_or_create_row(db: Session, warehouse_id: int, product_id: int) -> Wareh
     )
     if row:
         return row
-    row = WarehouseStock(warehouse_id=warehouse_id, product_id=product_id, quantity=0)
+    row = WarehouseStock(warehouse_id=warehouse_id, product_id=product_id, quantity=0, company_id=company_id)
     db.add(row)
     db.flush()
     return row
 
 
-def apply_warehouse_delta(db: Session, warehouse_id: Optional[int], product_id: int, delta: float):
+def apply_warehouse_delta(db: Session, warehouse_id: Optional[int], product_id: int, delta: float, company_id: int):
     """Adjusts one warehouse's bucket by `delta` (positive = stock coming in,
     negative = stock going out). No-op for the default warehouse - its
     number is derived, not stored - and for warehouse_id=None (the caller
     didn't specify a warehouse for this line)."""
     if warehouse_id is None:
         return
-    default = _ensure_default_warehouse(db)
+    default = _ensure_default_warehouse(db, company_id)
     if warehouse_id == default.id:
         return
-    row = _get_or_create_row(db, warehouse_id, product_id)
+    row = _get_or_create_row(db, warehouse_id, product_id, company_id)
     row.quantity = float(row.quantity or 0) + delta
 
 
@@ -175,13 +182,14 @@ def _record_transfer_movement(db: Session, product: Product, from_name: str, to_
 
 
 @router.post("")
-def create_warehouse(data: WarehouseCreate):
+def create_warehouse(data: WarehouseCreate, request: Request):
     if not data.name.strip():
         raise HTTPException(status_code=400, detail="Warehouse name is required")
     db: Session = SessionLocal()
     try:
-        _ensure_default_warehouse(db)
-        warehouse = Warehouse(name=data.name.strip(), code=data.code, address=data.address, is_default=False, active=True)
+        company_id = current_company_id(request)
+        _ensure_default_warehouse(db, company_id)
+        warehouse = Warehouse(name=data.name.strip(), code=data.code, address=data.address, is_default=False, active=True, company_id=company_id)
         db.add(warehouse)
         db.commit()
         db.refresh(warehouse)
@@ -191,11 +199,12 @@ def create_warehouse(data: WarehouseCreate):
 
 
 @router.get("")
-def list_warehouses():
+def list_warehouses(request: Request):
     db: Session = SessionLocal()
     try:
-        _ensure_default_warehouse(db)
-        warehouses = db.query(Warehouse).order_by(Warehouse.is_default.desc(), Warehouse.id.asc()).all()
+        company_id = current_company_id(request)
+        _ensure_default_warehouse(db, company_id)
+        warehouses = db.query(Warehouse).filter(Warehouse.company_id == company_id).order_by(Warehouse.is_default.desc(), Warehouse.id.asc()).all()
         return {
             "items": [
                 {
@@ -210,10 +219,10 @@ def list_warehouses():
 
 
 @router.post("/{warehouse_id}/deactivate")
-def deactivate_warehouse(warehouse_id: int):
+def deactivate_warehouse(warehouse_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id, Warehouse.company_id == current_company_id(request)).first()
         if not warehouse:
             raise HTTPException(status_code=404, detail="Warehouse not found")
         if warehouse.is_default:
@@ -226,14 +235,15 @@ def deactivate_warehouse(warehouse_id: int):
 
 
 @router.get("/stock")
-def get_stock_breakdown(product_id: int):
+def get_stock_breakdown(product_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        company_id = current_company_id(request)
+        product = db.query(Product).filter(Product.id == product_id, Product.company_id == company_id).first()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
-        breakdown = stock_breakdown(db, product_id)
-        warehouses = {w.id: w.name for w in db.query(Warehouse).all()}
+        breakdown = stock_breakdown(db, product_id, company_id)
+        warehouses = {w.id: w.name for w in db.query(Warehouse).filter(Warehouse.company_id == company_id).all()}
         return {
             "product_id": product_id,
             "total": float(product.stock or 0),
@@ -247,7 +257,7 @@ def get_stock_breakdown(product_id: int):
 
 
 @router.post("/transfer")
-def transfer_stock(data: TransferRequest):
+def transfer_stock(data: TransferRequest, request: Request):
     if data.from_warehouse_id == data.to_warehouse_id:
         raise HTTPException(status_code=400, detail="Source and destination warehouses must differ")
     if data.quantity <= 0:
@@ -255,11 +265,12 @@ def transfer_stock(data: TransferRequest):
 
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == data.product_id).first()
+        company_id = current_company_id(request)
+        product = db.query(Product).filter(Product.id == data.product_id, Product.company_id == company_id).first()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        warehouses = {w.id: w for w in db.query(Warehouse).all()}
+        warehouses = {w.id: w for w in db.query(Warehouse).filter(Warehouse.company_id == company_id).all()}
         from_warehouse = warehouses.get(data.from_warehouse_id)
         to_warehouse = warehouses.get(data.to_warehouse_id)
         if not from_warehouse or not to_warehouse:
@@ -267,7 +278,7 @@ def transfer_stock(data: TransferRequest):
         if not to_warehouse.active:
             raise HTTPException(status_code=400, detail="Destination warehouse is not active")
 
-        breakdown = stock_breakdown(db, data.product_id)
+        breakdown = stock_breakdown(db, data.product_id, company_id)
         available = breakdown.get(data.from_warehouse_id, 0.0)
         if data.quantity > available:
             raise HTTPException(
@@ -275,28 +286,29 @@ def transfer_stock(data: TransferRequest):
                 detail=f"Not enough stock in {from_warehouse.name}; available: {available}",
             )
 
-        apply_warehouse_delta(db, data.from_warehouse_id, data.product_id, -data.quantity)
-        apply_warehouse_delta(db, data.to_warehouse_id, data.product_id, data.quantity)
+        apply_warehouse_delta(db, data.from_warehouse_id, data.product_id, -data.quantity, company_id)
+        apply_warehouse_delta(db, data.to_warehouse_id, data.product_id, data.quantity, company_id)
         _record_transfer_movement(db, product, from_warehouse.name, to_warehouse.name, data.quantity, data.note)
         db.commit()
 
-        return {"status": "transferred", "by_warehouse": stock_breakdown(db, data.product_id)}
+        return {"status": "transferred", "by_warehouse": stock_breakdown(db, data.product_id, company_id)}
     finally:
         db.close()
 
 
 @router.get("/{warehouse_id}/products")
-def list_warehouse_products(warehouse_id: int):
+def list_warehouse_products(warehouse_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
+        company_id = current_company_id(request)
+        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id, Warehouse.company_id == company_id).first()
         if not warehouse:
             raise HTTPException(status_code=404, detail="Warehouse not found")
 
-        products = db.query(Product).all()
+        products = db.query(Product).filter(Product.company_id == company_id).all()
         items = []
         for product in products:
-            breakdown = stock_breakdown(db, product.id)
+            breakdown = stock_breakdown(db, product.id, company_id)
             quantity = breakdown.get(warehouse_id, 0.0)
             if quantity:
                 items.append({"product_id": product.id, "product_name": product.name, "quantity": quantity})

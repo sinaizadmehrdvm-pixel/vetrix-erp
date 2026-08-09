@@ -28,5 +28,17 @@ def test_import_number_validation_rejects_invalid_and_negative_values():
     assert not errors
     assert _number("invalid", "stock", 3, errors) == 0
     assert errors[-1]["message"] == "Invalid number"
-    assert _number("-1", "stock", 4, errors) == -1
+    assert _number("-1", "buy_price", 4, errors) == -1
     assert errors[-1]["message"] == "Value cannot be negative"
+
+
+def test_import_negative_stock_is_policy_controlled_not_unconditionally_blocked():
+    # Unlike buy_price/sell_price/etc., "stock" is deliberately excluded from
+    # _number()'s always-non-negative set: the products import wizard makes
+    # negative opening stock policy-controlled (negative_stock_policy:
+    # block/warn) rather than a hard error baked into the shared numeric
+    # parser, since some real-world migrations legitimately start from a
+    # known shortfall.
+    errors = []
+    assert _number("-5", "stock", 1, errors) == -5
+    assert not errors

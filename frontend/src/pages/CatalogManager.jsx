@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Copy, FileDown, MessageCircle, Plus, Send, ShieldOff, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { BookOpen, Copy, FileDown, MessageCircle, Plus, QrCode, Send, ShieldOff, Sparkles, X } from "lucide-react";
 import toast from "react-hot-toast";
+import QRCodeLib from "qrcode";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
@@ -47,6 +49,55 @@ function telegramShareUrl(catalog, language) {
   return `https://t.me/share/url?url=${url}&text=${text}`;
 }
 
+function CatalogQrModal({ catalog, language, onClose }) {
+  const [dataUrl, setDataUrl] = useState("");
+  const url = `${window.location.origin}/catalog/${catalog.token}`;
+
+  useEffect(() => {
+    let active = true;
+    QRCodeLib.toDataURL(url, { margin: 1, width: 280 })
+      .then((generated) => { if (active) setDataUrl(generated); })
+      .catch(() => { if (active) setDataUrl(""); });
+    return () => { active = false; };
+  }, [url]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-6 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-black" style={{ color: "var(--erp-accent)" }}>{catalog.title}</h3>
+          <button onClick={onClose} className="text-[var(--erp-muted)]"><X size={20} /></button>
+        </div>
+        {dataUrl ? (
+          <img src={dataUrl} alt="QR" className="mx-auto rounded-2xl bg-white p-3" />
+        ) : (
+          <div className="h-[280px] flex items-center justify-center text-[var(--erp-muted)]">...</div>
+        )}
+        <p className="text-xs text-[var(--erp-muted)] mt-4">
+          {language === "fa"
+            ? "این کد QR را در استوری، تراکت یا ویترین بگذارید؛ با اسکن آن مشتری مستقیم به کاتالوگ می‌رسد."
+            : language === "ar"
+            ? "ضع رمز QR هذا على القصة أو المنشور أو الواجهة؛ عند مسحه يصل العميل مباشرة إلى الكتالوج."
+            : language === "tr"
+            ? "Bu QR kodunu hikayeye, broşüre veya vitrine koyun; taratıldığında müşteri doğrudan kataloğa ulaşır."
+            : "Put this QR code on a story, flyer, or storefront - scanning it takes the customer straight to the catalog."}
+        </p>
+        {dataUrl && (
+          <a
+            href={dataUrl}
+            download={`catalog-qr-${catalog.id}.png`}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold"
+            style={{ background: "var(--erp-accent)", color: "#071028" }}
+          >
+            <FileDown size={16} />
+            {language === "fa" ? "دانلود تصویر QR" : language === "ar" ? "تنزيل صورة QR" : language === "tr" ? "QR görselini indir" : "Download QR image"}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CatalogManager() {
   const { dir, language, money, n } = useLanguage();
 
@@ -57,6 +108,7 @@ export default function CatalogManager() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
+  const [qrCatalog, setQrCatalog] = useState(null);
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState("category"); // "category" | "custom"
   const [category, setCategory] = useState("");
@@ -172,8 +224,9 @@ export default function CatalogManager() {
 
   async function handleConvert(id) {
     try {
-      await markCatalogOrderConverted(id);
-      toast.success(language === "fa" ? "به عنوان تبدیل‌شده علامت خورد." : language === "ar" ? "تم وضع علامة كمحوَّل." : language === "tr" ? "Dönüştürüldü olarak işaretlendi." : "Marked as converted.");
+      const result = await markCatalogOrderConverted(id);
+      if (result?.status === "error") throw new Error(result.message);
+      toast.success(language === "fa" ? "فاکتور واقعی ساخته شد." : language === "ar" ? "تم إنشاء فاتورة فعلية." : language === "tr" ? "Gerçek bir fatura oluşturuldu." : "A real invoice was created.");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -303,6 +356,11 @@ export default function CatalogManager() {
                     </button>
                   )}
                   {catalog.enabled && (
+                    <button onClick={() => setQrCatalog(catalog)} className="px-3 py-2 rounded-xl bg-fuchsia-500/20 text-fuchsia-200 text-sm font-bold flex items-center gap-1">
+                      <QrCode size={14} /> QR
+                    </button>
+                  )}
+                  {catalog.enabled && (
                     <a
                       href={whatsappShareUrl(catalog, language)}
                       target="_blank"
@@ -379,6 +437,11 @@ export default function CatalogManager() {
                     </button>
                   </div>
                 )}
+                {order.status === "converted" && order.converted_invoice_id && (
+                  <Link to={`/invoice-print/${order.converted_invoice_id}`} className="inline-block mt-3 px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold">
+                    {language === "fa" ? `مشاهده فاکتور #${order.converted_invoice_id}` : language === "ar" ? `عرض الفاتورة #${order.converted_invoice_id}` : language === "tr" ? `Faturayı görüntüle #${order.converted_invoice_id}` : `View invoice #${order.converted_invoice_id}`}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -429,6 +492,8 @@ export default function CatalogManager() {
           </div>
         )}
       </section>
+
+      {qrCatalog && <CatalogQrModal catalog={qrCatalog} language={language} onClose={() => setQrCatalog(null)} />}
     </div>
   );
 }

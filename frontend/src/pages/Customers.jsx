@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Link } from "react-router-dom";
+import { useDebounce } from "../hooks/useDebounce";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -19,6 +20,12 @@ import {
   ShieldCheck,
   Activity,
   Download,
+  FileText,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -28,7 +35,13 @@ import {
   updateCustomer,
   deleteCustomer,
   resetAccountingData,
+  getSalesReps,
+  exportCustomersListPdf,
+  exportCustomersListExcel,
+  isNetworkError,
 } from "../services/api";
+import { translateApiError } from "../localization/apiErrors";
+import { useAuth } from "../auth/AuthContext";
 
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
@@ -36,10 +49,12 @@ import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
+import MoneyDisplay from "../components/ui/MoneyDisplay";
 import { Input, Select } from "../components/ui/Field";
-import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
+import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
 
 const CUSTOMERS_CACHE_KEY = "customers";
+const PAGE_SIZES = [25, 50, 100];
 
 const emptyForm = {
   name: "",
@@ -56,6 +71,7 @@ const emptyForm = {
   credit_limit: "",
   notes: "",
   pricing_group: "retail",
+  assigned_rep_id: "",
 };
 
 function toNumber(value) {
@@ -174,25 +190,75 @@ function followupSuggestion(item, language) {
   if (balance > 0 && limit > 0 && balance > limit) return fa ? "تماس فوری برای تسویه یا افزایش اعتبار" : ar ? "اتصال عاجل للتسوية أو مراجعة حد الائتمان" : tr ? "Tahsilat veya kredi limiti gözden geçirmesi için acil arama" : "Urgent call for settlement or credit review";
   if (balance > 0) return fa ? "پیگیری دریافت مطالبات" : ar ? "متابعة تحصيل الذمم المدينة" : tr ? "Alacak tahsilatını takip et" : "Follow up receivables";
   if (!item.phone && !item.mobile) return fa ? "تکمیل شماره تماس" : ar ? "استكمال رقم الاتصال" : tr ? "İletişim numarasını tamamla" : "Complete contact number";
-  if (!item.city && !item.address) return fa ? "تکمیل اطلاعات آدرس" : ar ? "استكمال بيانات العنوان" : tr ? "Adres bilgilerini tamamla" : "Complete address info";
+  if (!item.city && !item.address) return fa ? "تکمیل اطلاعات آدرس" : ar ? "استكمال بيانات العنوان" : tr ? "Adres bilgilerini تamamla" : "Complete address info";
   return fa ? "حفظ ارتباط و ثبت تعامل بعدی" : ar ? "الحفاظ على التواصل وتسجيل التفاعل القادم" : tr ? "İlişkiyi sürdür ve bir sonraki teması kaydet" : "Maintain relationship and log next touchpoint";
 }
 
+const DEFAULT_FILTERS = {
+  q: "",
+  type: "all",
+  crm: "all",
+  bal: "all",
+  balMin: "",
+  balMax: "",
+  phoneHas: "all",
+  city: "all",
+  sort: "score",
+  dir: "desc",
+  page: "1",
+  size: "25",
+};
+
+function readFilters(searchParams) {
+  const result = { ...DEFAULT_FILTERS };
+  for (const key of Object.keys(DEFAULT_FILTERS)) {
+    const value = searchParams.get(key);
+    if (value !== null && value !== "") result[key] = value;
+  }
+  return result;
+}
 
 export default function Customers() {
-  const { t, language, n, money, dir } = useLanguage();
+  const { t, language, n, money, dir, locale } = useLanguage();
   const fa = language === "fa";
+  const ar = language === "ar";
+  const tr = language === "tr";
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = readFilters(searchParams);
+  const [searchInput, setSearchInput] = useState(filters.q);
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  function patchFilters(patch, { resetPage = true } = {}) {
+    const next = { ...readFilters(searchParams), ...patch };
+    if (resetPage) next.page = "1";
+    const params = new URLSearchParams();
+    for (const key of Object.keys(DEFAULT_FILTERS)) {
+      if (next[key] !== DEFAULT_FILTERS[key]) params.set(key, next[key]);
+    }
+    setSearchParams(params, { replace: false });
+  }
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.q) patchFilters({ q: debouncedSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const [parties, setParties] = useState([]);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [crmFilter, setCrmFilter] = useState("all");
-  const [sortMode, setSortMode] = useState("score_desc");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
+  const [salesReps, setSalesReps] = useState([]);
+  const [myOnly, setMyOnly] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportAllScope, setExportAllScope] = useState(false);
+  const tableTopRef = useRef(null);
+  const exportMenuRef = useRef(null);
 
   async function saveCache(items) {
     const normalized = Array.isArray(items) ? items.map(normalizeParty) : [];
@@ -206,7 +272,7 @@ export default function Customers() {
     setOfflineMode(false);
 
     try {
-      const serverParties = await getCustomers();
+      const serverParties = await getCustomers(myOnly && user ? user.id : undefined);
       const normalized = Array.isArray(serverParties)
         ? serverParties.map(normalizeParty)
         : [];
@@ -247,10 +313,37 @@ export default function Customers() {
 
   const stableLoad = useStableCallback(load);
 
+  // Always refetches on mount/language/myOnly change - this is the primary
+  // source of truth (the IndexedDB cache is only ever read as an
+  // error-fallback inside load()'s catch block above), so records added via
+  // the Data Import Center are visible here on the very next visit/refresh
+  // without any extra cache-invalidation wiring.
   useEffect(() => {
     const timer = setTimeout(() => { void stableLoad(); }, 0);
     return () => clearTimeout(timer);
-  }, [language, stableLoad]);
+  }, [language, stableLoad, myOnly]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      getSalesReps().then((rows) => setSalesReps(Array.isArray(rows) ? rows : [])).catch(() => setSalesReps([]));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    function onDocClick(event) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) setExportMenuOpen(false);
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") setExportMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
 
   function partyTypeLabel(type) {
     const map = {
@@ -268,9 +361,7 @@ export default function Customers() {
   }
 
   const balanceOf = useCallback((item) => toNumber(item.balance), []);
-
   const debtorOf = useCallback((item) => Math.max(balanceOf(item), 0), [balanceOf]);
-
   const creditorOf = useCallback((item) => Math.max(-balanceOf(item), 0), [balanceOf]);
 
   const summary = useMemo(() => {
@@ -291,16 +382,35 @@ export default function Customers() {
     );
   }, [parties, language, balanceOf, debtorOf, creditorOf]);
 
-  const filtered = useMemo(() => {
-    const keyword = toEnglishDigits(search).toLowerCase().trim();
+  const cityOptions = useMemo(() => {
+    const set = new Set();
+    for (const item of parties) if (item.city) set.add(item.city);
+    return [...set].sort((a, b) => a.localeCompare(b, locale));
+  }, [parties, locale]);
 
-    const list = parties.filter((item) => {
+  function scrollToTable() {
+    tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function applyCardFilter(patch) {
+    patchFilters(patch);
+    scrollToTable();
+  }
+
+  const matched = useMemo(() => {
+    const keyword = toEnglishDigits(filters.q).toLowerCase().trim();
+    const balMin = filters.balMin ? toNumber(filters.balMin) : null;
+    const balMax = filters.balMax ? toNumber(filters.balMax) : null;
+
+    return parties.filter((item) => {
       const score = crmScore(item);
       const rank = crmRank(score);
       const status = crmStatus(item, language);
       const tags = crmTags(item, language).join(" ");
+      const balance = balanceOf(item);
+      const absBalance = Math.abs(balance);
 
-      const matchesText = [
+      const matchesText = !keyword || [
         item.name,
         item.phone,
         item.mobile,
@@ -319,29 +429,115 @@ export default function Customers() {
         .toLowerCase()
         .includes(keyword);
 
-      const matchesType =
-        typeFilter === "all" ||
-        item.party_type === typeFilter ||
-        item.customer_type === typeFilter;
+      const matchesType = filters.type === "all" || item.party_type === filters.type || item.customer_type === filters.type;
 
       const matchesCrm =
-        crmFilter === "all" ||
-        (crmFilter === "vip" && score >= 85) ||
-        (crmFilter === "followup" && ["debtor", "over_limit"].includes(status.key)) ||
-        (crmFilter === "risk" && status.key === "over_limit") ||
-        (crmFilter === "settled" && status.key === "healthy");
+        filters.crm === "all" ||
+        (filters.crm === "vip" && score >= 85) ||
+        (filters.crm === "followup" && ["debtor", "over_limit"].includes(status.key)) ||
+        (filters.crm === "risk" && status.key === "over_limit") ||
+        (filters.crm === "settled" && status.key === "healthy");
 
-      return matchesText && matchesType && matchesCrm;
-    });
+      const matchesBalanceKind =
+        filters.bal === "all" ||
+        (filters.bal === "debtor" && balance > 0) ||
+        (filters.bal === "creditor" && balance < 0) ||
+        (filters.bal === "zero" && balance === 0) ||
+        (filters.bal === "has_balance" && balance !== 0);
 
-    return [...list].sort((a, b) => {
-      if (sortMode === "score_desc") return crmScore(b) - crmScore(a);
-      if (sortMode === "debt_desc") return debtorOf(b) - debtorOf(a);
-      if (sortMode === "credit_desc") return creditorOf(b) - creditorOf(a);
-      if (sortMode === "name_asc") return String(a.name || "").localeCompare(String(b.name || ""));
-      return 0;
+      const matchesBalanceRange =
+        (balMin === null || absBalance >= balMin) && (balMax === null || absBalance <= balMax);
+
+      const matchesPhone =
+        filters.phoneHas === "all" ||
+        (filters.phoneHas === "yes" && Boolean(item.phone || item.mobile)) ||
+        (filters.phoneHas === "no" && !item.phone && !item.mobile);
+
+      const matchesCity = filters.city === "all" || item.city === filters.city;
+
+      return matchesText && matchesType && matchesCrm && matchesBalanceKind && matchesBalanceRange && matchesPhone && matchesCity;
     });
-  }, [parties, search, typeFilter, crmFilter, sortMode, language, debtorOf, creditorOf]);
+  }, [parties, filters.q, filters.type, filters.crm, filters.bal, filters.balMin, filters.balMax, filters.phoneHas, filters.city, language, balanceOf]);
+
+  const collator = useMemo(() => new Intl.Collator(locale, { sensitivity: "base", numeric: true }), [locale]);
+
+  const filtered = useMemo(() => {
+    const list = [...matched];
+    const dirMul = filters.dir === "asc" ? 1 : -1;
+    const field = filters.sort;
+
+    const comparators = {
+      name: (a, b) => collator.compare(String(a.name || ""), String(b.name || "")),
+      type: (a, b) => collator.compare(partyTypeLabel(a.party_type || a.customer_type), partyTypeLabel(b.party_type || b.customer_type)),
+      phone: (a, b) => collator.compare(String(a.phone || a.mobile || ""), String(b.phone || b.mobile || "")),
+      debtor: (a, b) => debtorOf(a) - debtorOf(b),
+      creditor: (a, b) => creditorOf(a) - creditorOf(b),
+      balance: (a, b) => balanceOf(a) - balanceOf(b),
+      score: (a, b) => crmScore(a) - crmScore(b),
+      status: (a, b) => collator.compare(crmStatus(a, language).label, crmStatus(b, language).label),
+      created_at: (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime(),
+    };
+
+    const cmp = comparators[field] || comparators.score;
+    list.sort((a, b) => dirMul * cmp(a, b));
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matched, filters.sort, filters.dir, collator, language, debtorOf, creditorOf, balanceOf]);
+
+  const pageSize = Math.max(1, Number(filters.size) || 25);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(Math.max(1, Number(filters.page) || 1), pageCount);
+  const pageStart = (page - 1) * pageSize;
+  const paged = useMemo(() => filtered.slice(pageStart, pageStart + pageSize), [filtered, pageStart, pageSize]);
+
+  function setSort(field, sortDir) {
+    if (!field) return patchFilters({ sort: DEFAULT_FILTERS.sort, dir: DEFAULT_FILTERS.dir }, { resetPage: false });
+    patchFilters({ sort: field, dir: sortDir }, { resetPage: false });
+  }
+
+  function setPage(nextPage) {
+    patchFilters({ page: String(Math.min(Math.max(1, nextPage), pageCount)) }, { resetPage: false });
+  }
+
+  const activeChips = useMemo(() => {
+    const chips = [];
+    if (filters.q) chips.push({ key: "q", label: `${fa ? "جستجو" : ar ? "بحث" : tr ? "Arama" : "Search"}: ${filters.q}` });
+    if (filters.type !== "all") chips.push({ key: "type", label: partyTypeLabel(filters.type) });
+    if (filters.crm !== "all") {
+      const crmLabels = {
+        vip: "VIP",
+        followup: fa ? "نیازمند پیگیری" : ar ? "بحاجة إلى متابعة" : tr ? "Takip gerekiyor" : "Needs follow-up",
+        risk: fa ? "ریسک اعتباری" : ar ? "مخاطر ائتمانية" : tr ? "Kredi riski" : "Credit risk",
+        settled: fa ? "تسویه" : ar ? "مسدد" : tr ? "Kapandı" : "Settled",
+      };
+      chips.push({ key: "crm", label: crmLabels[filters.crm] });
+    }
+    if (filters.bal !== "all") {
+      const balLabels = {
+        debtor: fa ? "فقط بدهکار" : ar ? "مدين فقط" : tr ? "Sadece borçlu" : "Debtors only",
+        creditor: fa ? "فقط بستانکار" : ar ? "دائن فقط" : tr ? "Sadece alacaklı" : "Creditors only",
+        zero: fa ? "بی‌حساب" : ar ? "بدون رصيد" : tr ? "Bakiyesiz" : "Zero balance",
+        has_balance: fa ? "دارای مانده" : ar ? "لديه رصيد" : tr ? "Bakiyesi olan" : "Has balance",
+      };
+      chips.push({ key: "bal", label: balLabels[filters.bal] });
+    }
+    if (filters.balMin) chips.push({ key: "balMin", label: `${fa ? "حداقل" : ar ? "الحد الأدنى" : tr ? "En az" : "Min"}: ${money(toNumber(filters.balMin))}` });
+    if (filters.balMax) chips.push({ key: "balMax", label: `${fa ? "حداکثر" : ar ? "الحد الأقصى" : tr ? "En çok" : "Max"}: ${money(toNumber(filters.balMax))}` });
+    if (filters.phoneHas !== "all") chips.push({ key: "phoneHas", label: filters.phoneHas === "yes" ? (fa ? "دارای شماره تماس" : ar ? "لديه رقم" : tr ? "Numarası var" : "Has phone") : (fa ? "بدون شماره تماس" : ar ? "بلا رقم" : tr ? "Numarası yok" : "No phone") });
+    if (filters.city !== "all") chips.push({ key: "city", label: filters.city });
+    return chips;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.q, filters.type, filters.crm, filters.bal, filters.balMin, filters.balMax, filters.phoneHas, filters.city, language]);
+
+  function removeChip(key) {
+    if (key === "q") setSearchInput("");
+    patchFilters({ [key]: DEFAULT_FILTERS[key] });
+  }
+
+  function clearAllFilters() {
+    setSearchInput("");
+    setSearchParams(new URLSearchParams());
+  }
 
   function payloadFromForm() {
     return {
@@ -360,6 +556,7 @@ export default function Customers() {
       credit_limit: toNumber(form.credit_limit),
       notes: form.notes || "",
       pricing_group: form.pricing_group || "retail",
+      assigned_rep_id: form.assigned_rep_id ? Number(form.assigned_rep_id) : null,
     };
   }
 
@@ -383,6 +580,15 @@ export default function Customers() {
       await load();
     } catch (error) {
       console.error("Save customer error:", error);
+
+      // The server was reached and rejected the request (RBAC, validation,
+      // duplicate, ...) - retrying later would fail identically, so this
+      // must NOT be queued offline. Surface the real reason immediately;
+      // the form is left as-is so the user can fix it and resubmit.
+      if (!isNetworkError(error)) {
+        alert(translateApiError(error.message, language) || (fa ? "خطا در ذخیره طرف‌حساب" : language === "ar" ? "خطأ في حفظ الطرف" : language === "tr" ? "Cari kaydedilirken hata oluştu" : "Error saving party"));
+        return;
+      }
 
       const current = Array.isArray(parties) ? [...parties] : [];
 
@@ -536,6 +742,16 @@ export default function Customers() {
     } catch (error) {
       console.error("Delete customer error:", error);
 
+      // The server was reached and rejected the delete (linked invoices,
+      // RBAC, ...) - hiding the party locally while claiming it was
+      // "removed from offline cache" would be misleading since it still
+      // exists on the server. Only a genuine connectivity failure should
+      // fall back to a local-only removal.
+      if (!isNetworkError(error)) {
+        alert(translateApiError(error.message, language) || (fa ? "خطا در حذف طرف‌حساب" : language === "ar" ? "خطأ في حذف الطرف" : language === "tr" ? "Cari silinirken hata oluştu" : "Error deleting party"));
+        return;
+      }
+
       const filteredItems = parties.filter((item) => String(item.id) !== String(id));
       await saveCache(filteredItems);
 
@@ -547,8 +763,8 @@ export default function Customers() {
       setOfflineMode(true);
       setMessage(
         fa
-          ? "سرور در دسترس نبود یا حذف آنلاین انجام نشد؛ طرف‌حساب فقط از حافظه آفلاین حذف شد."
-          : "Server unavailable or online delete failed; party removed from offline cache only."
+          ? "سرور در دسترس نبود؛ طرف‌حساب فقط از حافظه آفلاین حذف شد."
+          : "Server unavailable; party removed from offline cache only."
       );
     }
   }
@@ -612,13 +828,118 @@ export default function Customers() {
       .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
       .join("\n");
 
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "vetrix-crm-customers.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  const exportLabels = {
+    button: fa ? "گزارش" : ar ? "تقرير" : tr ? "Rapor" : "Report",
+    pdf: fa ? "خروجی PDF" : ar ? "تصدير PDF" : tr ? "PDF olarak indir" : "Export PDF",
+    excel: fa ? "خروجی Excel" : ar ? "تصدير Excel" : tr ? "Excel olarak indir" : "Export Excel",
+    csv: fa ? "خروجی CRM (CSV)" : ar ? "تصدير CRM (CSV)" : tr ? "CRM dışa aktar (CSV)" : "CRM export (CSV)",
+    scopeAll: fa ? "شامل همه رکوردها (نه فقط فیلترشده)" : ar ? "جميع السجلات (وليس فقط المصفّاة)" : tr ? "Tüm kayıtlar (yalnızca filtrelenenler değil)" : "All records (not just filtered)",
+  };
+
+  function filtersLabel() {
+    return activeChips.map((chip) => chip.label).join(" | ") || (fa ? "بدون فیلتر" : ar ? "بدون فلاتر" : tr ? "Filtre yok" : "No filters");
+  }
+
+  const reportTitle = fa ? "فهرست طرف‌حساب‌ها" : ar ? "قائمة الأطراف" : tr ? "Cari listesi" : "Customers list";
+  const headerLabels = {
+    row: fa ? "ردیف" : ar ? "#" : tr ? "#" : "#",
+    name: fa ? "نام" : ar ? "الاسم" : tr ? "Ad" : "Name",
+    type: t("partyType"),
+    phone: t("phone"),
+    city: fa ? "شهر" : ar ? "المدينة" : tr ? "Şehir" : "City",
+    debtor: t("debtor"),
+    creditor: t("creditor"),
+    balance: t("balance"),
+    balanceStatus: fa ? "وضعیت مانده" : ar ? "حالة الرصيد" : tr ? "Bakiye durumu" : "Balance status",
+    score: fa ? "امتیاز CRM" : ar ? "درجة CRM" : tr ? "CRM puanı" : "CRM score",
+    status: fa ? "وضعیت پیگیری" : ar ? "حالة المتابعة" : tr ? "Takip durumu" : "Follow-up status",
+    lastActivity: fa ? "تاریخ ایجاد" : ar ? "تاريخ الإنشاء" : tr ? "Oluşturulma tarihi" : "Created at",
+  };
+
+  async function runExport(kind) {
+    const rowsSource = exportAllScope ? parties : filtered;
+    if (!rowsSource.length) {
+      alert(fa ? "رکوردی برای خروجی گرفتن وجود ندارد" : ar ? "لا توجد سجلات للتصدير" : tr ? "Dışa aktarılacak kayıt yok" : "No records to export");
+      return;
+    }
+    setExportBusy(true);
+    setExportMenuOpen(false);
+    try {
+      const headers = [
+        headerLabels.row, headerLabels.name, headerLabels.type, headerLabels.phone, headerLabels.city,
+        headerLabels.debtor, headerLabels.creditor, headerLabels.balance, headerLabels.balanceStatus,
+        headerLabels.score, headerLabels.status, headerLabels.lastActivity,
+      ];
+      const now = new Date().toISOString().slice(0, 16).replace("T", "_").replace(":", "");
+
+      if (kind === "pdf") {
+        const rows = rowsSource.map((item, index) => {
+          const status = crmStatus(item, language);
+          return [
+            String(index + 1),
+            item.name || "-",
+            partyTypeLabel(item.party_type || item.customer_type),
+            item.phone || item.mobile || "-",
+            item.city || "-",
+            money(debtorOf(item)),
+            money(creditorOf(item)),
+            money(Math.abs(balanceOf(item))),
+            balanceLabel(balanceOf(item), language),
+            n(crmScore(item)),
+            status.label,
+            item.created_at ? String(item.created_at).slice(0, 10) : "-",
+          ];
+        });
+        await exportCustomersListPdf(
+          { headers, rows, title: reportTitle, subtitle: exportAllScope ? undefined : filtersLabel(), filters_label: exportAllScope ? undefined : filtersLabel(), language },
+          `vetrix-customers-${now}.pdf`
+        );
+      } else {
+        const numericColumns = [0, 5, 6, 7, 9];
+        const rows = rowsSource.map((item, index) => {
+          const status = crmStatus(item, language);
+          return [
+            index + 1,
+            item.name || "-",
+            partyTypeLabel(item.party_type || item.customer_type),
+            item.phone || item.mobile || "-",
+            item.city || "-",
+            debtorOf(item),
+            creditorOf(item),
+            Math.abs(balanceOf(item)),
+            balanceLabel(balanceOf(item), language),
+            crmScore(item),
+            status.label,
+            item.created_at ? String(item.created_at).slice(0, 10) : "-",
+          ];
+        });
+        await exportCustomersListExcel(
+          { headers, rows, numeric_columns: numericColumns, title: reportTitle, language, column_widths: [7, 24, 14, 16, 14, 16, 16, 16, 14, 10, 20, 14] },
+          `vetrix-customers-${now}.xlsx`
+        );
+      }
+    } catch (error) {
+      alert(error.message || (fa ? "خروجی گرفتن ناموفق بود" : ar ? "فشل التصدير" : tr ? "Dışa aktarma başarısız oldu" : "Export failed"));
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  function openCustomer(id, event) {
+    if (event) {
+      const interactive = event.target.closest("a,button,input,select,textarea,[data-stop-row-click]");
+      if (interactive) return;
+    }
+    navigate(`/customers/${id}/360`);
   }
 
   return (
@@ -638,12 +959,8 @@ export default function Customers() {
             {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
           </Button>
 
-          <Button
-            icon={Download}
-            onClick={exportCrmCsv}
-            style={{ color: "var(--erp-success)", background: "var(--erp-success-soft)" }}
-          >
-            {fa ? "خروجی CRM" : language === "ar" ? "تصدير CRM" : language === "tr" ? "CRM Dışa Aktar" : "CRM Export"}
+          <Button variant="secondary" icon={Download} onClick={exportCrmCsv}>
+            {exportLabels.csv}
           </Button>
 
           <Button variant="danger" icon={AlertTriangle} onClick={resetAllAccounting}>
@@ -669,45 +986,64 @@ export default function Customers() {
         </Notice>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-5">
+      <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
         <SummaryCard
           icon={<Wallet size={22} />}
           title={t("debtor")}
-          value={money(summary.totalDebtor)}
+          value={summary.totalDebtor}
           colorClassName="text-[var(--erp-danger)]"
+          onClick={() => applyCardFilter({ bal: "debtor" })}
+          active={filters.bal === "debtor"}
+          ariaLabel={fa ? "نمایش فقط طرف‌حساب‌های بدهکار" : "Show debtors only"}
         />
         <SummaryCard
           icon={<Wallet size={22} />}
           title={t("creditor")}
-          value={money(summary.totalCreditor)}
+          value={summary.totalCreditor}
           colorClassName="text-[var(--erp-success)]"
+          onClick={() => applyCardFilter({ bal: "creditor" })}
+          active={filters.bal === "creditor"}
+          ariaLabel={fa ? "نمایش فقط طرف‌حساب‌های بستانکار" : "Show creditors only"}
         />
         <SummaryCard
           icon={<Building2 size={22} />}
           title={t("balance")}
-          value={`${money(Math.abs(summary.totalBalance))} ${balanceLabel(
-            summary.totalBalance,
-            language
-          )}`}
+          value={Math.abs(summary.totalBalance)}
+          suffix={balanceLabel(summary.totalBalance, language)}
           color="var(--erp-accent)"
+          onClick={() => applyCardFilter({ bal: "has_balance" })}
+          active={filters.bal === "has_balance"}
+          ariaLabel={fa ? "نمایش طرف‌حساب‌های دارای مانده" : "Show parties with a balance"}
         />
         <SummaryCard
           icon={<Crown size={22} />}
           title={fa ? "مشتریان VIP" : language === "ar" ? "عملاء VIP" : language === "tr" ? "VIP müşteriler" : "VIP customers"}
-          value={n(summary.vipCount)}
+          value={summary.vipCount}
+          isCount
           color="#fde047"
+          onClick={() => applyCardFilter({ crm: "vip" })}
+          active={filters.crm === "vip"}
+          ariaLabel={fa ? "نمایش فقط مشتریان VIP" : "Show VIP customers only"}
         />
         <SummaryCard
           icon={<PhoneCall size={22} />}
           title={fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Need follow-up"}
-          value={n(summary.followupCount)}
+          value={summary.followupCount}
+          isCount
           color="var(--erp-warning)"
+          onClick={() => applyCardFilter({ crm: "followup" })}
+          active={filters.crm === "followup"}
+          ariaLabel={fa ? "نمایش پرونده‌های نیازمند پیگیری" : "Show parties needing follow-up"}
         />
         <SummaryCard
           icon={<ShieldCheck size={22} />}
           title={fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk"}
-          value={n(summary.riskCount)}
+          value={summary.riskCount}
+          isCount
           color="var(--erp-danger)"
+          onClick={() => applyCardFilter({ crm: "risk" })}
+          active={filters.crm === "risk"}
+          ariaLabel={fa ? "نمایش طرف‌حساب‌های دارای ریسک اعتباری" : "Show parties with credit risk"}
         />
       </div>
 
@@ -715,7 +1051,6 @@ export default function Customers() {
         fa={fa}
         language={language}
         n={n}
-        money={money}
         parties={parties}
         summary={summary}
       />
@@ -747,6 +1082,16 @@ export default function Customers() {
           >
             <option value="retail">{fa ? "خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة" : language === "tr" ? "Perakende" : "Retail"}</option>
             <option value="wholesale">{fa ? "عمده‌فروشی" : language === "ar" ? "بيع بالجملة" : language === "tr" ? "Toptan" : "Wholesale"}</option>
+          </Select>
+
+          <Select
+            value={form.assigned_rep_id || ""}
+            onChange={(e) => setForm({ ...form, assigned_rep_id: e.target.value })}
+          >
+            <option value="">{fa ? "بدون کارشناس فروش" : language === "ar" ? "بدون مندوب مبيعات" : language === "tr" ? "Satış temsilcisi yok" : "No sales rep"}</option>
+            {salesReps.map((rep) => (
+              <option key={rep.id} value={rep.id}>{rep.full_name || rep.username}</option>
+            ))}
           </Select>
 
           <Input
@@ -862,33 +1207,55 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
-        <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] px-4 py-3 mb-6">
-          <Search size={20} className="text-[var(--erp-accent)]" />
+      <div ref={tableTopRef} className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
+        <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] px-4 py-3 mb-3">
+          <Search size={20} className="text-[var(--erp-accent)] shrink-0" />
 
           <input
-            value={faText(search, fa)}
-            onChange={(e) => setSearch(faText(e.target.value, fa))}
-            placeholder={t("searchCustomer")}
+            value={faText(searchInput, fa)}
+            onChange={(e) => setSearchInput(faText(e.target.value, fa))}
+            placeholder={
+              fa
+                ? "جستجو بر اساس نام، تلفن، کد ملی، کد اقتصادی، ایمیل یا شهر..."
+                : ar
+                ? "بحث بالاسم أو الهاتف أو الرقم الضريبي أو البريد أو المدينة..."
+                : tr
+                ? "Ad, telefon, vergi no, e-posta veya şehre göre ara..."
+                : "Search by name, phone, national ID, tax code, email or city..."
+            }
             className="bg-transparent outline-none flex-1 min-w-[220px] text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
 
           <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            value={filters.type}
+            onChange={(e) => patchFilters({ type: e.target.value })}
             className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
-            <option value="all">{fa ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"}</option>
+            <option value="all">{fa ? "همه انواع" : language === "ar" ? "كل الأنواع" : language === "tr" ? "Tüm türler" : "All types"}</option>
             <option value="customer">{t("customerParty")}</option>
             <option value="supplier">{t("supplierParty")}</option>
+            <option value="partner">{t("partnerParty")}</option>
             <option value="staff">{t("staffParty")}</option>
             <option value="company">{t("companyParty")}</option>
             <option value="doctor">{t("doctorParty")}</option>
+            <option value="other">{t("otherParty")}</option>
           </select>
 
           <select
-            value={crmFilter}
-            onChange={(e) => setCrmFilter(e.target.value)}
+            value={filters.bal}
+            onChange={(e) => patchFilters({ bal: e.target.value })}
+            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
+          >
+            <option value="all">{fa ? "همه وضعیت مالی" : ar ? "كل الحالات المالية" : tr ? "Tüm bakiyeler" : "All balances"}</option>
+            <option value="debtor">{fa ? "فقط بدهکار" : ar ? "مدين فقط" : tr ? "Sadece borçlu" : "Debtors only"}</option>
+            <option value="creditor">{fa ? "فقط بستانکار" : ar ? "دائن فقط" : tr ? "Sadece alacaklı" : "Creditors only"}</option>
+            <option value="zero">{fa ? "بی‌حساب / صفر" : ar ? "بدون رصيد" : tr ? "Sıfır bakiye" : "Zero balance"}</option>
+            <option value="has_balance">{fa ? "دارای مانده" : ar ? "لديه رصيد" : tr ? "Bakiyesi olan" : "Has balance"}</option>
+          </select>
+
+          <select
+            value={filters.crm}
+            onChange={(e) => patchFilters({ crm: e.target.value })}
             className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
             <option value="all">{fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM"}</option>
@@ -899,31 +1266,160 @@ export default function Customers() {
           </select>
 
           <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value)}
+            value={filters.phoneHas}
+            onChange={(e) => patchFilters({ phoneHas: e.target.value })}
             className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
           >
-            <option value="score_desc">{fa ? "امتیاز بیشتر" : language === "ar" ? "أعلى درجة" : language === "tr" ? "En yüksek puan" : "Top score"}</option>
-            <option value="debt_desc">{fa ? "بدهی بیشتر" : language === "ar" ? "أعلى دين" : language === "tr" ? "En yüksek borç" : "Highest debt"}</option>
-            <option value="credit_desc">{fa ? "بستانکاری بیشتر" : language === "ar" ? "أعلى رصيد دائن" : language === "tr" ? "En yüksek alacak" : "Highest credit"}</option>
-            <option value="name_asc">{fa ? "نام" : language === "ar" ? "الاسم" : language === "tr" ? "Ad" : "Name"}</option>
+            <option value="all">{fa ? "شماره تماس: همه" : ar ? "رقم الهاتف: الكل" : tr ? "Telefon: hepsi" : "Phone: all"}</option>
+            <option value="yes">{fa ? "دارای شماره تماس" : ar ? "لديه رقم" : tr ? "Numarası var" : "Has phone"}</option>
+            <option value="no">{fa ? "بدون شماره تماس" : ar ? "بلا رقم" : tr ? "Numarası yok" : "No phone"}</option>
           </select>
+
+          {cityOptions.length > 0 && (
+            <select
+              value={filters.city}
+              onChange={(e) => patchFilters({ city: e.target.value })}
+              className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
+            >
+              <option value="all">{fa ? "همه شهرها" : ar ? "كل المدن" : tr ? "Tüm şehirler" : "All cities"}</option>
+              {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
+            </select>
+          )}
+
+          {user && (
+            <button
+              type="button"
+              onClick={() => setMyOnly((v) => !v)}
+              className={`px-4 py-2 rounded-[var(--erp-radius-sm)] font-black text-sm ${myOnly ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-bg-soft)] text-[var(--erp-text)]"}`}
+            >
+              {fa ? "مشتریان من" : language === "ar" ? "عملائي" : language === "tr" ? "Müşterilerim" : "My customers"}
+            </button>
+          )}
+
+          <div className="relative ms-auto" ref={exportMenuRef}>
+            <Button
+              variant="secondary"
+              icon={Download}
+              onClick={() => setExportMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              loading={exportBusy}
+            >
+              {exportLabels.button}
+              <ChevronDown size={14} />
+            </Button>
+            {exportMenuOpen && (
+              <div
+                role="menu"
+                className="absolute z-20 mt-2 min-w-[260px] rounded-[var(--erp-radius-md)] border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] shadow-2xl p-2"
+                style={{ insetInlineEnd: 0 }}
+              >
+                <label className="flex items-center gap-2 px-2 py-2 text-sm text-[var(--erp-text)] cursor-pointer">
+                  <input type="checkbox" checked={exportAllScope} onChange={(e) => setExportAllScope(e.target.checked)} />
+                  {exportLabels.scopeAll}
+                </label>
+                <div className="h-px bg-[var(--erp-border)] my-1" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => runExport("pdf")}
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-[var(--erp-radius-sm)] text-sm text-[var(--erp-text)] hover:bg-[var(--erp-glow)]"
+                >
+                  <FileText size={16} className="text-[var(--erp-accent)]" />
+                  {exportLabels.pdf}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => runExport("excel")}
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-[var(--erp-radius-sm)] text-sm text-[var(--erp-text)] hover:bg-[var(--erp-glow)]"
+                >
+                  <FileSpreadsheet size={16} className="text-emerald-400" />
+                  {exportLabels.excel}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Filter size={14} className="text-[var(--erp-muted)]" />
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder={fa ? "حداقل مانده" : ar ? "الحد الأدنى للرصيد" : tr ? "En az bakiye" : "Min balance"}
+              value={filters.balMin}
+              onChange={(e) => patchFilters({ balMin: normalizeNumberInput(e.target.value, false) })}
+              className="!w-32"
+            />
+            <span className="text-[var(--erp-muted)]">-</span>
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder={fa ? "حداکثر مانده" : ar ? "الحد الأقصى للرصيد" : tr ? "En çok bakiye" : "Max balance"}
+              value={filters.balMax}
+              onChange={(e) => patchFilters({ balMax: normalizeNumberInput(e.target.value, false) })}
+              className="!w-32"
+            />
+          </div>
+
+          {activeChips.map((chip) => (
+            <Badge
+              key={chip.key}
+              tone="info"
+              className="cursor-pointer erp-focus"
+              tabIndex={0}
+              role="button"
+              aria-label={fa ? `حذف فیلتر ${chip.label}` : `Remove filter ${chip.label}`}
+              onClick={() => removeChip(chip.key)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                removeChip(chip.key);
+              }}
+            >
+              {chip.label}
+              <X size={12} />
+            </Badge>
+          ))}
+
+          {activeChips.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs font-bold text-[var(--erp-danger)] underline underline-offset-2"
+            >
+              {fa ? "پاک‌کردن همه فیلترها" : ar ? "مسح كل الفلاتر" : tr ? "Tüm filtreleri temizle" : "Clear all filters"}
+            </button>
+          )}
+
+          <span className="text-xs text-[var(--erp-muted)] ms-auto">
+            {fa
+              ? `${toPersianDigits(filtered.length)} نتیجه از ${toPersianDigits(parties.length)}`
+              : `${filtered.length} of ${parties.length} results`}
+          </span>
         </div>
 
         <Table>
           <Thead>
-            <Th>{t("party")}</Th>
-            <Th>{fa ? "CRM" : language === "ar" ? "CRM" : language === "tr" ? "CRM" : "CRM"}</Th>
-            <Th>{t("partyType")}</Th>
-            <Th>{t("phone")}</Th>
-            <Th>{t("debtor")}</Th>
-            <Th>{t("creditor")}</Th>
-            <Th>{t("balance")}</Th>
+            <Th className="w-12">{headerLabels.row}</Th>
+            <SortableTh field="name" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("party")}</SortableTh>
+            <Th>{fa ? "CRM" : "CRM"}</Th>
+            <SortableTh field="type" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("partyType")}</SortableTh>
+            <SortableTh field="phone" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("phone")}</SortableTh>
+            <SortableTh field="debtor" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("debtor")}</SortableTh>
+            <SortableTh field="creditor" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("creditor")}</SortableTh>
+            <SortableTh field="balance" sortField={filters.sort} sortDir={filters.dir} onSort={setSort}>{t("balance")}</SortableTh>
             <Th>{t("actions")}</Th>
           </Thead>
 
           <Tbody>
-            {filtered.map((item) => {
+            {loading && paged.length === 0 && (
+              Array.from({ length: 6 }).map((_, index) => <SkeletonRow key={index} />)
+            )}
+
+            {paged.map((item, index) => {
               const balance = balanceOf(item);
               const debtor = debtorOf(item);
               const creditor = creditorOf(item);
@@ -931,9 +1427,22 @@ export default function Customers() {
               const rank = crmRank(score);
               const status = crmStatus(item, language);
               const tags = crmTags(item, language);
+              const rowNumber = pageStart + index + 1;
 
               return (
-                <Tr key={item.id}>
+                <Tr
+                  key={item.id}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={fa ? `باز کردن پرونده ${item.name}` : `Open ${item.name}'s profile`}
+                  onClick={(event) => openCustomer(item.id, event)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") openCustomer(item.id, event);
+                  }}
+                  className="cursor-pointer erp-focus"
+                  style={{ borderBottom: "1px solid var(--erp-border)" }}
+                >
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(rowNumber)}</Td>
                   <Td className="font-black">
                     <div>
                       {faText(item.name, fa)}
@@ -959,8 +1468,8 @@ export default function Customers() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {tags.map((tag, index) => (
-                        <Badge key={index} tone="neutral">{tag}</Badge>
+                      {tags.map((tag, tagIndex) => (
+                        <Badge key={tagIndex} tone="neutral">{tag}</Badge>
                       ))}
                     </div>
                   </Td>
@@ -971,16 +1480,16 @@ export default function Customers() {
 
                   <Td>{faText(item.phone || item.mobile || "-", fa)}</Td>
 
-                  <Td style={{ color: "var(--erp-danger)" }} className="font-black">
-                    {money(debtor)}
+                  <Td>
+                    <MoneyDisplay value={debtor} tone="var(--erp-danger)" fontSize="clamp(12px,1.1vw,14px)" className="font-black" />
                   </Td>
 
-                  <Td style={{ color: "var(--erp-success)" }} className="font-black">
-                    {money(creditor)}
+                  <Td>
+                    <MoneyDisplay value={creditor} tone="var(--erp-success)" fontSize="clamp(12px,1.1vw,14px)" className="font-black" />
                   </Td>
 
-                  <Td className="font-black" style={{ color: "var(--erp-accent)" }}>
-                    {money(Math.abs(balance))}
+                  <Td>
+                    <MoneyDisplay value={Math.abs(balance)} tone="var(--erp-accent)" fontSize="clamp(12px,1.1vw,14px)" className="font-black" />
                     <div className="text-xs font-normal" style={{ color: "var(--erp-muted)" }}>
                       {balanceLabel(balance, language)}
                     </div>
@@ -993,18 +1502,19 @@ export default function Customers() {
                     </div>
                     <div className="flex gap-2 flex-wrap">
                       <Link
-                        to={`/customers/${item.id}`}
+                        to={`/customers/${item.id}/360`}
+                        data-stop-row-click
                         className="px-3 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-[var(--erp-radius-sm)] flex items-center gap-1"
                       >
                         <Eye size={15} />
                         {fa ? "پرونده ۳۶۰°" : language === "ar" ? "ملف 360°" : language === "tr" ? "360° Profil" : "360° Profile"}
                       </Link>
 
-                      <Button variant="ghost" size="sm" icon={Edit3} onClick={() => edit(item)}>
+                      <Button variant="ghost" size="sm" icon={Edit3} data-stop-row-click onClick={() => edit(item)}>
                         {t("edit")}
                       </Button>
 
-                      <Button variant="danger" size="sm" icon={Trash2} onClick={() => remove(item.id)}>
+                      <Button variant="danger" size="sm" icon={Trash2} data-stop-row-click onClick={() => remove(item.id)}>
                         {t("delete")}
                       </Button>
                     </div>
@@ -1014,19 +1524,79 @@ export default function Customers() {
             })}
 
             {!loading && filtered.length === 0 && (
-              <EmptyRow colSpan={8}>
-                {fa ? "طرف‌حسابی ثبت نشده است" : language === "ar" ? "لا يوجد أطراف حساب" : language === "tr" ? "Cari bulunamadı" : "No parties found"}
+              <EmptyRow colSpan={9}>
+                {parties.length === 0
+                  ? (fa ? "طرف‌حسابی ثبت نشده است" : language === "ar" ? "لا يوجد أطراف حساب" : language === "tr" ? "Cari bulunamadı" : "No parties found")
+                  : (
+                    <span className="flex flex-col items-center gap-2">
+                      {fa ? "با این فیلترها موردی یافت نشد." : ar ? "لا توجد نتائج بهذه الفلاتر." : tr ? "Bu filtrelerle sonuç bulunamadı." : "No results match these filters."}
+                      <button type="button" onClick={clearAllFilters} className="text-[var(--erp-accent)] underline underline-offset-2 text-xs font-bold">
+                        {fa ? "پاک‌کردن فیلترها" : ar ? "مسح الفلاتر" : tr ? "Filtreleri temizle" : "Clear filters"}
+                      </button>
+                    </span>
+                  )}
               </EmptyRow>
             )}
           </Tbody>
         </Table>
+
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[var(--erp-border)]">
+            <div className="flex items-center gap-2 text-sm text-[var(--erp-muted)]">
+              <span>{fa ? "ردیف در هر صفحه:" : ar ? "صفوف لكل صفحة:" : tr ? "Sayfa başına satır:" : "Rows per page:"}</span>
+              <select
+                value={String(pageSize)}
+                onChange={(e) => patchFilters({ size: e.target.value })}
+                className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-1.5 outline-none text-[var(--erp-text)]"
+              >
+                {PAGE_SIZES.map((size) => <option key={size} value={size}>{n(size)}</option>)}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPage(page - 1)}
+                disabled={page <= 1}
+                className="p-2 rounded-[var(--erp-radius-sm)] bg-[var(--erp-panel-solid)] text-[var(--erp-text)] disabled:opacity-40 erp-focus"
+                aria-label={fa ? "صفحه قبل" : "Previous page"}
+              >
+                {dir === "rtl" ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
+              <span className="text-sm text-[var(--erp-text)] font-bold">
+                {fa ? `صفحه ${toPersianDigits(page)} از ${toPersianDigits(pageCount)}` : `Page ${page} of ${pageCount}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= pageCount}
+                className="p-2 rounded-[var(--erp-radius-sm)] bg-[var(--erp-panel-solid)] text-[var(--erp-text)] disabled:opacity-40 erp-focus"
+                aria-label={fa ? "صفحه بعد" : "Next page"}
+              >
+                {dir === "rtl" ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+function SkeletonRow() {
+  return (
+    <Tr>
+      {Array.from({ length: 9 }).map((_, index) => (
+        <Td key={index}>
+          <div className="h-4 rounded bg-[var(--erp-panel-solid)] animate-pulse" style={{ width: `${50 + (index % 3) * 15}%` }} />
+        </Td>
+      ))}
+    </Tr>
+  );
+}
 
-function CrmOverview({ fa, language, n, money, parties, summary }) {
+function CrmOverview({ fa, language, n, parties, summary }) {
+  const navigate = useNavigate();
   const ar = language === "ar";
   const tr = language === "tr";
   const topCustomers = [...parties]
@@ -1058,53 +1628,103 @@ function CrmOverview({ fa, language, n, money, parties, summary }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        {topCustomers.map((item) => {
-          const score = crmScore(item);
-          const rank = crmRank(score);
-          const status = crmStatus(item, language);
-          return (
-            <div key={item.id} className="rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="font-black text-[var(--erp-text)] truncate">{item.name || "-"}</div>
-                <Badge tone={rank.tone}>{rank.key}</Badge>
+      {topCustomers.length === 0 ? (
+        <EmptyState
+          message={fa ? "هنوز مشتری ثبت نشده است." : ar ? "لا يوجد عملاء بعد." : tr ? "Henüz müşteri yok." : "No customers yet."}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {topCustomers.map((item) => {
+            const score = crmScore(item);
+            const rank = crmRank(score);
+            const status = crmStatus(item, language);
+            const hasValidId = item.id !== undefined && item.id !== null;
+
+            return (
+              <div
+                key={item.id ?? item.name}
+                role="button"
+                tabIndex={hasValidId ? 0 : -1}
+                aria-label={fa ? `باز کردن پرونده ${item.name}` : `Open ${item.name}'s profile`}
+                onClick={() => {
+                  if (!hasValidId) return alert(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
+                  navigate(`/customers/${item.id}/360`);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  if (!hasValidId) return alert(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
+                  navigate(`/customers/${item.id}/360`);
+                }}
+                className={`rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 text-start w-full erp-focus ${hasValidId ? "cursor-pointer hover:border-[var(--erp-accent)]" : "cursor-not-allowed opacity-60"}`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="font-black text-[var(--erp-text)] truncate">{item.name || "-"}</div>
+                  <Badge tone={rank.tone}>{rank.key}</Badge>
+                </div>
+                <div className="text-xs text-[var(--erp-muted)] mb-3">{faText(item.phone || item.mobile, fa) || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
+                <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-3">
+                  <div className="h-full" style={{ width: `${score}%`, background: "var(--erp-accent)" }} />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                  <MoneyDisplay value={Math.abs(toNumber(item.balance))} className="font-bold text-[var(--erp-muted)]" fontSize="12px" />
+                </div>
               </div>
-              <div className="text-xs text-[var(--erp-muted)] mb-3">{faText(item.phone || item.mobile, fa) || (fa ? "بدون شماره" : ar ? "بلا رقم" : tr ? "Numara yok" : "No phone")}</div>
-              <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-3">
-                <div className="h-full" style={{ width: `${score}%`, background: "var(--erp-accent)" }} />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <Badge tone={status.tone}>{status.label}</Badge>
-                <span className="text-[var(--erp-muted)] font-bold">{money(Math.abs(toNumber(item.balance)))}</span>
-              </div>
-            </div>
-          );
-        })}
-        {topCustomers.length === 0 && (
-          <div className="text-[var(--erp-muted)] col-span-full">
-            {fa ? "هنوز مشتری ثبت نشده است." : ar ? "لا يوجد عملاء بعد." : tr ? "Henüz müşteri yok." : "No customers yet."}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-function SummaryCard({ icon, title, value, color, colorClassName }) {
+function EmptyState({ message }) {
+  return <div className="text-[var(--erp-muted)] col-span-full text-center py-6">{message}</div>;
+}
+
+function SummaryCard({ icon, title, value, suffix, color, colorClassName, isCount, onClick, active, ariaLabel }) {
   return (
-    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-6 shadow-2xl">
-      <div className="flex justify-between items-center">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onClick?.();
+      }}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      className="bg-[var(--erp-bg-soft)] border rounded-[var(--erp-radius-lg)] p-6 shadow-2xl cursor-pointer transition-colors erp-focus hover:border-[var(--erp-accent)]"
+      style={{ borderColor: active ? "var(--erp-accent)" : "var(--erp-border)" }}
+    >
+      <div className="flex justify-between items-center gap-3 flex-wrap">
         <div>
           <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
-          <div className={`text-2xl font-black mt-3${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
-            {value}
+          <div className={`mt-3 font-black${colorClassName ? ` ${colorClassName}` : ""}`}>
+            {isCount ? (
+              <span style={{ fontVariantNumeric: "tabular-nums", fontSize: "clamp(18px, 2vw, 26px)", color }}>
+                <NumberOnly value={value} />
+              </span>
+            ) : (
+              <span className="flex flex-wrap items-baseline gap-1">
+                <MoneyDisplay value={value} style={colorClassName ? undefined : { color }} />
+                {suffix && <span className="text-xs font-normal" style={{ color: "var(--erp-muted)" }}>{suffix}</span>}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="w-12 h-12 rounded-[var(--erp-radius-md)] flex items-center justify-center bg-[var(--erp-glow)] text-[var(--erp-accent)]">
+        <div className="w-12 h-12 shrink-0 rounded-[var(--erp-radius-md)] flex items-center justify-center bg-[var(--erp-glow)] text-[var(--erp-accent)]">
           {icon}
         </div>
       </div>
     </div>
   );
+}
+
+function NumberOnly({ value }) {
+  const { n } = useLanguage();
+  return n(value);
 }

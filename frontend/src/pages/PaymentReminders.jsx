@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, BellRing, Send } from "lucide-react";
+import { AlertTriangle, BellRing, MessageCircle, Send } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -8,7 +8,26 @@ import {
   getPaymentReminderLog,
   getPaymentReminderStatus,
   sendPaymentReminderNow,
+  getWhatsappReminderLink,
+  getSettings,
+  isNetworkError,
 } from "../services/api";
+import { translateApiError } from "../localization/apiErrors";
+
+function connectionErrorText(language) {
+  return language === "fa"
+    ? "اتصال به سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید."
+    : language === "ar"
+    ? "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت."
+    : language === "tr"
+    ? "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin."
+    : "Could not connect to the server. Check your internet connection.";
+}
+
+function friendlyError(err, language) {
+  if (isNetworkError(err)) return connectionErrorText(language);
+  return translateApiError(err.message, language) || err.message;
+}
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 
@@ -17,6 +36,7 @@ const STATUS_STYLES = {
   failed: "bg-red-500/15 text-red-200",
   skipped_not_configured: "bg-[var(--erp-panel-solid)] text-[var(--erp-muted)]",
   skipped_no_email: "bg-amber-500/15 text-amber-200",
+  link_opened: "bg-emerald-500/20 text-emerald-200",
 };
 
 const STATUS_LABELS_FA = {
@@ -24,6 +44,7 @@ const STATUS_LABELS_FA = {
   failed: "ناموفق",
   skipped_not_configured: "پیکربندی نشده",
   skipped_no_email: "بدون ایمیل",
+  link_opened: "لینک واتساپ باز شد",
 };
 
 const STATUS_LABELS_EN = {
@@ -31,6 +52,7 @@ const STATUS_LABELS_EN = {
   failed: "Failed",
   skipped_not_configured: "Not configured",
   skipped_no_email: "No email",
+  link_opened: "WhatsApp link opened",
 };
 
 const STATUS_LABELS_AR = {
@@ -38,6 +60,7 @@ const STATUS_LABELS_AR = {
   failed: "فشل",
   skipped_not_configured: "غير مُهيّأ",
   skipped_no_email: "بدون بريد إلكتروني",
+  link_opened: "تم فتح رابط واتساب",
 };
 
 const STATUS_LABELS_TR = {
@@ -45,7 +68,23 @@ const STATUS_LABELS_TR = {
   failed: "Başarısız",
   skipped_not_configured: "Yapılandırılmadı",
   skipped_no_email: "E-posta yok",
+  link_opened: "WhatsApp bağlantısı açıldı",
 };
+
+const TIER_STYLES = {
+  friendly: "bg-cyan-500/15 text-cyan-200",
+  firm: "bg-amber-500/15 text-amber-200",
+  urgent: "bg-red-500/20 text-red-200",
+};
+
+function tierLabel(tier, language) {
+  const labels = {
+    friendly: { fa: "تازه معوق", ar: "متأخرة حديثًا", tr: "Yeni gecikti", en: "Just overdue" },
+    firm: { fa: "بیش از یک هفته", ar: "أكثر من أسبوع", tr: "Bir haftadan fazla", en: "Over a week" },
+    urgent: { fa: "بیش از یک ماه - فوری", ar: "أكثر من شهر - عاجل", tr: "Bir aydan fazla - acil", en: "Over a month - urgent" },
+  };
+  return (labels[tier] || labels.friendly)[language] || (labels[tier] || labels.friendly).en;
+}
 
 function statusLabelsFor(language) {
   if (language === "fa") return STATUS_LABELS_FA;
@@ -105,20 +144,25 @@ export default function PaymentReminders() {
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState(null);
+  const [whatsappId, setWhatsappId] = useState(null);
+  const [channelBusyKey, setChannelBusyKey] = useState(null);
+  const [extraChannels, setExtraChannels] = useState([]);
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [statusData, overdueData, logData] = await Promise.all([
+      const [statusData, overdueData, logData, settingsData] = await Promise.all([
         getPaymentReminderStatus(),
         getOverdueInvoices(),
         getPaymentReminderLog(),
+        getSettings().catch(() => null),
       ]);
       setStatus(statusData);
       setOverdue(overdueData.items || []);
       setLog(logData.items || []);
+      setExtraChannels(Array.isArray(settingsData?.reminder_channels) ? settingsData.reminder_channels : []);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(friendlyError(err, language));
     } finally {
       setLoading(false);
     }
@@ -153,9 +197,58 @@ export default function PaymentReminders() {
       }
       await loadAll();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(friendlyError(err, language));
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function handleWhatsapp(invoiceId) {
+    setWhatsappId(invoiceId);
+    try {
+      const result = await getWhatsappReminderLink(invoiceId);
+      if (!result.available) {
+        toast(
+          language === "fa" ? "شماره موبایل یا تلفنی برای این مشتری ثبت نشده است." : language === "ar" ? "لا يوجد رقم هاتف مسجل لهذا العميل." : language === "tr" ? "Bu müşteri için kayıtlı telefon numarası yok." : "This customer has no phone number on file.",
+          { icon: "⚠️" }
+        );
+        return;
+      }
+      window.open(result.url, "_blank", "noreferrer");
+      await loadAll();
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setWhatsappId(null);
+    }
+  }
+
+  // Generic handler for any admin-configured local messenger (Settings >
+  // Reminder channels). Reuses the WhatsApp endpoint purely to get the
+  // customer's phone number + the already-localized reminder message text,
+  // then substitutes {phone}/{message} into that channel's own share-link
+  // template - no separate backend endpoint needed per channel.
+  async function handleChannel(invoiceId, channel) {
+    const key = `${channel.id}:${invoiceId}`;
+    setChannelBusyKey(key);
+    try {
+      const result = await getWhatsappReminderLink(invoiceId);
+      if (!result.available) {
+        toast(
+          language === "fa" ? "شماره موبایل یا تلفنی برای این مشتری ثبت نشده است." : language === "ar" ? "لا يوجد رقم هاتف مسجل لهذا العميل." : language === "tr" ? "Bu müşteri için kayıtlı telefon numarası yok." : "This customer has no phone number on file.",
+          { icon: "⚠️" }
+        );
+        return;
+      }
+      const url = channel.link_template
+        .replace("{phone}", encodeURIComponent(result.number))
+        .replace("{message}", encodeURIComponent(result.message));
+      window.open(url, "_blank", "noreferrer");
+      await loadAll();
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setChannelBusyKey(null);
     }
   }
 
@@ -265,31 +358,59 @@ export default function PaymentReminders() {
             {overdue.map((item) => (
               <div key={item.invoice_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <div>
-                  <div className="font-bold">#{n(item.invoice_id)} — {item.customer_name}</div>
+                  <div className="font-bold flex items-center gap-2">
+                    #{n(item.invoice_id)} — {item.customer_name}
+                    {item.tier && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${TIER_STYLES[item.tier] || TIER_STYLES.friendly}`}>
+                        {tierLabel(item.tier, language)}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-[var(--erp-muted)]">{money(item.remaining_amount)}</div>
                 </div>
-                <button
-                  onClick={() => handleSendNow(item.invoice_id)}
-                  disabled={sendingId === item.invoice_id}
-                  className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
-                >
-                  <Send size={14} />
-                  {sendingId === item.invoice_id
-                    ? language === "fa"
-                      ? "در حال ارسال..."
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleWhatsapp(item.invoice_id)}
+                    disabled={whatsappId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                  >
+                    <MessageCircle size={14} />
+                    {language === "fa" ? "واتساپ" : language === "ar" ? "واتساب" : language === "tr" ? "WhatsApp" : "WhatsApp"}
+                  </button>
+                  {extraChannels.map((channel) => (
+                    <button
+                      key={channel.id}
+                      onClick={() => handleChannel(item.invoice_id, channel)}
+                      disabled={channelBusyKey === `${channel.id}:${item.invoice_id}`}
+                      className="px-3 py-2 rounded-xl bg-cyan-500/15 text-cyan-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                    >
+                      <MessageCircle size={14} />
+                      {channel.name}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => handleSendNow(item.invoice_id)}
+                    disabled={sendingId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-black font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                  >
+                    <Send size={14} />
+                    {sendingId === item.invoice_id
+                      ? language === "fa"
+                        ? "در حال ارسال..."
+                        : language === "ar"
+                        ? "جارٍ الإرسال..."
+                        : language === "tr"
+                        ? "Gönderiliyor..."
+                        : "Sending..."
+                      : language === "fa"
+                      ? "ارسال ایمیل"
                       : language === "ar"
-                      ? "جارٍ الإرسال..."
+                      ? "إرسال بريد إلكتروني"
                       : language === "tr"
-                      ? "Gönderiliyor..."
-                      : "Sending..."
-                    : language === "fa"
-                    ? "ارسال یادآوری"
-                    : language === "ar"
-                    ? "إرسال تذكير"
-                    : language === "tr"
-                    ? "Hatırlatma gönder"
-                    : "Send reminder"}
-                </button>
+                      ? "E-posta gönder"
+                      : "Send email"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

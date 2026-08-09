@@ -8,6 +8,7 @@ import {
   Printer,
   QrCode,
   Truck,
+  Wallet,
   CreditCard,
   Percent,
   Calculator,
@@ -24,6 +25,12 @@ import {
   X,
   ScanBarcode,
   FileCheck2,
+  ArrowRightLeft,
+  TrendingUp,
+  ShoppingCart,
+  FileClock,
+  Undo2,
+  RotateCcw,
 } from "lucide-react";
 
 import {
@@ -40,6 +47,8 @@ import {
   requestInvoicePaymentLink,
   submitInvoiceEinvoice,
   getWarehouses,
+  convertProformaToInvoice,
+  isNetworkError,
 } from "../services/api";
 import toast from "react-hot-toast";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
@@ -47,14 +56,18 @@ import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import { useLanguage } from "../localization/useLanguage";
 import InvoiceSummary from "../invoice/InvoiceSummary";
 import InvoicePrint from "../invoice/InvoicePrint";
+import PaymentPanel from "../invoice/PaymentPanel";
+import PaymentAllocationsModal from "../invoice/PaymentAllocationsModal";
 import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
+import { translateApiError } from "../localization/apiErrors";
 import Button from "../components/ui/Button";
 import IconButton from "../components/ui/IconButton";
 import Notice from "../components/ui/Notice";
 import Badge from "../components/ui/Badge";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
+import JalaliDateField from "../components/forms/JalaliDateField";
 
 
 const CUSTOMERS_CACHE_KEY = "customers";
@@ -96,10 +109,11 @@ function Field({ label, hint, icon, children }) {
 }
 
 export default function Invoices() {
-  const { language, dir, n, money } = useLanguage();
+  const { language, dir, n, money, date } = useLanguage();
   const fa = language === "fa";
   const location = useLocation();
   const navigate = useNavigate();
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   const label = {
     invoiceSystem: fa ? "سیستم فاکتور حرفه‌ای" : language === "ar" ? "نظام الفواتير الاحترافي" : language === "tr" ? "Profesyonel Fatura Sistemi" : "Professional Invoice System",
@@ -122,6 +136,8 @@ export default function Invoices() {
     shippingHint: fa ? "اگر هزینه حمل نداری خالی بگذار" : language === "ar" ? "اتركه فارغًا إذا لم تكن هناك تكلفة شحن" : language === "tr" ? "Kargo ücreti yoksa boş bırakın" : "Leave blank if there is no shipping cost",
     discountPercent: fa ? "درصد تخفیف" : language === "ar" ? "نسبة الخصم" : language === "tr" ? "İskonto Oranı" : "Discount percent",
     taxPercent: fa ? "درصد مالیات" : language === "ar" ? "نسبة الضريبة" : language === "tr" ? "Vergi Oranı" : "Tax percent",
+    paymentTermsDays: fa ? "مهلت پرداخت (روز)" : language === "ar" ? "مهلة السداد (أيام)" : language === "tr" ? "Ödeme Vadesi (gün)" : "Payment terms (days)",
+    dueDate: fa ? "سررسید" : language === "ar" ? "تاريخ الاستحقاق" : language === "tr" ? "Vade Tarihi" : "Due date",
     invoiceQR: fa ? "QR فاکتور فعال باشد" : language === "ar" ? "تفعيل رمز QR للفاتورة" : language === "tr" ? "Fatura QR Kodunu Etkinleştir" : "Enable invoice QR",
     qrHint: fa ? "برای چاپ و رهگیری فاکتور استفاده می‌شود" : language === "ar" ? "يُستخدم لطباعة الفاتورة وتتبعها" : language === "tr" ? "Fatura yazdırma ve takibi için kullanılır" : "Used for invoice print and tracking",
     itemsTitle: fa ? "ردیف‌های کالا / خدمات" : language === "ar" ? "بنود الأصناف / الخدمات" : language === "tr" ? "Ürün / Hizmet Kalemleri" : "Items / Services rows",
@@ -175,6 +191,7 @@ export default function Invoices() {
       ? "Sunucuya bağlanılamadı; faturalar çevrimdışı önbellekten yüklendi."
       : "Server unavailable; invoices loaded from offline cache.",
     createError: fa ? "خطا در ثبت فاکتور" : language === "ar" ? "خطأ في إنشاء الفاتورة" : language === "tr" ? "Fatura oluşturulurken hata oluştu" : "Error creating invoice",
+    loadFailed: fa ? "خطا در دریافت اطلاعات فاکتورها" : language === "ar" ? "خطأ في تحميل بيانات الفواتير" : language === "tr" ? "Fatura verileri yüklenirken hata oluştu" : "Error loading invoice data",
     saleInvoice: fa ? "فاکتور فروش" : language === "ar" ? "فاتورة مبيعات" : language === "tr" ? "Satış Faturası" : "Sales invoice",
     buyInvoice: fa ? "فاکتور خرید" : language === "ar" ? "فاتورة مشتريات" : language === "tr" ? "Alış Faturası" : "Purchase invoice",
     proformaInvoice: fa ? "پیش‌فاکتور" : language === "ar" ? "فاتورة أولية" : language === "tr" ? "Proforma Fatura" : "Proforma invoice",
@@ -183,6 +200,58 @@ export default function Invoices() {
     stock: fa ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock",
     offline: fa ? "آفلاین" : language === "ar" ? "غير متصل" : language === "tr" ? "Çevrimdışı" : "Offline",
   };
+
+  // Each invoice type gets its own accent color, icon and short description
+  // so the type picker below reads as a set of distinct destinations rather
+  // than a plain dropdown - the fields shown further down the form (customer
+  // label, due-date label, item pricing) also key off this.
+  const invoiceTypeConfig = [
+    {
+      value: "sale",
+      label: label.saleInvoice,
+      desc: fa ? "فروش کالا یا خدمات به مشتری" : language === "ar" ? "بيع منتج أو خدمة للعميل" : language === "tr" ? "Müşteriye ürün veya hizmet satışı" : "Sell products or services to a customer",
+      effect: fa ? "موجودی انبار کم می‌شود و سند حسابداری فروش ثبت می‌شود." : language === "ar" ? "ينخفض المخزون ويتم ترحيل قيد محاسبي للبيع." : language === "tr" ? "Stok azalır ve satış muhasebe kaydı oluşturulur." : "Stock decreases and a sales accounting entry is posted.",
+      icon: TrendingUp,
+      accent: "#34d399",
+      soft: "rgba(52,211,153,.14)",
+    },
+    {
+      value: "buy",
+      label: label.buyInvoice,
+      desc: fa ? "خرید کالا از تامین‌کننده" : language === "ar" ? "شراء منتج من مورد" : language === "tr" ? "Tedarikçiden ürün alımı" : "Purchase products from a supplier",
+      effect: fa ? "موجودی انبار افزایش می‌یابد و سند حسابداری خرید ثبت می‌شود." : language === "ar" ? "يزداد المخزون ويتم ترحيل قيد محاسبي للشراء." : language === "tr" ? "Stok artar ve alış muhasebe kaydı oluşturulur." : "Stock increases and a purchase accounting entry is posted.",
+      icon: ShoppingCart,
+      accent: "#38bdf8",
+      soft: "rgba(56,189,248,.14)",
+    },
+    {
+      value: "proforma",
+      label: label.proformaInvoice,
+      desc: fa ? "پیش‌نویس بدون اثر بر انبار یا حساب" : language === "ar" ? "مسودة بدون تأثير على المخزون أو الحساب" : language === "tr" ? "Stok veya hesabı etkilemeyen taslak" : "A draft with no effect on stock or accounts",
+      effect: fa ? "نه موجودی انبار تغییر می‌کند و نه سندی ثبت می‌شود. بعداً می‌توانید به فاکتور فروش واقعی تبدیلش کنید." : language === "ar" ? "لا يتغير المخزون ولا يُرحّل أي قيد. يمكنك لاحقًا تحويلها إلى فاتورة بيع فعلية." : language === "tr" ? "Ne stok değişir ne de kayıt oluşturulur. Daha sonra gerçek satış faturasına dönüştürebilirsiniz." : "Neither stock nor accounts change. You can later convert it into a real sale invoice.",
+      icon: FileClock,
+      accent: "#a78bfa",
+      soft: "rgba(167,139,250,.14)",
+    },
+    {
+      value: "return_sale",
+      label: label.returnSaleInvoice,
+      desc: fa ? "بازگشت کالا از مشتری" : language === "ar" ? "إرجاع منتج من العميل" : language === "tr" ? "Müşteriden ürün iadesi" : "A product returned by a customer",
+      effect: fa ? "موجودی انبار برمی‌گردد و سند اصلاحی برای حساب مشتری ثبت می‌شود." : language === "ar" ? "يعود المخزون ويتم ترحيل قيد تصحيحي لحساب العميل." : language === "tr" ? "Stok geri döner ve müşteri hesabı için düzeltme kaydı oluşturulur." : "Stock is restored and a correcting entry is posted to the customer's account.",
+      icon: Undo2,
+      accent: "#fbbf24",
+      soft: "rgba(251,191,36,.14)",
+    },
+    {
+      value: "return_buy",
+      label: label.returnBuyInvoice,
+      desc: fa ? "بازگشت کالا به تامین‌کننده" : language === "ar" ? "إرجاع منتج إلى المورد" : language === "tr" ? "Tedarikçiye ürün iadesi" : "A product returned to a supplier",
+      effect: fa ? "موجودی انبار کم می‌شود و سند اصلاحی برای حساب تامین‌کننده ثبت می‌شود." : language === "ar" ? "ينخفض المخزون ويتم ترحيل قيد تصحيحي لحساب المورد." : language === "tr" ? "Stok azalır ve tedarikçi hesabı için düzeltme kaydı oluşturulur." : "Stock decreases and a correcting entry is posted to the supplier's account.",
+      icon: RotateCcw,
+      accent: "#fb7185",
+      soft: "rgba(251,113,133,.14)",
+    },
+  ];
 
   const emptyForm = {
     invoice_type: "sale",
@@ -193,6 +262,8 @@ export default function Invoices() {
     payment_status: "unpaid",
     invoice_note: "",
     qr_enabled: true,
+    payment_terms_days: "",
+    due_date: "",
   };
 
   const emptyItem = {
@@ -213,8 +284,10 @@ export default function Invoices() {
   const [selectedCustomerLedger, setSelectedCustomerLedger] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState([{ ...emptyItem }]);
+  const [payments, setPayments] = useState([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [paymentsModalInvoiceId, setPaymentsModalInvoiceId] = useState(null);
 
   async function saveAllCache(payload) {
     await setCache(CUSTOMERS_CACHE_KEY, payload.customers || []);
@@ -246,6 +319,16 @@ export default function Invoices() {
       await saveAllCache(payload);
     } catch (error) {
       console.error("Invoice data loading error:", error);
+
+      // Only fall back to the offline cache when the server was genuinely
+      // unreachable. A real server response (RBAC rejection, validation
+      // error, 500, ...) must be surfaced as-is - silently swapping in
+      // stale cached data would hide a real problem behind a misleading
+      // "offline" banner (see the earlier products-not-saving bug).
+      if (!isNetworkError(error)) {
+        setLoadError(translateApiError(error.message, language) || label.loadFailed);
+        return;
+      }
 
       const cachedCustomers = await getCache(CUSTOMERS_CACHE_KEY);
       const cachedProducts = await getCache(PRODUCTS_CACHE_KEY);
@@ -337,6 +420,16 @@ export default function Invoices() {
     return { subtotal, discountAmount, taxAmount, shippingAmount, grandTotal };
   }, [items, form.discount_percent, form.tax_percent, form.shipping_cost]);
 
+  // Purchase-side invoices (buy / return_buy) should price items at the
+  // product's purchase cost, not its sell price - the two were previously
+  // conflated, silently pre-filling every "buy" invoice with the sell price.
+  function priceForProduct(product) {
+    if (!product) return "";
+    const isBuyType = form.invoice_type === "buy" || form.invoice_type === "return_buy";
+    const price = isBuyType ? (product.buy_price ?? product.price) : (product.sell_price ?? product.price);
+    return price ?? "";
+  }
+
   function updateItem(index, field, value) {
     const updated = [...items];
 
@@ -350,7 +443,7 @@ export default function Invoices() {
 
     if (field === "product_id") {
       const product = products.find((p) => String(p.id) === String(value));
-      const price = product?.sell_price ?? product?.price ?? "";
+      const price = priceForProduct(product);
       updated[index].unit_price = price ? faText(price, language) : "";
     }
 
@@ -396,7 +489,7 @@ export default function Invoices() {
       const newItem = {
         product_id: String(product.id),
         quantity: faText(1, fa),
-        unit_price: faText(product.sell_price || product.price || 0, fa),
+        unit_price: faText(priceForProduct(product) || 0, fa),
       };
       const nextIndex = items.length;
       setItems([...items, newItem]);
@@ -456,6 +549,28 @@ export default function Invoices() {
       }));
   }
 
+  function buildCleanPayments(grandTotal) {
+    const rows = payments
+      .filter((row) => row.method && toNumber(row.amount) > 0)
+      .map((row) => ({
+        method: row.method,
+        amount: toNumber(row.amount),
+        reference_number: row.reference_number || "",
+        cheque_number: row.cheque_number || "",
+        cheque_bank_name: row.cheque_bank_name || "",
+        cheque_branch_name: row.cheque_branch_name || "",
+        cheque_due_date: row.cheque_due_date || "",
+        note: row.note || "",
+      }));
+    const allocated = rows.reduce((sum, row) => sum + row.amount, 0);
+    // Backend rejects any leg that pushes the total past the invoice's
+    // remaining balance unless explicitly allowed - PaymentPanel already
+    // shows the user the "over invoice" figure before they submit, so
+    // reaching the server in that state means they saw and intended it.
+    const allowOverpayment = allocated > grandTotal;
+    return rows.map((row) => ({ ...row, allow_overpayment: allowOverpayment }));
+  }
+
   function enrichInvoice(baseInvoice, cleanItems, invoiceId) {
     const customer = customers.find(
       (c) => String(c.id) === String(baseInvoice.customer_id || form.customer_id)
@@ -513,6 +628,12 @@ export default function Invoices() {
       payment_status: item.payment_status,
       invoice_note: item.invoice_note,
       qr_enabled: item.qr_enabled,
+      payments: item.payments || [],
+      // Generated once at first offline-save time (see createInvoice()) and
+      // reused on every retry - a fresh key per retry would defeat the
+      // point (the backend could no longer tell a lost-response retry from
+      // a genuine second invoice) and duplicate the invoice.
+      idempotency_key: item.idempotency_key,
     };
   }
 
@@ -543,7 +664,8 @@ export default function Invoices() {
   }
 
   async function createInvoiceForSync(payload) {
-    const res = await apiCreateInvoice(payload);
+    const { idempotency_key, ...body } = payload;
+    const res = await apiCreateInvoice(body, idempotency_key);
     if (res?.status !== "created") throw new Error(res?.message || "sync failed");
     return res;
   }
@@ -587,6 +709,12 @@ export default function Invoices() {
       return;
     }
 
+    const cleanPayments = editingId ? [] : buildCleanPayments(calc.grandTotal);
+    // Generated once per submit attempt and reused verbatim if this falls
+    // through to the offline queue below - see extractInvoicePayload's
+    // comment for why a fresh key per retry would be wrong.
+    const idempotencyKey = editingId ? null : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
     const payload = {
       invoice_type: form.invoice_type,
       customer_id: Number(form.customer_id),
@@ -597,6 +725,9 @@ export default function Invoices() {
       payment_status: form.payment_status,
       invoice_note: form.invoice_note,
       qr_enabled: form.qr_enabled,
+      payment_terms_days: toNumber(form.payment_terms_days),
+      due_date: form.due_date || "",
+      payments: cleanPayments,
     };
 
     try {
@@ -607,22 +738,33 @@ export default function Invoices() {
         if (result?.status === "error") throw new Error(result.message);
         savedInvoice = enrichInvoice(payload, cleanItems, editingId);
       } else {
-        const res = await apiCreateInvoice(payload);
+        const res = await apiCreateInvoice(payload, idempotencyKey);
         if (res?.status !== "created") {
           throw new Error(res?.message || label.createError);
         }
-        savedInvoice = enrichInvoice(payload, cleanItems, res.invoice_id);
+        savedInvoice = enrichInvoice({ ...payload, payment_status: res.payment_status, amount_paid: res.amount_paid }, cleanItems, res.invoice_id);
       }
 
       setCreatedInvoice(savedInvoice);
       setEditingId(null);
       setForm(emptyForm);
       setItems([{ ...emptyItem }]);
+      setPayments([]);
 
       await loadData();
       alert(editingId ? label.saveInvoice : label.createdAlert);
     } catch (error) {
       console.error("Create/update invoice error:", error);
+
+      // The server was reached and rejected the request (RBAC, validation,
+      // "New invoices must start with unpaid payment_status", ...) -
+      // retrying later would fail identically, so this must NOT be queued
+      // offline. Surface the real reason immediately instead; the form is
+      // left as-is so the user can fix it and resubmit.
+      if (!isNetworkError(error)) {
+        alert(translateApiError(error.message, language) || label.createError);
+        return;
+      }
 
       const offlineId = editingId || Date.now();
 
@@ -634,6 +776,7 @@ export default function Invoices() {
           pending_sync: true,
           offline_created: !editingId,
           offline_updated_at: new Date().toISOString(),
+          idempotency_key: idempotencyKey,
         },
         cleanItems,
         offlineId
@@ -656,6 +799,7 @@ export default function Invoices() {
       setEditingId(null);
       setForm(emptyForm);
       setItems([{ ...emptyItem }]);
+      setPayments([]);
     }
   }
 
@@ -700,6 +844,8 @@ export default function Invoices() {
     payment_status: fullInvoice.payment_status || fullInvoice.status || "unpaid",
     invoice_note: fullInvoice.invoice_note || fullInvoice.note || "",
     qr_enabled: fullInvoice.qr_enabled ?? true,
+    payment_terms_days: fullInvoice.payment_terms_days ? faText(fullInvoice.payment_terms_days, language) : "",
+    due_date: fullInvoice.due_date || "",
   });
 
   setItems(
@@ -740,6 +886,16 @@ export default function Invoices() {
     } catch (error) {
       console.error("Delete invoice error:", error);
 
+      // The server was reached and rejected the delete (linked payments,
+      // RBAC, ...) - hiding the invoice locally while claiming it was
+      // "removed from offline cache" would be misleading since it still
+      // exists on the server. Only a genuine connectivity failure should
+      // fall back to a local-only removal.
+      if (!isNetworkError(error)) {
+        alert(translateApiError(error.message, language) || label.createError);
+        return;
+      }
+
       const next = invoices.filter((inv) => String(inv.id) !== String(invoice.id));
       setInvoices(next);
       await setCache(INVOICES_CACHE_KEY, next);
@@ -747,13 +903,37 @@ export default function Invoices() {
       setOfflineMode(true);
       setLoadError(
         fa
-          ? "حذف آنلاین انجام نشد؛ فاکتور از حافظه آفلاین حذف شد."
+          ? "سرور در دسترس نبود؛ فاکتور فقط از حافظه آفلاین حذف شد."
           : language === "ar"
-          ? "فشل الحذف عبر الخادم؛ تم حذف الفاتورة من الذاكرة المؤقتة غير المتصلة."
+          ? "الخادم غير متاح؛ تم حذف الفاتورة من الذاكرة المؤقتة غير المتصلة فقط."
           : language === "tr"
-          ? "Çevrimiçi silme başarısız oldu; fatura çevrimdışı önbellekten kaldırıldı."
-          : "Online delete failed; invoice removed from offline cache."
+          ? "Sunucuya ulaşılamadı; fatura yalnızca çevrimdışı önbellekten kaldırıldı."
+          : "Server unavailable; invoice removed from offline cache only."
       );
+    }
+  }
+
+  async function convertInvoice(invoice) {
+    const ok = window.confirm(
+      fa
+        ? `پیش‌فاکتور شماره ${n(invoice.id)} به فاکتور فروش واقعی تبدیل شود؟ این باعث کسر موجودی انبار و ثبت سند حسابداری می‌شود.`
+        : language === "ar"
+        ? `تحويل الفاتورة الأولية رقم ${n(invoice.id)} إلى فاتورة بيع فعلية؟ سيؤدي هذا إلى خصم المخزون وترحيل قيد محاسبي.`
+        : language === "tr"
+        ? `${n(invoice.id)} numaralı proforma fatura gerçek bir satış faturasına dönüştürülsün mü? Bu stoktan düşer ve muhasebe kaydı oluşturur.`
+        : `Convert proforma invoice #${invoice.id} into a real sale invoice? This will deduct stock and post a real accounting entry.`
+    );
+    if (!ok) return;
+
+    try {
+      const result = await convertProformaToInvoice(invoice.id);
+      if (result?.status === "error") throw new Error(result.message);
+      toast.success(
+        fa ? "فاکتور فروش واقعی ساخته شد." : language === "ar" ? "تم إنشاء فاتورة بيع فعلية." : language === "tr" ? "Gerçek satış faturası oluşturuldu." : "A real sale invoice was created."
+      );
+      await loadData();
+    } catch (error) {
+      toast.error(error.message || (fa ? "خطا در تبدیل پیش‌فاکتور" : language === "ar" ? "خطأ في تحويل الفاتورة الأولية" : language === "tr" ? "Proforma dönüştürülürken hata oluştu" : "Error converting proforma invoice"));
     }
   }
 
@@ -824,6 +1004,15 @@ export default function Invoices() {
       ? "Kapandı"
       : "Settled";
 
+  const activeType = invoiceTypeConfig.find((t) => t.value === form.invoice_type) || invoiceTypeConfig[0];
+  const isBuyType = form.invoice_type === "buy" || form.invoice_type === "return_buy";
+  const counterpartyLabel = isBuyType
+    ? (fa ? "تامین‌کننده / طرف‌حساب" : language === "ar" ? "المورد / الطرف" : language === "tr" ? "Tedarikçi / Cari" : "Supplier / Account")
+    : label.customer;
+  const dueDateLabel = form.invoice_type === "proforma"
+    ? (fa ? "اعتبار پیش‌فاکتور تا" : language === "ar" ? "صلاحية العرض حتى" : language === "tr" ? "Teklif geçerlilik tarihi" : "Quote valid until")
+    : label.dueDate;
+
   return (
     <div dir={dir} className="space-y-6" style={{ direction: dir }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -871,22 +1060,45 @@ export default function Invoices() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-          <Field label={label.invoiceType} icon={<ClipboardList size={16} />}>
-            <select
-              value={form.invoice_type}
-              onChange={(e) => setForm({ ...form, invoice_type: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-            >
-              <option value="sale">{label.saleInvoice}</option>
-              <option value="buy">{label.buyInvoice}</option>
-              <option value="proforma">{label.proformaInvoice}</option>
-              <option value="return_sale">{label.returnSaleInvoice}</option>
-              <option value="return_buy">{label.returnBuyInvoice}</option>
-            </select>
-          </Field>
+        <Field label={label.invoiceType} icon={<ClipboardList size={16} />}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+            {invoiceTypeConfig.map((type) => {
+              const TypeIcon = type.icon;
+              const selected = form.invoice_type === type.value;
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, invoice_type: type.value })}
+                  className="text-start rounded-[var(--erp-radius-md)] p-3.5 border transition-all"
+                  style={{
+                    borderColor: selected ? type.accent : "var(--erp-border)",
+                    background: selected ? type.soft : "var(--erp-panel-solid)",
+                    boxShadow: selected ? `0 0 0 3px ${type.soft}` : "none",
+                  }}
+                >
+                  <TypeIcon size={20} style={{ color: type.accent }} />
+                  <div className="font-black text-sm mt-2" style={{ color: selected ? type.accent : "var(--erp-text)" }}>
+                    {type.label}
+                  </div>
+                  <div className="text-xs mt-1 leading-5 text-[var(--erp-muted)]">{type.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
 
-          <Field label={label.customer} icon={<UserRound size={16} />}>
+        <div
+          key={form.invoice_type}
+          className="erp-fade-in flex items-start gap-3 rounded-[var(--erp-radius-md)] p-3.5 my-5 border"
+          style={{ borderColor: activeType.accent, background: activeType.soft }}
+        >
+          <activeType.icon size={18} style={{ color: activeType.accent, flexShrink: 0, marginTop: 2 }} />
+          <p className="text-sm leading-6" style={{ color: "var(--erp-text)" }}>{activeType.effect}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <Field label={counterpartyLabel} icon={<UserRound size={16} />}>
             <select
               value={form.customer_id}
               onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
@@ -902,18 +1114,6 @@ export default function Invoices() {
             {customers.length === 0 ? (
               <p className="text-xs mt-2" style={{ color: "var(--erp-warning)" }}>{label.emptyCustomers}</p>
             ) : null}
-          </Field>
-
-          <Field label={label.paymentStatus} icon={<CreditCard size={16} />}>
-            <select
-              value={form.payment_status}
-              onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-            >
-              <option value="unpaid">{label.unpaid}</option>
-              <option value="partial">{label.partial}</option>
-              <option value="paid">{label.paid}</option>
-            </select>
           </Field>
 
           <Field label={label.shippingCost} hint={label.shippingHint} icon={<Truck size={16} />}>
@@ -961,6 +1161,33 @@ export default function Invoices() {
               }
               className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
               placeholder={fa ? "۰٪" : language === "tr" ? "%0" : "0%"}
+            />
+          </Field>
+
+          <Field label={label.paymentTermsDays} icon={<Clock size={16} />}>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.payment_terms_days}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  payment_terms_days: normalizeNumberInput(e.target.value, language),
+                  due_date: "",
+                })
+              }
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              placeholder={fa ? "۰" : "0"}
+            />
+          </Field>
+
+          <Field label={dueDateLabel} icon={<Clock size={16} />}>
+            <JalaliDateField
+              value={form.due_date}
+              onChange={(iso) => setForm({ ...form, due_date: iso, payment_terms_days: "" })}
+              fa={fa}
+              language={language}
+              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
             />
           </Field>
 
@@ -1094,9 +1321,19 @@ export default function Invoices() {
           fa={fa}
         />
 
+        {!editingId && (
+          <div className="mt-5">
+            <PaymentPanel rows={payments} onChange={setPayments} total={calc.grandTotal} />
+          </div>
+        )}
+
         <div className="flex gap-3 flex-wrap">
           <Button variant="primary" className="mt-5" icon={editingId ? Save : FileText} onClick={createInvoice}>
-            {editingId ? label.saveInvoice : label.createInvoice}
+            {editingId
+              ? label.saveInvoice
+              : payments.some((row) => toNumber(row.amount) > 0)
+              ? (fa ? "ثبت فاکتور و دریافت وجه" : language === "ar" ? "تسجيل الفاتورة واستلام المبلغ" : language === "tr" ? "Faturayı kaydet ve tahsil et" : "Save invoice and collect payment")
+              : label.createInvoice}
           </Button>
 
           {editingId && (
@@ -1108,6 +1345,7 @@ export default function Invoices() {
                 setEditingId(null);
                 setForm(emptyForm);
                 setItems([{ ...emptyItem }]);
+                setPayments([]);
               }}
             >
               {label.cancelEdit}
@@ -1146,12 +1384,13 @@ export default function Invoices() {
             <Th>{label.customer}</Th>
             <Th>{label.total}</Th>
             <Th>{label.status}</Th>
+            <Th>{label.dueDate}</Th>
             <Th>{fa ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</Th>
           </Thead>
 
           <Tbody>
             {invoices.length === 0 ? (
-              <EmptyRow colSpan={6}>{label.noInvoices}</EmptyRow>
+              <EmptyRow colSpan={7}>{label.noInvoices}</EmptyRow>
             ) : (
               invoices.map((invoice) => (
                 <Tr key={invoice.id}>
@@ -1181,6 +1420,15 @@ export default function Invoices() {
                     })()}
                   </Td>
                   <Td>
+                    {invoice.due_date ? (
+                      <span className={invoice.due_date < todayIso && (invoice.payment_status || invoice.status) !== "paid" ? "text-red-300 font-bold" : undefined}>
+                        {date(invoice.due_date)}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </Td>
+                  <Td>
                     <div className="flex gap-1.5 flex-wrap">
                       <IconButton
                         size="sm"
@@ -1197,6 +1445,28 @@ export default function Invoices() {
                         onClick={() => editInvoice(invoice)}
                         label={label.edit}
                       />
+
+                      {invoice.invoice_type !== "proforma" && (
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          icon={Wallet}
+                          onClick={() => setPaymentsModalInvoiceId(invoice.id)}
+                          label={fa ? "پرداخت‌ها" : language === "ar" ? "الدفعات" : language === "tr" ? "Ödemeler" : "Payments"}
+                          style={{ color: "var(--erp-accent)", background: "var(--erp-glow)" }}
+                        />
+                      )}
+
+                      {invoice.invoice_type === "proforma" && (
+                        <IconButton
+                          size="sm"
+                          variant="ghost"
+                          icon={ArrowRightLeft}
+                          onClick={() => convertInvoice(invoice)}
+                          label={fa ? "تبدیل به فاکتور فروش" : language === "ar" ? "تحويل إلى فاتورة بيع" : language === "tr" ? "Satış faturasına dönüştür" : "Convert to sale invoice"}
+                          style={{ color: "var(--erp-success)", background: "var(--erp-success-soft)" }}
+                        />
+                      )}
 
                       {invoice.invoice_type === "sale" && (invoice.payment_status || invoice.status) !== "paid" && (
                         <IconButton
@@ -1235,6 +1505,14 @@ export default function Invoices() {
           </Tbody>
         </Table>
       </div>
+
+      {paymentsModalInvoiceId && (
+        <PaymentAllocationsModal
+          invoiceId={paymentsModalInvoiceId}
+          onClose={() => setPaymentsModalInvoiceId(null)}
+          onChanged={loadData}
+        />
+      )}
     </div>
   );
 }

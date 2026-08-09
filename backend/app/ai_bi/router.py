@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
+from app.company_scope import current_company_id
 from app.database import SessionLocal
 from app.models.customer import Customer
 from app.models.product import Product
@@ -9,7 +10,6 @@ from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
 from app.ai_bi.anomaly_detection import detect_anomalies
 from app.ai_bi.cashflow_forecast import build_cashflow_forecast
-from app.export.localization import localized_digits
 from app.settings_routes import get_or_create_settings
 
 router = APIRouter(prefix="/api/ai-bi", tags=["AI Business Intelligence"])
@@ -64,15 +64,17 @@ def _invoice_amounts(invoices):
     }
 
 
-def _settlement(db: Session, invoice):
+def _settlement(db: Session, company_id: int, invoice):
     total = _num(invoice.total_amount)
     receipt_entries = db.query(AccountingEntry).filter(
         AccountingEntry.source_type == "receipt",
         AccountingEntry.source_id == invoice.id,
+        AccountingEntry.company_id == company_id,
     ).all()
     payment_entries = db.query(AccountingEntry).filter(
         AccountingEntry.source_type == "payment",
         AccountingEntry.source_id == invoice.id,
+        AccountingEntry.company_id == company_id,
     ).all()
     received = sum(_num(e.credit) for e in receipt_entries)
     paid = sum(_num(e.debit) for e in payment_entries)
@@ -81,18 +83,20 @@ def _settlement(db: Session, invoice):
     return {"settled": settled, "remaining": remaining}
 
 
-def _customer_balance(db: Session, customer_id: int):
-    entries = db.query(AccountingEntry).filter(AccountingEntry.customer_id == customer_id).all()
+def _customer_balance(db: Session, company_id: int, customer_id: int):
+    entries = db.query(AccountingEntry).filter(
+        AccountingEntry.customer_id == customer_id, AccountingEntry.company_id == company_id,
+    ).all()
     return sum(_num(e.debit) - _num(e.credit) for e in entries)
 
 
-def _build_payload():
+def _build_payload(company_id: int):
     db = SessionLocal()
     try:
-        invoices = db.query(Invoice).all()
-        customers = db.query(Customer).all()
-        products = db.query(Product).all()
-        entries = db.query(AccountingEntry).all()
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
+        customers = db.query(Customer).filter(Customer.company_id == company_id).all()
+        products = db.query(Product).filter(Product.company_id == company_id).all()
+        entries = db.query(AccountingEntry).filter(AccountingEntry.company_id == company_id).all()
 
         now = datetime.utcnow()
         month_start = _month_start()
@@ -113,7 +117,7 @@ def _build_payload():
         for inv in invoices:
             if inv.invoice_type == "proforma":
                 continue
-            st = _settlement(db, inv)
+            st = _settlement(db, company_id, inv)
             if st["remaining"] > 0:
                 customer = db.query(Customer).filter(Customer.id == inv.customer_id).first() if inv.customer_id else None
                 age_days = (now - inv.created_at).days if inv.created_at else 0
@@ -134,7 +138,7 @@ def _build_payload():
         low_stock = []
         dead_stock = []
         product_sales = {}
-        for item, inv in db.query(InvoiceItem, Invoice).join(Invoice, InvoiceItem.invoice_id == Invoice.id).all():
+        for item, inv in db.query(InvoiceItem, Invoice).join(Invoice, InvoiceItem.invoice_id == Invoice.id).filter(Invoice.company_id == company_id).all():
             if inv.invoice_type == "sale":
                 product_sales[item.product_id] = product_sales.get(item.product_id, 0) + _num(item.quantity)
 
@@ -159,7 +163,7 @@ def _build_payload():
 
         customer_rows = []
         for customer in customers:
-            balance = _customer_balance(db, customer.id)
+            balance = _customer_balance(db, company_id, customer.id)
             sales_amount = sum(_num(i.total_amount) for i in invoices if i.customer_id == customer.id and i.invoice_type == "sale")
             invoice_count = len([i for i in invoices if i.customer_id == customer.id])
             last_invoice = max([i.created_at for i in invoices if i.customer_id == customer.id and i.created_at], default=None)
@@ -188,28 +192,34 @@ def _build_payload():
         risky_customers = sorted([c for c in customer_rows if c["risk"] != "low"], key=lambda x: x["balance"], reverse=True)[:10]
         top_products = sorted([{"id": p.id, "name": p.name, "sold_qty": product_sales.get(p.id, 0), "stock": _num(getattr(p, "stock", 0))} for p in products], key=lambda x: x["sold_qty"], reverse=True)[:10]
 
+        # Alerts/recommendations carry a stable `type` key and raw numeric
+        # `params` only - no pre-rendered text. Title/message/action strings
+        # are localized client-side (see AiBusinessIntelligence.jsx's
+        # ALERT_LABELS/RECOMMENDATION_LABELS) so they follow the viewer's
+        # selected UI language instead of always rendering in Persian
+        # regardless of language setting.
         alerts = []
         recommendations = []
 
         if current_amounts["gross_profit"] < 0:
-            alerts.append({"level": "danger", "title": "سود ناخالص منفی", "message": "خریدها و برگشتی‌ها از فروش ثبت‌شده بیشتر شده‌اند.", "action": "گزارش سود و خرید را بررسی کن."})
+            alerts.append({"type": "negative_gross_profit", "level": "danger"})
         if len(low_stock) > 0:
-            alerts.append({"level": "danger", "title": "ریسک کمبود موجودی", "message": f"{localized_digits(len(low_stock), 'fa')} کالا به نقطه هشدار موجودی رسیده‌اند.", "action": "لیست سفارش مجدد بساز."})
+            alerts.append({"type": "low_stock_risk", "level": "danger", "params": {"count": len(low_stock)}})
         if len(overdue_like) > 0:
-            alerts.append({"level": "warning", "title": "مطالبات معوق", "message": f"{localized_digits(len(overdue_like), 'fa')} فاکتور بیش از ۳۰ روز مانده باز دارد.", "action": "پیگیری وصول مطالبات را شروع کن."})
+            alerts.append({"type": "overdue_receivables", "level": "warning", "params": {"count": len(overdue_like)}})
         if net_cash < 0:
-            alerts.append({"level": "warning", "title": "جریان نقدی منفی", "message": "پرداختی‌ها از دریافتی‌ها بیشتر است.", "action": "پرداخت‌های غیرضروری را کنترل کن."})
+            alerts.append({"type": "negative_cashflow", "level": "warning"})
         if not alerts:
-            alerts.append({"level": "success", "title": "وضعیت پایدار", "message": "هشدار بحرانی در فروش، نقدینگی و موجودی دیده نشد.", "action": "پایش روزانه را ادامه بده."})
+            alerts.append({"type": "stable", "level": "success"})
 
         if len(dead_stock) > 0:
-            recommendations.append({"type": "inventory", "title": "کالاهای راکد", "text": f"{localized_digits(len(dead_stock), 'fa')} کالا موجودی دارند اما فروش ثبت‌شده ندارند.", "impact": "کاهش خواب سرمایه"})
+            recommendations.append({"type": "dead_stock", "params": {"count": len(dead_stock)}})
         if current_amounts["net_sales"] < prev_amounts["net_sales"]:
-            recommendations.append({"type": "sales", "title": "افت فروش نسبت به ماه قبل", "text": "فروش ماه جاری کمتر از ماه قبل است. روی مشتریان فعال و کالاهای پرفروش تمرکز کن.", "impact": "افزایش فروش"})
+            recommendations.append({"type": "sales_decline"})
         if risky_customers:
-            recommendations.append({"type": "crm", "title": "پیگیری مشتریان بدهکار", "text": "برای مشتریان پرریسک یادآور تماس و برنامه وصول مطالبات بساز.", "impact": "بهبود نقدینگی"})
+            recommendations.append({"type": "risky_customers_followup"})
         if not recommendations:
-            recommendations.append({"type": "growth", "title": "فرصت رشد", "text": "داده‌ها پایدار است؛ روی کمپین فروش مجدد مشتریان قبلی تمرکز کن.", "impact": "رشد درآمد"})
+            recommendations.append({"type": "growth_opportunity"})
 
         health_score = 100
         if current_amounts["gross_profit"] < 0:
@@ -250,7 +260,7 @@ def _build_payload():
             "low_stock_products": low_stock[:20],
             "dead_stock_products": dead_stock[:20],
             "open_invoices": sorted(open_invoices, key=lambda x: x["remaining_amount"], reverse=True)[:20],
-            "narrative": _build_narrative(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash),
+            "narrative": _build_narrative_data(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash),
         }
         db.close()
         return payload
@@ -259,55 +269,51 @@ def _build_payload():
         return {"status": "error", "message": str(e)}
 
 
-def _build_narrative(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash):
-    parts = []
-    if health_score >= 75:
-        parts.append("وضعیت کلی کسب‌وکار پایدار و قابل قبول است.")
-    elif health_score >= 45:
-        parts.append("وضعیت کسب‌وکار نیازمند پیگیری مدیریتی است.")
-    else:
-        parts.append("وضعیت کسب‌وکار در محدوده پرریسک قرار دارد و باید فوری بررسی شود.")
-
+def _build_narrative_data(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash):
+    """Raw figures only, no rendered text - the frontend composes the
+    localized sentence per the viewer's UI language (see
+    AiBusinessIntelligence.jsx's buildNarrative())."""
     growth = _pct_change(current_amounts.get("net_sales"), prev_amounts.get("net_sales"))
-    if growth > 0:
-        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {localized_digits(f'{growth:.1f}', 'fa')} درصد رشد داشته است.")
-    elif growth < 0:
-        parts.append(f"فروش ماه جاری نسبت به ماه قبل حدود {localized_digits(f'{abs(growth):.1f}', 'fa')} درصد کاهش داشته است.")
+    if health_score >= 75:
+        health_level = "stable"
+    elif health_score >= 45:
+        health_level = "needs_attention"
     else:
-        parts.append("تغییر قابل توجهی در فروش ماه جاری نسبت به ماه قبل دیده نمی‌شود.")
-
-    if low_stock:
-        parts.append(f"{localized_digits(len(low_stock), 'fa')} کالا در وضعیت هشدار موجودی قرار دارد.")
-    if overdue_like:
-        parts.append(f"{localized_digits(len(overdue_like), 'fa')} فاکتور باز نیازمند پیگیری وصول مطالبات است.")
-    if net_cash < 0:
-        parts.append("جریان نقدی خالص منفی است و باید پرداخت‌ها کنترل شوند.")
-    return " ".join(parts)
+        health_level = "high_risk"
+    return {
+        "health_level": health_level,
+        "growth_percent": round(abs(growth), 1),
+        "growth_direction": "up" if growth > 0 else "down" if growth < 0 else "flat",
+        "low_stock_count": len(low_stock),
+        "overdue_count": len(overdue_like),
+        "net_cash_negative": net_cash < 0,
+    }
 
 
 @router.get("/summary")
-def ai_bi_summary():
-    return _build_payload()
+def ai_bi_summary(request: Request):
+    return _build_payload(current_company_id(request))
 
 
 @router.get("/alerts")
-def ai_bi_alerts():
-    payload = _build_payload()
+def ai_bi_alerts(request: Request):
+    payload = _build_payload(current_company_id(request))
     return {"items": payload.get("alerts", [])}
 
 
 @router.get("/recommendations")
-def ai_bi_recommendations():
-    payload = _build_payload()
+def ai_bi_recommendations(request: Request):
+    payload = _build_payload(current_company_id(request))
     return {"items": payload.get("recommendations", [])}
 
 
 @router.get("/anomalies")
-def ai_bi_anomalies():
+def ai_bi_anomalies(request: Request):
+    company_id = current_company_id(request)
     db = SessionLocal()
     try:
-        settings = get_or_create_settings(db)
-        anomalies = detect_anomalies(db, time_zone_name=settings.time_zone or "UTC")
+        settings = get_or_create_settings(db, company_id)
+        anomalies = detect_anomalies(db, company_id, time_zone_name=settings.time_zone or "UTC")
         return {
             "items": anomalies,
             "counts": {
@@ -321,10 +327,11 @@ def ai_bi_anomalies():
 
 
 @router.get("/cashflow-forecast")
-def ai_bi_cashflow_forecast(days: int = 30):
+def ai_bi_cashflow_forecast(request: Request, days: int = 30):
+    company_id = current_company_id(request)
     days = max(1, min(days, 180))
     db = SessionLocal()
     try:
-        return build_cashflow_forecast(db, horizon_days=days)
+        return build_cashflow_forecast(db, company_id, horizon_days=days)
     finally:
         db.close()

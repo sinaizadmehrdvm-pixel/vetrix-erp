@@ -33,6 +33,23 @@ class RbacDefaultDenyTests(unittest.TestCase):
             self.assertFalse(is_authorized(role, "GET", "/api/audit"))
             self.assertFalse(is_authorized(role, "GET", "/api/system/anything"))
 
+    def test_super_admin_bypasses_role_gate_regardless_of_role(self):
+        self.assertTrue(is_authorized("accountant", "GET", "/api/companies", is_super_admin=True))
+        self.assertTrue(is_authorized("viewer", "POST", "/users", is_super_admin=True))
+        self.assertTrue(is_authorized("viewer", "GET", "/api/some-brand-new-endpoint", is_super_admin=True))
+
+    def test_non_super_admin_still_gated_by_role(self):
+        self.assertFalse(is_authorized("accountant", "GET", "/api/companies", is_super_admin=False))
+        self.assertFalse(is_authorized("viewer", "GET", "/api/companies"))
+
+    def test_field_visits_open_to_sales_and_admin_roles_only(self):
+        for role in ("admin", "accountant", "sales"):
+            self.assertTrue(is_authorized(role, "GET", "/api/field-visits"))
+            self.assertTrue(is_authorized(role, "POST", "/api/field-visits"))
+        for role in ("warehouse", "viewer", "user"):
+            self.assertFalse(is_authorized(role, "GET", "/api/field-visits"))
+            self.assertFalse(is_authorized(role, "POST", "/api/field-visits"))
+
 
 if __name__ == "__main__":
     unittest.main()

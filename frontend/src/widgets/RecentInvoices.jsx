@@ -62,8 +62,9 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
             const status = statusLabel(invoice.status, language);
 
             return (
-              <div
+              <Link
                 key={invoice.id}
+                to={`/invoice-print/${invoice.id}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -73,6 +74,8 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
                   borderRadius: 16,
                   background: "var(--erp-panel-solid)",
                   minWidth: 0,
+                  textDecoration: "none",
+                  color: "inherit",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
@@ -106,7 +109,7 @@ export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
                   <div style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{total}</div>
                   <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 700, whiteSpace: "nowrap" }}>{status}</div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

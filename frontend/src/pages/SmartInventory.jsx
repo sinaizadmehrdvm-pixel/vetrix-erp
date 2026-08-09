@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Boxes,
@@ -8,12 +9,14 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  ShoppingCart,
   TrendingUp,
   Warehouse,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
-import { getSmartInventoryOverview } from "../services/api";
+import { getSmartInventoryOverview, createPurchaseOrder, getExpiringBatches } from "../services/api";
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -64,10 +67,13 @@ function levelLabel(level, language) {
 
 export default function SmartInventory() {
   const { language, dir, money, n } = useLanguage();
+  const navigate = useNavigate();
 
   const [data, setData] = useState(null);
+  const [expiringBatches, setExpiringBatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [creatingPo, setCreatingPo] = useState(false);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("reorder");
 
@@ -84,6 +90,12 @@ export default function SmartInventory() {
     } finally {
       setLoading(false);
     }
+    try {
+      const batches = await getExpiringBatches(30);
+      setExpiringBatches(Array.isArray(batches) ? batches : []);
+    } catch {
+      setExpiringBatches([]);
+    }
   }
 
   useEffect(() => {
@@ -91,6 +103,35 @@ export default function SmartInventory() {
     return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
+
+  async function createOrdersFromReorderPlan() {
+    const plan = safeArray(data?.reorder_plan).filter((item) => (item.suggested_reorder_qty || 0) > 0);
+    if (!plan.length) return;
+    setCreatingPo(true);
+    try {
+      const groups = new Map();
+      for (const item of plan) {
+        const key = item.preferred_supplier_id || "none";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      }
+      let created = 0;
+      for (const [supplierId, items] of groups) {
+        const result = await createPurchaseOrder({
+          supplier_id: supplierId === "none" ? null : Number(supplierId),
+          note: language === "fa" ? "سفارش خودکار از پیشنهاد هوش موجودی" : language === "ar" ? "أُنشئ تلقائيًا من اقتراح المخزون الذكي" : language === "tr" ? "Akıllı stok önerisinden otomatik oluşturuldu" : "Auto-created from SmartInventory suggestion",
+          items: items.map((it) => ({ product_id: it.id, quantity: it.suggested_reorder_qty, unit_price: it.buy_price || 0 })),
+        });
+        if (result?.status !== "error") created += 1;
+      }
+      toast.success(language === "fa" ? `${n(created)} سفارش خرید ساخته شد.` : language === "ar" ? `تم إنشاء ${n(created)} أمر شراء.` : language === "tr" ? `${n(created)} satın alma siparişi oluşturuldu.` : `${created} purchase order(s) created.`);
+      navigate("/purchase-orders");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCreatingPo(false);
+    }
+  }
 
   const rows = useMemo(() => {
     const source =
@@ -160,6 +201,39 @@ export default function SmartInventory() {
         <KpiCard icon={<TrendingUp />} title={language === "fa" ? "ارزش فروش موجودی" : language === "ar" ? "قيمة بيع المخزون" : language === "tr" ? "Stok satış değeri" : "Stock sell value"} value={money(summary.stock_value_sell || 0)} color="emerald" />
       </div>
 
+      {expiringBatches.length > 0 && (
+        <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-amber-400/20 p-5 mb-5">
+          <h2 className="text-amber-300 font-black text-xl flex items-center gap-2 mb-4">
+            <AlertTriangle />
+            {language === "fa" ? "بچ‌های نزدیک به انقضا (۳۰ روز آینده)" : language === "ar" ? "دفعات قريبة من انتهاء الصلاحية (30 يومًا)" : language === "tr" ? "Süresi yakında dolacak partiler (30 gün)" : "Batches expiring soon (next 30 days)"}
+          </h2>
+          <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
+                <tr>
+                  <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
+                  <th className="p-3">{language === "fa" ? "بچ/سریال" : language === "ar" ? "الدفعة/التسلسلي" : language === "tr" ? "Parti/Seri" : "Batch/Serial"}</th>
+                  <th className="p-3">{language === "fa" ? "باقی‌مانده" : language === "ar" ? "المتبقي" : language === "tr" ? "Kalan" : "Remaining"}</th>
+                  <th className="p-3">{language === "fa" ? "انقضا" : language === "ar" ? "الصلاحية" : language === "tr" ? "SKT" : "Expiry"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expiringBatches.map((b) => (
+                  <tr key={b.id} className="border-t border-[var(--erp-border)]">
+                    <td className="p-3 font-black text-[var(--erp-text)]">{b.product_name}</td>
+                    <td className="p-3 text-center">{b.batch_number}</td>
+                    <td className="p-3 text-center">{n(b.remaining_quantity)}</td>
+                    <td className={`p-3 text-center font-bold ${b.expired ? "text-rose-300" : "text-amber-300"}`}>
+                      {b.expiry_date} {b.expired ? `(${language === "fa" ? "منقضی" : language === "ar" ? "منتهي" : language === "tr" ? "Süresi doldu" : "expired"})` : `(${n(b.days_to_expiry)} ${language === "fa" ? "روز" : language === "ar" ? "يوم" : language === "tr" ? "gün" : "days"})`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5 mb-5">
         <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
@@ -177,6 +251,19 @@ export default function SmartInventory() {
               />
             </div>
           </div>
+
+          {tab === "reorder" && safeArray(data?.reorder_plan).some((item) => (item.suggested_reorder_qty || 0) > 0) && (
+            <div className="mb-4">
+              <button
+                onClick={createOrdersFromReorderPlan}
+                disabled={creatingPo}
+                className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                <ShoppingCart size={18} />
+                {language === "fa" ? "ساخت سفارش خرید از همه پیشنهادها" : language === "ar" ? "إنشاء أوامر شراء من كل الاقتراحات" : language === "tr" ? "Tüm önerilerden satın alma siparişi oluştur" : "Create purchase orders from all suggestions"}
+              </button>
+            </div>
+          )}
 
           <div className="flex gap-2 flex-wrap mb-4">
             <TabButton active={tab === "reorder"} onClick={() => setTab("reorder")} label={language === "fa" ? "برنامه سفارش" : language === "ar" ? "إعادة الطلب" : language === "tr" ? "Yeniden Sipariş" : "Reorder"} />

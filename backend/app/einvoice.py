@@ -30,13 +30,14 @@ import os
 import secrets
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine
 from app.models.customer import Customer
 from app.models.invoice import Invoice, InvoiceItem
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/einvoice", tags=["Iran E-Invoice"])
 
@@ -53,6 +54,7 @@ class EInvoiceSubmission(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    company_id = Column(Integer, nullable=True)
 
 
 EInvoiceSubmission.__table__.create(bind=engine, checkfirst=True)
@@ -72,7 +74,7 @@ def _build_payload(db: Session, invoice: Invoice) -> dict:
 
     customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
     items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
-    settings = main.get_or_create_settings(db)
+    settings = main.get_or_create_settings(db, invoice.company_id)
 
     return {
         "seller": {
@@ -104,11 +106,11 @@ def _build_payload(db: Session, invoice: Invoice) -> dict:
     }
 
 
-def submit_invoice_for_einvoicing(invoice_id: int) -> dict:
+def submit_invoice_for_einvoicing(invoice_id: int, company_id: int) -> dict:
     provider = _active_provider()
     db: Session = SessionLocal()
     try:
-        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
         if invoice.invoice_type != "sale":
@@ -128,6 +130,7 @@ def submit_invoice_for_einvoicing(invoice_id: int) -> dict:
             provider=provider,
             status="pending",
             payload_snapshot=str(payload),
+            company_id=company_id,
         )
         db.add(submission)
         db.commit()
@@ -161,17 +164,17 @@ def submit_invoice_for_einvoicing(invoice_id: int) -> dict:
 
 
 @router.post("/invoices/{invoice_id}/submit")
-def submit_invoice(invoice_id: int):
-    return submit_invoice_for_einvoicing(invoice_id)
+def submit_invoice(invoice_id: int, request: Request):
+    return submit_invoice_for_einvoicing(invoice_id, current_company_id(request))
 
 
 @router.get("/invoices/{invoice_id}/status")
-def submission_status(invoice_id: int):
+def submission_status(invoice_id: int, request: Request):
     db: Session = SessionLocal()
     try:
         submissions = (
             db.query(EInvoiceSubmission)
-            .filter(EInvoiceSubmission.invoice_id == invoice_id)
+            .filter(EInvoiceSubmission.invoice_id == invoice_id, EInvoiceSubmission.company_id == current_company_id(request))
             .order_by(EInvoiceSubmission.created_at.desc())
             .all()
         )

@@ -15,6 +15,7 @@ class CustomerNote(Base):
     text = Column(Text, nullable=False)
     note_type = Column(String, default="note")
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
 
 
 class CustomerTransaction(Base):
@@ -26,3 +27,4 @@ class CustomerTransaction(Base):
     amount = Column(Float, default=0)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)

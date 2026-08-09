@@ -55,6 +55,16 @@ const FEATURES = [
 
 const EASE = [0.16, 1, 0.3, 1];
 
+// A user whose role is literally "visitor" (the exact custom-role code an
+// admin creates for a field sales rep - see UserManagement.jsx's custom
+// role form) lands straight on the mobile Visitor shell instead of the
+// desktop dashboard. Anyone else can still reach /visitor manually if
+// their role has the needed capabilities; this is just a login-time
+// convenience for the common case.
+function destinationFor(user) {
+  return user?.role === "visitor" ? "/visitor" : "/";
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, changePassword, completeTotpLogin } = useAuth();
@@ -119,7 +129,7 @@ export default function Login() {
         setMode("force-password-change");
         return;
       }
-      navigate("/", { replace: true });
+      navigate(destinationFor(result), { replace: true });
     } catch (loginError) {
       setError(
         loginError?.message ||
@@ -147,7 +157,7 @@ export default function Login() {
         setMode("force-password-change");
         return;
       }
-      navigate("/", { replace: true });
+      navigate(destinationFor(signedInUser), { replace: true });
     } catch (totpError) {
       setError(
         totpError?.message ||
@@ -193,8 +203,8 @@ export default function Login() {
     }
     setSubmitting(true);
     try {
-      await changePassword(passwordChange.current_password, passwordChange.new_password);
-      navigate("/", { replace: true });
+      const changedUser = await changePassword(passwordChange.current_password, passwordChange.new_password);
+      navigate(destinationFor(changedUser), { replace: true });
     } catch (changeError) {
       setError(
         changeError?.message ||

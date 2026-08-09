@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, bindparam, text
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -23,6 +23,7 @@ from app.auth import (
 from app.database import Base, SessionLocal, engine
 from app.export.pdf_export import _p, _register_font, _rtl
 from app.models.product import Product
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/catalog", tags=["Digital & Print Catalog"])
 
@@ -38,6 +39,7 @@ class CatalogLink(Base):
     enabled = Column(Boolean, default=True, nullable=False)
     token_generation = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
 
 
 class CatalogOrder(Base):
@@ -50,7 +52,9 @@ class CatalogOrder(Base):
     items_json = Column(Text, nullable=False)  # [{"product_id","name","quantity"}]
     note = Column(Text, nullable=True)
     status = Column(String, default="pending", nullable=False)  # pending / converted / rejected
+    converted_invoice_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
 
 
 CatalogLink.__table__.create(bind=engine, checkfirst=True)
@@ -77,7 +81,7 @@ class CatalogOrderCreate(BaseModel):
 
 
 def _resolve_products(db: Session, catalog: CatalogLink):
-    query = db.query(Product)
+    query = db.query(Product).filter(Product.company_id == catalog.company_id)
     if catalog.product_ids:
         try:
             ids = json.loads(catalog.product_ids)
@@ -92,14 +96,48 @@ def _resolve_products(db: Session, catalog: CatalogLink):
     return products
 
 
-def _product_public_dict(product: Product):
+def _active_discounts(db: Session, product_ids):
+    """Batch-fetch the sales team's currently-active online discounts (set
+    via online_product_update, including the voice-driven change-request
+    path) for the given products, keyed by product_id -> discount_percent.
+    A discount only counts as "active" within its sale_start/sale_end
+    window when either bound is set - this is deliberately the same table
+    the online store reads, so a discount configured once shows up
+    everywhere a product is offered to a customer, catalogs included."""
+    if not product_ids:
+        return {}
+    today = datetime.utcnow().date().isoformat()
+    rows = db.execute(text("""
+        SELECT product_id, online_price, discount_percent, sale_start, sale_end
+        FROM online_product_settings
+        WHERE product_id IN :ids AND discount_percent > 0
+    """).bindparams(bindparam("ids", expanding=True)), {"ids": list(product_ids)}).mappings().all()
+    result = {}
+    for row in rows:
+        if row["sale_start"] and row["sale_start"] > today:
+            continue
+        if row["sale_end"] and row["sale_end"] < today:
+            continue
+        result[row["product_id"]] = {
+            "discount_percent": float(row["discount_percent"] or 0),
+            "online_price": row["online_price"],
+        }
+    return result
+
+
+def _product_public_dict(product: Product, discount=None):
     sell_price = float(getattr(product, "sell_price", None) or getattr(product, "price", 0) or 0)
+    base_price = float(discount["online_price"]) if discount and discount.get("online_price") is not None else sell_price
+    discount_percent = float(discount["discount_percent"]) if discount else 0
+    final_price = round(base_price * (1 - discount_percent / 100), 0) if discount_percent else base_price
     return {
         "id": product.id,
         "name": product.name or "",
         "code": getattr(product, "code", "") or getattr(product, "barcode", "") or "",
         "unit": getattr(product, "unit", "") or "عدد",
-        "price": sell_price,
+        "price": base_price,
+        "discount_percent": discount_percent,
+        "final_price": final_price,
         "in_stock": float(product.stock or 0) > 0,
         "image": getattr(product, "image", "") or "",
     }
@@ -126,7 +164,8 @@ def _authenticated_catalog(request: Request, db: Session) -> CatalogLink:
     return catalog
 
 
-def _build_catalog_pdf(catalog: CatalogLink, products, language: str = "fa") -> str:
+def _build_catalog_pdf(catalog: CatalogLink, products, language: str = "fa", discounts=None) -> str:
+    discounts = discounts or {}
     font_name = _register_font()
     fa = language == "fa"
 
@@ -154,12 +193,17 @@ def _build_catalog_pdf(catalog: CatalogLink, products, language: str = "fa") -> 
     )
     rows = [[_p(label, header_style, language) for label in header_labels]]
     for product in products:
-        item = _product_public_dict(product)
+        item = _product_public_dict(product, discounts.get(product.id))
         availability = ("موجود" if item["in_stock"] else "ناموجود") if fa else ("In stock" if item["in_stock"] else "Out of stock")
+        if item["discount_percent"]:
+            was_label = "بود" if fa else "was"
+            price_text = f"{item['final_price']:,.0f} ({was_label} {item['price']:,.0f}, -{item['discount_percent']:.0f}%)"
+        else:
+            price_text = f"{item['price']:,.0f}"
         rows.append([
             _p(item["code"] or "-", cell_style, language),
             _p(item["name"], cell_style, language),
-            _p(f"{item['price']:,.0f}", cell_style, language),
+            _p(price_text, cell_style, language),
             _p(availability, cell_style, language),
         ])
 
@@ -182,7 +226,7 @@ def _build_catalog_pdf(catalog: CatalogLink, products, language: str = "fa") -> 
 
 
 @router.post("/links")
-def create_catalog(data: CatalogCreate):
+def create_catalog(data: CatalogCreate, request: Request):
     db: Session = SessionLocal()
     try:
         catalog = CatalogLink(
@@ -190,6 +234,7 @@ def create_catalog(data: CatalogCreate):
             main_category=data.main_category,
             in_stock_only=data.in_stock_only,
             product_ids=json.dumps(data.product_ids) if data.product_ids else None,
+            company_id=current_company_id(request),
         )
         db.add(catalog)
         db.commit()
@@ -201,10 +246,10 @@ def create_catalog(data: CatalogCreate):
 
 
 @router.get("/links")
-def list_catalogs():
+def list_catalogs(request: Request):
     db: Session = SessionLocal()
     try:
-        catalogs = db.query(CatalogLink).order_by(CatalogLink.id.desc()).all()
+        catalogs = db.query(CatalogLink).filter(CatalogLink.company_id == current_company_id(request)).order_by(CatalogLink.id.desc()).all()
         return {
             "items": [
                 {
@@ -225,10 +270,10 @@ def list_catalogs():
 
 
 @router.post("/links/{catalog_id}/revoke")
-def revoke_catalog(catalog_id: int):
+def revoke_catalog(catalog_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id).first()
+        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id, CatalogLink.company_id == current_company_id(request)).first()
         if not catalog:
             raise HTTPException(status_code=404, detail="Catalog not found")
         catalog.enabled = False
@@ -240,10 +285,10 @@ def revoke_catalog(catalog_id: int):
 
 
 @router.post("/links/{catalog_id}/reactivate")
-def reactivate_catalog(catalog_id: int):
+def reactivate_catalog(catalog_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id).first()
+        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id, CatalogLink.company_id == current_company_id(request)).first()
         if not catalog:
             raise HTTPException(status_code=404, detail="Catalog not found")
         catalog.enabled = True
@@ -255,14 +300,15 @@ def reactivate_catalog(catalog_id: int):
 
 
 @router.get("/links/{catalog_id}/pdf")
-def download_catalog_pdf(catalog_id: int, language: str = "fa"):
+def download_catalog_pdf(catalog_id: int, request: Request, language: str = "fa"):
     db: Session = SessionLocal()
     try:
-        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id).first()
+        catalog = db.query(CatalogLink).filter(CatalogLink.id == catalog_id, CatalogLink.company_id == current_company_id(request)).first()
         if not catalog:
             raise HTTPException(status_code=404, detail="Catalog not found")
         products = _resolve_products(db, catalog)
-        path = _build_catalog_pdf(catalog, products, language=language)
+        discounts = _active_discounts(db, [p.id for p in products])
+        path = _build_catalog_pdf(catalog, products, language=language, discounts=discounts)
     finally:
         db.close()
 
@@ -271,10 +317,10 @@ def download_catalog_pdf(catalog_id: int, language: str = "fa"):
 
 
 @router.get("/orders")
-def list_catalog_orders():
+def list_catalog_orders(request: Request):
     db: Session = SessionLocal()
     try:
-        orders = db.query(CatalogOrder).order_by(CatalogOrder.id.desc()).all()
+        orders = db.query(CatalogOrder).filter(CatalogOrder.company_id == current_company_id(request)).order_by(CatalogOrder.id.desc()).all()
         return {
             "items": [
                 {
@@ -285,6 +331,7 @@ def list_catalog_orders():
                     "items": json.loads(o.items_json or "[]"),
                     "note": o.note,
                     "status": o.status,
+                    "converted_invoice_id": o.converted_invoice_id,
                     "created_at": o.created_at,
                 }
                 for o in orders
@@ -295,10 +342,10 @@ def list_catalog_orders():
 
 
 @router.post("/orders/{order_id}/reject")
-def reject_catalog_order(order_id: int):
+def reject_catalog_order(order_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        order = db.query(CatalogOrder).filter(CatalogOrder.id == order_id).first()
+        order = db.query(CatalogOrder).filter(CatalogOrder.id == order_id, CatalogOrder.company_id == current_company_id(request)).first()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
         order.status = "rejected"
@@ -308,18 +355,10 @@ def reject_catalog_order(order_id: int):
         db.close()
 
 
-@router.post("/orders/{order_id}/mark-converted")
-def mark_catalog_order_converted(order_id: int):
-    db: Session = SessionLocal()
-    try:
-        order = db.query(CatalogOrder).filter(CatalogOrder.id == order_id).first()
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
-        order.status = "converted"
-        db.commit()
-        return {"status": "converted"}
-    finally:
-        db.close()
+# Note: POST /orders/{order_id}/mark-converted is implemented in main.py,
+# not here - converting an order into a real invoice needs the invoice
+# creation helpers (create_invoice, Customer lookup, GL posting) that live
+# in main.py, and this module is imported by main.py so it can't import back.
 
 
 # --- Customer-facing (public paths; this router verifies its own token) ---
@@ -331,9 +370,10 @@ def view_catalog(request: Request):
     try:
         catalog = _authenticated_catalog(request, db)
         products = _resolve_products(db, catalog)
+        discounts = _active_discounts(db, [p.id for p in products])
         return {
             "title": catalog.title,
-            "items": [_product_public_dict(p) for p in products],
+            "items": [_product_public_dict(p, discounts.get(p.id)) for p in products],
         }
     finally:
         db.close()
@@ -366,6 +406,7 @@ def place_catalog_order(data: CatalogOrderCreate, request: Request):
             items_json=json.dumps(resolved_items),
             note=data.note,
             status="pending",
+            company_id=catalog.company_id,
         )
         db.add(order)
         db.commit()

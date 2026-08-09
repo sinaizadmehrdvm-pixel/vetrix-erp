@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/tax", tags=["VAT Accounting"])
 MONEY_STEP = Decimal("0.01")
@@ -20,14 +21,15 @@ def _money(value):
 
 
 @router.get("")
-def vat_report(fiscal_period_id: int | None = None):
+def vat_report(request: Request, fiscal_period_id: int | None = None):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         period = None
         if fiscal_period_id is not None:
             period = conn.execute(text("""
                 SELECT id, name, start_date, end_date, status
-                FROM fiscal_periods WHERE id=:id
-            """), {"id": fiscal_period_id}).mappings().first()
+                FROM fiscal_periods WHERE id=:id AND company_id=:company_id
+            """), {"id": fiscal_period_id, "company_id": company_id}).mappings().first()
             if not period:
                 raise HTTPException(
                     status_code=404,
@@ -45,13 +47,14 @@ def vat_report(fiscal_period_id: int | None = None):
             JOIN accounting_voucher_lines l ON l.voucher_id=v.id
             LEFT JOIN invoices i
               ON v.source_type='invoice' AND i.id=v.source_id
-            WHERE v.status='posted'
+            WHERE v.status='posted' AND v.company_id=:company_id
               AND v.source_type='invoice'
               AND l.account_code IN ('1301', '2201')
               AND (:period_id IS NULL OR v.fiscal_period_id=:period_id)
             ORDER BY v.voucher_date, v.voucher_no, l.id
         """), {
             "period_id": period["id"] if period else None,
+            "company_id": company_id,
         }).mappings().all()
 
         output_vat = Decimal("0")

@@ -9,6 +9,9 @@ __pycache__/
 node_modules/
 dist/
 build/
+package/
+VetrixERP-Windows-x64.zip
+VetrixERP-Windows-x64.sha256
 .vite/
 .DS_Store
 *.log

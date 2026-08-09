@@ -100,6 +100,12 @@ button:hover, a:hover { transform:translateY(-1px); }
 .erp-table-row { transition: background-color 120ms ease; }
 .erp-table-row:hover { background-color: var(--erp-glow); }
 
+@keyframes erp-fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.erp-fade-in { animation: erp-fade-in-up .28s ease both; }
+
 
 /* Responsive and accessible application shell */
 html, body, #root { width: 100%; min-height: 100%; }

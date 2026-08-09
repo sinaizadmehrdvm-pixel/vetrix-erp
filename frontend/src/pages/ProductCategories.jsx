@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
-import { createProductCategory, deleteProductCategory, getProductCategories } from "../services/api";
+import { createProductCategory, deleteProductCategory, getProductCategories, updateProductCategory } from "../services/api";
 
 export default function ProductCategories() {
   const { language, n } = useLanguage();
@@ -17,6 +17,10 @@ export default function ProductCategories() {
     sub_category: "",
     code: "",
   });
+
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ main_category: "", sub_category: "", code: "" });
+  const [saving, setSaving] = useState(false);
 
   async function load() {
     try {
@@ -60,6 +64,35 @@ export default function ProductCategories() {
       setCategories((prev) => prev.filter((item) => item.id !== id));
     } catch (error) {
       toast.error(error.message || (language === "fa" ? "خطا در حذف دسته‌بندی" : language === "ar" ? "فشل في حذف التصنيف" : language === "tr" ? "Kategori silinirken hata oluştu" : "Failed to delete category"));
+    }
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditForm({ main_category: item.main_category || "", sub_category: item.sub_category || "", code: item.code || "" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm({ main_category: "", sub_category: "", code: "" });
+  }
+
+  async function saveEdit(id) {
+    if (!editForm.main_category.trim()) return;
+    setSaving(true);
+    try {
+      const result = await updateProductCategory(id, {
+        main_category: editForm.main_category.trim(),
+        sub_category: editForm.sub_category.trim(),
+        code: editForm.code.trim(),
+      });
+      if (result?.status === "error") throw new Error(result.message);
+      cancelEdit();
+      await load();
+    } catch (error) {
+      toast.error(error.message || (language === "fa" ? "خطا در ویرایش دسته‌بندی" : language === "ar" ? "فشل في تعديل التصنيف" : language === "tr" ? "Kategori düzenlenirken hata oluştu" : "Failed to edit category"));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -151,25 +184,82 @@ export default function ProductCategories() {
             </thead>
 
             <tbody>
-              {filtered.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5"
-                >
-                  <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
-                  <td className="p-4 font-bold text-[var(--erp-text)]">{item.main_category}</td>
-                  <td className="p-4 text-[var(--erp-text)]">{item.sub_category || "-"}</td>
-                  <td className="p-4 text-[var(--erp-text)]">{(language === "fa" ? toPersianDigits(item.code) : item.code) || "-"}</td>
-                  <td className="p-4">
-                    <button
-                      onClick={() => removeCategory(item.id)}
-                      className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center"
-                    >
-                      <Trash2 className="text-red-400" size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((item) => {
+                const isEditing = editingId === item.id;
+                if (isEditing) {
+                  return (
+                    <tr key={item.id} className="border-b border-[var(--erp-border)] bg-cyan-500/5">
+                      <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
+                      <td className="p-2">
+                        <input
+                          autoFocus
+                          value={editForm.main_category}
+                          onChange={(e) => setEditForm({ ...editForm, main_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
+                          className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          value={editForm.sub_category}
+                          onChange={(e) => setEditForm({ ...editForm, sub_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
+                          className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          value={editForm.code}
+                          onChange={(e) => setEditForm({ ...editForm, code: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
+                          className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
+                        />
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => saveEdit(item.id)}
+                            disabled={saving || !editForm.main_category.trim()}
+                            className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center disabled:opacity-50"
+                          >
+                            <Check className="text-emerald-400" size={18} />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="w-10 h-10 rounded-xl bg-[var(--erp-panel-solid)] flex items-center justify-center"
+                          >
+                            <X className="text-[var(--erp-muted)]" size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr
+                    key={item.id}
+                    className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5"
+                  >
+                    <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
+                    <td className="p-4 font-bold text-[var(--erp-text)]">{item.main_category}</td>
+                    <td className="p-4 text-[var(--erp-text)]">{item.sub_category || "-"}</td>
+                    <td className="p-4 text-[var(--erp-text)]">{(language === "fa" ? toPersianDigits(item.code) : item.code) || "-"}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center"
+                        >
+                          <Pencil className="text-cyan-400" size={18} />
+                        </button>
+                        <button
+                          onClick={() => removeCategory(item.id)}
+                          className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center"
+                        >
+                          <Trash2 className="text-red-400" size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -56,7 +56,7 @@ def _allowed_sender(sender):
         raise HTTPException(status_code=403, detail="Voice sender is not allow-listed")
 
 
-def _service_user_id(conn):
+def _service_user(conn):
     try:
         user_id = int(_required_secret("VETRIX_VOICE_SERVICE_USER_ID"))
     except ValueError:
@@ -64,7 +64,7 @@ def _service_user_id(conn):
             status_code=503, detail="VETRIX_VOICE_SERVICE_USER_ID must be numeric"
         )
     user = conn.execute(
-        text("SELECT id, role FROM users WHERE id=:id"), {"id": user_id}
+        text("SELECT id, role, company_id FROM users WHERE id=:id"), {"id": user_id}
     ).mappings().first()
     if not user:
         raise HTTPException(status_code=503, detail="Voice service user does not exist")
@@ -73,7 +73,7 @@ def _service_user_id(conn):
             status_code=503,
             detail="Voice service user must not be an administrator",
         )
-    return user_id
+    return user_id, user["company_id"]
 
 
 def _ensure_inbound_schema(conn):
@@ -90,6 +90,8 @@ def _ensure_inbound_schema(conn):
             FOREIGN KEY(change_request_id) REFERENCES managed_change_requests(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "inbound_voice_events")
 
 
 def _ingest(source, event_id, sender, message_reference, transcript, media_reference):
@@ -111,34 +113,36 @@ def _ingest(source, event_id, sender, message_reference, transcript, media_refer
         """), {"source": source, "event_id": clean_event}).scalar()
         if existing:
             return {"status": "duplicate", "request_id": existing}
-        actor = _service_user_id(conn)
+        actor, company_id = _service_user(conn)
         created = conn.execute(text("""
             INSERT INTO managed_change_requests
               (source, source_reference, audio_reference, transcript, action_type,
                target_id, proposed_changes, status, requested_by, requested_at,
-               submitted_at)
+               submitted_at, company_id)
             VALUES
               (:source, :source_reference, '', :transcript, 'note_only',
-               NULL, '{}', 'needs_transcript_review', :actor, :now, NULL)
+               NULL, '{}', 'needs_transcript_review', :actor, :now, NULL, :company_id)
         """), {
             "source": source,
             "source_reference": str(message_reference or "")[:500],
             "transcript": clean_transcript,
             "actor": actor,
             "now": _now(),
+            "company_id": company_id,
         })
         request_id = created.lastrowid
         recorded = conn.execute(text("""
             INSERT OR IGNORE INTO inbound_voice_events
               (source, external_event_id, sender_reference,
-               change_request_id, received_at)
-            VALUES (:source, :event_id, :sender, :request_id, :now)
+               change_request_id, received_at, company_id)
+            VALUES (:source, :event_id, :sender, :request_id, :now, :company_id)
         """), {
             "source": source,
             "event_id": clean_event,
             "sender": str(sender)[:300],
             "request_id": request_id,
             "now": _now(),
+            "company_id": company_id,
         })
         if recorded.rowcount == 0:
             conn.execute(

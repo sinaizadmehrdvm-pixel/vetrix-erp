@@ -10,11 +10,14 @@ from app.auth import (
     password_needs_upgrade,
     verify_password,
 )
+from app.company_scope import current_company_id, get_company_brief
 from app.database import SessionLocal
 from app.mfa import consume_recovery_code, verify_totp_code
+from app.models.company import Company
 from app.models.user import User
-from app.rbac import ROLE_LABELS, normalize_role
+from app.rbac import ROLE_LABELS, normalize_role, is_valid_role_code
 from app.security import login_attempt_key, login_retry_after, record_login_result
+from app.super_admin import is_super_admin, require_super_admin
 from jwt import PyJWTError
 
 router = APIRouter()
@@ -25,10 +28,24 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "admin"
+    # Milestone 4: only honored when the creator is a super-admin - see
+    # create_user(). A regular admin's client-supplied values here are
+    # silently ignored so they can never create a user outside their own
+    # company or grant super-admin themselves.
+    company_id: int | None = None
+    is_super_admin: bool = False
 
 
 class UserRoleUpdate(BaseModel):
     role: str
+
+
+class UserCompanyMove(BaseModel):
+    company_id: int
+
+
+class UserSuperAdminUpdate(BaseModel):
+    is_super_admin: bool
 
 
 class UserPasswordReset(BaseModel):
@@ -68,7 +85,7 @@ def setup_status():
 
 def require_admin(request: Request):
     auth = getattr(request.state, "auth", {})
-    if auth.get("role") not in {"admin", "bootstrap"}:
+    if auth.get("role") not in {"admin", "bootstrap"} and not is_super_admin(auth):
         raise HTTPException(status_code=403, detail="Administrator access required")
 
 
@@ -79,10 +96,11 @@ def create_user(data: UserCreate, request: Request):
         raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
     raw_role = str(data.role).strip().lower()
     requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
-    if raw_role not in ROLE_LABELS:
+    if not is_valid_role_code(raw_role):
         raise HTTPException(
             status_code=400,
-            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
+            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}, "
+                    "or an existing custom role code",
         )
     db: Session = SessionLocal()
     try:
@@ -90,11 +108,45 @@ def create_user(data: UserCreate, request: Request):
         if existing:
             raise HTTPException(status_code=409, detail="User already exists")
 
+        auth = getattr(request.state, "auth", {})
+        caller_is_bootstrap = auth.get("role") == "bootstrap"
+        caller_is_super_admin = is_super_admin(auth)
+
+        if caller_is_bootstrap:
+            # Unchanged bootstrap fallback logic (first-ever user, no
+            # company_id claim to inherit yet) - and the very first user
+            # auto-becomes the first super-admin, mirroring how they already
+            # auto-become admin, so there's always someone who can create a
+            # second company later.
+            company_id = auth.get("company_id")
+            if not company_id:
+                fallback = db.query(Company).order_by(Company.id.asc()).first()
+                company_id = fallback.id if fallback else None
+            grant_super_admin = True
+        elif caller_is_super_admin:
+            # Super-admins may create a user directly in any active company.
+            target_company_id = data.company_id or auth.get("company_id")
+            company = get_company_brief(target_company_id)
+            if not company:
+                raise HTTPException(status_code=400, detail="Company not found")
+            if not company["is_active"]:
+                raise HTTPException(status_code=400, detail="Company is inactive")
+            company_id = company["id"]
+            grant_super_admin = bool(data.is_super_admin)
+        else:
+            # Regular (non-super-admin) admins stay locked to their own
+            # company, exactly as before - any client-supplied company_id/
+            # is_super_admin is ignored, closing the cross-company gap.
+            company_id = auth.get("company_id")
+            grant_super_admin = False
+
         user = User(
             full_name=data.full_name,
             username=data.username,
             password=hash_password(data.password),
             role=requested_role,
+            company_id=company_id,
+            is_super_admin=grant_super_admin,
         )
         db.add(user)
         db.commit()
@@ -104,6 +156,8 @@ def create_user(data: UserCreate, request: Request):
             "id": user.id,
             "username": user.username,
             "role": user.role,
+            "company_id": user.company_id,
+            "is_super_admin": user.is_super_admin,
             "must_change_password": bool(getattr(user, "must_change_password", False)),
         }
     finally:
@@ -117,15 +171,29 @@ def user_to_auth_dict(user: User):
         "username": user.username,
         "role": user.role,
         "must_change_password": bool(getattr(user, "must_change_password", False)),
+        "company_id": getattr(user, "company_id", None),
+        "is_super_admin": bool(getattr(user, "is_super_admin", False)),
     }
 
 
 @router.get("/users")
-def list_users(request: Request):
+def list_users(request: Request, company_id: int | None = None):
     require_admin(request)
+    auth = getattr(request.state, "auth", {})
     db: Session = SessionLocal()
     try:
-        return [user_to_auth_dict(user) for user in db.query(User).all()]
+        query = db.query(User)
+        if not is_super_admin(auth):
+            # Closes a confirmed gap: a regular admin used to see and manage
+            # every company's users from here - now scoped to their own.
+            query = query.filter(User.company_id == current_company_id(request))
+        elif company_id is not None:
+            query = query.filter(User.company_id == company_id)
+        companies_by_id = {company.id: company.name for company in db.query(Company).all()}
+        return [
+            {**user_to_auth_dict(user), "company_name": companies_by_id.get(user.company_id)}
+            for user in query.all()
+        ]
     finally:
         db.close()
 
@@ -159,7 +227,8 @@ def change_own_password(data: PasswordChangeRequest, request: Request):
             "user": user_to_auth_dict(user),
             "security_event": "user_password_changed",
             "access_token": create_access_token(
-                user.id, user.username, normalize_role(user.role), user.token_generation
+                user.id, user.username, normalize_role(user.role), user.token_generation,
+                company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
             ),
             "token_type": "Bearer",
         }
@@ -173,10 +242,14 @@ def admin_reset_user_password(user_id: int, data: UserPasswordReset, request: Re
     if len(data.password) < 12:
         raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
 
-    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    auth = getattr(request.state, "auth", {})
+    auth_user_id = auth.get("sub")
     db: Session = SessionLocal()
     try:
-        user = db.query(User).filter(User.id == user_id).first()
+        query = db.query(User).filter(User.id == user_id)
+        if not is_super_admin(auth):
+            query = query.filter(User.company_id == current_company_id(request))
+        user = query.first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         self_reset = str(auth_user_id) == str(user_id)
@@ -196,7 +269,8 @@ def admin_reset_user_password(user_id: int, data: UserPasswordReset, request: Re
             # The admin just revoked their own current token; hand back a fresh
             # one so they aren't unexpectedly logged out by their own action.
             response["access_token"] = create_access_token(
-                user.id, user.username, normalize_role(user.role), user.token_generation
+                user.id, user.username, normalize_role(user.role), user.token_generation,
+                company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
             )
             response["token_type"] = "Bearer"
         return response
@@ -227,19 +301,24 @@ def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
     require_admin(request)
     raw_role = str(data.role).strip().lower()
     requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
-    if raw_role not in ROLE_LABELS:
+    if not is_valid_role_code(raw_role):
         raise HTTPException(
             status_code=400,
-            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
+            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}, "
+                    "or an existing custom role code",
         )
 
-    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    auth = getattr(request.state, "auth", {})
+    auth_user_id = auth.get("sub")
     if str(user_id) == str(auth_user_id):
         raise HTTPException(status_code=400, detail="You cannot change your own role")
 
     db: Session = SessionLocal()
     try:
-        user = db.query(User).filter(User.id == user_id).first()
+        query = db.query(User).filter(User.id == user_id)
+        if not is_super_admin(auth):
+            query = query.filter(User.company_id == current_company_id(request))
+        user = query.first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.role == "admin" and requested_role != "admin":
@@ -250,6 +329,69 @@ def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
                     detail="The system must keep at least one administrator",
                 )
         user.role = requested_role
+        db.commit()
+        db.refresh(user)
+        return {"status": "updated", "user": user_to_auth_dict(user)}
+    finally:
+        db.close()
+
+
+@router.put("/users/{user_id}/company")
+def move_user_company(user_id: int, data: UserCompanyMove, request: Request):
+    require_super_admin(request)
+    company = get_company_brief(data.company_id)
+    if not company:
+        raise HTTPException(status_code=400, detail="Company not found")
+    if not company["is_active"]:
+        raise HTTPException(status_code=400, detail="Company is inactive")
+
+    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        self_move = str(auth_user_id) == str(user_id)
+        user.company_id = data.company_id
+        # The JWT's company_id claim is never refreshed from the DB per
+        # request (unlike role/is_super_admin) - bump token_generation so
+        # this user's existing token(s) stop working and their next login
+        # mints one with the correct company_id.
+        user.token_generation = (user.token_generation or 0) + 1
+        db.commit()
+        db.refresh(user)
+        response = {
+            "status": "moved",
+            "user": {**user_to_auth_dict(user), "company_name": company["name"]},
+        }
+        if self_move:
+            response["access_token"] = create_access_token(
+                user.id, user.username, normalize_role(user.role), user.token_generation,
+                company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
+            )
+            response["token_type"] = "Bearer"
+        return response
+    finally:
+        db.close()
+
+
+@router.put("/users/{user_id}/super-admin")
+def update_user_super_admin(user_id: int, data: UserSuperAdminUpdate, request: Request):
+    require_super_admin(request)
+    auth_user_id = getattr(request.state, "auth", {}).get("sub")
+    if str(user_id) == str(auth_user_id):
+        raise HTTPException(status_code=400, detail="You cannot change your own super-admin status")
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.is_super_admin and not data.is_super_admin:
+            remaining = db.query(User).filter(User.is_super_admin == True).count()  # noqa: E712
+            if remaining <= 1:
+                raise HTTPException(status_code=400, detail="The system must keep at least one super-administrator")
+        user.is_super_admin = data.is_super_admin
         db.commit()
         db.refresh(user)
         return {"status": "updated", "user": user_to_auth_dict(user)}
@@ -291,7 +433,8 @@ def login(data: LoginRequest, request: Request):
 
         record_login_result(attempt_key, True)
         token = create_access_token(
-            user.id, user.username, normalize_role(user.role), user.token_generation
+            user.id, user.username, normalize_role(user.role), user.token_generation,
+            company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
         )
         return {
             "status": "success",
@@ -300,6 +443,7 @@ def login(data: LoginRequest, request: Request):
             "token_type": "Bearer",
             "requires_password_change": bool(getattr(user, "must_change_password", False)),
             "user": user_to_auth_dict(user),
+            "active_company": get_company_brief(user.company_id),
         }
     finally:
         db.close()
@@ -345,7 +489,8 @@ def login_totp(data: MfaLoginRequest, request: Request):
             db.commit()
 
         token = create_access_token(
-            user.id, user.username, normalize_role(user.role), user.token_generation
+            user.id, user.username, normalize_role(user.role), user.token_generation,
+            company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
         )
         return {
             "status": "success",
@@ -354,6 +499,7 @@ def login_totp(data: MfaLoginRequest, request: Request):
             "token_type": "Bearer",
             "requires_password_change": bool(getattr(user, "must_change_password", False)),
             "user": user_to_auth_dict(user),
+            "active_company": get_company_brief(user.company_id),
         }
     finally:
         db.close()
@@ -371,7 +517,11 @@ def me(request: Request):
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="User no longer exists")
-        return {"status": "success", "user": user_to_auth_dict(user)}
+        return {
+            "status": "success",
+            "user": user_to_auth_dict(user),
+            "active_company": get_company_brief(current_company_id(request)),
+        }
     finally:
         db.close()
 
