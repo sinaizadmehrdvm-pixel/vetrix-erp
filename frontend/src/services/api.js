@@ -341,6 +341,12 @@ export async function getInvoicePaymentShareLink(invoiceId) {
 export async function sendInvoicePaymentLinkSms(invoiceId) {
   return await request(`/api/payments/invoices/${invoiceId}/send-sms`, { method: "POST" });
 }
+export async function sendInvoicePaymentLinkTelegram(invoiceId) {
+  return await request(`/api/payments/invoices/${invoiceId}/send-telegram`, { method: "POST" });
+}
+export async function sendInvoicePaymentLinkWhatsappAuto(invoiceId) {
+  return await request(`/api/payments/invoices/${invoiceId}/send-whatsapp-auto`, { method: "POST" });
+}
 
 // Modular per-industry invoice fields (Phase 2)
 export async function getIndustryFieldDefinitions() {

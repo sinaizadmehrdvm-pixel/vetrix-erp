@@ -61,6 +61,9 @@ const emptySettings = {
   auto_backup: false,
   sms_panel: "",
   sms_api_key: "",
+  telegram_bot_token: "",
+  whatsapp_phone_number_id: "",
+  whatsapp_access_token: "",
   smtp_host: "",
   smtp_port: 587,
   smtp_user: "",
@@ -700,8 +703,28 @@ export default function Settings() {
           <Field label={tr("کلید API پیامک", "مفتاح API للرسائل النصية", "SMS API Anahtarı", "SMS API Key")}>
             <Input value={settings.sms_api_key || ""} onChange={(e) => setField("sms_api_key", e.target.value)} />
           </Field>
+
+          <Field label={tr("توکن ربات تلگرام", "رمز بوت تيليجرام", "Telegram bot token", "Telegram bot token")}>
+            <Input value={settings.telegram_bot_token || ""} onChange={(e) => setField("telegram_bot_token", e.target.value)} placeholder="123456:ABC-..." />
+          </Field>
+
+          <Field label={tr("شناسه شماره واتساپ (Phone Number ID)", "معرّف رقم واتساب (Phone Number ID)", "WhatsApp Phone Number ID", "WhatsApp Phone Number ID")}>
+            <Input value={settings.whatsapp_phone_number_id || ""} onChange={(e) => setField("whatsapp_phone_number_id", e.target.value)} />
+          </Field>
+
+          <Field label={tr("توکن دسترسی واتساپ (Access Token)", "رمز وصول واتساب (Access Token)", "WhatsApp Access Token", "WhatsApp Access Token")}>
+            <Input value={settings.whatsapp_access_token || ""} onChange={(e) => setField("whatsapp_access_token", e.target.value)} />
+          </Field>
         </div>
         <p className="text-xs mt-3" style={{ color: "var(--erp-warning, #f59e0b)" }}>{label.smsHint}</p>
+        <p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>
+          {tr(
+            "توکن ربات تلگرام را از @BotFather بگیرید. برای واتساپ به یک حساب Meta Business Cloud API نیاز دارید. تا وقتی این‌ها تنظیم نشوند، فقط لینک اشتراک‌گذاری دستی واتساپ در دسترس است.",
+            "احصل على رمز بوت تيليجرام من @BotFather. لواتساب تحتاج حساب Meta Business Cloud API. حتى إعداد هذه القيم، يبقى رابط واتساب اليدوي فقط متاحًا.",
+            "Telegram bot token'ı @BotFather'dan alın. WhatsApp için bir Meta Business Cloud API hesabı gereklidir. Bunlar ayarlanana kadar yalnızca manuel WhatsApp paylaşım bağlantısı kullanılabilir.",
+            "Get the Telegram bot token from @BotFather. WhatsApp requires a Meta Business Cloud API account. Until these are set, only the manual WhatsApp share link is available."
+          )}
+        </p>
 
         <div className="mt-5 pt-5" style={{ borderTop: "1px solid var(--erp-border)" }}>
           <p className="text-sm mb-4" style={{ color: "var(--erp-muted)" }}>{label.backupHint}</p>

@@ -34,6 +34,8 @@ from app.message_templates import get_effective_template
 from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.company_scope import current_company_id
+from app.telegram_utils import send_telegram_message, telegram_configured
+from app.whatsapp_utils import send_whatsapp_message, whatsapp_configured
 
 router = APIRouter(prefix="/api/payment-reminders", tags=["Automated Payment Reminders"])
 
@@ -154,13 +156,34 @@ def send_reminder_for_invoice(db: Session, invoice: Invoice, customer, remaining
     of always being English."""
     if not force and _reminded_within_cooldown(db, invoice.id):
         return None
+
+    tier = _escalation_tier(_days_overdue(invoice, datetime.utcnow().date()))
+    policy = financial_policy_values(db.connection(), invoice.company_id)
+    language = _language_for_policy(policy)
+
+    # Telegram and WhatsApp auto-send are additional, best-effort channels -
+    # logged the same way as email but never override its returned entry
+    # (existing callers only look at the email result), so this stays fully
+    # backward compatible while genuinely sending through every configured
+    # automatic channel, not just email.
+    if customer and telegram_configured(invoice.company_id) and getattr(customer, "telegram_chat_id", ""):
+        try:
+            send_telegram_message(invoice.company_id, customer.telegram_chat_id, _reminder_body(db, invoice, customer, remaining, tier, language))
+            _record(db, invoice.id, invoice.customer_id, "telegram", "sent", f"Sent to chat {customer.telegram_chat_id} ({tier})", invoice.company_id)
+        except Exception as error:
+            _record(db, invoice.id, invoice.customer_id, "telegram", "failed", str(error), invoice.company_id)
+
+    if customer and whatsapp_configured(invoice.company_id) and _whatsapp_number(customer):
+        try:
+            send_whatsapp_message(invoice.company_id, _whatsapp_number(customer), _reminder_body(db, invoice, customer, remaining, tier, language))
+            _record(db, invoice.id, invoice.customer_id, "whatsapp_auto", "sent", f"Sent to {_whatsapp_number(customer)} ({tier})", invoice.company_id)
+        except Exception as error:
+            _record(db, invoice.id, invoice.customer_id, "whatsapp_auto", "failed", str(error), invoice.company_id)
+
     if not smtp_configured(invoice.company_id):
         return _record(db, invoice.id, invoice.customer_id, "email", "skipped_not_configured", "SMTP is not configured", invoice.company_id)
     if not customer or not customer.email:
         return _record(db, invoice.id, invoice.customer_id, "email", "skipped_no_email", "Customer has no email on file", invoice.company_id)
-    tier = _escalation_tier(_days_overdue(invoice, datetime.utcnow().date()))
-    policy = financial_policy_values(db.connection(), invoice.company_id)
-    language = _language_for_policy(policy)
     try:
         send_email(
             invoice.company_id,

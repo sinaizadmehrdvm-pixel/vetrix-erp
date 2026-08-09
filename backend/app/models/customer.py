@@ -36,5 +36,9 @@ class Customer(Base):
     # Optional sales-rep ownership (users.id) - powers the "my customers"
     # filter; unassigned customers are visible to everyone as before.
     assigned_rep_id = Column(Integer, nullable=True)
+    # Set once the customer has messaged the company's Telegram bot (a bot
+    # can't message a user who hasn't started that chat first) - see
+    # app/telegram_utils.py.
+    telegram_chat_id = Column(String, default="")
     # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
     company_id = Column(Integer, nullable=True)

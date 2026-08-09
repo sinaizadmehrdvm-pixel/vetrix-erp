@@ -11,6 +11,8 @@ import {
   getWhatsappReminderLink,
   getInvoicePaymentShareLink,
   sendInvoicePaymentLinkSms,
+  sendInvoicePaymentLinkTelegram,
+  sendInvoicePaymentLinkWhatsappAuto,
   getSettings,
   isNetworkError,
 } from "../services/api";
@@ -151,6 +153,8 @@ export default function PaymentReminders() {
   const [extraChannels, setExtraChannels] = useState([]);
   const [paymentLinkId, setPaymentLinkId] = useState(null);
   const [smsId, setSmsId] = useState(null);
+  const [telegramLinkId, setTelegramLinkId] = useState(null);
+  const [whatsappAutoId, setWhatsappAutoId] = useState(null);
 
   async function loadAll() {
     setLoading(true);
@@ -291,6 +295,34 @@ export default function PaymentReminders() {
       toast.error(friendlyError(err, language));
     } finally {
       setSmsId(null);
+    }
+  }
+
+  async function handlePaymentLinkTelegram(invoiceId) {
+    setTelegramLinkId(invoiceId);
+    try {
+      await sendInvoicePaymentLinkTelegram(invoiceId);
+      toast.success(
+        language === "fa" ? "پیام تلگرام ارسال شد." : language === "ar" ? "تم إرسال رسالة تيليجرام." : language === "tr" ? "Telegram mesajı gönderildi." : "Telegram message sent."
+      );
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setTelegramLinkId(null);
+    }
+  }
+
+  async function handlePaymentLinkWhatsappAuto(invoiceId) {
+    setWhatsappAutoId(invoiceId);
+    try {
+      await sendInvoicePaymentLinkWhatsappAuto(invoiceId);
+      toast.success(
+        language === "fa" ? "پیام واتساپ ارسال شد." : language === "ar" ? "تم إرسال رسالة واتساب." : language === "tr" ? "WhatsApp mesajı gönderildi." : "WhatsApp message sent."
+      );
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setWhatsappAutoId(null);
     }
   }
 
@@ -447,6 +479,24 @@ export default function PaymentReminders() {
                   >
                     <MessageSquareMore size={14} />
                     {language === "fa" ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS"}
+                  </button>
+                  <button
+                    onClick={() => handlePaymentLinkTelegram(item.invoice_id)}
+                    disabled={telegramLinkId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-sky-500/15 text-sky-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                    title={language === "fa" ? "ارسال خودکار لینک پرداخت با تلگرام (نیازمند توکن ربات و شناسه چت مشتری)" : language === "ar" ? "إرسال رابط الدفع تلقائيًا عبر تيليجرام" : language === "tr" ? "Ödeme bağlantısını Telegram ile otomatik gönder" : "Auto-send payment link via Telegram (requires bot token + customer chat ID)"}
+                  >
+                    <MessageCircle size={14} />
+                    {language === "fa" ? "تلگرام" : language === "ar" ? "تيليجرام" : language === "tr" ? "Telegram" : "Telegram"}
+                  </button>
+                  <button
+                    onClick={() => handlePaymentLinkWhatsappAuto(item.invoice_id)}
+                    disabled={whatsappAutoId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-teal-500/15 text-teal-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                    title={language === "fa" ? "ارسال خودکار لینک پرداخت با واتساپ (نیازمند تنظیم WhatsApp Cloud API)" : language === "ar" ? "إرسال رابط الدفع تلقائيًا عبر واتساب" : language === "tr" ? "Ödeme bağlantısını WhatsApp ile otomatik gönder" : "Auto-send payment link via WhatsApp (requires WhatsApp Cloud API setup)"}
+                  >
+                    <MessageCircle size={14} />
+                    {language === "fa" ? "واتساپ خودکار" : language === "ar" ? "واتساب تلقائي" : language === "tr" ? "Otomatik WhatsApp" : "Auto WhatsApp"}
                   </button>
                   <button
                     onClick={() => handleSendNow(item.invoice_id)}

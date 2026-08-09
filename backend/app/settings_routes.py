@@ -75,6 +75,12 @@ class AppSettings(Base):
     # Which set of extra invoice fields to offer (veterinary/human_medical/
     # pharmacy/general) - see app/industry_fields.py.
     industry = Column(String, default="general")
+    # Automatic-send channels (real API calls, not manual share links) -
+    # see app/telegram_utils.py and app/whatsapp_utils.py. Both fail closed
+    # (503) until configured, same convention as SMTP/SMS/ZarinPal above.
+    telegram_bot_token = Column(String, default="")
+    whatsapp_phone_number_id = Column(String, default="")
+    whatsapp_access_token = Column(String, default="")
     updated_at = Column(String, default="")
 
 
@@ -125,6 +131,9 @@ class AppSettingsUpdate(BaseModel):
     smtp_from: str = ""
     reminder_channels: list = []
     industry: str = "general"
+    telegram_bot_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_access_token: str = ""
 
 
 def settings_to_dict(settings: AppSettings):
@@ -177,6 +186,9 @@ def settings_to_dict(settings: AppSettings):
         "smtp_from": settings.smtp_from or "",
         "reminder_channels": _load_reminder_channels(settings.reminder_channels_json),
         "industry": settings.industry or "general",
+        "telegram_bot_token": settings.telegram_bot_token or "",
+        "whatsapp_phone_number_id": settings.whatsapp_phone_number_id or "",
+        "whatsapp_access_token": settings.whatsapp_access_token or "",
         "updated_at": settings.updated_at or "",
     }
 

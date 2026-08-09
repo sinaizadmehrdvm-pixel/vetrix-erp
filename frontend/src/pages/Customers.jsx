@@ -60,6 +60,7 @@ const emptyForm = {
   name: "",
   phone: "",
   mobile: "",
+  telegram_chat_id: "",
   email: "",
   national_id: "",
   economic_code: "",
@@ -544,6 +545,7 @@ export default function Customers() {
       name: form.name.trim(),
       phone: toEnglishDigits(form.phone || form.mobile || ""),
       mobile: toEnglishDigits(form.mobile || ""),
+      telegram_chat_id: (form.telegram_chat_id || "").trim(),
       email: form.email || "",
       address: form.address || "",
       city: form.city || "",
@@ -1104,6 +1106,12 @@ export default function Customers() {
             placeholder={t("mobile")}
             value={faText(form.mobile, fa)}
             onChange={(e) => setForm({ ...form, mobile: faText(e.target.value, fa) })}
+          />
+
+          <Input
+            placeholder={fa ? "شناسه چت تلگرام (اختیاری)" : language === "ar" ? "معرّف دردشة تيليجرام (اختياري)" : language === "tr" ? "Telegram sohbet kimliği (isteğe bağlı)" : "Telegram chat ID (optional)"}
+            value={form.telegram_chat_id || ""}
+            onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
           />
 
           <Input

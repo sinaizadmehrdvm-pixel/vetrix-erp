@@ -4638,6 +4638,78 @@ class ApiAccessControlTests(unittest.TestCase):
         # Reset back to general so it doesn't leak into other z-tests.
         self.client.post("/settings", headers=admin_headers, json={"industry": "general"})
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_telegram_whatsapp_autosend_and_settings(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        settings_update = self.client.post("/settings", headers=admin_headers, json={
+            "telegram_bot_token": "", "whatsapp_phone_number_id": "", "whatsapp_access_token": "",
+        })
+        self.assertEqual(settings_update.status_code, 200, settings_update.text)
+        self.assertEqual(settings_update.json()["settings"]["telegram_bot_token"], "")
+
+        customer = self.client.post(
+            "/customers", headers=admin_headers,
+            json={"name": "Autosend Customer", "mobile": "09121234567", "telegram_chat_id": "555666777"},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        listed = self.client.get("/customers", headers=admin_headers).json()
+        listed_customer = next(c for c in listed if c["id"] == customer.json()["id"])
+        self.assertEqual(listed_customer["telegram_chat_id"], "555666777")
+
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Autosend Product", "price": 1000, "buy_price": 500, "stock": 10},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={"invoice_type": "sale", "customer_id": customer.json()["id"], "items": [{"product_id": product.json()["id"], "quantity": 1, "unit_price": 1000}]},
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        # Both fail closed - neither Telegram nor WhatsApp is configured for
+        # this test company.
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            telegram_send = self.client.post(f"/api/payments/invoices/{invoice_id}/send-telegram", headers=admin_headers)
+            self.assertEqual(telegram_send.status_code, 503, telegram_send.text)
+            whatsapp_send = self.client.post(f"/api/payments/invoices/{invoice_id}/send-whatsapp-auto", headers=admin_headers)
+            self.assertEqual(whatsapp_send.status_code, 503, whatsapp_send.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_voice_assistant_layer1_suggests_action(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        reminder = self.client.post("/api/change-requests/suggest-action", headers=admin_headers, json={
+            "transcript": "لطفا کانال یادآوری واتساپ رو حذف کن",
+        })
+        self.assertEqual(reminder.status_code, 200, reminder.text)
+        self.assertEqual(reminder.json()["action_type"], "reminder_channel_manage")
+        self.assertEqual(reminder.json()["proposed_changes"]["operation"], "remove")
+
+        report = self.client.post("/api/change-requests/suggest-action", headers=admin_headers, json={
+            "transcript": "گزارش فروش رو به test@example.com بفرست به صورت pdf",
+        })
+        self.assertEqual(report.status_code, 200, report.text)
+        self.assertEqual(report.json()["action_type"], "report_delivery")
+        self.assertEqual(report.json()["proposed_changes"]["destination_email"], "test@example.com")
+        self.assertEqual(report.json()["proposed_changes"]["format"], "pdf")
+
+        vague = self.client.post("/api/change-requests/suggest-action", headers=admin_headers, json={
+            "transcript": "سلام چطوری",
+        })
+        self.assertEqual(vague.status_code, 200, vague.text)
+        self.assertEqual(vague.json()["action_type"], "note_only")
+
+        # Non-admin cannot call the suggester (mirrors transcript review's own gate).
+        sales_login = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Suggest Sales User", "username": "ci-sales-suggest", "password": "StrongSuggestPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_login.status_code, 200, sales_login.text)
+        sales_headers, _ = self._login("ci-sales-suggest", "StrongSuggestPass!42")
+        denied = self.client.post("/api/change-requests/suggest-action", headers=sales_headers, json={"transcript": "test"})
+        self.assertEqual(denied.status_code, 403, denied.text)
+
 
 if __name__ == "__main__":
     unittest.main()

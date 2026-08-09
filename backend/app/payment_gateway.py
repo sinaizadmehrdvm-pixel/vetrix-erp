@@ -41,6 +41,8 @@ from app.models.invoice import Invoice
 from app.company_scope import current_company_id
 from app.message_templates import get_effective_template
 from app.sms_utils import send_sms, sms_configured
+from app.telegram_utils import send_telegram_message, telegram_configured
+from app.whatsapp_utils import send_whatsapp_message, whatsapp_configured
 
 router = APIRouter(prefix="/api/payments", tags=["Online Payment Gateway"])
 
@@ -286,6 +288,8 @@ def get_payment_share_link(invoice_id: int, request: Request):
             "customer_phone": phone,
             "whatsapp_url": f"https://wa.me/{phone}?text={urllib.parse.quote(message)}" if phone else None,
             "sms_available": sms_configured(company_id),
+            "telegram_available": telegram_configured(company_id) and bool(getattr(customer, "telegram_chat_id", "")),
+            "whatsapp_auto_available": whatsapp_configured(company_id) and bool(phone),
         }
     finally:
         db.close()
@@ -299,6 +303,39 @@ def send_payment_link_sms(invoice_id: int, request: Request):
         raise HTTPException(status_code=400, detail="This customer has no phone number on file")
     try:
         send_sms(company_id, share["customer_phone"], share["message"])
+    except ValueError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    return {"status": "sent"}
+
+
+@router.post("/invoices/{invoice_id}/send-telegram")
+def send_payment_link_telegram(invoice_id: int, request: Request):
+    company_id = current_company_id(request)
+    db: Session = SessionLocal()
+    try:
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+        chat_id = getattr(customer, "telegram_chat_id", "") if customer else ""
+    finally:
+        db.close()
+    share = get_payment_share_link(invoice_id, request)
+    try:
+        send_telegram_message(company_id, chat_id, share["message"])
+    except ValueError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    return {"status": "sent"}
+
+
+@router.post("/invoices/{invoice_id}/send-whatsapp-auto")
+def send_payment_link_whatsapp_auto(invoice_id: int, request: Request):
+    company_id = current_company_id(request)
+    share = get_payment_share_link(invoice_id, request)
+    if not share["customer_phone"]:
+        raise HTTPException(status_code=400, detail="This customer has no phone number on file")
+    try:
+        send_whatsapp_message(company_id, share["customer_phone"], share["message"])
     except ValueError as error:
         raise HTTPException(status_code=503, detail=str(error))
     return {"status": "sent"}

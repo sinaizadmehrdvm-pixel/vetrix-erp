@@ -523,6 +523,7 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
   const [review, setReview] = useState({
     transcript: item.transcript || "",
     action_type: "note_only",
@@ -593,9 +594,42 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
     }
   }
 
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="mt-4 rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#f59e0b", color: "#451a03" }}><PencilLine size={17} />{tr("بازبینی متن و نوع تغییر", "مراجعة النص ونوع التغيير", "Metni ve işlem türünü incele", "Review transcript & action")}</button>;
+  async function openReview() {
+    setOpen(true);
+    try {
+      const result = await api("/suggest-action", {
+        method: "POST",
+        body: JSON.stringify({ transcript: item.transcript || "" }),
+      });
+      setSuggestion(result);
+      setReview((prev) => ({
+        ...prev,
+        action_type: result.action_type,
+        report_type: result.proposed_changes?.report_type || prev.report_type,
+        report_format: result.proposed_changes?.format || prev.report_format,
+        destination_email: result.proposed_changes?.destination_email || prev.destination_email,
+        reminder_operation: result.proposed_changes?.operation || prev.reminder_operation,
+        campaign_channel: result.proposed_changes?.channel || prev.campaign_channel,
+      }));
+    } catch {
+      // Layer 1 suggestion is a convenience only - if it fails, the manager
+      // just picks the action type manually as before.
+    }
+  }
+
+  if (!open) return <button type="button" onClick={openReview} className="mt-4 rounded-xl px-4 py-2 font-black flex gap-2" style={{ background: "#f59e0b", color: "#451a03" }}><PencilLine size={17} />{tr("بازبینی متن و نوع تغییر", "مراجعة النص ونوع التغيير", "Metni ve işlem türünü incele", "Review transcript & action")}</button>;
 
   return <div className="mt-4 rounded-2xl p-4 space-y-3" style={{ background: "var(--erp-panel-solid)", border: "1px solid #f59e0b" }}>
+    {suggestion && suggestion.action_type !== "note_only" && (
+      <div className="text-xs rounded-lg px-3 py-2" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}>
+        {tr(
+          `پیشنهاد خودکار (اطمینان ${suggestion.confidence === "high" ? "بالا" : "متوسط"}): این متن با «${suggestion.action_type}» مطابقت دارد. بررسی و در صورت نیاز اصلاح کنید.`,
+          `اقتراح تلقائي (ثقة ${suggestion.confidence === "high" ? "عالية" : "متوسطة"}): يطابق هذا النص «${suggestion.action_type}». راجع وعدّل عند الحاجة.`,
+          `Otomatik öneri (güven: ${suggestion.confidence === "high" ? "yüksek" : "orta"}): bu metin «${suggestion.action_type}» ile eşleşiyor. Gözden geçirin ve gerekirse düzeltin.`,
+          `Automatic suggestion (${suggestion.confidence} confidence): this transcript matches "${suggestion.action_type}". Review and correct if needed.`
+        )}
+      </div>
+    )}
     <Field label={tr("متن نهایی تأییدشده توسط مدیر", "النص النهائي الذي راجعه المدير", "Yönetici tarafından incelenen nihai metin", "Manager-reviewed final transcript")}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
     <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option><option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel")}</option></select></Field>
     {review.action_type === "reminder_channel_manage" && (

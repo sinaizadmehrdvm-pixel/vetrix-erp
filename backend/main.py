@@ -165,6 +165,10 @@ def ensure_database_schema():
         "supplier_portal_access_enabled": "supplier_portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
         "supplier_portal_token_generation": "supplier_portal_token_generation INTEGER DEFAULT 0 NOT NULL",
         "assigned_rep_id": "assigned_rep_id INTEGER",
+        # Set once the customer has messaged the company's Telegram bot (a
+        # bot can't message a user who hasn't started that chat first) -
+        # see app/telegram_utils.py.
+        "telegram_chat_id": "telegram_chat_id VARCHAR DEFAULT ''",
     }
 
     invoice_columns = {
@@ -241,6 +245,9 @@ def ensure_database_schema():
         "backup_email_frequency_hours": "backup_email_frequency_hours INTEGER DEFAULT 168",
         "last_backup_email_at": "last_backup_email_at VARCHAR DEFAULT ''",
         "industry": "industry VARCHAR DEFAULT 'general'",
+        "telegram_bot_token": "telegram_bot_token VARCHAR DEFAULT ''",
+        "whatsapp_phone_number_id": "whatsapp_phone_number_id VARCHAR DEFAULT ''",
+        "whatsapp_access_token": "whatsapp_access_token VARCHAR DEFAULT ''",
     }
     for name, sql in settings_columns.items():
         ensure_sqlite_column("app_settings", name, sql)
@@ -615,6 +622,7 @@ class CustomerCreate(BaseModel):
     notes: str = ""
     pricing_group: str = "retail"
     assigned_rep_id: Optional[int] = None
+    telegram_chat_id: str = ""
 
 
 class ProductCreate(BaseModel):
@@ -917,6 +925,7 @@ def customer_to_dict(db: Session, c: Customer):
         "notes": getattr(c, "notes", "") or "",
         "pricing_group": getattr(c, "pricing_group", "retail") or "retail",
         "assigned_rep_id": getattr(c, "assigned_rep_id", None),
+        "telegram_chat_id": getattr(c, "telegram_chat_id", "") or "",
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -1046,6 +1055,7 @@ def create_customer(data: CustomerCreate, request: Request):
             notes=data.notes,
             pricing_group=data.pricing_group,
             assigned_rep_id=data.assigned_rep_id,
+            telegram_chat_id=data.telegram_chat_id,
             company_id=current_company_id(request),
         )
         db.add(customer)
@@ -1160,6 +1170,7 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         customer.notes = data.notes
         customer.pricing_group = data.pricing_group
         customer.assigned_rep_id = data.assigned_rep_id
+        customer.telegram_chat_id = data.telegram_chat_id
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (

@@ -211,6 +211,146 @@ def _validate(action_type, target_id, changes):
                 raise HTTPException(status_code=400, detail="A channel_id is required to remove a channel")
 
 
+# --- Voice Assistant Layer 1: rule-based transcript classification -----
+#
+# No speech-to-text and no LLM are wired up anywhere in this app - this is
+# deliberately NOT AI, just keyword/regex pattern matching over whatever
+# transcript text is already available (either typed by the reviewing
+# manager, or the Telegram "caption"/"text" field app/inbound_voice.py
+# already captures alongside a voice message). It turns "the manager must
+# figure out the right action_type from scratch every single time" into
+# "confirm or correct a suggestion" - a real, always-available first layer,
+# with a real (LLM-backed) Layer 2 an explicit later phase, per the
+# original scoping decision, never silently substituted for one.
+_ACTION_KEYWORDS = {
+    "reminder_channel_manage": [
+        "کانال یادآوری", "کانال پیام", "پیام‌رسان", "افزودن کانال", "حذف کانال",
+        "قناة تذكير", "قناة رسائل", "إضافة قناة", "حذف قناة",
+        "hatırlatma kanalı", "mesaj kanalı", "kanal ekle", "kanal kaldır",
+        "reminder channel", "messaging channel", "add channel", "remove channel",
+    ],
+    "report_delivery": [
+        "گزارش", "ارسال گزارش", "ایمیل گزارش",
+        "تقرير", "إرسال تقرير",
+        "rapor", "rapor gönder",
+        "report", "send report",
+    ],
+    "campaign_draft": [
+        "کمپین", "تبلیغ", "کمپین تبلیغاتی",
+        "حملة", "حملة إعلانية",
+        "kampanya", "reklam kampanyası",
+        "campaign", "marketing campaign",
+    ],
+    "sale_invoice_draft": [
+        "فاکتور فروش", "صدور فاکتور", "فاکتور بزن",
+        "فاتورة بيع", "إصدار فاتورة",
+        "satış faturası", "fatura kes",
+        "sale invoice", "create invoice", "issue invoice",
+    ],
+    "online_product_update": [
+        "قیمت", "تخفیف", "قیمت سایت", "فروش آنلاین",
+        "السعر", "الخصم", "خصم", "متجر إلكتروني",
+        "fiyat", "indirim", "online mağaza",
+        "price", "discount", "online store", "website price",
+    ],
+}
+
+_EMAIL_RE = None
+
+
+def _email_regex():
+    global _EMAIL_RE
+    if _EMAIL_RE is None:
+        import re
+        _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+    return _EMAIL_RE
+
+
+_REPORT_TYPE_KEYWORDS = {
+    "sales": ["فروش", "المبيعات", "satış"],
+    "purchases": ["خرید", "المشتريات", "alış"],
+    "inventory": ["موجودی", "المخزون", "envanter", "stok"],
+    "customer_balances": ["مانده حساب", "أرصدة العملاء", "müşteri bakiye"],
+    "product_profit": ["سودآوری", "ربحية", "kârlılık"],
+    "open_invoices": ["تسویه‌نشده", "غير المسواة", "ödenmemiş"],
+    "inventory_movements": ["گردش انبار", "حركة المخزون", "stok hareket"],
+}
+
+
+def _extract_report_delivery(transcript: str) -> dict:
+    from app.report_delivery import FORMATS, REPORT_REGISTRY
+
+    lowered = transcript.lower()
+    changes = {}
+    for report_type, keywords in _REPORT_TYPE_KEYWORDS.items():
+        if any(kw in transcript for kw in keywords):
+            changes["report_type"] = report_type
+            break
+    if "report_type" not in changes:
+        for report_type in REPORT_REGISTRY:
+            if report_type.replace("_", " ") in lowered or report_type in lowered:
+                changes["report_type"] = report_type
+                break
+    for fmt in FORMATS:
+        if fmt in lowered:
+            changes["format"] = fmt
+            break
+    email_match = _email_regex().search(transcript)
+    if email_match:
+        changes["destination_email"] = email_match.group(0)
+    return changes
+
+
+def _extract_reminder_channel_manage(transcript: str) -> dict:
+    lowered = transcript.lower()
+    remove_cues = ["حذف", "إزالة", "kaldır", "remove", "delete"]
+    changes = {"operation": "remove" if any(cue in lowered for cue in remove_cues) else "add"}
+    return changes
+
+
+def _extract_campaign_draft(transcript: str) -> dict:
+    lowered = transcript.lower()
+    for channel in ("instagram", "whatsapp", "telegram", "linkedin", "website"):
+        if channel in lowered:
+            return {"channel": channel}
+    return {}
+
+
+_EXTRACTORS = {
+    "report_delivery": _extract_report_delivery,
+    "reminder_channel_manage": _extract_reminder_channel_manage,
+    "campaign_draft": _extract_campaign_draft,
+}
+
+
+def suggest_action_from_transcript(transcript: str) -> dict:
+    """Best-effort action_type + partial proposed_changes guess for a
+    transcript, always returned alongside a confidence label - the
+    reviewing manager confirms or corrects it, exactly like today, so a
+    wrong guess costs nothing beyond one dropdown click. Never raises."""
+    text_value = (transcript or "").strip()
+    if not text_value:
+        return {"action_type": "note_only", "confidence": "low", "proposed_changes": {}}
+
+    lowered = text_value.lower()
+    scores = {}
+    for action_type, keywords in _ACTION_KEYWORDS.items():
+        hits = sum(1 for kw in keywords if kw.lower() in lowered)
+        if hits:
+            scores[action_type] = hits
+
+    if not scores:
+        return {"action_type": "note_only", "confidence": "low", "proposed_changes": {}}
+
+    best_action = max(scores, key=scores.get)
+    confidence = "high" if scores[best_action] >= 2 else "medium"
+    try:
+        extracted = _EXTRACTORS.get(best_action, lambda _t: {})(text_value)
+    except Exception:
+        extracted = {}
+    return {"action_type": best_action, "confidence": confidence, "proposed_changes": extracted}
+
+
 class ChangeRequestPayload(BaseModel):
     source: Literal["in_app", "telegram", "whatsapp", "other"] = "in_app"
     source_reference: str = Field(default="", max_length=500)
@@ -269,6 +409,18 @@ async def upload_audio(request: Request, audio: UploadFile = File(...)):
         "size_bytes": size,
         "sha256": digest.hexdigest(),
     }
+
+
+class SuggestActionPayload(BaseModel):
+    transcript: str = Field(min_length=1, max_length=10000)
+
+
+@router.post("/suggest-action")
+def suggest_action(payload: SuggestActionPayload, request: Request):
+    """Voice Assistant Layer 1 - see suggest_action_from_transcript()'s
+    docstring. Manager-only, same as reviewing a transcript itself."""
+    _require_admin(request)
+    return suggest_action_from_transcript(payload.transcript)
 
 
 @router.get("/audio/{reference}")
