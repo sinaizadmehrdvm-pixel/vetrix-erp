@@ -72,6 +72,9 @@ class AppSettings(Base):
     # {message} placeholders, mirroring the wa.me manual-share-link pattern
     # already used for WhatsApp - no provider API/credentials required.
     reminder_channels_json = Column(Text, default="[]")
+    # Which set of extra invoice fields to offer (veterinary/human_medical/
+    # pharmacy/general) - see app/industry_fields.py.
+    industry = Column(String, default="general")
     updated_at = Column(String, default="")
 
 
@@ -121,6 +124,7 @@ class AppSettingsUpdate(BaseModel):
     smtp_password: str = ""
     smtp_from: str = ""
     reminder_channels: list = []
+    industry: str = "general"
 
 
 def settings_to_dict(settings: AppSettings):
@@ -172,6 +176,7 @@ def settings_to_dict(settings: AppSettings):
         "smtp_password": settings.smtp_password or "",
         "smtp_from": settings.smtp_from or "",
         "reminder_channels": _load_reminder_channels(settings.reminder_channels_json),
+        "industry": settings.industry or "general",
         "updated_at": settings.updated_at or "",
     }
 

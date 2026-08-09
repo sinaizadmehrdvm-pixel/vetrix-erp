@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, BellRing, MessageCircle, Send } from "lucide-react";
+import { AlertTriangle, BellRing, MessageCircle, Send, Link2, MessageSquareMore } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -9,6 +9,8 @@ import {
   getPaymentReminderStatus,
   sendPaymentReminderNow,
   getWhatsappReminderLink,
+  getInvoicePaymentShareLink,
+  sendInvoicePaymentLinkSms,
   getSettings,
   isNetworkError,
 } from "../services/api";
@@ -147,6 +149,8 @@ export default function PaymentReminders() {
   const [whatsappId, setWhatsappId] = useState(null);
   const [channelBusyKey, setChannelBusyKey] = useState(null);
   const [extraChannels, setExtraChannels] = useState([]);
+  const [paymentLinkId, setPaymentLinkId] = useState(null);
+  const [smsId, setSmsId] = useState(null);
 
   async function loadAll() {
     setLoading(true);
@@ -249,6 +253,44 @@ export default function PaymentReminders() {
       toast.error(friendlyError(err, language));
     } finally {
       setChannelBusyKey(null);
+    }
+  }
+
+  const linkCopiedText = language === "fa"
+    ? "لینک پرداخت امن کپی شد؛ می‌توانید آن را در هر پیام‌رسان یا پیامک برای مشتری بفرستید."
+    : language === "ar"
+    ? "تم نسخ رابط الدفع الآمن؛ يمكنك إرساله عبر أي تطبيق مراسلة أو رسالة نصية للعميل."
+    : language === "tr"
+    ? "Güvenli ödeme bağlantısı kopyalandı; herhangi bir mesajlaşma uygulaması veya SMS ile müşteriye gönderebilirsiniz."
+    : "Secure payment link copied; you can send it to the customer via any messenger or SMS.";
+
+  async function handlePaymentLink(invoiceId) {
+    setPaymentLinkId(invoiceId);
+    try {
+      const share = await getInvoicePaymentShareLink(invoiceId);
+      await navigator.clipboard.writeText(share.message || share.payment_url);
+      toast.success(linkCopiedText);
+      if (share.whatsapp_url) {
+        window.open(share.whatsapp_url, "_blank", "noreferrer");
+      }
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setPaymentLinkId(null);
+    }
+  }
+
+  async function handlePaymentLinkSms(invoiceId) {
+    setSmsId(invoiceId);
+    try {
+      await sendInvoicePaymentLinkSms(invoiceId);
+      toast.success(
+        language === "fa" ? "پیامک ارسال شد." : language === "ar" ? "تم إرسال الرسالة النصية." : language === "tr" ? "SMS gönderildi." : "SMS sent."
+      );
+    } catch (err) {
+      toast.error(friendlyError(err, language));
+    } finally {
+      setSmsId(null);
     }
   }
 
@@ -388,6 +430,24 @@ export default function PaymentReminders() {
                       {channel.name}
                     </button>
                   ))}
+                  <button
+                    onClick={() => handlePaymentLink(item.invoice_id)}
+                    disabled={paymentLinkId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-violet-500/15 text-violet-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                    title={language === "fa" ? "کپی لینک پرداخت امن + باز کردن واتساپ" : language === "ar" ? "نسخ رابط الدفع الآمن + فتح واتساب" : language === "tr" ? "Güvenli ödeme bağlantısını kopyala + WhatsApp'ı aç" : "Copy secure payment link + open WhatsApp"}
+                  >
+                    <Link2 size={14} />
+                    {language === "fa" ? "لینک پرداخت" : language === "ar" ? "رابط الدفع" : language === "tr" ? "Ödeme bağlantısı" : "Payment link"}
+                  </button>
+                  <button
+                    onClick={() => handlePaymentLinkSms(item.invoice_id)}
+                    disabled={smsId === item.invoice_id}
+                    className="px-3 py-2 rounded-xl bg-orange-500/15 text-orange-200 font-bold text-sm flex items-center gap-1 disabled:opacity-60"
+                    title={language === "fa" ? "ارسال لینک پرداخت با پیامک (نیازمند تنظیم پنل پیامک)" : language === "ar" ? "إرسال رابط الدفع عبر الرسائل النصية (يتطلب إعداد لوحة الرسائل)" : language === "tr" ? "Ödeme bağlantısını SMS ile gönder (SMS paneli gerektirir)" : "Send payment link via SMS (requires SMS panel setup)"}
+                  >
+                    <MessageSquareMore size={14} />
+                    {language === "fa" ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS"}
+                  </button>
                   <button
                     onClick={() => handleSendNow(item.invoice_id)}
                     disabled={sendingId === item.invoice_id}

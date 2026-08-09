@@ -5,7 +5,7 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, IdCard, FileSignature, Image, MessageSquareText,
+  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, IdCard, FileSignature, Image, MessageSquareText, LifeBuoy,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -88,6 +88,7 @@ const groups = [
       { key: "financialPolicy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
       { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
       { key: "accountSecurity", icon: ShieldCheck, path: "/account-security" },
+      { key: "helpCenter", icon: LifeBuoy, path: "/help" },
     ],
   },
 ];

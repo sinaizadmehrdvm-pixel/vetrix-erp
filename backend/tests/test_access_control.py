@@ -4560,6 +4560,84 @@ class ApiAccessControlTests(unittest.TestCase):
         non_admin_grant = self.client.post("/api/message-templates/editors", headers=sales_headers, json={"user_id": sales_id})
         self.assertEqual(non_admin_grant.status_code, 403, non_admin_grant.text)
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_invoice_payment_share_link_and_sms(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        customer = self.client.post(
+            "/customers", headers=admin_headers,
+            json={"name": "Payment Link Customer", "mobile": "09121234567"},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Payment Link Product", "price": 2000, "buy_price": 1000, "stock": 10},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+        invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={"invoice_type": "sale", "customer_id": customer_id, "items": [{"product_id": product_id, "quantity": 1, "unit_price": 2000}]},
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            share = self.client.get(f"/api/payments/invoices/{invoice_id}/share", headers=admin_headers)
+            self.assertEqual(share.status_code, 200, share.text)
+            data = share.json()
+            self.assertIn("/pay/", data["payment_url"])
+            self.assertIn(data["payment_url"], data["message"])
+            self.assertEqual(data["customer_phone"], "09121234567")
+            self.assertIn("09121234567", data["whatsapp_url"])
+            self.assertFalse(data["sms_available"])
+
+            # SMS panel isn't configured for this test company - fails closed.
+            sms = self.client.post(f"/api/payments/invoices/{invoice_id}/send-sms", headers=admin_headers)
+            self.assertEqual(sms.status_code, 503, sms.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_industry_specific_invoice_fields(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        defs = self.client.get("/api/industry-fields/definitions", headers=admin_headers)
+        self.assertEqual(defs.status_code, 200, defs.text)
+        veterinary = next(i for i in defs.json()["industries"] if i["key"] == "veterinary")
+        self.assertTrue(any(f["key"] == "animal_name" for f in veterinary["fields"]))
+
+        settings_update = self.client.post("/settings", headers=admin_headers, json={"industry": "veterinary"})
+        self.assertEqual(settings_update.status_code, 200, settings_update.text)
+        self.assertEqual(settings_update.json()["settings"]["industry"], "veterinary")
+
+        customer = self.client.post("/customers", headers=admin_headers, json={"name": "Industry Fields Customer"})
+        self.assertEqual(customer.status_code, 200, customer.text)
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Industry Fields Product", "price": 1000, "buy_price": 500, "stock": 10},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+
+        invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={
+                "invoice_type": "sale", "customer_id": customer.json()["id"],
+                "items": [{"product_id": product.json()["id"], "quantity": 1, "unit_price": 1000}],
+                # not_a_real_field must be silently dropped - only defined
+                # veterinary keys are ever persisted.
+                "industry_fields": {"animal_name": "Rex", "species": "Dog", "not_a_real_field": "x"},
+            },
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        detail = self.client.get(f"/invoices/{invoice_id}", headers=admin_headers)
+        self.assertEqual(detail.json()["industry_fields"], {"animal_name": "Rex", "species": "Dog"})
+
+        listed = self.client.get("/invoices", headers=admin_headers)
+        listed_item = next(i for i in listed.json() if i["id"] == invoice_id)
+        self.assertEqual(listed_item["industry_fields"], {"animal_name": "Rex", "species": "Dog"})
+
+        # Reset back to general so it doesn't leak into other z-tests.
+        self.client.post("/settings", headers=admin_headers, json={"industry": "general"})
+
 
 if __name__ == "__main__":
     unittest.main()

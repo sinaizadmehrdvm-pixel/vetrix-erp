@@ -70,6 +70,14 @@ const emptySettings = {
   backup_email: "",
   backup_email_frequency_hours: 168,
   last_backup_email_at: "",
+  industry: "general",
+};
+
+const INDUSTRY_LABELS = {
+  general: { fa: "عمومی", ar: "عام", tr: "Genel", en: "General" },
+  veterinary: { fa: "دامپزشکی", ar: "بيطري", tr: "Veterinerlik", en: "Veterinary" },
+  human_medical: { fa: "پزشکی انسانی", ar: "طبي بشري", tr: "İnsan sağlığı", en: "Human medical" },
+  pharmacy: { fa: "داروخانه", ar: "صيدلية", tr: "Eczane", en: "Pharmacy" },
 };
 
 function toPersianDigits(value) {
@@ -550,6 +558,16 @@ export default function Settings() {
 
           <Field label={tr("نام مدیر", "اسم المدير", "Yönetici Adı", "Manager Name")}>
             <Input value={settings.manager_name || ""} onChange={(e) => setField("manager_name", e.target.value)} />
+          </Field>
+
+          <Field
+            label={tr("نوع کسب‌وکار (فیلدهای اختصاصی فاکتور)", "نوع النشاط التجاري (حقول الفاتورة المتخصصة)", "İşletme türü (özel fatura alanları)", "Business type (specialized invoice fields)")}
+          >
+            <Select value={settings.industry || "general"} onChange={(e) => setField("industry", e.target.value)}>
+              {Object.keys(INDUSTRY_LABELS).map((value) => (
+                <option key={value} value={value}>{INDUSTRY_LABELS[value][language] || INDUSTRY_LABELS[value].en}</option>
+              ))}
+            </Select>
           </Field>
 
           <Field label={tr("تلفن", "الهاتف", "Telefon", "Phone")}>

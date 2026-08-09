@@ -41,6 +41,10 @@ class Invoice(Base):
     voided_at = Column(String, nullable=True)
     voided_by = Column(Integer, nullable=True)
     void_reason = Column(String, default="")
+    # Modular per-industry extra fields (veterinary/human_medical/pharmacy/
+    # ...) - see app/industry_fields.py. JSON blob, not dedicated columns,
+    # so adding a new industry/field never needs a migration.
+    industry_fields_json = Column(String, default="{}")
 
 
 class InvoiceItem(Base):

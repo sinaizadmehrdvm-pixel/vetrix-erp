@@ -335,6 +335,17 @@ export async function deleteRecurringInvoice(id) {
 export async function requestInvoicePaymentLink(invoiceId) {
   return await request(`/api/payments/invoices/${invoiceId}/request`, { method: "POST" });
 }
+export async function getInvoicePaymentShareLink(invoiceId) {
+  return await request(`/api/payments/invoices/${invoiceId}/share`);
+}
+export async function sendInvoicePaymentLinkSms(invoiceId) {
+  return await request(`/api/payments/invoices/${invoiceId}/send-sms`, { method: "POST" });
+}
+
+// Modular per-industry invoice fields (Phase 2)
+export async function getIndustryFieldDefinitions() {
+  return await request(`/api/industry-fields/definitions`);
+}
 
 // Iran e-invoice (INTA/Modian) submission
 export async function submitInvoiceEinvoice(invoiceId) {

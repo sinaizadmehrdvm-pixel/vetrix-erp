@@ -44,12 +44,19 @@ DEFAULT_TEMPLATES = {
         "tr": {"subject": "Son uyarı: {id} numaralı fatura ciddi şekilde gecikti", "body": "Sayın {name},\n\n{id} numaralı, {amount} tutarındaki fatura bir aydan uzun süredir ödenmedi ve acil işlem gerektiriyor. Lütfen en kısa sürede bizimle iletişime geçin.\n\n{brand}"},
         "en": {"subject": "Final notice: invoice #{id} is seriously overdue", "body": "Dear {name},\n\nInvoice #{id} for {amount} has been unpaid for over a month and requires urgent attention. Please contact us as soon as possible.\n\n{brand}"},
     },
+    ("invoice_payment_link", "message"): {
+        "fa": {"subject": "", "body": "سلام {name} عزیز،\n\nبرای پرداخت امن مبلغ {amount} بابت فاکتور شماره {id} از لینک زیر استفاده کنید:\n{link}\n\nاین لینک مخصوص شماست و مستقیماً به {brand} متصل می‌شود.\n\nبا تشکر،\n{brand}"},
+        "ar": {"subject": "", "body": "مرحبًا {name}،\n\nللدفع الآمن لمبلغ {amount} مقابل الفاتورة رقم {id}، استخدم الرابط التالي:\n{link}\n\nهذا الرابط خاص بك ويتصل مباشرة بـ {brand}.\n\nشكرًا لكم،\n{brand}"},
+        "tr": {"subject": "", "body": "Sayın {name},\n\n{id} numaralı fatura için {amount} tutarını güvenle ödemek üzere aşağıdaki bağlantıyı kullanın:\n{link}\n\nBu bağlantı size özeldir ve doğrudan {brand} ile bağlantılıdır.\n\nTeşekkürler,\n{brand}"},
+        "en": {"subject": "", "body": "Dear {name},\n\nTo securely pay {amount} for invoice #{id}, use the link below:\n{link}\n\nThis link is unique to you and connects directly to {brand}.\n\nThank you,\n{brand}"},
+    },
 }
 
 KEY_LABELS = {
     "payment_reminder_friendly": {"fa": "یادآوری پرداخت - لحن دوستانه", "ar": "تذكير الدفع - ودّي", "tr": "Ödeme hatırlatma - dostane", "en": "Payment reminder - friendly"},
     "payment_reminder_firm": {"fa": "یادآوری پرداخت - لحن جدی", "ar": "تذكير الدفع - حازم", "tr": "Ödeme hatırlatma - kararlı", "en": "Payment reminder - firm"},
     "payment_reminder_urgent": {"fa": "یادآوری پرداخت - اخطار نهایی", "ar": "تذكير الدفع - إشعار نهائي", "tr": "Ödeme hatırlatma - son uyarı", "en": "Payment reminder - urgent"},
+    "invoice_payment_link": {"fa": "لینک پرداخت امن فاکتور", "ar": "رابط الدفع الآمن للفاتورة", "tr": "Güvenli fatura ödeme bağlantısı", "en": "Secure invoice payment link"},
 }
 
 

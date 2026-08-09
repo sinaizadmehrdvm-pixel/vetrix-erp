@@ -23,7 +23,9 @@ ledger logic is the delicate core of the accounting engine and is
 deliberately left untouched here.
 """
 import os
+import re
 import secrets
+import urllib.parse
 from datetime import datetime
 
 import httpx
@@ -37,6 +39,8 @@ from app.financial_policy import financial_policy_values
 from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.company_scope import current_company_id
+from app.message_templates import get_effective_template
+from app.sms_utils import send_sms, sms_configured
 
 router = APIRouter(prefix="/api/payments", tags=["Online Payment Gateway"])
 
@@ -218,6 +222,86 @@ def request_payment_for_invoice(invoice_id: int) -> dict:
         }
     finally:
         db.close()
+
+
+def _customer_phone_digits(customer: Customer) -> str:
+    raw = getattr(customer, "mobile", "") or getattr(customer, "phone", "") or ""
+    return re.sub(r"\D", "", raw)
+
+
+def _language_for_policy(policy: dict) -> str:
+    country = str(policy.get("country_code") or "IR").upper()
+    if country == "IR":
+        return "fa"
+    if country == "TR":
+        return "tr"
+    if country in {"SA", "AE", "EG", "IQ", "JO", "KW", "QA", "BH", "OM"}:
+        return "ar"
+    return "en"
+
+
+def _build_payment_link_message(db: Session, invoice: Invoice, customer: Customer, amount: float, link: str) -> str:
+    from app.settings_routes import AppSettings
+
+    settings = db.query(AppSettings).filter(AppSettings.company_id == invoice.company_id).first()
+    brand = (settings.company_name if settings else "") or "Vetrix ERP"
+    policy = financial_policy_values(db.connection(), invoice.company_id)
+    language = _language_for_policy(policy)
+    template = get_effective_template(db.connection(), "invoice_payment_link", "message", language, invoice.company_id)
+    return template["body"].format(name=customer.name, id=invoice.id, amount=f"{amount:,.0f}", link=link, brand=brand)
+
+
+@router.get("/invoices/{invoice_id}/share")
+def get_payment_share_link(invoice_id: int, request: Request):
+    """Generates (or reuses the still-pending) online payment session for
+    this invoice and returns a ready-to-send message: a secure, unguessable
+    link (see PaymentSession.authority) plus WhatsApp/SMS-sendable text -
+    the admin-facing side of 'let the customer pay directly, sent through
+    any messenger or SMS' this endpoint exists for."""
+    company_id = current_company_id(request)
+    db: Session = SessionLocal()
+    try:
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+    finally:
+        db.close()
+
+    result = request_payment_for_invoice(invoice_id)
+
+    db = SessionLocal()
+    try:
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
+        message = _build_payment_link_message(db, invoice, customer, result["amount"], result["redirect_url"])
+        phone = _customer_phone_digits(customer)
+        return {
+            "payment_url": result["redirect_url"],
+            "amount": result["amount"],
+            "provider": result["provider"],
+            "message": message,
+            "customer_phone": phone,
+            "whatsapp_url": f"https://wa.me/{phone}?text={urllib.parse.quote(message)}" if phone else None,
+            "sms_available": sms_configured(company_id),
+        }
+    finally:
+        db.close()
+
+
+@router.post("/invoices/{invoice_id}/send-sms")
+def send_payment_link_sms(invoice_id: int, request: Request):
+    company_id = current_company_id(request)
+    share = get_payment_share_link(invoice_id, request)
+    if not share["customer_phone"]:
+        raise HTTPException(status_code=400, detail="This customer has no phone number on file")
+    try:
+        send_sms(company_id, share["customer_phone"], share["message"])
+    except ValueError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    return {"status": "sent"}
 
 
 @router.post("/invoices/{invoice_id}/request")

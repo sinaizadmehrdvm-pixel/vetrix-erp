@@ -138,6 +138,13 @@ READ_RULES = (
     ("/api/supplier-portal", {"admin", "accountant", "warehouse"}),
     ("/api/recurring-invoices", {"admin", "accountant", "sales"}),
     ("/api/payment-reminders", {"admin", "accountant", "sales"}),
+    # /api/payments/session(/simulate) and /callback are public and
+    # self-verify by session authority; this governs the staff-triggered
+    # "generate/share a payment link" endpoints.
+    ("/api/payments", {"admin", "accountant", "sales"}),
+    # Static per-industry field definitions (Phase 2 dynamic invoice
+    # fields) - read-only, needed by anyone who can create an invoice.
+    ("/api/industry-fields", {"admin", "accountant", "sales"}),
     # Same reasoning: /api/catalog/view(/order) are public and self-verify
     # their own token, so this only governs the staff management endpoints.
     ("/api/catalog", {"admin", "accountant", "sales"}),

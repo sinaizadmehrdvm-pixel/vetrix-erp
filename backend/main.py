@@ -81,6 +81,7 @@ from app.rbac import (
     router as rbac_router,
 )
 from app.settings_routes import get_or_create_settings, router as settings_router
+from app.industry_fields import sanitize_industry_fields, router as industry_fields_router
 from app.users_routes import require_admin, router as users_router
 from app.mfa_routes import router as mfa_router
 from app.customer_portal import router as customer_portal_router
@@ -184,6 +185,11 @@ def ensure_database_schema():
         "voided_at": "voided_at VARCHAR",
         "voided_by": "voided_by INTEGER",
         "void_reason": "void_reason VARCHAR DEFAULT ''",
+        # Modular per-industry extra fields (veterinary/human_medical/
+        # pharmacy/...) - see app/industry_fields.py. A free-form JSON blob
+        # rather than dedicated columns so adding a new industry or field
+        # never needs a migration.
+        "industry_fields_json": "industry_fields_json TEXT DEFAULT '{}'",
     }
 
     for name, sql in customer_columns.items():
@@ -234,6 +240,7 @@ def ensure_database_schema():
         "backup_email": "backup_email VARCHAR DEFAULT ''",
         "backup_email_frequency_hours": "backup_email_frequency_hours INTEGER DEFAULT 168",
         "last_backup_email_at": "last_backup_email_at VARCHAR DEFAULT ''",
+        "industry": "industry VARCHAR DEFAULT 'general'",
     }
     for name, sql in settings_columns.items():
         ensure_sqlite_column("app_settings", name, sql)
@@ -426,6 +433,7 @@ app.include_router(approvals_router)
 app.include_router(treasury_router)
 app.include_router(invoice_payments_router)
 app.include_router(approvals_engine_router)
+app.include_router(industry_fields_router)
 app.include_router(invoice_verification_router)
 app.include_router(message_templates_router)
 app.include_router(release_preflight_router)
@@ -666,6 +674,15 @@ class InvoiceCreate(BaseModel):
     source: str = "desk"
     payments: List[InvoicePaymentAllocationCreate] = []
     installment_plan: Optional[dict] = None
+    industry_fields: dict = {}
+
+
+def _load_industry_fields(raw: str) -> dict:
+    try:
+        parsed = json.loads(raw or "{}")
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError):
+        return {}
 
 
 def resolve_invoice_due_date(payment_terms_days: int, due_date: str) -> str:
@@ -1687,6 +1704,8 @@ def _create_invoice_impl(data: InvoiceCreate, company_id: int, created_by: Optio
             rounding_mode=policy["rounding_mode"],
         )
         products = validate_invoice_products(db, data, company_id)
+        company_settings = get_or_create_settings(db, company_id)
+        industry_fields = sanitize_industry_fields(company_settings.industry or "general", data.industry_fields)
         invoice = Invoice(
             invoice_type=data.invoice_type,
             customer_id=data.customer_id,
@@ -1699,6 +1718,7 @@ def _create_invoice_impl(data: InvoiceCreate, company_id: int, created_by: Optio
             due_date=resolve_invoice_due_date(data.payment_terms_days, data.due_date),
             company_id=company_id,
             source=data.source or "desk",
+            industry_fields_json=json.dumps(industry_fields, ensure_ascii=False),
         )
         db.add(invoice)
         db.flush()
@@ -2070,6 +2090,7 @@ def list_invoices(request: Request):
                 "qr_enabled": bool(getattr(inv, "qr_enabled", True)),
                 "payment_terms_days": int(getattr(inv, "payment_terms_days", 0) or 0),
                 "due_date": getattr(inv, "due_date", "") or "",
+                "industry_fields": _load_industry_fields(getattr(inv, "industry_fields_json", "")),
                 "created_at": inv.created_at,
             })
 
@@ -2149,6 +2170,7 @@ def get_invoice(invoice_id: int, request: Request):
             "qr_enabled": bool(getattr(inv, "qr_enabled", True)),
             "payment_terms_days": int(getattr(inv, "payment_terms_days", 0) or 0),
             "due_date": getattr(inv, "due_date", "") or "",
+            "industry_fields": _load_industry_fields(getattr(inv, "industry_fields_json", "")),
             "created_at": inv.created_at,
             "items": items_payload,
         }

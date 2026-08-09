@@ -49,6 +49,8 @@ import {
   getWarehouses,
   convertProformaToInvoice,
   isNetworkError,
+  getSettings,
+  getIndustryFieldDefinitions,
 } from "../services/api";
 import toast from "react-hot-toast";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
@@ -288,6 +290,22 @@ export default function Invoices() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [paymentsModalInvoiceId, setPaymentsModalInvoiceId] = useState(null);
+  const [industryFieldDefs, setIndustryFieldDefs] = useState([]);
+  const [industryFieldValues, setIndustryFieldValues] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [settingsData, defsData] = await Promise.all([getSettings(), getIndustryFieldDefinitions()]);
+        const industry = settingsData?.industry || "general";
+        const match = (defsData?.industries || []).find((entry) => entry.key === industry);
+        setIndustryFieldDefs(match ? match.fields : []);
+      } catch {
+        // Non-critical - invoices remain fully usable without this panel.
+        setIndustryFieldDefs([]);
+      }
+    })();
+  }, []);
 
   async function saveAllCache(payload) {
     await setCache(CUSTOMERS_CACHE_KEY, payload.customers || []);
@@ -728,6 +746,7 @@ export default function Invoices() {
       payment_terms_days: toNumber(form.payment_terms_days),
       due_date: form.due_date || "",
       payments: cleanPayments,
+      industry_fields: industryFieldValues,
     };
 
     try {
@@ -750,6 +769,7 @@ export default function Invoices() {
       setForm(emptyForm);
       setItems([{ ...emptyItem }]);
       setPayments([]);
+      setIndustryFieldValues({});
 
       await loadData();
       alert(editingId ? label.saveInvoice : label.createdAlert);
@@ -800,6 +820,7 @@ export default function Invoices() {
       setForm(emptyForm);
       setItems([{ ...emptyItem }]);
       setPayments([]);
+      setIndustryFieldValues({});
     }
   }
 
@@ -1324,6 +1345,36 @@ export default function Invoices() {
         {!editingId && (
           <div className="mt-5">
             <PaymentPanel rows={payments} onChange={setPayments} total={calc.grandTotal} />
+          </div>
+        )}
+
+        {industryFieldDefs.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5">
+            <h3 className="font-black mb-3 text-[var(--erp-accent)]">
+              {fa ? "اطلاعات تخصصی فاکتور" : language === "ar" ? "بيانات الفاتورة المتخصصة" : language === "tr" ? "Özel fatura bilgileri" : "Specialized invoice details"}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {industryFieldDefs.map((def) => (
+                <Field key={def.key} label={def.label[language] || def.label.en}>
+                  {def.type === "date" ? (
+                    <JalaliDateField
+                      value={industryFieldValues[def.key] || ""}
+                      onChange={(value) => setIndustryFieldValues((prev) => ({ ...prev, [def.key]: value }))}
+                      fa={fa}
+                      language={language}
+                      className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+                    />
+                  ) : (
+                    <input
+                      className="w-full px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--erp-accent)]"
+                      value={industryFieldValues[def.key] || ""}
+                      onChange={(e) => setIndustryFieldValues((prev) => ({ ...prev, [def.key]: e.target.value }))}
+                      required={def.required}
+                    />
+                  )}
+                </Field>
+              ))}
+            </div>
           </div>
         )}
 
