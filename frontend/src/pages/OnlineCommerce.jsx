@@ -286,11 +286,12 @@ export default function OnlineCommerce() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px]">
               <thead style={{ background: "var(--erp-panel-solid)" }}>
-                <tr>{[tr("کالا", "المنتج", "Ürün", "Product"), tr("موجودی", "المخزون", "Stok", "Stock"), tr("قیمت حسابداری", "سعر النظام", "ERP fiyatı", "ERP price"), tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price"), tr("تخفیف٪", "الخصم٪", "İndirim%", "Discount %"), tr("انتشار", "النشر", "Yayınla", "Publish"), tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Sync stock"), ""].map((text) => <th key={text} className="p-4 text-start">{text}</th>)}</tr>
+                <tr><th className="p-4 text-start">#</th>{[tr("کالا", "المنتج", "Ürün", "Product"), tr("موجودی", "المخزون", "Stok", "Stock"), tr("قیمت حسابداری", "سعر النظام", "ERP fiyatı", "ERP price"), tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price"), tr("تخفیف٪", "الخصم٪", "İndirim%", "Discount %"), tr("انتشار", "النشر", "Yayınla", "Publish"), tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Sync stock"), ""].map((text) => <th key={text} className="p-4 text-start">{text}</th>)}</tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {products.map((product, rowIndex) => (
                   <tr key={product.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td className="p-4 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                     <td className="p-4 font-black">{product.name}</td>
                     <td className="p-4">{n(product.stock || 0)}</td>
                     <td className="p-4">{money(product.sell_price || 0)}</td>

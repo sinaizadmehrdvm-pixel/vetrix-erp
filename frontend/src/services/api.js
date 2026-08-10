@@ -525,9 +525,24 @@ export function accountingAttachmentDownloadUrl(id) {
 }
 
 // Digital & print product catalog
-export async function getCatalogLinks() { return await request(`/api/catalog/links`); }
+export async function getCatalogLinks(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return await request(`/api/catalog/links${qs ? `?${qs}` : ""}`);
+}
 export async function createCatalogLink(data) {
   return await request(`/api/catalog/links`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function updateCatalogLink(id, data) {
+  return await request(`/api/catalog/links/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function duplicateCatalogLink(id) {
+  return await request(`/api/catalog/links/${id}/duplicate`, { method: "POST" });
+}
+export async function archiveCatalogLink(id) {
+  return await request(`/api/catalog/links/${id}/archive`, { method: "POST" });
+}
+export async function unarchiveCatalogLink(id) {
+  return await request(`/api/catalog/links/${id}/unarchive`, { method: "POST" });
 }
 export async function revokeCatalogLink(id) {
   return await request(`/api/catalog/links/${id}/revoke`, { method: "POST" });

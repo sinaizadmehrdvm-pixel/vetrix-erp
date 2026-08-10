@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Copy, FileDown, MessageCircle, Plus, QrCode, Send, ShieldOff, Sparkles, X } from "lucide-react";
+import { Archive, ArchiveRestore, BookOpen, Copy, FileDown, MessageCircle, Pencil, Plus, QrCode, Send, ShieldOff, Sparkles, X } from "lucide-react";
 import toast from "react-hot-toast";
 import QRCodeLib from "qrcode";
 
@@ -8,17 +8,32 @@ import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import Modal from "../components/ui/Modal";
 import {
+  archiveCatalogLink,
   createCatalogLink,
   downloadAuthenticatedFile,
+  duplicateCatalogLink,
+  getBranches,
   getCatalogLinks,
   getCatalogMessages,
   getCatalogOrders,
+  getCustomers,
   getProducts,
   markCatalogOrderConverted,
   reactivateCatalogLink,
   rejectCatalogOrder,
   revokeCatalogLink,
+  unarchiveCatalogLink,
+  updateCatalogLink,
 } from "../services/api";
+
+const CATALOG_TYPES = ["product_catalog", "price_list", "promotional", "wholesale", "customer_specific", "branch_specific"];
+const PRICE_SOURCES = ["base", "pricing_rule", "customer_specific"];
+
+const emptyEditDraft = {
+  title: "", main_category: null, in_stock_only: true, product_ids: null, catalog_type: "product_catalog",
+  branch_id: "", language: "fa", currency: "", valid_from: "", valid_until: "", customer_id: "",
+  price_source: "base", show_stock_status: true, enabled: true,
+};
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -99,9 +114,12 @@ function CatalogQrModal({ catalog, language, onClose }) {
 
 export default function CatalogManager() {
   const { dir, language, money, n } = useLanguage();
+  const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
 
   const [products, setProducts] = useState([]);
   const [catalogs, setCatalogs] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +132,28 @@ export default function CatalogManager() {
   const [inStockOnly, setInStockOnly] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
   const [search, setSearch] = useState("");
+
+  const [listSearch, setListSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(emptyEditDraft);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const catalogTypeLabel = (t) => ({
+    product_catalog: tr("کاتالوگ محصول", "كتالوج المنتجات", "Ürün kataloğu", "Product catalog"),
+    price_list: tr("لیست قیمت", "قائمة الأسعار", "Fiyat listesi", "Price list"),
+    promotional: tr("کاتالوگ تبلیغاتی", "كتالوج ترويجي", "Promosyon kataloğu", "Promotional catalog"),
+    wholesale: tr("کاتالوگ عمده‌فروشی", "كتالوج جملة", "Toptan katalog", "Wholesale catalog"),
+    customer_specific: tr("کاتالوگ اختصاصی مشتری", "كتالوج خاص بالعميل", "Müşteriye özel katalog", "Customer-specific catalog"),
+    branch_specific: tr("کاتالوگ اختصاصی شعبه", "كتالوج خاص بالفرع", "Şubeye özel katalog", "Branch-specific catalog"),
+  }[t] || t);
+
+  const priceSourceLabel = (s) => ({
+    base: tr("قیمت پایه کالا", "السعر الأساسي", "Taban fiyat", "Base product price"),
+    pricing_rule: tr("نتیجه قوانین قیمت‌گذاری", "نتيجة قواعد التسعير", "Fiyatlandırma kuralı sonucu", "Pricing rule result"),
+    customer_specific: tr("قیمت اختصاصی مشتری", "سعر خاص بالعميل", "Müşteriye özel fiyat", "Customer-specific price"),
+  }[s] || s);
 
   const categories = useMemo(() => {
     const set = new Set(products.map((p) => p.main_category).filter(Boolean));
@@ -129,16 +169,24 @@ export default function CatalogManager() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [productsData, catalogsData, ordersData, messagesData] = await Promise.all([
+      const params = {};
+      if (listSearch.trim()) params.search = listSearch.trim();
+      if (typeFilter) params.catalog_type = typeFilter;
+      if (statusFilter) params.status = statusFilter;
+      const [productsData, catalogsData, ordersData, messagesData, branchesData, customersData] = await Promise.all([
         getProducts(),
-        getCatalogLinks(),
+        getCatalogLinks(params),
         getCatalogOrders(),
         getCatalogMessages(),
+        getBranches(),
+        getCustomers(),
       ]);
       setProducts(Array.isArray(productsData) ? productsData : []);
       setCatalogs(catalogsData.items || []);
       setOrders(ordersData.items || []);
       setMessages(messagesData.items || []);
+      setBranches(branchesData.items || []);
+      setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -149,7 +197,78 @@ export default function CatalogManager() {
   useEffect(() => {
     const timer = setTimeout(() => { void loadAll(); }, 0);
     return () => clearTimeout(timer);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeFilter, statusFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void loadAll(); }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listSearch]);
+
+  function openEdit(catalog) {
+    setEditingId(catalog.id);
+    setEditDraft({
+      ...emptyEditDraft, ...catalog,
+      branch_id: catalog.branch_id ?? "", customer_id: catalog.customer_id ?? "",
+      valid_from: catalog.valid_from || "", valid_until: catalog.valid_until || "",
+    });
+  }
+
+  async function handleSaveEdit(event) {
+    event.preventDefault();
+    if (editDraft.price_source === "customer_specific" && !editDraft.customer_id) {
+      toast.error(tr("برای قیمت اختصاصی مشتری، مشتری را انتخاب کنید.", "اختر عميلاً للسعر الخاص بالعميل.", "Müşteriye özel fiyat için müşteri seçin.", "Select a customer for customer-specific pricing."));
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateCatalogLink(editingId, {
+        ...editDraft,
+        branch_id: editDraft.branch_id === "" ? null : Number(editDraft.branch_id),
+        customer_id: editDraft.customer_id === "" ? null : Number(editDraft.customer_id),
+        valid_from: editDraft.valid_from || null,
+        valid_until: editDraft.valid_until || null,
+      });
+      toast.success(tr("کاتالوگ ذخیره شد.", "تم حفظ الكتالوج.", "Katalog kaydedildi.", "Catalog saved."));
+      setEditingId(null);
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDuplicate(id) {
+    try {
+      await duplicateCatalogLink(id);
+      toast.success(tr("کپی کاتالوگ ساخته شد.", "تم إنشاء نسخة من الكتالوج.", "Katalog kopyalandı.", "Catalog duplicated."));
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function handleArchive(id) {
+    try {
+      await archiveCatalogLink(id);
+      toast.success(tr("کاتالوگ آرشیو شد.", "تمت أرشفة الكتالوج.", "Katalog arşivlendi.", "Catalog archived."));
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function handleUnarchive(id) {
+    try {
+      await unarchiveCatalogLink(id);
+      toast.success(tr("کاتالوگ از آرشیو خارج شد.", "تم إلغاء أرشفة الكتالوج.", "Katalog arşivden çıkarıldı.", "Catalog restored from archive."));
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
 
   async function handleCreate(event) {
     event.preventDefault();
@@ -213,9 +332,9 @@ export default function CatalogManager() {
     }
   }
 
-  async function downloadPdf(id, catalogTitle) {
+  async function downloadPdf(id, catalogTitle, orientation = "portrait") {
     try {
-      await downloadAuthenticatedFile(`/api/catalog/links/${id}/pdf?language=${language}`, `${catalogTitle || "catalog"}.pdf`);
+      await downloadAuthenticatedFile(`/api/catalog/links/${id}/pdf?language=${language}&orientation=${orientation}`, `${catalogTitle || "catalog"}.pdf`);
     } catch (err) {
       toast.error(err.message);
     }
@@ -330,36 +449,62 @@ export default function CatalogManager() {
       </section>
 
       <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "کاتالوگ‌های ساخته‌شده" : language === "ar" ? "كتالوجاتك" : language === "tr" ? "Kataloglarınız" : "Your catalogs"}</h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h2 className="text-lg font-bold">{language === "fa" ? "کاتالوگ‌های ساخته‌شده" : language === "ar" ? "كتالوجاتك" : language === "tr" ? "Kataloglarınız" : "Your catalogs"}</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <input className={inputClass + " mb-0"} placeholder={tr("جستجوی عنوان...", "بحث بالعنوان...", "Başlığa göre ara...", "Search by title...")} value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+          <select className={inputClass + " mb-0"} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="">{tr("همه انواع", "كل الأنواع", "Tüm türler", "All types")}</option>
+            {CATALOG_TYPES.map((t) => <option key={t} value={t}>{catalogTypeLabel(t)}</option>)}
+          </select>
+          <select className={inputClass + " mb-0"} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="active">{tr("فعال", "نشط", "Aktif", "Active")}</option>
+            <option value="archived">{tr("آرشیوشده", "مؤرشف", "Arşivlenmiş", "Archived")}</option>
+            <option value="all">{tr("همه", "الكل", "Tümü", "All")}</option>
+          </select>
+        </div>
         {loading ? (
           <p className="text-[var(--erp-muted)]">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
         ) : catalogs.length === 0 ? (
           <p className="text-[var(--erp-muted)]">{language === "fa" ? "هنوز کاتالوگی نساخته‌اید." : language === "ar" ? "لا توجد كتالوجات بعد." : language === "tr" ? "Henüz katalog yok." : "No catalogs yet."}</p>
         ) : (
           <div className="space-y-3">
-            {catalogs.map((catalog) => (
+            {catalogs.map((catalog, index) => (
               <div key={catalog.id} className="rounded-xl bg-[var(--erp-panel-solid)] p-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="font-bold">{catalog.title}</div>
-                  <div className="text-xs text-[var(--erp-muted)]">
-                    {n(catalog.product_count)} {language === "fa" ? "کالا" : language === "ar" ? "منتج" : language === "tr" ? "ürün" : "products"} •{" "}
-                    {catalog.enabled
-                      ? (language === "fa" ? "فعال" : language === "ar" ? "نشط" : language === "tr" ? "Aktif" : "Active")
-                      : (language === "fa" ? "غیرفعال" : language === "ar" ? "معطّل" : language === "tr" ? "Devre dışı" : "Disabled")}
+                <div className="flex items-start gap-3">
+                  <span className="text-[var(--erp-muted)] font-bold text-sm mt-0.5">{n(index + 1)}</span>
+                  <div>
+                    <div className="font-bold">{catalog.title}</div>
+                    <div className="text-xs text-[var(--erp-muted)]">
+                      {catalogTypeLabel(catalog.catalog_type)} • {n(catalog.product_count)} {language === "fa" ? "کالا" : language === "ar" ? "منتج" : language === "tr" ? "ürün" : "products"} •{" "}
+                      {catalog.archived
+                        ? tr("آرشیوشده", "مؤرشف", "Arşivlenmiş", "Archived")
+                        : catalog.enabled
+                        ? (language === "fa" ? "فعال" : language === "ar" ? "نشط" : language === "tr" ? "Aktif" : "Active")
+                        : (language === "fa" ? "غیرفعال" : language === "ar" ? "معطّل" : language === "tr" ? "Devre dışı" : "Disabled")}
+                      {" • "}{tr("بازدید", "مشاهدات", "Görüntülenme", "Views")}: {n(catalog.view_count || 0)} • {tr("سفارش", "طلبات", "Sipariş", "Orders")}: {n(catalog.order_count || 0)}
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {catalog.enabled && (
+                  <button onClick={() => openEdit(catalog)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold flex items-center gap-1">
+                    <Pencil size={14} /> {tr("ویرایش", "تعديل", "Düzenle", "Edit")}
+                  </button>
+                  <button onClick={() => handleDuplicate(catalog.id)} className="px-3 py-2 rounded-xl bg-violet-500/20 text-violet-200 text-sm font-bold flex items-center gap-1">
+                    <Copy size={14} /> {tr("کپی", "نسخ", "Kopyala", "Duplicate")}
+                  </button>
+                  {catalog.enabled && !catalog.archived && (
                     <button onClick={() => copyLink(catalog.token)} className="px-3 py-2 rounded-xl bg-indigo-500/20 text-indigo-200 text-sm font-bold flex items-center gap-1">
                       <Copy size={14} /> {language === "fa" ? "کپی لینک" : language === "ar" ? "نسخ الرابط" : language === "tr" ? "Bağlantıyı kopyala" : "Copy link"}
                     </button>
                   )}
-                  {catalog.enabled && (
+                  {catalog.enabled && !catalog.archived && (
                     <button onClick={() => setQrCatalog(catalog)} className="px-3 py-2 rounded-xl bg-fuchsia-500/20 text-fuchsia-200 text-sm font-bold flex items-center gap-1">
                       <QrCode size={14} /> QR
                     </button>
                   )}
-                  {catalog.enabled && (
+                  {catalog.enabled && !catalog.archived && (
                     <a
                       href={whatsappShareUrl(catalog, language)}
                       target="_blank"
@@ -369,7 +514,7 @@ export default function CatalogManager() {
                       <MessageCircle size={14} /> WhatsApp
                     </a>
                   )}
-                  {catalog.enabled && (
+                  {catalog.enabled && !catalog.archived && (
                     <a
                       href={telegramShareUrl(catalog, language)}
                       target="_blank"
@@ -379,16 +524,28 @@ export default function CatalogManager() {
                       <Send size={14} /> Telegram
                     </a>
                   )}
-                  <button onClick={() => downloadPdf(catalog.id, catalog.title)} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold flex items-center gap-1">
+                  <button onClick={() => downloadPdf(catalog.id, catalog.title, "portrait")} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold flex items-center gap-1">
                     <FileDown size={14} /> PDF
                   </button>
-                  {catalog.enabled ? (
+                  <button onClick={() => downloadPdf(catalog.id, catalog.title, "landscape")} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] text-sm font-bold flex items-center gap-1">
+                    <FileDown size={14} /> PDF {tr("افقی", "أفقي", "Yatay", "Landscape")}
+                  </button>
+                  {!catalog.archived && (catalog.enabled ? (
                     <button onClick={() => handleRevoke(catalog.id)} className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1">
                       <ShieldOff size={14} /> {language === "fa" ? "غیرفعال" : language === "ar" ? "تعطيل" : language === "tr" ? "Devre dışı bırak" : "Disable"}
                     </button>
                   ) : (
                     <button onClick={() => handleReactivate(catalog.id)} className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-200 text-sm font-bold">
                       {language === "fa" ? "فعال‌سازی" : language === "ar" ? "إعادة التفعيل" : language === "tr" ? "Yeniden etkinleştir" : "Reactivate"}
+                    </button>
+                  ))}
+                  {catalog.archived ? (
+                    <button onClick={() => handleUnarchive(catalog.id)} className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-200 text-sm font-bold flex items-center gap-1">
+                      <ArchiveRestore size={14} /> {tr("خروج از آرشیو", "إلغاء الأرشفة", "Arşivden çıkar", "Unarchive")}
+                    </button>
+                  ) : (
+                    <button onClick={() => handleArchive(catalog.id)} className="px-3 py-2 rounded-xl bg-[var(--erp-panel)] text-[var(--erp-muted)] text-sm font-bold flex items-center gap-1">
+                      <Archive size={14} /> {tr("آرشیو", "أرشفة", "Arşivle", "Archive")}
                     </button>
                   )}
                 </div>
@@ -397,6 +554,55 @@ export default function CatalogManager() {
           </div>
         )}
       </section>
+
+      <Modal open={!!editingId} onClose={() => setEditingId(null)} maxWidthClassName="max-w-2xl" labelledBy="catalog-edit-title">
+        <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
+          <h2 id="catalog-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش کاتالوگ", "تعديل الكتالوج", "Kataloğu düzenle", "Edit catalog")}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input className={inputClass} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={editDraft.title} onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
+            <select className={inputClass} value={editDraft.catalog_type} onChange={(e) => setEditDraft({ ...editDraft, catalog_type: e.target.value })}>
+              {CATALOG_TYPES.map((t) => <option key={t} value={t}>{catalogTypeLabel(t)}</option>)}
+            </select>
+            <select className={inputClass} value={editDraft.branch_id} onChange={(e) => setEditDraft({ ...editDraft, branch_id: e.target.value })}>
+              <option value="">{tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch")}</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <select className={inputClass} value={editDraft.language} onChange={(e) => setEditDraft({ ...editDraft, language: e.target.value })}>
+              {["fa", "ar", "tr", "en"].map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+            </select>
+            <input className={inputClass} placeholder={tr("واحد پول (مثلاً IRR)", "العملة", "Para birimi", "Currency")} value={editDraft.currency} onChange={(e) => setEditDraft({ ...editDraft, currency: e.target.value })} />
+            <select className={inputClass} value={editDraft.price_source} onChange={(e) => setEditDraft({ ...editDraft, price_source: e.target.value })}>
+              {PRICE_SOURCES.map((s) => <option key={s} value={s}>{priceSourceLabel(s)}</option>)}
+            </select>
+            {editDraft.price_source === "customer_specific" && (
+              <select className={inputClass} value={editDraft.customer_id} onChange={(e) => setEditDraft({ ...editDraft, customer_id: e.target.value })}>
+                <option value="">{tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...")}</option>
+                {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <label className="text-sm">
+              <span className="block mb-1 text-[var(--erp-muted)]">{tr("معتبر از", "صالح من", "Geçerlilik başlangıcı", "Valid from")}</span>
+              <input type="date" className={inputClass} value={editDraft.valid_from} onChange={(e) => setEditDraft({ ...editDraft, valid_from: e.target.value })} />
+            </label>
+            <label className="text-sm">
+              <span className="block mb-1 text-[var(--erp-muted)]">{tr("معتبر تا", "صالح حتى", "Geçerlilik bitişi", "Valid until")}</span>
+              <input type="date" className={inputClass} value={editDraft.valid_until} onChange={(e) => setEditDraft({ ...editDraft, valid_until: e.target.value })} />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editDraft.show_stock_status} onChange={(e) => setEditDraft({ ...editDraft, show_stock_status: e.target.checked })} />
+              {tr("نمایش وضعیت موجودی به مشتری", "عرض حالة المخزون للعميل", "Müşteriye stok durumunu göster", "Show stock status to customer")}
+            </label>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setEditingId(null)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]">
+              {tr("انصراف", "إلغاء", "İptal", "Cancel")}
+            </button>
+            <button type="submit" disabled={savingEdit} className={buttonClass}>
+              {savingEdit ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{language === "fa" ? "سفارش‌های دریافتی از کاتالوگ" : language === "ar" ? "طلبات الكتالوج" : language === "tr" ? "Katalog siparişleri" : "Catalog orders"}</h2>

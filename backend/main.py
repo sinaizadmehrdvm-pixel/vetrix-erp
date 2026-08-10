@@ -58,6 +58,7 @@ from app.accounting.bank_reconciliation import router as bank_reconciliation_rou
 from app.accounting.attachments import router as accounting_attachments_router
 from app.accounting.fixed_assets import router as fixed_assets_router
 from app.accounting.budgets import router as budgets_router
+from app.accounting.budget_plans import router as budget_plans_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
 from app.accounting.treasury import router as treasury_router
@@ -401,6 +402,8 @@ COMPANY_SCOPED_TABLES = [
     "payment_providers",
     "branches",
     "executive_alert_settings",
+    "budget_plans",
+    "budget_goods_lines",
 ]
 
 
@@ -452,6 +455,7 @@ app.include_router(bank_reconciliation_router)
 app.include_router(accounting_attachments_router)
 app.include_router(fixed_assets_router)
 app.include_router(budgets_router)
+app.include_router(budget_plans_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
 app.include_router(treasury_router)

@@ -895,6 +895,7 @@ export default function CustomerDetails() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+                  <th className="p-3 text-right">#</th>
                   <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
                   <th className="p-3 text-right">{tr("شرح", "البيان", "Açıklama", "Description")}</th>
                   <th className="p-3 text-right">{tr("بدهکار", "مدين", "Borç", "Debit")}</th>
@@ -910,6 +911,7 @@ export default function CustomerDetails() {
 
                   return (
                     <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
+                      <td className="p-3 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
                       <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
                       <td className="p-3">
                         <div className="font-black text-[var(--erp-text)]">
@@ -933,7 +935,7 @@ export default function CustomerDetails() {
 
                 {visibleRows.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
+                    <td colSpan="7" className="p-8 text-center text-[var(--erp-muted)]">
                       {tr("هنوز گردش حسابی ثبت نشده است", "لم يتم تسجيل أي حركة حساب بعد", "Henüz hesap hareketi kaydedilmedi", "No ledger rows")}
                     </td>
                   </tr>
@@ -946,6 +948,7 @@ export default function CustomerDetails() {
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+                  <th className="p-3 text-right">#</th>
                   <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
                   <th className="p-3 text-right">{tr("شرح عملیات بانکی", "بيان العملية البنكية", "Banka İşlemi Açıklaması", "Bank transaction")}</th>
                   <th className="p-3 text-right">{tr("ورود وجه", "الوارد", "Giren Tutar", "Inflow")}</th>
@@ -958,6 +961,7 @@ export default function CustomerDetails() {
               <tbody>
                 {bankRows.map((row, index) => (
                   <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
+                    <td className="p-3 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
                     <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
                     <td className="p-3">
                       <div className="font-black text-[var(--erp-text)]">
@@ -974,7 +978,7 @@ export default function CustomerDetails() {
 
                 {bankRows.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
+                    <td colSpan="7" className="p-8 text-center text-[var(--erp-muted)]">
                       {tr("هنوز دریافت یا پرداخت بانکی ثبت نشده است", "لم يتم تسجيل أي قبض أو دفع بنكي بعد", "Henüz banka tahsilatı veya ödemesi kaydedilmedi", "No bank transaction has been registered yet")}
                     </td>
                   </tr>

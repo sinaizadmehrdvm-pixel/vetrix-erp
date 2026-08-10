@@ -211,6 +211,7 @@ export default function SmartInventory() {
             <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
                 <tr>
+                  <th className="p-3 text-right">#</th>
                   <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
                   <th className="p-3">{language === "fa" ? "بچ/سریال" : language === "ar" ? "الدفعة/التسلسلي" : language === "tr" ? "Parti/Seri" : "Batch/Serial"}</th>
                   <th className="p-3">{language === "fa" ? "باقی‌مانده" : language === "ar" ? "المتبقي" : language === "tr" ? "Kalan" : "Remaining"}</th>
@@ -218,8 +219,9 @@ export default function SmartInventory() {
                 </tr>
               </thead>
               <tbody>
-                {expiringBatches.map((b) => (
+                {expiringBatches.map((b, rowIndex) => (
                   <tr key={b.id} className="border-t border-[var(--erp-border)]">
+                    <td className="p-3 text-center text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                     <td className="p-3 font-black text-[var(--erp-text)]">{b.product_name}</td>
                     <td className="p-3 text-center">{b.batch_number}</td>
                     <td className="p-3 text-center">{n(b.remaining_quantity)}</td>
@@ -277,6 +279,7 @@ export default function SmartInventory() {
             <table className="w-full text-sm min-w-[980px]">
               <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
                 <tr>
+                  <th className="p-3 text-right">#</th>
                   <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
                   <th className="p-3">{language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}</th>
                   <th className="p-3">{language === "fa" ? "فروش ۹۰ روز" : language === "ar" ? "مبيعات 90 يومًا" : language === "tr" ? "90 günlük satış" : "90d sales"}</th>
@@ -287,8 +290,9 @@ export default function SmartInventory() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length ? rows.map((item) => (
+                {rows.length ? rows.map((item, rowIndex) => (
                   <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-[var(--erp-panel-solid)]/50">
+                    <td className="p-3 text-center text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                     <td className="p-3">
                       <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
                       <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
@@ -306,7 +310,7 @@ export default function SmartInventory() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-[var(--erp-muted)]">
+                    <td colSpan={8} className="p-8 text-center text-[var(--erp-muted)]">
                       {loading ? (language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...") : (language === "fa" ? "داده‌ای برای نمایش وجود ندارد." : language === "ar" ? "لا توجد بيانات لعرضها." : language === "tr" ? "Gösterilecek veri yok." : "No data.")}
                     </td>
                   </tr>

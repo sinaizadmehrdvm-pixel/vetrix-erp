@@ -3,6 +3,7 @@ import { Menu } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import OfflineStatusBanner from "../components/OfflineStatusBanner";
+import ContextualHelp from "../components/ContextualHelp";
 import { useLanguage } from "../localization/useLanguage";
 
 export default function MainLayout() {
@@ -90,6 +91,7 @@ export default function MainLayout() {
         <OfflineStatusBanner />
         <Outlet />
       </main>
+      <ContextualHelp />
     </div>
   );
 }

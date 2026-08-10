@@ -157,7 +157,7 @@ function normalizeTransaction(item = {}) {
 }
 
 export default function Transactions() {
-  const { t, money, language, dir, date } = useLanguage();
+  const { t, money, language, dir, date, n } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
@@ -656,6 +656,7 @@ export default function Transactions() {
             <table style={{ width: "100%", color: "var(--erp-text)" }}>
               <thead>
                 <tr style={{ color: "var(--erp-accent)" }}>
+                  <th className="p-3 text-start">#</th>
                   <th className="p-3 text-start">{t("transactionType")}</th>
                   <th className="p-3 text-start">{tr("بابت", "السبب", "Sebep", "Reason")}</th>
                   <th className="p-3 text-start">{t("party")}</th>
@@ -668,8 +669,9 @@ export default function Transactions() {
               </thead>
 
               <tbody>
-                {filteredTransactions.map((item) => (
+                {filteredTransactions.map((item, rowIndex) => (
                   <tr key={item.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td className="p-3" style={{ color: "var(--erp-muted)", fontWeight: 700 }}>{n(rowIndex + 1)}</td>
                     <td className="p-3">
                       <span style={{ color: transactionColor(item), fontWeight: 900 }}>
                         {transactionTypeLabel(item)}

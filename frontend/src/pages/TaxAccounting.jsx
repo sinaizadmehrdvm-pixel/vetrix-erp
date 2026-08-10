@@ -124,10 +124,11 @@ export default function TaxAccounting() {
         </section>
         <section style={{ ...card, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
-            <thead><tr>{[copy.voucher, copy.invoice, copy.type, copy.taxable, copy.tax, copy.shipping, copy.total].map((label) => <th key={label} style={{ padding: 13, textAlign: "start", color: "var(--erp-accent)", borderBottom: "1px solid var(--erp-border)" }}>{label}</th>)}</tr></thead>
+            <thead><tr><th style={{ padding: 13, textAlign: "start", color: "var(--erp-accent)", borderBottom: "1px solid var(--erp-border)" }}>#</th>{[copy.voucher, copy.invoice, copy.type, copy.taxable, copy.tax, copy.shipping, copy.total].map((label) => <th key={label} style={{ padding: 13, textAlign: "start", color: "var(--erp-accent)", borderBottom: "1px solid var(--erp-border)" }}>{label}</th>)}</tr></thead>
             <tbody>
-              {!data.items.length && <tr><td colSpan={7} style={{ padding: 25, textAlign: "center", color: "var(--erp-muted)" }}>{copy.noRows}</td></tr>}
-              {data.items.map((item) => <tr key={`${item.voucher_id}-${item.vat_type}`}>
+              {!data.items.length && <tr><td colSpan={8} style={{ padding: 25, textAlign: "center", color: "var(--erp-muted)" }}>{copy.noRows}</td></tr>}
+              {data.items.map((item, rowIndex) => <tr key={`${item.voucher_id}-${item.vat_type}`}>
+                <td style={{ padding: 13, borderTop: "1px solid var(--erp-border)", color: "var(--erp-muted)", fontWeight: 700 }}>{n(rowIndex + 1)}</td>
                 <td style={{ padding: 13, borderTop: "1px solid var(--erp-border)" }}><b>{item.voucher_no}</b><div style={{ color: "var(--erp-muted)", fontSize: 12 }}>{date(item.voucher_date)}</div></td>
                 <td style={{ padding: 13, borderTop: "1px solid var(--erp-border)" }}>#{item.invoice_id}<div style={{ color: "var(--erp-muted)", fontSize: 12 }}>{item.invoice_type}</div></td>
                 <td style={{ padding: 13, borderTop: "1px solid var(--erp-border)", color: item.vat_type === "output" ? "#fda4af" : "#86efac" }}>{item.vat_type === "output" ? copy.output : copy.input}</td>

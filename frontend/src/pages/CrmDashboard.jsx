@@ -505,6 +505,7 @@ function CustomerList({ language, n, money, items, query, setQuery, filter, setF
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+              <th className="p-3 text-right">#</th>
               <th className="p-3 text-right">{language === "fa" ? "مشتری" : language === "ar" ? "العميل" : language === "tr" ? "Müşteri" : "Customer"}</th>
               <th className="p-3 text-right">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}</th>
               <th className="p-3 text-right">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</th>
@@ -515,8 +516,9 @@ function CustomerList({ language, n, money, items, query, setQuery, filter, setF
           </thead>
 
           <tbody>
-            {items.map((item) => (
+            {items.map((item, rowIndex) => (
               <tr key={item.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
+                <td className="p-3 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                 <td className="p-3">
                   <div className="font-black text-[var(--erp-text)]">{item.name}</div>
                   <div className="text-xs text-[var(--erp-muted)] flex items-center gap-1 mt-1">

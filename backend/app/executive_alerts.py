@@ -40,6 +40,7 @@ router = APIRouter(prefix="/api/executive-alerts", tags=["Executive Alerts"])
 
 DEFAULT_ALERT_DAYS_BEFORE_DUE = 3
 DEFAULT_MINIMUM_RECEIVABLE_AMOUNT = 0
+DEFAULT_BUDGET_USAGE_ALERT_PERCENT = 80
 
 
 def _shim_request(company_id: int):
@@ -59,6 +60,9 @@ def _ensure_schema(conn):
             updated_at VARCHAR NOT NULL
         )
     """))
+    columns = {row[1] for row in conn.execute(text("PRAGMA table_info(executive_alert_settings)")).fetchall()}
+    if "budget_usage_alert_percent" not in columns:
+        conn.execute(text("ALTER TABLE executive_alert_settings ADD COLUMN budget_usage_alert_percent INTEGER NOT NULL DEFAULT 80"))
 
 
 def _get_settings(company_id: int) -> dict:
@@ -71,13 +75,19 @@ def _get_settings(company_id: int) -> dict:
         return {
             "alert_days_before_due": DEFAULT_ALERT_DAYS_BEFORE_DUE,
             "minimum_receivable_amount": DEFAULT_MINIMUM_RECEIVABLE_AMOUNT,
+            "budget_usage_alert_percent": DEFAULT_BUDGET_USAGE_ALERT_PERCENT,
         }
-    return {"alert_days_before_due": row["alert_days_before_due"], "minimum_receivable_amount": row["minimum_receivable_amount"]}
+    return {
+        "alert_days_before_due": row["alert_days_before_due"],
+        "minimum_receivable_amount": row["minimum_receivable_amount"],
+        "budget_usage_alert_percent": row["budget_usage_alert_percent"],
+    }
 
 
 class SettingsUpdate(BaseModel):
     alert_days_before_due: int = DEFAULT_ALERT_DAYS_BEFORE_DUE
     minimum_receivable_amount: float = DEFAULT_MINIMUM_RECEIVABLE_AMOUNT
+    budget_usage_alert_percent: int = DEFAULT_BUDGET_USAGE_ALERT_PERCENT
 
 
 @router.get("/settings")
@@ -91,18 +101,21 @@ def update_alert_settings(data: SettingsUpdate, request: Request):
         raise HTTPException(status_code=400, detail="alert_days_before_due cannot be negative")
     if data.minimum_receivable_amount < 0:
         raise HTTPException(status_code=400, detail="minimum_receivable_amount cannot be negative")
+    if not 0 < data.budget_usage_alert_percent <= 200:
+        raise HTTPException(status_code=400, detail="budget_usage_alert_percent must be between 1 and 200")
     company_id = current_company_id(request)
     now = datetime.now(timezone.utc).isoformat()
     with engine.begin() as conn:
         _ensure_schema(conn)
         conn.execute(text("""
-            INSERT INTO executive_alert_settings (company_id, alert_days_before_due, minimum_receivable_amount, updated_at)
-            VALUES (:company_id, :days, :amount, :now)
+            INSERT INTO executive_alert_settings (company_id, alert_days_before_due, minimum_receivable_amount, budget_usage_alert_percent, updated_at)
+            VALUES (:company_id, :days, :amount, :budget_percent, :now)
             ON CONFLICT(company_id) DO UPDATE SET
               alert_days_before_due=excluded.alert_days_before_due,
               minimum_receivable_amount=excluded.minimum_receivable_amount,
+              budget_usage_alert_percent=excluded.budget_usage_alert_percent,
               updated_at=excluded.updated_at
-        """), {"company_id": company_id, "days": data.alert_days_before_due, "amount": data.minimum_receivable_amount, "now": now})
+        """), {"company_id": company_id, "days": data.alert_days_before_due, "amount": data.minimum_receivable_amount, "budget_percent": data.budget_usage_alert_percent, "now": now})
     return _get_settings(company_id)
 
 
@@ -183,6 +196,46 @@ def _low_stock_alerts(company_id: int) -> list:
     return alerts
 
 
+def _budget_alerts(company_id: int, settings: dict) -> list:
+    """Reuses budget_plans.py's own plan_summary computation (imported, not
+    re-derived) for every active plan - an over-budget expense category or
+    a usage_percent past the configurable threshold becomes a real alert,
+    not a decorative one, since it's the exact same numbers the Budget page
+    itself shows."""
+    from app.accounting.budget_plans import plan_summary
+
+    threshold = settings["budget_usage_alert_percent"]
+    alerts = []
+    with engine.begin() as conn:
+        plans = conn.execute(text("""
+            SELECT id, name FROM budget_plans WHERE company_id=:company_id AND status='active'
+        """), {"company_id": company_id}).mappings().all()
+    for plan in plans:
+        try:
+            summary = plan_summary(plan["id"], _shim_request(company_id))
+        except HTTPException:
+            continue
+        planned_expense = summary["total_planned_expense"]
+        actual_expense = summary["actual_expense"]
+        usage_percent = (actual_expense / planned_expense * 100) if planned_expense else (100.0 if actual_expense else 0.0)
+        if usage_percent < threshold:
+            continue
+        severity = "critical" if usage_percent >= 100 else "warning"
+        alerts.append({
+            "category": "budget",
+            "severity": severity,
+            "title": plan["name"],
+            "amount": round(actual_expense - planned_expense, 2),
+            "due_date": None,
+            "days_overdue": 0,
+            "related_id": plan["id"],
+            "related_type": "budget_plan",
+            "usage_percent": round(usage_percent, 1),
+            "quick_action": "view_budget_plan",
+        })
+    return alerts
+
+
 @router.get("/summary")
 def executive_alerts_summary(request: Request):
     company_id = current_company_id(request)
@@ -191,8 +244,9 @@ def executive_alerts_summary(request: Request):
     receivable_payable = _receivable_payable_alerts(company_id, settings)
     cheques = _cheque_alerts(company_id, settings)
     low_stock = _low_stock_alerts(company_id)
+    budget = _budget_alerts(company_id, settings)
 
-    all_alerts = receivable_payable + cheques + low_stock
+    all_alerts = receivable_payable + cheques + low_stock + budget
     severity_rank = {"critical": 0, "warning": 1, "info": 2}
     all_alerts.sort(key=lambda a: (severity_rank.get(a["severity"], 3), -(a.get("amount") or 0)))
 

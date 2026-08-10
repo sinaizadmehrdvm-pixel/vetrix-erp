@@ -304,15 +304,17 @@ export default function BackupRecovery() {
           <table style={{ width: "100%", minWidth: 1150, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
+                <th style={{ padding: 13, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>#</th>
                 {[copy.filename, copy.createdAt, copy.kind, copy.size, copy.integrity, copy.checksum, copy.actions].map((heading) => (
                   <th key={heading} style={{ padding: 13, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {!loading && backups.length === 0 && <tr><td colSpan={7} style={{ padding: 38, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
-              {backups.map((item) => (
+              {!loading && backups.length === 0 && <tr><td colSpan={8} style={{ padding: 38, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
+              {backups.map((item, rowIndex) => (
                 <tr key={item.filename} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                  <td style={{ padding: 13, color: "var(--erp-muted)", fontWeight: 700 }}>{n(rowIndex + 1)}</td>
                   <td style={{ padding: 13, color: "var(--erp-accent)", direction: "ltr", textAlign: "left", fontSize: 12 }}>{item.filename}</td>
                   <td style={{ padding: 13, whiteSpace: "nowrap" }}>{date(item.created_at)} <small style={{ color: "var(--erp-muted)" }}>{time(item.created_at)}</small></td>
                   <td style={{ padding: 13 }}>{kindNames[item.kind] || item.kind}</td>

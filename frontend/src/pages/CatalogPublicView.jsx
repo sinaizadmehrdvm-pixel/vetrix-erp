@@ -161,7 +161,7 @@ export default function CatalogPublicView() {
               <div
                 key={item.id}
                 className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] overflow-hidden flex flex-col"
-                style={{ opacity: item.in_stock ? 1 : 0.6 }}
+                style={{ opacity: item.in_stock === false ? 0.6 : 1 }}
               >
                 <div className="relative aspect-square bg-black/20 flex items-center justify-center">
                   {item.image ? (
@@ -174,7 +174,7 @@ export default function CatalogPublicView() {
                       <BadgePercent size={12} /> {tr(`${item.discount_percent.toFixed(0)}٪`, `${item.discount_percent.toFixed(0)}٪`, `%${item.discount_percent.toFixed(0)}`, `-${item.discount_percent.toFixed(0)}%`)}
                     </span>
                   )}
-                  {!item.in_stock && (
+                  {item.in_stock === false && (
                     <span className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-sm font-black">
                       {tr("ناموجود", "غير متوفر", "Stokta yok", "Out of stock")}
                     </span>
@@ -197,7 +197,7 @@ export default function CatalogPublicView() {
                   <div className="flex items-center justify-between gap-2 mt-1">
                     <button
                       type="button"
-                      disabled={!item.in_stock || !qty}
+                      disabled={item.in_stock === false || !qty}
                       onClick={() => step(item.id, -1)}
                       className="w-8 h-8 rounded-lg grid place-items-center bg-black/20 disabled:opacity-30"
                       aria-label={tr("کاهش", "إنقاص", "Azalt", "Decrease")}
@@ -207,7 +207,7 @@ export default function CatalogPublicView() {
                     <input
                       type="text"
                       inputMode="numeric"
-                      disabled={!item.in_stock}
+                      disabled={item.in_stock === false}
                       value={language === "fa" ? toPersianDigits(qty) : qty}
                       onChange={(e) => setQuantity(item.id, cleanNumberInput(e.target.value))}
                       className="w-12 p-1 rounded-lg bg-black/20 border border-white/10 text-center disabled:opacity-40"
@@ -215,7 +215,7 @@ export default function CatalogPublicView() {
                     />
                     <button
                       type="button"
-                      disabled={!item.in_stock}
+                      disabled={item.in_stock === false}
                       onClick={() => step(item.id, 1)}
                       className="w-8 h-8 rounded-lg grid place-items-center disabled:opacity-30"
                       style={{ background: "var(--erp-accent)", color: "#071028" }}

@@ -1532,6 +1532,7 @@ export default function Invoices() {
 
         <Table>
           <Thead>
+            <Th>#</Th>
             <Th>{label.id}</Th>
             <Th>{label.invoiceType}</Th>
             <Th>{label.customer}</Th>
@@ -1543,10 +1544,11 @@ export default function Invoices() {
 
           <Tbody>
             {invoices.length === 0 ? (
-              <EmptyRow colSpan={7}>{label.noInvoices}</EmptyRow>
+              <EmptyRow colSpan={8}>{label.noInvoices}</EmptyRow>
             ) : (
-              invoices.map((invoice) => (
+              invoices.map((invoice, index) => (
                 <Tr key={invoice.id}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
                   <Td>
                     #{n(invoice.id)}
                     {invoice.pending_sync && (

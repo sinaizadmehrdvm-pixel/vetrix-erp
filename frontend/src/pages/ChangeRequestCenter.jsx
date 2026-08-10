@@ -18,6 +18,7 @@ async function api(path, options = {}) {
 }
 
 const emptyInvoiceItem = { product_id: "", quantity: "1" };
+const emptyPricingRuleDraft = { customer_scope_type: "any", customer_scope_value: "", price_mode: "percent_discount", price_value: "", effective_from: "" };
 
 const REPORT_TYPES = [
   { value: "sales", fa: "فاکتورهای فروش", ar: "فواتير المبيعات", tr: "Satış faturaları", en: "Sales invoices" },
@@ -52,6 +53,7 @@ export default function ChangeRequestCenter() {
     invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
     report_type: "sales", report_format: "pdf", destination_email: "",
     reminder_operation: "add", reminder_name: "", reminder_link_template: "", reminder_channel_id: "",
+    pricing_rule: { ...emptyPricingRuleDraft },
   });
 
   async function load() {
@@ -136,6 +138,16 @@ export default function ChangeRequestCenter() {
         ? { operation: "add", name: form.reminder_name.trim(), link_template: form.reminder_link_template.trim() }
         : { operation: "remove", channel_id: form.reminder_channel_id };
     }
+    if (form.action_type === "pricing_rule_draft") {
+      const rule = form.pricing_rule;
+      return {
+        customer_scope_type: rule.customer_scope_type,
+        customer_scope_value: rule.customer_scope_type === "any" ? "" : rule.customer_scope_value,
+        price_mode: rule.price_mode,
+        price_value: Number(rule.price_value),
+        effective_from: rule.effective_from || null,
+      };
+    }
     let value = form.value;
     if (["online_price", "discount_percent"].includes(form.field)) value = Number(value);
     if (["is_published", "sync_stock"].includes(form.field)) value = value === "true";
@@ -161,7 +173,7 @@ export default function ChangeRequestCenter() {
           audio_reference: audioReference,
           transcript: form.transcript,
           action_type: form.action_type,
-          target_id: form.action_type === "online_product_update" ? Number(form.target_id) : null,
+          target_id: ["online_product_update", "pricing_rule_draft"].includes(form.action_type) ? Number(form.target_id) : null,
           proposed_changes: proposedChanges(),
         }),
       });
@@ -172,6 +184,7 @@ export default function ChangeRequestCenter() {
         invoice_customer_id: "", invoice_items: [{ ...emptyInvoiceItem }],
         report_type: "sales", report_format: "pdf", destination_email: "",
         reminder_operation: "add", reminder_name: "", reminder_link_template: "", reminder_channel_id: "",
+        pricing_rule: { ...emptyPricingRuleDraft },
       });
       setAudioName("");
       setAudioFile(null);
@@ -267,8 +280,20 @@ export default function ChangeRequestCenter() {
               <option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option>
               <option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option>
               <option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری پرداخت", "إضافة/حذف قناة تذكير الدفع", "Ödeme hatırlatma kanalı ekle/kaldır", "Add/remove a payment reminder channel")}</option>
+              <option value="pricing_rule_draft">{tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule")}</option>
             </select>
           </Field>
+
+          {form.action_type === "pricing_rule_draft" && (
+            <PricingRuleFields
+              language={language}
+              products={products}
+              productId={form.target_id}
+              rule={form.pricing_rule}
+              onProductChange={(value) => setForm({ ...form, target_id: value })}
+              onRuleChange={(rule) => setForm({ ...form, pricing_rule: rule })}
+            />
+          )}
 
           {form.action_type === "reminder_channel_manage" && (
             <ReminderChannelFields
@@ -322,7 +347,7 @@ export default function ChangeRequestCenter() {
 
         <section className="space-y-3">
           <div className="erp-surface rounded-2xl p-4 flex gap-3 items-center"><ShieldCheck className="erp-accent" /><p className="text-sm">{tr("امنیت: درخواست‌کننده نمی‌تواند درخواست خودش را تأیید کند و اجرای فرمان آزاد ممنوع است.", "الأمان: لا يمكن لمقدّم الطلب الموافقة على طلبه الخاص، ويُمنع تنفيذ أي أوامر حرة.", "Güvenlik: talep sahibi kendi talebini onaylayamaz ve serbest komut çalıştırma yasaktır.", "Security: requesters cannot approve their own request and arbitrary commands are forbidden.")}</p></div>
-          {requests.map((item) => <RequestCard key={item.id} item={item} language={language} products={products} customers={customers} reminderChannels={reminderChannels} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && item.status === "pending_approval" && Number(item.requested_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
+          {requests.map((item) => <RequestCard key={item.id} item={item} language={language} products={products} customers={customers} reminderChannels={reminderChannels} canReview={user?.role === "admin" && item.status === "needs_transcript_review"} canApprove={user?.role === "admin" && ["pending_approval", "pending_second_approval"].includes(item.status) && Number(item.requested_by) !== Number(user?.id) && Number(item.first_approved_by) !== Number(user?.id)} onReview={(payload) => reviewTranscript(item.id, payload)} onApprove={() => decide(item.id, "approve")} onReject={() => decide(item.id, "reject")} onAudio={() => downloadStoredAudio(item)} onCreateInvoice={() => createInvoiceFromRequest(item)} />)}
           {!requests.length && !loading && <div className="erp-surface rounded-3xl p-10 text-center">{tr("درخواستی وجود ندارد.", "لا توجد طلبات حتى الآن.", "Henüz talep yok.", "No requests yet.")}</div>}
         </section>
       </div>
@@ -422,6 +447,60 @@ function ReportDeliveryFields({ language, reportType, reportFormat, destinationE
   );
 }
 
+function PricingRuleFields({ language, products, productId, rule, onProductChange, onRuleChange }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+
+  return (
+    <>
+      <Field label={tr("کالا", "المنتج", "Ürün", "Product")}>
+        <select required style={inputStyle} value={productId} onChange={(e) => onProductChange(e.target.value)}>
+          <option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>
+          {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </Field>
+      <Field label={tr("گروه/کانال مشتری", "مجموعة/قناة العميل", "Müşteri grubu/kanalı", "Customer group/channel")}>
+        <select style={inputStyle} value={rule.customer_scope_type} onChange={(e) => onRuleChange({ ...rule, customer_scope_type: e.target.value, customer_scope_value: "" })}>
+          <option value="any">{tr("همه مشتریان", "جميع العملاء", "Tüm müşteriler", "All customers")}</option>
+          <option value="group">{tr("گروه قیمت‌گذاری", "مجموعة التسعير", "Fiyat grubu", "Pricing group")}</option>
+          <option value="loyalty_tier">{tr("سطح باشگاه مشتریان", "مستوى الولاء", "Sadakat seviyesi", "Loyalty tier")}</option>
+        </select>
+      </Field>
+      {rule.customer_scope_type === "group" && (
+        <Field label={tr("گروه", "المجموعة", "Grup", "Group")}>
+          <select required style={inputStyle} value={rule.customer_scope_value} onChange={(e) => onRuleChange({ ...rule, customer_scope_value: e.target.value })}>
+            <option value="">{tr("انتخاب...", "اختر...", "Seçin...", "Select...")}</option>
+            <option value="retail">{tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail")}</option>
+            <option value="wholesale">{tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale")}</option>
+          </select>
+        </Field>
+      )}
+      {rule.customer_scope_type === "loyalty_tier" && (
+        <Field label={tr("سطح", "المستوى", "Seviye", "Tier")}>
+          <select required style={inputStyle} value={rule.customer_scope_value} onChange={(e) => onRuleChange({ ...rule, customer_scope_value: e.target.value })}>
+            <option value="">{tr("انتخاب...", "اختر...", "Seçin...", "Select...")}</option>
+            {["Bronze", "Silver", "Gold", "Platinum", "VIP"].map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
+          </select>
+        </Field>
+      )}
+      <Field label={tr("نوع تغییر قیمت", "نوع تغيير السعر", "Fiyat değişikliği türü", "Price change type")}>
+        <select style={inputStyle} value={rule.price_mode} onChange={(e) => onRuleChange({ ...rule, price_mode: e.target.value })}>
+          <option value="percent_discount">{tr("درصد تخفیف", "نسبة خصم", "Yüzde indirim", "Percent discount")}</option>
+          <option value="fixed_discount">{tr("تخفیف مبلغ ثابت", "خصم بمبلغ ثابت", "Sabit tutar indirim", "Fixed amount discount")}</option>
+          <option value="fixed">{tr("قیمت ثابت", "سعر ثابت", "Sabit fiyat", "Fixed price")}</option>
+          <option value="markup">{tr("افزایش قیمت", "هامش ربح", "Kâr marjı", "Markup")}</option>
+        </select>
+      </Field>
+      <Field label={tr("مقدار (عدد یا درصد)", "القيمة (رقم أو نسبة)", "Değer (sayı veya yüzde)", "Value (amount or percent)")}>
+        <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(rule.price_value) : rule.price_value} onChange={(e) => onRuleChange({ ...rule, price_value: cleanNumberInput(e.target.value) })} />
+      </Field>
+      <Field label={tr("اجرا از تاریخ (اختیاری)", "سارٍ من تاريخ (اختياري)", "Geçerlilik başlangıcı (isteğe bağlı)", "Effective from (optional)")}>
+        <input type="date" style={inputStyle} value={rule.effective_from} onChange={(e) => onRuleChange({ ...rule, effective_from: e.target.value })} />
+      </Field>
+    </>
+  );
+}
+
 function ReminderChannelFields({ language, existingChannels, operation, name, linkTemplate, channelId, onOperationChange, onNameChange, onLinkTemplateChange, onChannelIdChange }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
@@ -463,6 +542,7 @@ function RequestCard({ item, language, products, customers, reminderChannels, ca
       draft: "پیش‌نویس",
       needs_transcript_review: "نیازمند بازبینی متن",
       pending_approval: "در انتظار تأیید",
+      pending_second_approval: "در انتظار تأیید دوم (مدیر متفاوت)",
       applied: "اعمال‌شده",
       rejected: "ردشده",
       failed: "ناموفق",
@@ -471,6 +551,7 @@ function RequestCard({ item, language, products, customers, reminderChannels, ca
       draft: "مسودة",
       needs_transcript_review: "بحاجة إلى مراجعة النص",
       pending_approval: "بانتظار الموافقة",
+      pending_second_approval: "بانتظار موافقة ثانية (مدير مختلف)",
       applied: "تم التطبيق",
       rejected: "مرفوض",
       failed: "فشل",
@@ -479,6 +560,7 @@ function RequestCard({ item, language, products, customers, reminderChannels, ca
       draft: "Taslak",
       needs_transcript_review: "Metin incelemesi gerekli",
       pending_approval: "Onay bekliyor",
+      pending_second_approval: "İkinci onay bekliyor (farklı yönetici)",
       applied: "Uygulandı",
       rejected: "Reddedildi",
       failed: "Başarısız",
@@ -487,6 +569,7 @@ function RequestCard({ item, language, products, customers, reminderChannels, ca
       draft: "Draft",
       needs_transcript_review: "Transcript review required",
       pending_approval: "Pending approval",
+      pending_second_approval: "Pending second approval (different admin)",
       applied: "Applied",
       rejected: "Rejected",
       failed: "Failed",
@@ -541,6 +624,7 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
     reminder_name: "",
     reminder_link_template: "",
     reminder_channel_id: "",
+    pricing_rule: { ...emptyPricingRuleDraft },
   });
 
   async function submitReview() {
@@ -552,6 +636,17 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
       if (["online_price", "discount_percent"].includes(review.field)) value = Number(value);
       if (["is_published", "sync_stock"].includes(review.field)) value = value === "true";
       proposed_changes = { [review.field]: value };
+    }
+    if (review.action_type === "pricing_rule_draft") {
+      target_id = Number(review.target_id);
+      const rule = review.pricing_rule;
+      proposed_changes = {
+        customer_scope_type: rule.customer_scope_type,
+        customer_scope_value: rule.customer_scope_type === "any" ? "" : rule.customer_scope_value,
+        price_mode: rule.price_mode,
+        price_value: Number(rule.price_value),
+        effective_from: rule.effective_from || null,
+      };
     }
     if (review.action_type === "campaign_draft") {
       proposed_changes = {
@@ -599,7 +694,7 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
     try {
       const result = await api("/suggest-action", {
         method: "POST",
-        body: JSON.stringify({ transcript: item.transcript || "" }),
+        body: JSON.stringify({ transcript: item.transcript || "", language }),
       });
       setSuggestion(result);
       setReview((prev) => ({
@@ -610,6 +705,13 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
         destination_email: result.proposed_changes?.destination_email || prev.destination_email,
         reminder_operation: result.proposed_changes?.operation || prev.reminder_operation,
         campaign_channel: result.proposed_changes?.channel || prev.campaign_channel,
+        pricing_rule: result.action_type === "pricing_rule_draft" ? {
+          customer_scope_type: result.proposed_changes?.customer_scope_type || "any",
+          customer_scope_value: result.proposed_changes?.customer_scope_value || "",
+          price_mode: result.proposed_changes?.price_mode || "percent_discount",
+          price_value: result.proposed_changes?.price_value != null ? String(result.proposed_changes.price_value) : "",
+          effective_from: result.proposed_changes?.effective_from || "",
+        } : prev.pricing_rule,
       }));
     } catch {
       // Layer 1 suggestion is a convenience only - if it fails, the manager
@@ -630,8 +732,26 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
         )}
       </div>
     )}
+    {suggestion?.missing_fields?.length > 0 && (
+      <div className="text-xs rounded-lg px-3 py-2 space-y-1" style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+        <div className="font-bold">{tr("قبل از تأیید این موارد را مشخص کنید:", "حدّد ما يلي قبل الموافقة:", "Onaylamadan önce şunları belirtin:", "Specify these before approving:")}</div>
+        <ul className="list-disc ps-4">
+          {suggestion.missing_fields.map((m) => <li key={m.field}>{m.question}</li>)}
+        </ul>
+      </div>
+    )}
     <Field label={tr("متن نهایی تأییدشده توسط مدیر", "النص النهائي الذي راجعه المدير", "Yönetici tarafından incelenen nihai metin", "Manager-reviewed final transcript")}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
-    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option><option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel")}</option></select></Field>
+    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option><option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel")}</option><option value="pricing_rule_draft">{tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule")}</option></select></Field>
+    {review.action_type === "pricing_rule_draft" && (
+      <PricingRuleFields
+        language={language}
+        products={products}
+        productId={review.target_id}
+        rule={review.pricing_rule}
+        onProductChange={(value) => setReview({ ...review, target_id: value })}
+        onRuleChange={(rule) => setReview({ ...review, pricing_rule: rule })}
+      />
+    )}
     {review.action_type === "reminder_channel_manage" && (
       <ReminderChannelFields
         language={language}
@@ -677,6 +797,6 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
       <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
       <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
     </>}
-    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim()) || (review.action_type === "reminder_channel_manage" && (review.reminder_operation === "add" ? (!review.reminder_name.trim() || !review.reminder_link_template.trim()) : !review.reminder_channel_id))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
+    <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim()) || (review.action_type === "reminder_channel_manage" && (review.reminder_operation === "add" ? (!review.reminder_name.trim() || !review.reminder_link_template.trim()) : !review.reminder_channel_id)) || (review.action_type === "pricing_rule_draft" && (!review.target_id || review.pricing_rule.price_value === "" || (review.pricing_rule.customer_scope_type !== "any" && !review.pricing_rule.customer_scope_value)))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
   </div>;
 }

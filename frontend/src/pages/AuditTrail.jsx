@@ -234,17 +234,19 @@ export default function AuditTrail() {
           <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
+                <th style={{ padding: 12, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>#</th>
                 {[copy.dateTime, copy.actor, copy.role, copy.action, copy.method, copy.resource, copy.status, copy.ip, copy.requestId].map((heading) => (
                   <th key={heading} style={{ padding: 12, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {!loading && events.length === 0 && <tr><td colSpan={9} style={{ padding: 36, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
-              {events.map((event) => {
+              {!loading && events.length === 0 && <tr><td colSpan={10} style={{ padding: 36, textAlign: "center", color: "var(--erp-muted)" }}>{copy.empty}</td></tr>}
+              {events.map((event, rowIndex) => {
                 const successful = event.status_code < 400;
                 return (
                   <tr key={event.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td style={{ padding: 12, color: "var(--erp-muted)", fontWeight: 700 }}>{n(page * PAGE_SIZE + rowIndex + 1)}</td>
                     <td style={{ padding: 12, color: "var(--erp-muted)", whiteSpace: "nowrap" }}>{date(event.created_at)} <small style={{ color: "var(--erp-muted)" }}>{time(event.created_at)}</small></td>
                     <td style={{ padding: 12, fontWeight: 900 }}>{event.actor_username}</td>
                     <td style={{ padding: 12, color: "var(--erp-muted)" }}>{roleLabel(event.actor_role)}</td>

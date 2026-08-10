@@ -2118,6 +2118,164 @@ class ApiAccessControlTests(unittest.TestCase):
             any(item["id"] == project_id for item in meta["projects"])
         )
 
+    def test_zzy_budget_plan_versioning_approval_and_goods(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        second_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Budget Plan Approver", "username": "ci-admin-budget", "password": "StrongBudgetPass!42", "role": "admin"},
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        second_headers, _ = self._login("ci-admin-budget", "StrongBudgetPass!42")
+
+        # Self-contained period (not borrowed from shared/global test state,
+        # which other tests may close before this one runs) with a unique,
+        # far-future date range so it can never collide with another test's period.
+        new_period = self.client.post(
+            "/api/accounting/periods", headers=admin_headers,
+            json={"name": "CI Budget Plan Period", "start_date": "2031-01-01", "end_date": "2031-01-31"},
+        )
+        self.assertEqual(new_period.status_code, 200, new_period.text)
+        period = {"id": new_period.json()["id"], "start_date": "2031-01-01", "end_date": "2031-01-31"}
+        accounts = self.client.get("/api/accounting/entries/chart", headers=admin_headers).json()
+        expense = next(item for item in accounts if item["code"] == "5102")
+        revenue = next(item for item in accounts if item["code"] == "4101")
+        cash = next(item for item in accounts if item["code"] == "1101")
+
+        product = self.client.post(
+            "/products", headers=admin_headers, json={"name": "Budget Goods Widget", "price": 100, "buy_price": 60, "stock": 20},
+        )
+        product_id = product.json()["id"]
+
+        # Create a draft plan, add a financial line (reusing the existing
+        # budgets/lines endpoint, scoped to this plan) and a goods line.
+        plan = self.client.post(
+            "/api/accounting/budget-plans", headers=admin_headers,
+            json={"name": "CI Q1 Plan", "budget_type": "financial", "scenario": "base", "fiscal_period_id": period["id"]},
+        )
+        self.assertEqual(plan.status_code, 200, plan.text)
+        plan_id = plan.json()["id"]
+
+        expense_line = self.client.post(
+            "/api/accounting/budgets/lines", headers=admin_headers,
+            json={"fiscal_period_id": period["id"], "account_id": expense["id"], "amount": 500, "budget_plan_id": plan_id},
+        )
+        self.assertEqual(expense_line.status_code, 200, expense_line.text)
+        revenue_line = self.client.post(
+            "/api/accounting/budgets/lines", headers=admin_headers,
+            json={"fiscal_period_id": period["id"], "account_id": revenue["id"], "amount": 1000, "budget_plan_id": plan_id},
+        )
+        self.assertEqual(revenue_line.status_code, 200, revenue_line.text)
+
+        goods_line = self.client.post(
+            f"/api/accounting/budget-plans/{plan_id}/goods-lines", headers=admin_headers,
+            json={"product_id": product_id, "planned_quantity": 50, "unit_value": 60},
+        )
+        self.assertEqual(goods_line.status_code, 200, goods_line.text)
+
+        detail = self.client.get(f"/api/accounting/budget-plans/{plan_id}", headers=admin_headers)
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(len(detail.json()["budget_lines"]), 2)
+        self.assertEqual(len(detail.json()["goods_lines"]), 1)
+        self.assertEqual(detail.json()["status"], "draft")
+
+        # A plan-scoped budget line must not collide with an unrelated,
+        # plan-less line for the same account/period (the whole point of
+        # the plan-aware unique index migration).
+        unrelated_line = self.client.post(
+            "/api/accounting/budgets/lines", headers=admin_headers,
+            json={"fiscal_period_id": period["id"], "account_id": expense["id"], "amount": 999},
+        )
+        self.assertEqual(unrelated_line.status_code, 200, unrelated_line.text)
+
+        # Submit for approval - draft -> pending (via the generic approval engine).
+        submit = self.client.post(f"/api/accounting/budget-plans/{plan_id}/submit", headers=admin_headers)
+        self.assertEqual(submit.status_code, 200, submit.text)
+        approval_request_id = submit.json()["approval_request_id"]
+
+        after_submit = self.client.get(f"/api/accounting/budget-plans/{plan_id}", headers=admin_headers).json()
+        self.assertEqual(after_submit["status"], "draft")
+        self.assertTrue(after_submit["pending_approval"])
+
+        # Editing a submitted (still-draft-status-but-pending) plan directly is blocked once approved,
+        # but the requester cannot approve their own submission.
+        self_approve = self.client.post(f"/api/approvals/{approval_request_id}/approve", headers=admin_headers, json={"note": "self"})
+        self.assertEqual(self_approve.status_code, 409, self_approve.text)
+
+        approve = self.client.post(f"/api/approvals/{approval_request_id}/approve", headers=second_headers, json={"note": "looks good"})
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.assertEqual(approve.json()["status"], "approved", approve.text)
+
+        after_approve = self.client.get(f"/api/accounting/budget-plans/{plan_id}", headers=admin_headers).json()
+        self.assertEqual(after_approve["status"], "approved")
+        self.assertFalse(after_approve["pending_approval"])
+
+        # An approved plan can no longer be edited directly.
+        edit_blocked = self.client.put(
+            f"/api/accounting/budget-plans/{plan_id}", headers=admin_headers,
+            json={"name": "renamed", "fiscal_period_id": period["id"]},
+        )
+        self.assertEqual(edit_blocked.status_code, 409)
+
+        # Activate makes it the live plan.
+        activate = self.client.post(f"/api/accounting/budget-plans/{plan_id}/activate", headers=admin_headers)
+        self.assertEqual(activate.status_code, 200, activate.text)
+        self.assertEqual(activate.json()["status"], "active")
+
+        # Post a real voucher against the expense account so summary/forecast have actuals.
+        voucher = self.client.post(
+            "/api/accounting/entries", headers=admin_headers,
+            json={
+                "voucher_date": period["start_date"], "description": "CI budget plan actual", "status": "posted",
+                "lines": [
+                    {"account_id": expense["id"], "debit": 450, "credit": 0},
+                    {"account_id": cash["id"], "debit": 0, "credit": 450},
+                ],
+            },
+        )
+        self.assertEqual(voucher.status_code, 200, voucher.text)
+
+        summary = self.client.get(f"/api/accounting/budget-plans/{plan_id}/summary", headers=admin_headers)
+        self.assertEqual(summary.status_code, 200, summary.text)
+        summary_payload = summary.json()
+        self.assertEqual(summary_payload["total_planned_revenue"], 1000)
+        self.assertEqual(summary_payload["total_planned_expense"], 500)
+        self.assertEqual(summary_payload["actual_expense"], 450)
+        self.assertEqual(summary_payload["expected_profit"], 500)
+
+        forecast = self.client.get(f"/api/accounting/budget-plans/{plan_id}/forecast", headers=admin_headers)
+        self.assertEqual(forecast.status_code, 200, forecast.text)
+        self.assertEqual(forecast.json()["method"], "run_rate_projection")
+        self.assertIn("not an AI/ML prediction", forecast.json()["method_label"])
+
+        # Clone creates a real, independent second plan.
+        clone = self.client.post(f"/api/accounting/budget-plans/{plan_id}/clone", headers=admin_headers)
+        self.assertEqual(clone.status_code, 200, clone.text)
+        clone_id = clone.json()["id"]
+        self.assertNotEqual(clone_id, plan_id)
+        cloned_detail = self.client.get(f"/api/accounting/budget-plans/{clone_id}", headers=admin_headers).json()
+        self.assertEqual(cloned_detail["status"], "draft")
+        self.assertEqual(len(cloned_detail["budget_lines"]), 2)
+        self.assertEqual(len(cloned_detail["goods_lines"]), 1)
+        self.assertEqual(cloned_detail["parent_plan_id"], plan_id)
+
+        # Executive alerts surfaces this over-threshold active plan as a real, computed alert.
+        threshold = self.client.put(
+            "/api/executive-alerts/settings", headers=admin_headers,
+            json={"alert_days_before_due": 3, "minimum_receivable_amount": 0, "budget_usage_alert_percent": 80},
+        )
+        self.assertEqual(threshold.status_code, 200, threshold.text)
+        alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        budget_alerts = [a for a in alerts.json()["items"] if a["category"] == "budget" and a["related_id"] == plan_id]
+        self.assertTrue(budget_alerts, alerts.json()["items"])
+        self.assertEqual(budget_alerts[0]["usage_percent"], 90.0)
+
+        # Close then archive.
+        close = self.client.post(f"/api/accounting/budget-plans/{plan_id}/close", headers=admin_headers)
+        self.assertEqual(close.status_code, 200, close.text)
+        archive = self.client.post(f"/api/accounting/budget-plans/{plan_id}/archive", headers=admin_headers)
+        self.assertEqual(archive.status_code, 200, archive.text)
+        self.assertEqual(archive.json()["status"], "archived")
 
     def test_zzz_multi_currency_rate_and_balance_reporting(self):
         login = self.client.post(
@@ -2915,6 +3073,116 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(revoke.status_code, 200, revoke.text)
         revoked_view = self.client.get("/api/catalog/view", headers=catalog_headers)
         self.assertEqual(revoked_view.status_code, 401)
+
+    def test_zzzzzzzzzzzzy_catalog_task03_extensions(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Catalog Ext Widget", "price": 1000, "stock": 5},
+        )
+        product_id = product.json()["id"]
+
+        wholesale_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Catalog Ext Wholesale Customer", "pricing_group": "wholesale"},
+        )
+        customer_id = wholesale_customer.json()["id"]
+
+        rule = self.client.post(
+            "/api/pricing/rules",
+            headers=headers,
+            json={
+                "name": "Catalog ext rule", "scope_type": "product", "scope_value": str(product_id),
+                "customer_scope_type": "customer", "customer_scope_value": str(customer_id),
+                "min_quantity": 1, "price_mode": "fixed", "price_value": 750, "status": "active",
+            },
+        )
+        self.assertEqual(rule.status_code, 200, rule.text)
+        rule_id = rule.json()["id"]
+        self.addCleanup(lambda: self.client.delete(f"/api/pricing/rules/{rule_id}", headers=headers))
+
+        create = self.client.post(
+            "/api/catalog/links",
+            headers=headers,
+            json={
+                "title": "Extended Catalog", "product_ids": [product_id], "in_stock_only": False,
+                "catalog_type": "wholesale", "price_source": "customer_specific", "customer_id": customer_id,
+                "show_stock_status": False,
+            },
+        )
+        self.assertEqual(create.status_code, 200, create.text)
+        catalog_id = create.json()["id"]
+        catalog_headers = {"Authorization": f"Bearer {create.json()['token']}"}
+
+        # price_source=customer_specific must reflect the pricing-rule result, not the raw sell price.
+        view = self.client.get("/api/catalog/view", headers=catalog_headers)
+        self.assertEqual(view.status_code, 200, view.text)
+        self.assertEqual(view.json()["items"][0]["price"], 750)
+        # show_stock_status=False means in_stock must not even appear in the response.
+        self.assertNotIn("in_stock", view.json()["items"][0])
+
+        # Views are honestly counted, not fabricated.
+        detail = self.client.get("/api/catalog/links", headers=headers)
+        created_entry = next(c for c in detail.json()["items"] if c["id"] == catalog_id)
+        self.assertEqual(created_entry["view_count"], 1)
+
+        # Invalid combination: customer_specific without a customer_id is rejected.
+        invalid = self.client.post(
+            "/api/catalog/links",
+            headers=headers,
+            json={"title": "Bad", "price_source": "customer_specific"},
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+        # Edit updates fields in place.
+        updated = self.client.put(
+            f"/api/catalog/links/{catalog_id}",
+            headers=headers,
+            json={"title": "Renamed Catalog", "price_source": "base", "catalog_type": "product_catalog"},
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        after_update = self.client.get("/api/catalog/links", headers=headers)
+        renamed_entry = next(c for c in after_update.json()["items"] if c["id"] == catalog_id)
+        self.assertEqual(renamed_entry["title"], "Renamed Catalog")
+        self.assertEqual(renamed_entry["price_source"], "base")
+
+        # Duplicate creates a real second row.
+        duplicate = self.client.post(f"/api/catalog/links/{catalog_id}/duplicate", headers=headers)
+        self.assertEqual(duplicate.status_code, 200, duplicate.text)
+        duplicate_id = duplicate.json()["id"]
+        self.assertNotEqual(duplicate_id, catalog_id)
+
+        # Archive makes the public link stop working and hides it from the default listing.
+        archive = self.client.post(f"/api/catalog/links/{catalog_id}/archive", headers=headers)
+        self.assertEqual(archive.status_code, 200, archive.text)
+        archived_view = self.client.get("/api/catalog/view", headers=catalog_headers)
+        self.assertEqual(archived_view.status_code, 401)
+        active_list = self.client.get("/api/catalog/links?status=active", headers=headers)
+        self.assertNotIn(catalog_id, {c["id"] for c in active_list.json()["items"]})
+        archived_list = self.client.get("/api/catalog/links?status=archived", headers=headers)
+        self.assertIn(catalog_id, {c["id"] for c in archived_list.json()["items"]})
+
+        unarchive = self.client.post(f"/api/catalog/links/{catalog_id}/unarchive", headers=headers)
+        self.assertEqual(unarchive.status_code, 200, unarchive.text)
+
+        # Validity window: a catalog that hasn't started yet must reject public access.
+        future_catalog = self.client.post(
+            "/api/catalog/links",
+            headers=headers,
+            json={"title": "Future Catalog", "product_ids": [product_id], "valid_from": "2099-01-01"},
+        )
+        future_headers = {"Authorization": f"Bearer {future_catalog.json()['token']}"}
+        future_view = self.client.get("/api/catalog/view", headers=future_headers)
+        self.assertEqual(future_view.status_code, 401)
+
+        # Landscape PDF export works.
+        pdf_landscape = self.client.get(f"/api/catalog/links/{catalog_id}/pdf?orientation=landscape", headers=headers)
+        self.assertEqual(pdf_landscape.status_code, 200, pdf_landscape.text)
+        self.assertGreater(len(pdf_landscape.content), 100)
 
     def test_zzzzzzzzzzzzz_tiered_wholesale_pricing_flow(self):
         admin_login = self.client.post(
@@ -4695,6 +4963,10 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(conflict.status_code, 409, conflict.text)
 
     def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_voice_change_request_manages_reminder_channels(self):
+        # reminder_channel_manage is a Task 03 HIGH_RISK_ACTIONS entry, so
+        # applying it now takes two DIFFERENT admins (neither of whom can be
+        # the original requester) rather than one - this test exercises
+        # that full dual-approval path, not just a single approve call.
         admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
         second_admin = self.client.post(
             "/users", headers=admin_headers,
@@ -4702,8 +4974,14 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(second_admin.status_code, 200, second_admin.text)
         second_headers, _ = self._login("ci-admin-reminder", "StrongReminderPass!42")
+        third_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Reminder Channel Second Approver", "username": "ci-admin-reminder-2", "password": "StrongReminderPass2!42", "role": "admin"},
+        )
+        self.assertEqual(third_admin.status_code, 200, third_admin.text)
+        third_headers, _ = self._login("ci-admin-reminder-2", "StrongReminderPass2!42")
 
-        # Add a channel via a voice change request, gated by maker-checker approval.
+        # Add a channel via a voice change request, gated by dual-approval maker-checker.
         add_request = self.client.post("/api/change-requests", headers=admin_headers, json={
             "source": "in_app", "transcript": "add Bale as a reminder channel",
             "action_type": "reminder_channel_manage",
@@ -4718,9 +4996,17 @@ class ApiAccessControlTests(unittest.TestCase):
         self_approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=admin_headers, json={"note": "self"})
         self.assertEqual(self_approve.status_code, 409, self_approve.text)
 
-        approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=second_headers, json={"note": "looks good"})
-        self.assertEqual(approve.status_code, 200, approve.text)
-        self.assertEqual(approve.json()["status"], "applied", approve.text)
+        first_approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=second_headers, json={"note": "looks good"})
+        self.assertEqual(first_approve.status_code, 200, first_approve.text)
+        self.assertEqual(first_approve.json()["status"], "pending_second_approval", first_approve.text)
+
+        # The same admin cannot provide both approvals.
+        same_approver_again = self.client.post(f"/api/change-requests/{add_id}/approve", headers=second_headers, json={"note": "again"})
+        self.assertEqual(same_approver_again.status_code, 409, same_approver_again.text)
+
+        second_approve = self.client.post(f"/api/change-requests/{add_id}/approve", headers=third_headers, json={"note": "confirmed independently"})
+        self.assertEqual(second_approve.status_code, 200, second_approve.text)
+        self.assertEqual(second_approve.json()["status"], "applied", second_approve.text)
 
         settings_after_add = self.client.get("/settings", headers=admin_headers).json()
         channels = settings_after_add["reminder_channels"]
@@ -4728,7 +5014,7 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertIsNotNone(added, channels)
         self.assertEqual(added["link_template"], "https://ble.ir/share/{phone}?text={message}")
 
-        # Remove the same channel via a second voice change request.
+        # Remove the same channel via a second voice change request (same dual-approval path).
         remove_request = self.client.post("/api/change-requests", headers=admin_headers, json={
             "source": "in_app", "transcript": "remove the Bale reminder channel",
             "action_type": "reminder_channel_manage",
@@ -4737,7 +5023,8 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(remove_request.status_code, 200, remove_request.text)
         remove_id = remove_request.json()["request_id"]
         self.client.post(f"/api/change-requests/{remove_id}/submit", headers=admin_headers)
-        remove_approve = self.client.post(f"/api/change-requests/{remove_id}/approve", headers=second_headers, json={"note": "confirmed"})
+        self.client.post(f"/api/change-requests/{remove_id}/approve", headers=second_headers, json={"note": "first"})
+        remove_approve = self.client.post(f"/api/change-requests/{remove_id}/approve", headers=third_headers, json={"note": "second"})
         self.assertEqual(remove_approve.status_code, 200, remove_approve.text)
         self.assertEqual(remove_approve.json()["status"], "applied", remove_approve.text)
 
@@ -4753,7 +5040,8 @@ class ApiAccessControlTests(unittest.TestCase):
         })
         bad_id = bad_remove.json()["request_id"]
         self.client.post(f"/api/change-requests/{bad_id}/submit", headers=admin_headers)
-        bad_approve = self.client.post(f"/api/change-requests/{bad_id}/approve", headers=second_headers, json={"note": "try anyway"})
+        self.client.post(f"/api/change-requests/{bad_id}/approve", headers=second_headers, json={"note": "first"})
+        bad_approve = self.client.post(f"/api/change-requests/{bad_id}/approve", headers=third_headers, json={"note": "try anyway"})
         self.assertEqual(bad_approve.status_code, 200, bad_approve.text)
         self.assertEqual(bad_approve.json()["status"], "failed", bad_approve.text)
 
@@ -4966,6 +5254,81 @@ class ApiAccessControlTests(unittest.TestCase):
         sales_headers, _ = self._login("ci-sales-suggest", "StrongSuggestPass!42")
         denied = self.client.post("/api/change-requests/suggest-action", headers=sales_headers, json={"transcript": "test"})
         self.assertEqual(denied.status_code, 403, denied.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzy_voice_pricing_rule_draft_and_clarification(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        second_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Pricing Rule Approver", "username": "ci-admin-pricing-voice", "password": "StrongPricingVoice!42", "role": "admin"},
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        second_headers, _ = self._login("ci-admin-pricing-voice", "StrongPricingVoice!42")
+
+        product = self.client.post(
+            "/products", headers=admin_headers, json={"name": "Voice Pricing Widget", "price": 1000, "stock": 10},
+        )
+        product_id = product.json()["id"]
+
+        # The task spec's own worked example: "cut price 10% for wholesale
+        # customers from tomorrow" - Layer 1 should extract discount/group/
+        # date for real, without a product (voice can't know the product id).
+        suggestion = self.client.post("/api/change-requests/suggest-action", headers=admin_headers, json={
+            "transcript": "cut price 10% for wholesale customers from tomorrow", "language": "en",
+        })
+        self.assertEqual(suggestion.status_code, 200, suggestion.text)
+        self.assertEqual(suggestion.json()["action_type"], "pricing_rule_draft")
+        self.assertEqual(suggestion.json()["proposed_changes"]["price_mode"], "percent_discount")
+        self.assertEqual(suggestion.json()["proposed_changes"]["price_value"], 10)
+        self.assertEqual(suggestion.json()["proposed_changes"]["customer_scope_type"], "group")
+        self.assertEqual(suggestion.json()["proposed_changes"]["customer_scope_value"], "wholesale")
+        # Never guesses which product - that must show up as a real, structured
+        # follow-up question rather than being silently omitted or invented.
+        missing_field_names = {m["field"] for m in suggestion.json()["missing_fields"]}
+        self.assertIn("target_id", missing_field_names)
+
+        # A vague request with nothing extractable is left as note_only, not
+        # forced into a wrong, confidently-guessed action type.
+        vague_price = self.client.post("/api/change-requests/suggest-action", headers=admin_headers, json={
+            "transcript": "لطفا قیمت این کالا رو کم کن", "language": "fa",
+        })
+        self.assertEqual(vague_price.status_code, 200, vague_price.text)
+        # Either note_only (no strong signal) or pricing_rule_draft with missing fields -
+        # either way it must not silently claim to know product/discount/group.
+        if vague_price.json()["action_type"] == "pricing_rule_draft":
+            self.assertTrue(vague_price.json()["missing_fields"])
+
+        # Filling in the product now and submitting for real approval.
+        create = self.client.post("/api/change-requests", headers=admin_headers, json={
+            "source": "in_app", "transcript": "cut price 10% for wholesale customers from tomorrow",
+            "action_type": "pricing_rule_draft", "target_id": product_id,
+            "proposed_changes": {
+                "customer_scope_type": "group", "customer_scope_value": "wholesale",
+                "price_mode": "percent_discount", "price_value": 10,
+            },
+        })
+        self.assertEqual(create.status_code, 200, create.text)
+        request_id = create.json()["request_id"]
+        self.client.post(f"/api/change-requests/{request_id}/submit", headers=admin_headers)
+
+        # pricing_rule_draft is not in HIGH_RISK_ACTIONS - a single, different admin applies it directly.
+        approve = self.client.post(f"/api/change-requests/{request_id}/approve", headers=second_headers, json={"note": "approved"})
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.assertEqual(approve.json()["status"], "applied", approve.text)
+
+        rules = self.client.get("/api/pricing/rules", headers=admin_headers)
+        self.assertEqual(rules.status_code, 200, rules.text)
+        created_rule = next((r for r in rules.json()["items"] if r["scope_value"] == str(product_id)), None)
+        self.assertIsNotNone(created_rule, rules.json()["items"])
+        self.assertEqual(created_rule["customer_scope_value"], "wholesale")
+        self.assertEqual(created_rule["price_value"], 10)
+
+        # An invalid price_mode is rejected, not silently coerced.
+        invalid = self.client.post("/api/change-requests", headers=admin_headers, json={
+            "source": "in_app", "transcript": "invalid pricing request", "action_type": "pricing_rule_draft",
+            "target_id": product_id,
+            "proposed_changes": {"customer_scope_type": "any", "price_mode": "not-a-mode", "price_value": 5},
+        })
+        self.assertEqual(invalid.status_code, 400)
 
     def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_visitor_checkin_checkout_geofence_and_kpis(self):
         admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")

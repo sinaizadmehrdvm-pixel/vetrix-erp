@@ -262,6 +262,7 @@ export default function CustomerFinancial({
           <table className="w-full min-w-[850px] text-sm">
             <thead>
               <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+                <th className="p-3 text-right">#</th>
                 <th className="p-3 text-right">{tr("شماره", "الرقم", "No", "ID")}</th>
                 <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
                 <th className="p-3 text-right">{tr("نوع", "النوع", "Tür", "Type")}</th>
@@ -272,8 +273,9 @@ export default function CustomerFinancial({
             </thead>
 
             <tbody>
-              {filteredInvoices.map((inv) => (
+              {filteredInvoices.map((inv, rowIndex) => (
                 <tr key={inv.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
+                  <td className="p-3 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                   <td className="p-3 font-black text-[var(--erp-text)]">#{n(inv.id)}</td>
                   <td className="p-3 text-[var(--erp-muted)]">{formatCalendarDate(inv.created_at, lang)}</td>
                   <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, lang)}</td>
@@ -295,7 +297,7 @@ export default function CustomerFinancial({
 
               {filteredInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[var(--erp-muted)]">
+                  <td colSpan={7} className="p-8 text-center text-[var(--erp-muted)]">
                     {tr("فاکتوری برای نمایش وجود ندارد.", "لا توجد فواتير لعرضها.", "Gösterilecek fatura yok.", "No invoices to show.")}
                   </td>
                 </tr>

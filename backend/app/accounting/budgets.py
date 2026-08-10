@@ -29,6 +29,10 @@ class BudgetLineCreate(BaseModel):
     cost_center_id: int | None = None
     project_id: int | None = None
     note: str = ""
+    # Optional link to a Task 03 budget_plans row (see
+    # app/accounting/budget_plans.py) - None keeps this line exactly the
+    # same "plan-less" budget this endpoint has always supported.
+    budget_plan_id: int | None = None
 
 
 def _ensure_column(conn, table, column, definition):
@@ -79,11 +83,19 @@ def _ensure_schema(conn):
             FOREIGN KEY(account_id) REFERENCES chart_accounts(id)
         )
     """))
+    # budget_plan_id (Task 03's optional link to app/accounting/budget_plans.py)
+    # and the plan-aware unique index are ensured here too, not only in
+    # budget_plans.py - whichever of the two modules' _ensure_schema()
+    # happens to run first must leave the schema in the same final state,
+    # so neither module can resurrect the old 3-column index the other
+    # already replaced.
+    _ensure_column(conn, "accounting_budgets", "budget_plan_id", "budget_plan_id INTEGER")
+    conn.execute(text("DROP INDEX IF EXISTS ux_budget_dimensions"))
     conn.execute(text("""
-        CREATE UNIQUE INDEX IF NOT EXISTS ux_budget_dimensions
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_budget_dimensions_v2
         ON accounting_budgets(
             fiscal_period_id, account_id,
-            COALESCE(cost_center_id, -1), COALESCE(project_id, -1)
+            COALESCE(cost_center_id, -1), COALESCE(project_id, -1), COALESCE(budget_plan_id, -1)
         )
     """))
     table = conn.execute(text("""
@@ -218,14 +230,21 @@ def upsert_budget_line(data: BudgetLineCreate, request: Request):
             _dimension(conn, "cost_centers", data.cost_center_id, "Cost center", company_id)
         if data.project_id:
             _dimension(conn, "accounting_projects", data.project_id, "Project", company_id)
+        if data.budget_plan_id:
+            plan = conn.execute(text(
+                "SELECT id FROM budget_plans WHERE id=:id AND company_id=:company_id"
+            ), {"id": data.budget_plan_id, "company_id": company_id}).first()
+            if not plan:
+                raise HTTPException(status_code=404, detail="Budget plan not found")
         existing = conn.execute(text("""
             SELECT id FROM accounting_budgets
             WHERE fiscal_period_id=:period_id AND account_id=:account_id AND company_id=:company_id
               AND COALESCE(cost_center_id,-1)=COALESCE(:cost_center_id,-1)
               AND COALESCE(project_id,-1)=COALESCE(:project_id,-1)
+              AND COALESCE(budget_plan_id,-1)=COALESCE(:budget_plan_id,-1)
         """), {
             "period_id": data.fiscal_period_id, "account_id": data.account_id, "company_id": company_id,
-            "cost_center_id": data.cost_center_id, "project_id": data.project_id,
+            "cost_center_id": data.cost_center_id, "project_id": data.project_id, "budget_plan_id": data.budget_plan_id,
         }).scalar()
         now = datetime.now(timezone.utc).isoformat()
         if existing:
@@ -237,10 +256,10 @@ def upsert_budget_line(data: BudgetLineCreate, request: Request):
         result = conn.execute(text("""
             INSERT INTO accounting_budgets
               (fiscal_period_id, account_id, cost_center_id, project_id,
-               amount, note, created_at, updated_at, company_id)
+               amount, note, created_at, updated_at, company_id, budget_plan_id)
             VALUES
               (:fiscal_period_id, :account_id, :cost_center_id, :project_id,
-               :amount, :note, :now, :now, :company_id)
+               :amount, :note, :now, :now, :company_id, :budget_plan_id)
         """), {**data.dict(), "amount": amount, "note": data.note.strip(), "now": now, "company_id": company_id})
         return {"status": "created", "id": result.lastrowid}
 
