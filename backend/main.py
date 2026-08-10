@@ -169,6 +169,10 @@ def ensure_database_schema():
         # bot can't message a user who hasn't started that chat first) -
         # see app/telegram_utils.py.
         "telegram_chat_id": "telegram_chat_id VARCHAR DEFAULT ''",
+        # Registered location for the Visitor module's geofenced check-ins
+        # and distance sorting - see app/field_visits.py.
+        "latitude": "latitude FLOAT",
+        "longitude": "longitude FLOAT",
     }
 
     invoice_columns = {
@@ -623,6 +627,8 @@ class CustomerCreate(BaseModel):
     pricing_group: str = "retail"
     assigned_rep_id: Optional[int] = None
     telegram_chat_id: str = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class ProductCreate(BaseModel):
@@ -926,6 +932,8 @@ def customer_to_dict(db: Session, c: Customer):
         "pricing_group": getattr(c, "pricing_group", "retail") or "retail",
         "assigned_rep_id": getattr(c, "assigned_rep_id", None),
         "telegram_chat_id": getattr(c, "telegram_chat_id", "") or "",
+        "latitude": getattr(c, "latitude", None),
+        "longitude": getattr(c, "longitude", None),
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -1056,6 +1064,8 @@ def create_customer(data: CustomerCreate, request: Request):
             pricing_group=data.pricing_group,
             assigned_rep_id=data.assigned_rep_id,
             telegram_chat_id=data.telegram_chat_id,
+            latitude=data.latitude,
+            longitude=data.longitude,
             company_id=current_company_id(request),
         )
         db.add(customer)
@@ -1171,6 +1181,8 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         customer.pricing_group = data.pricing_group
         customer.assigned_rep_id = data.assigned_rep_id
         customer.telegram_chat_id = data.telegram_chat_id
+        customer.latitude = data.latitude
+        customer.longitude = data.longitude
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (

@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  LocateFixed,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -61,6 +62,8 @@ const emptyForm = {
   phone: "",
   mobile: "",
   telegram_chat_id: "",
+  latitude: "",
+  longitude: "",
   email: "",
   national_id: "",
   economic_code: "",
@@ -546,6 +549,8 @@ export default function Customers() {
       phone: toEnglishDigits(form.phone || form.mobile || ""),
       mobile: toEnglishDigits(form.mobile || ""),
       telegram_chat_id: (form.telegram_chat_id || "").trim(),
+      latitude: form.latitude === "" || form.latitude === null || form.latitude === undefined ? null : Number(form.latitude),
+      longitude: form.longitude === "" || form.longitude === null || form.longitude === undefined ? null : Number(form.longitude),
       email: form.email || "",
       address: form.address || "",
       city: form.city || "",
@@ -1113,6 +1118,34 @@ export default function Customers() {
             value={form.telegram_chat_id || ""}
             onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
           />
+
+          <div style={{ display: "flex", gap: 8, gridColumn: "span 1" }}>
+            <Input
+              placeholder={fa ? "عرض جغرافیایی" : language === "ar" ? "خط العرض" : language === "tr" ? "Enlem" : "Latitude"}
+              value={form.latitude ?? ""}
+              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+            />
+            <Input
+              placeholder={fa ? "طول جغرافیایی" : language === "ar" ? "خط الطول" : language === "tr" ? "Boylam" : "Longitude"}
+              value={form.longitude ?? ""}
+              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+            />
+            <button
+              type="button"
+              title={fa ? "استفاده از موقعیت فعلی" : language === "ar" ? "استخدام الموقع الحالي" : language === "tr" ? "Mevcut konumu kullan" : "Use my current location"}
+              onClick={() => {
+                if (!navigator.geolocation) return;
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => setForm((prev) => ({ ...prev, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude) })),
+                  () => {},
+                  { enableHighAccuracy: true, timeout: 10000 }
+                );
+              }}
+              className="shrink-0 px-3 rounded-xl border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"
+            >
+              <LocateFixed size={16} />
+            </button>
+          </div>
 
           <Input
             placeholder={t("email")}

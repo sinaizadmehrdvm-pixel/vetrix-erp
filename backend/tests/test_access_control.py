@@ -4170,13 +4170,13 @@ class ApiAccessControlTests(unittest.TestCase):
         # is rejected before anything is written.
         bad_visit = self.client.post(
             "/api/field-visits", headers=rep_headers,
-            json={"customer_id": 999999, "outcome": "no_order"},
+            json={"customer_id": 999999, "outcome": "store_closed"},
         )
         self.assertEqual(bad_visit.status_code, 404)
 
         visit_payload = {
             "customer_id": assigned_customer_id,
-            "outcome": "no_order",
+            "outcome": "store_closed",
             "note": "Store was closed",
             "client_ref": "visit-client-ref-m6-001",
         }
@@ -4709,6 +4709,93 @@ class ApiAccessControlTests(unittest.TestCase):
         sales_headers, _ = self._login("ci-sales-suggest", "StrongSuggestPass!42")
         denied = self.client.post("/api/change-requests/suggest-action", headers=sales_headers, json={"transcript": "test"})
         self.assertEqual(denied.status_code, 403, denied.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_visitor_checkin_checkout_geofence_and_kpis(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        near_customer = self.client.post(
+            "/customers", headers=admin_headers,
+            json={"name": "Geofence Near Customer", "latitude": 35.6997, "longitude": 51.3380},
+        )
+        self.assertEqual(near_customer.status_code, 200, near_customer.text)
+        near_id = near_customer.json()["id"]
+        near_customer_detail = self.client.get(f"/customers/{near_id}", headers=admin_headers)
+        self.assertEqual(near_customer_detail.status_code, 200, near_customer_detail.text)
+        self.assertAlmostEqual(near_customer_detail.json()["customer"]["latitude"], 35.6997, places=3)
+
+        far_customer = self.client.post(
+            "/customers", headers=admin_headers,
+            json={"name": "Geofence Far Customer", "latitude": 35.6997, "longitude": 51.3380},
+        )
+        self.assertEqual(far_customer.status_code, 200, far_customer.text)
+        far_id = far_customer.json()["id"]
+
+        no_coords_customer = self.client.post("/customers", headers=admin_headers, json={"name": "No Coords Customer"})
+        self.assertEqual(no_coords_customer.status_code, 200, no_coords_customer.text)
+        no_coords_id = no_coords_customer.json()["id"]
+
+        check_in_time = datetime.utcnow().isoformat() + "Z"
+        visit_time = (datetime.utcnow() + timedelta(minutes=12)).isoformat() + "Z"
+
+        # ~55m from the customer's registered point - within the 300m geofence.
+        near_visit = self.client.post("/api/field-visits", headers=admin_headers, json={
+            "customer_id": near_id, "outcome": "order_placed", "note": "",
+            "client_ref": "visit-geofence-near-001",
+            "check_in_time": check_in_time, "check_in_latitude": 35.7002, "check_in_longitude": 51.3380,
+            "latitude": 35.7002, "longitude": 51.3380, "visit_time": visit_time,
+        })
+        self.assertEqual(near_visit.status_code, 200, near_visit.text)
+        near_record = near_visit.json()["visit"]
+        self.assertTrue(near_record["within_geofence"])
+        self.assertLess(near_record["distance_meters"], 300)
+        self.assertEqual(near_record["duration_seconds"], 720)
+
+        # ~11km from the customer's registered point - outside the geofence.
+        far_visit = self.client.post("/api/field-visits", headers=admin_headers, json={
+            "customer_id": far_id, "outcome": "no_order_no_need", "note": "",
+            "client_ref": "visit-geofence-far-001",
+            "check_in_time": check_in_time, "check_in_latitude": 35.80, "check_in_longitude": 51.3380,
+            "latitude": 35.80, "longitude": 51.3380, "visit_time": visit_time,
+        })
+        self.assertEqual(far_visit.status_code, 200, far_visit.text)
+        far_record = far_visit.json()["visit"]
+        self.assertFalse(far_record["within_geofence"])
+        self.assertGreater(far_record["distance_meters"], 300)
+
+        # No registered coordinates on the customer - geofence check is
+        # skipped entirely (None, never a false negative).
+        no_coords_visit = self.client.post("/api/field-visits", headers=admin_headers, json={
+            "customer_id": no_coords_id, "outcome": "customer_unavailable", "note": "",
+            "client_ref": "visit-geofence-nocoords-001",
+            "check_in_time": check_in_time, "check_in_latitude": 35.80, "check_in_longitude": 51.3380,
+        })
+        self.assertEqual(no_coords_visit.status_code, 200, no_coords_visit.text)
+        self.assertIsNone(no_coords_visit.json()["visit"]["within_geofence"])
+        self.assertIsNone(no_coords_visit.json()["visit"]["distance_meters"])
+
+        # Invalid outcome is rejected up front.
+        bad_outcome = self.client.post("/api/field-visits", headers=admin_headers, json={
+            "customer_id": near_id, "outcome": "not_a_real_outcome",
+        })
+        self.assertEqual(bad_outcome.status_code, 400, bad_outcome.text)
+
+        summary = self.client.get("/api/field-visits/summary?scope=team", headers=admin_headers)
+        self.assertEqual(summary.status_code, 200, summary.text)
+        self.assertGreaterEqual(summary.json()["today"]["visits"], 3)
+        self.assertGreaterEqual(summary.json()["today"]["orders"], 1)
+
+        coverage = self.client.get("/api/field-visits/coverage", headers=admin_headers)
+        self.assertEqual(coverage.status_code, 200, coverage.text)
+        coverage_by_id = {item["customer_id"]: item for item in coverage.json()["items"]}
+        self.assertFalse(coverage_by_id[near_id]["overdue"])
+        self.assertIsNotNone(coverage_by_id[near_id]["days_since_last_visit"])
+        # A customer never visited at all is always overdue.
+        never_visited = self.client.post("/customers", headers=admin_headers, json={"name": "Never Visited Customer"})
+        self.assertEqual(never_visited.status_code, 200, never_visited.text)
+        coverage_after = self.client.get("/api/field-visits/coverage", headers=admin_headers).json()
+        never_visited_entry = next(i for i in coverage_after["items"] if i["customer_id"] == never_visited.json()["id"])
+        self.assertTrue(never_visited_entry["overdue"])
+        self.assertIsNone(never_visited_entry["days_since_last_visit"])
 
 
 if __name__ == "__main__":

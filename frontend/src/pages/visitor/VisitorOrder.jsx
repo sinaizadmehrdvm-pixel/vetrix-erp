@@ -46,7 +46,8 @@ export default function VisitorOrder() {
     const timer = setTimeout(() => {
       (async () => {
         try {
-          setCustomer(await getCustomer(customerId));
+          const result = await getCustomer(customerId);
+          setCustomer(result?.customer || null);
         } catch {
           toast.error(tr("مشتری یافت نشد", "لم يتم العثور على العميل", "Müşteri bulunamadı", "Customer not found"));
         }

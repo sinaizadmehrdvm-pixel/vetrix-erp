@@ -40,5 +40,9 @@ class Customer(Base):
     # can't message a user who hasn't started that chat first) - see
     # app/telegram_utils.py.
     telegram_chat_id = Column(String, default="")
+    # Registered location, used by the Visitor module for geofenced
+    # check-ins and distance-based sorting - see app/field_visits.py.
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
     company_id = Column(Integer, nullable=True)
