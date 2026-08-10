@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Boolean, Column, Integer, String, Float
 from app.database import Base
 
 
@@ -40,6 +40,10 @@ class Product(Base):
 
     description = Column(String, nullable=True)
     count_in_pack = Column(Float, nullable=True)
+
+    # Active/inactive - inactive products stay in history (invoices, reports)
+    # but are excluded from search/selection by default.
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
     company_id = Column(Integer, nullable=True)

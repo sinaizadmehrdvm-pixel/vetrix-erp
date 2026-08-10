@@ -142,6 +142,9 @@ READ_RULES = (
     # self-verify by session authority; this governs the staff-triggered
     # "generate/share a payment link" endpoints.
     ("/api/payments", {"admin", "accountant", "sales"}),
+    # Admin-only in practice via _require_admin inside the route itself
+    # (holds provider credentials) - outer rule just needs to admit admin.
+    ("/api/payment-providers", {"admin"}),
     # Static per-industry field definitions (Phase 2 dynamic invoice
     # fields) - read-only, needed by anyone who can create an invoice.
     ("/api/industry-fields", {"admin", "accountant", "sales"}),
@@ -194,6 +197,7 @@ MUTATION_RULES = (
     # self-verify by session authority, so this only governs the
     # staff-triggered "generate a payment link" endpoint below.
     ("/api/payments", {"admin", "accountant", "sales"}),
+    ("/api/payment-providers", {"admin"}),
     ("/api/payment-reminders", {"admin", "accountant", "sales"}),
     # Endpoint-level checks (_require_admin for the editor allowlist itself,
     # _require_template_editor for the templates) do the real gating here -

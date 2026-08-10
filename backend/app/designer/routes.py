@@ -152,14 +152,17 @@ def create_template(data: dict, request: Request):
 
 @router.get("/templates")
 def get_templates(request: Request, kind: str = "invoice"):
-    if kind not in ALLOWED_KINDS:
-        kind = "invoice"
+    """kind='all' lists every kind at once (used by the Design Studio hub
+    gallery) - any other unrecognized value still falls back to 'invoice',
+    preserving the exact old default for every existing caller."""
     db = SessionLocal()
     try:
-        templates = db.query(PdfTemplate).filter(
-            PdfTemplate.company_id == current_company_id(request),
-            PdfTemplate.kind == kind,
-        ).order_by(PdfTemplate.id.desc()).all()
+        query = db.query(PdfTemplate).filter(PdfTemplate.company_id == current_company_id(request))
+        if kind != "all":
+            if kind not in ALLOWED_KINDS:
+                kind = "invoice"
+            query = query.filter(PdfTemplate.kind == kind)
+        templates = query.order_by(PdfTemplate.id.desc()).all()
         return [normalize_template(t) for t in templates]
     finally:
         db.close()
@@ -172,6 +175,24 @@ def get_template(id: int, request: Request):
         template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
         if not template:
             return {"status": "error", "message": "Template not found"}
+        return normalize_template(template)
+    finally:
+        db.close()
+
+
+@router.put("/template/{id}/rename")
+def rename_template(id: int, data: dict, request: Request):
+    new_name = str(data.get("name") or "").strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="name is required")
+    db = SessionLocal()
+    try:
+        template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
+        if not template:
+            return {"status": "error", "message": "Template not found"}
+        template.name = new_name
+        db.commit()
+        db.refresh(template)
         return normalize_template(template)
     finally:
         db.close()

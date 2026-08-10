@@ -1352,8 +1352,8 @@ export default function Customers() {
             {exportMenuOpen && (
               <div
                 role="menu"
-                className="absolute z-20 mt-2 min-w-[260px] rounded-[var(--erp-radius-md)] border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] shadow-2xl p-2"
-                style={{ insetInlineEnd: 0 }}
+                className="absolute z-20 mt-2 min-w-[260px] rounded-[var(--erp-radius-md)] border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] p-2"
+                style={{ insetInlineEnd: 0, boxShadow: "var(--erp-shadow)" }}
               >
                 <label className="flex items-center gap-2 px-2 py-2 text-sm text-[var(--erp-text)] cursor-pointer">
                   <input type="checkbox" checked={exportAllScope} onChange={(e) => setExportAllScope(e.target.checked)} />

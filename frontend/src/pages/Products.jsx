@@ -51,6 +51,7 @@ const empty = {
   main_category: "",
   sub_category: "",
   image: "",
+  is_active: true,
 };
 
 const unitOptionsFa = [
@@ -166,6 +167,7 @@ function normalizeProduct(item = {}) {
     main_category: item.main_category || "",
     sub_category: item.sub_category || "",
     image: item.image || "",
+    is_active: item.is_active !== false,
   };
 }
 
@@ -250,6 +252,9 @@ export default function Products() {
   const [brandFilter, setBrandFilter] = useState("all");
   const [unitFilter, setUnitFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [subCategoryFilter, setSubCategoryFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [stockStatusFilter, setStockStatusFilter] = useState("all");
   const [sortField, setSortField] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
 
@@ -290,6 +295,9 @@ export default function Products() {
     code: tr("کد کالا", "كود المنتج", "Ürün kodu", "Product code"),
     barcode: tr("بارکد", "الباركود", "Barkod", "Barcode"),
     sku: tr("SKU / شناسه داخلی", "SKU / الرمز الداخلي", "SKU / Dahili kod", "SKU / Internal code"),
+    row: tr("ردیف", "#", "#", "#"),
+    active: tr("فعال", "نشط", "Aktif", "Active"),
+    inactive: tr("غیرفعال", "غير نشط", "Pasif", "Inactive"),
     brand: tr("برند", "العلامة التجارية", "Marka", "Brand"),
     unit: tr("واحد", "الوحدة", "Birim", "Unit"),
     buy: tr("قیمت خرید", "سعر الشراء", "Alış fiyatı", "Buy price"),
@@ -414,6 +422,7 @@ export default function Products() {
       main_category: form.main_category || "",
       sub_category: form.sub_category || "",
       image: form.image || "",
+      is_active: form.is_active !== false,
     };
   }
 
@@ -691,6 +700,21 @@ export default function Products() {
     () => Array.from(new Set(products.map((p) => p.main_category).filter(Boolean))).sort(),
     [products]
   );
+  // Constrained to the selected main category, same hierarchy the create/
+  // edit form already uses (categories is the product_categories list).
+  const subCategoryFilterOptions = useMemo(() => {
+    if (categoryFilter === "all") {
+      return Array.from(new Set(products.map((p) => p.sub_category).filter(Boolean))).sort();
+    }
+    return Array.from(
+      new Set(
+        products
+          .filter((p) => p.main_category === categoryFilter)
+          .map((p) => p.sub_category)
+          .filter(Boolean)
+      )
+    ).sort();
+  }, [products, categoryFilter]);
 
   function onSort(field, dir) {
     setSortField(field);
@@ -716,7 +740,17 @@ export default function Products() {
       const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
       const matchesUnit = unitFilter === "all" || p.unit === unitFilter;
       const matchesCategory = categoryFilter === "all" || p.main_category === categoryFilter;
-      return matchesSearch && matchesBrand && matchesUnit && matchesCategory;
+      const matchesSubCategory = subCategoryFilter === "all" || p.sub_category === subCategoryFilter;
+      const matchesActive =
+        activeFilter === "all" || (activeFilter === "active" ? p.is_active !== false : p.is_active === false);
+      const stock = toNumber(p.stock);
+      const minStock = toNumber(p.min_stock);
+      const matchesStockStatus =
+        stockStatusFilter === "all" ||
+        (stockStatusFilter === "out_of_stock" && stock <= 0) ||
+        (stockStatusFilter === "low_stock" && stock > 0 && minStock > 0 && stock <= minStock) ||
+        (stockStatusFilter === "in_stock" && stock > 0 && (minStock <= 0 || stock > minStock));
+      return matchesSearch && matchesBrand && matchesUnit && matchesCategory && matchesSubCategory && matchesActive && matchesStockStatus;
     });
 
     if (!sortField) return matched;
@@ -729,7 +763,31 @@ export default function Products() {
       const numericField = sortField === "sell_price" ? (a) => toNumber(a.sell_price ?? a.price) : (a) => toNumber(a[sortField]);
       return dirMul * (numericField(a) - numericField(b));
     });
-  }, [products, search, brandFilter, unitFilter, categoryFilter, sortField, sortDir, fa, language]);
+  }, [products, search, brandFilter, unitFilter, categoryFilter, subCategoryFilter, activeFilter, stockStatusFilter, sortField, sortDir, fa, language]);
+
+  const activeChips = [
+    search.trim() && { key: "search", label: `${tr("جستجو", "بحث", "Arama", "Search")}: ${search.trim()}`, clear: () => setSearch("") },
+    brandFilter !== "all" && { key: "brand", label: `${label.brand}: ${brandFilter}`, clear: () => setBrandFilter("all") },
+    unitFilter !== "all" && { key: "unit", label: `${label.unit}: ${unitFilter}`, clear: () => setUnitFilter("all") },
+    categoryFilter !== "all" && { key: "category", label: `${tr("گروه", "المجموعة", "Grup", "Group")}: ${categoryFilter}`, clear: () => { setCategoryFilter("all"); setSubCategoryFilter("all"); } },
+    subCategoryFilter !== "all" && { key: "subCategory", label: `${tr("زیرگروه", "المجموعة الفرعية", "Alt grup", "Subcategory")}: ${subCategoryFilter}`, clear: () => setSubCategoryFilter("all") },
+    activeFilter !== "all" && { key: "active", label: activeFilter === "active" ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive"), clear: () => setActiveFilter("all") },
+    stockStatusFilter !== "all" && {
+      key: "stockStatus",
+      label: stockStatusFilter === "out_of_stock" ? tr("ناموجود", "نفد المخزون", "Stok yok", "Out of stock") : stockStatusFilter === "low_stock" ? tr("موجودی کم", "مخزون منخفض", "Az stok", "Low stock") : tr("موجود", "متوفر", "Stokta", "In stock"),
+      clear: () => setStockStatusFilter("all"),
+    },
+  ].filter(Boolean);
+
+  function clearAllFilters() {
+    setSearch("");
+    setBrandFilter("all");
+    setUnitFilter("all");
+    setCategoryFilter("all");
+    setSubCategoryFilter("all");
+    setActiveFilter("all");
+    setStockStatusFilter("all");
+  }
 
   const totalStock = products.reduce((sum, p) => sum + toNumber(p.stock), 0);
 
@@ -907,6 +965,13 @@ export default function Products() {
             {label.uploadImage}
             <input type="file" accept="image/*" onChange={imageChange} className="hidden" />
           </label>
+
+          <Field label={label.active}>
+            <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center gap-2 cursor-pointer border border-[var(--erp-border)]">
+              <input type="checkbox" checked={form.is_active !== false} onChange={(e) => setField("is_active", e.target.checked)} />
+              <span className="text-sm text-[var(--erp-text)]">{form.is_active !== false ? label.active : label.inactive}</span>
+            </label>
+          </Field>
         </div>
 
         {form.image && (
@@ -958,11 +1023,60 @@ export default function Products() {
             {unitOptionsFromData.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           {categoryFilterOptions.length > 0 && (
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+            <select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setSubCategoryFilter("all"); }}
+              className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm"
+            >
               <option value="all">{tr("همه گروه‌های اصلی", "كل التصنيفات الرئيسية", "Tüm ana kategoriler", "All main categories")}</option>
               {categoryFilterOptions.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
+          {subCategoryFilterOptions.length > 0 && (
+            <select value={subCategoryFilter} onChange={(e) => setSubCategoryFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+              <option value="all">{tr("همه زیرگروه‌ها", "كل المجموعات الفرعية", "Tüm alt gruplar", "All subcategories")}</option>
+              {subCategoryFilterOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <select value={stockStatusFilter} onChange={(e) => setStockStatusFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+            <option value="all">{tr("هر وضعیت موجودی", "أي حالة مخزون", "Her stok durumu", "Any stock status")}</option>
+            <option value="in_stock">{tr("موجود", "متوفر", "Stokta", "In stock")}</option>
+            <option value="low_stock">{tr("موجودی کم", "مخزون منخفض", "Az stok", "Low stock")}</option>
+            <option value="out_of_stock">{tr("ناموجود", "نفد المخزون", "Stok yok", "Out of stock")}</option>
+          </select>
+          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
+            <option value="all">{tr("فعال و غیرفعال", "نشط وغير نشط", "Aktif ve pasif", "Active & inactive")}</option>
+            <option value="active">{tr("فقط فعال", "نشط فقط", "Sadece aktif", "Active only")}</option>
+            <option value="inactive">{tr("فقط غیرفعال", "غير نشط فقط", "Sadece pasif", "Inactive only")}</option>
+          </select>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            {activeChips.length > 0 ? (
+              <>
+                {activeChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.clear}
+                    className="flex items-center gap-1 px-3 py-1 rounded-full bg-[var(--erp-accent)]/15 text-[var(--erp-accent)] text-xs font-bold"
+                  >
+                    {chip.label}
+                    <X size={12} />
+                  </button>
+                ))}
+                <button type="button" onClick={clearAllFilters} className="text-xs font-bold text-[var(--erp-muted)] underline">
+                  {tr("پاک کردن همه فیلترها", "مسح كل الفلاتر", "Tüm filtreleri temizle", "Clear all filters")}
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-[var(--erp-muted)]">{tr("بدون فیلتر فعال", "لا توجد فلاتر نشطة", "Aktif filtre yok", "No active filters")}</span>
+            )}
+          </div>
+          <span className="text-xs font-bold text-[var(--erp-muted)]">
+            {tr(`${n(filtered.length)} نتیجه`, `${n(filtered.length)} نتيجة`, `${n(filtered.length)} sonuç`, `${n(filtered.length)} results`)}
+          </span>
         </div>
 
         <BarcodeScannerModal
@@ -974,6 +1088,7 @@ export default function Products() {
 
         <Table className="min-w-[860px]">
           <Thead>
+            <Th className="w-12">{label.row}</Th>
             <SortableTh field="name" sortField={sortField} sortDir={sortDir} onSort={onSort}>{tr("کالا", "المنتج", "Ürün", "Product")}</SortableTh>
             <SortableTh field="brand" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.brand}</SortableTh>
             <SortableTh field="buy_price" sortField={sortField} sortDir={sortDir} onSort={onSort}>{label.buy}</SortableTh>
@@ -985,16 +1100,21 @@ export default function Products() {
 
           <Tbody>
             {loading ? (
-              <EmptyRow colSpan={7}>{tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</EmptyRow>
+              <EmptyRow colSpan={8}>{tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</EmptyRow>
             ) : filtered.length === 0 ? (
-              <EmptyRow colSpan={7}>{label.noData}</EmptyRow>
+              <EmptyRow colSpan={8}>
+                {products.length === 0
+                  ? label.noData
+                  : tr("با این فیلترها کالایی پیدا نشد.", "لا توجد منتجات مطابقة لهذه الفلاتر.", "Bu filtrelerle eşleşen ürün bulunamadı.", "No products match these filters.")}
+              </EmptyRow>
             ) : (
-              filtered.map((raw) => {
+              filtered.map((raw, index) => {
                 const item = normalizeProduct(raw);
                 const isLow = toNumber(item.min_stock) > 0 && toNumber(item.stock) <= toNumber(item.min_stock);
 
                 return (
                   <Tr key={item.id} className="hover:bg-cyan-500/5">
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
                     <Td>
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-[var(--erp-glow)] flex items-center justify-center overflow-hidden shrink-0">
@@ -1004,6 +1124,7 @@ export default function Products() {
                         <div>
                           <b>
                             {faText(item.name, fa)}
+                            {item.is_active === false && <span className="mx-2 text-xs px-2 py-0.5 rounded-full bg-[var(--erp-muted)]/20 text-[var(--erp-muted)]">{label.inactive}</span>}
                             {item.pending_sync && <span className="mx-2 text-xs text-amber-300">{tr("آفلاین", "غير متصل", "Çevrimdışı", "Offline")}</span>}
                           </b>
                           <div className="text-[var(--erp-muted)] text-xs">

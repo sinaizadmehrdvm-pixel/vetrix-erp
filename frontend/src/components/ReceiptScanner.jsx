@@ -4,6 +4,7 @@ import { ScanLine, Upload, X } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
 import { extractDocumentOcr } from "../services/documentOcrApi";
+import Modal from "./ui/Modal";
 
 /**
  * Scans a photo of a receipt/invoice and hands back a human-reviewable
@@ -89,14 +90,9 @@ export default function ReceiptScanner({ onApply }) {
         {loading ? tr("در حال خواندن تصویر...", "جارٍ قراءة الصورة...", "Görüntü okunuyor...", "Reading image...") : tr("اسکن رسید/فاکتور", "مسح الإيصال/الفاتورة", "Fiş/fatura tara", "Scan receipt/invoice")}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
-          <div
-            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <Modal open={open} onClose={() => setOpen(false)} maxWidthClassName="max-w-2xl" className="p-6" labelledBy="receipt-scanner-title">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[var(--erp-accent)] font-black text-lg flex items-center gap-2">
+              <h2 id="receipt-scanner-title" className="text-[var(--erp-accent)] font-black text-lg flex items-center gap-2">
                 <Upload size={20} />
                 {tr("بررسی موارد استخراج‌شده", "مراجعة العناصر المستخرجة", "Çıkarılan öğeleri incele", "Review extracted items")}
               </h2>
@@ -174,9 +170,7 @@ export default function ReceiptScanner({ onApply }) {
                 {tr("انصراف", "إلغاء", "İptal", "Cancel")}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

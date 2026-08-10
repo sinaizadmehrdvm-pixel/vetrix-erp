@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, X } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
+import Modal from "./ui/Modal";
 
 /**
  * Scans a barcode using the browser's native BarcodeDetector API over the
@@ -77,13 +78,10 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
     };
   }, [open, supported, onDetected, fa, language]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-sm" className="p-5 text-[var(--erp-text)]" labelledBy="barcode-scanner-title">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-black flex items-center gap-2">
+          <h3 id="barcode-scanner-title" className="font-black flex items-center gap-2">
             <Camera size={18} /> {fa ? "اسکن بارکد" : language === "ar" ? "مسح الباركود" : language === "tr" ? "Barkod tara" : "Scan barcode"}
           </h3>
           <button onClick={onClose} className="text-[var(--erp-muted)] hover:text-[var(--erp-text)]">
@@ -125,7 +123,6 @@ export default function BarcodeScannerModal({ open, onClose, onDetected, fa }) {
             {fa ? "جستجو" : language === "ar" ? "بحث" : language === "tr" ? "Ara" : "Look up"}
           </button>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

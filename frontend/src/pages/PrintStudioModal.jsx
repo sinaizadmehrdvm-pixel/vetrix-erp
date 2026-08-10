@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { API_URL, getPdfTemplates } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import Modal from "../components/ui/Modal";
 
 const PAGE_SIZES = [
   { value: "A4", fa: "A4 رسمی", ar: "A4 رسمي", tr: "A4 resmi", en: "A4 official" },
@@ -192,14 +193,11 @@ export default function PrintStudioModal({ invoice, onClose }) {
   }
 
   return (
-    <div
-      dir={dir}
-      className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-sm p-3 md:p-6 overflow-auto"
-    >
-      <div className="max-w-7xl mx-auto bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[2rem] shadow-2xl overflow-hidden">
+    <Modal open={Boolean(invoiceId)} onClose={onClose} maxWidthClassName="max-w-7xl" className="overflow-hidden" labelledBy="print-studio-title">
+      <div dir={dir}>
         <div className="bg-gradient-to-l from-cyan-500/20 via-slate-900 to-blue-900/30 border-b border-[var(--erp-border)] p-5 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-3xl font-black text-[var(--erp-accent)] flex items-center gap-2">
+            <h2 id="print-studio-title" className="text-3xl font-black text-[var(--erp-accent)] flex items-center gap-2">
               <Printer /> Vetrix Print Studio
             </h2>
             <p className="text-[var(--erp-muted)] mt-2">
@@ -428,7 +426,7 @@ export default function PrintStudioModal({ invoice, onClose }) {
           font-weight: 900;
         }
       `}</style>
-    </div>
+    </Modal>
   );
 }
 

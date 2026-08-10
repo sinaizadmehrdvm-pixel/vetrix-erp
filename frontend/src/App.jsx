@@ -61,6 +61,7 @@ const PaymentGatewayView = lazy(() => import("./pages/PaymentGatewayView"));
 const PaymentReminders = lazy(() => import("./pages/PaymentReminders"));
 const MessageTemplates = lazy(() => import("./pages/MessageTemplates"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
+const DesignStudio = lazy(() => import("./pages/DesignStudio"));
 const Warehouses = lazy(() => import("./pages/Warehouses"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
@@ -247,6 +248,7 @@ function AppContent() {
           <Route path="payment-reminders" element={<PaymentReminders />} />
           <Route path="message-templates" element={<MessageTemplates />} />
           <Route path="help" element={<HelpCenter />} />
+          <Route path="design-studio" element={<DesignStudio />} />
           <Route path="warehouses" element={<Warehouses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

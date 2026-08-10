@@ -31,6 +31,7 @@ import {
   FileClock,
   Undo2,
   RotateCcw,
+  Award,
 } from "lucide-react";
 
 import {
@@ -51,9 +52,12 @@ import {
   isNetworkError,
   getSettings,
   getIndustryFieldDefinitions,
+  createCustomer,
+  getCustomerLoyalty,
 } from "../services/api";
 import toast from "react-hot-toast";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
+import Modal from "../components/ui/Modal";
 
 import { useLanguage } from "../localization/useLanguage";
 import InvoiceSummary from "../invoice/InvoiceSummary";
@@ -113,6 +117,8 @@ function Field({ label, hint, icon, children }) {
 export default function Invoices() {
   const { language, dir, n, money, date } = useLanguage();
   const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const location = useLocation();
   const navigate = useNavigate();
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -284,6 +290,10 @@ export default function Invoices() {
   const [loadError, setLoadError] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
   const [selectedCustomerLedger, setSelectedCustomerLedger] = useState(null);
+  const [selectedCustomerLoyalty, setSelectedCustomerLoyalty] = useState(null);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateDraft, setQuickCreateDraft] = useState({ name: "", mobile: "" });
+  const [quickCreateSaving, setQuickCreateSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [items, setItems] = useState([{ ...emptyItem }]);
   const [payments, setPayments] = useState([]);
@@ -306,6 +316,45 @@ export default function Invoices() {
       }
     })();
   }, []);
+
+  // Best-effort loyalty-tier badge next to the selected customer - reuses
+  // the existing CRM loyalty endpoint (backend/app/crm/router.py), no new
+  // backend work. Silently shows nothing if it fails (offline, no history).
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!form.customer_id) {
+        setSelectedCustomerLoyalty(null);
+        return;
+      }
+      getCustomerLoyalty(form.customer_id)
+        .then((data) => { if (!cancelled) setSelectedCustomerLoyalty(data?.level ? data : null); })
+        .catch(() => { if (!cancelled) setSelectedCustomerLoyalty(null); });
+    }, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.customer_id]);
+
+  async function submitQuickCreateCustomer() {
+    if (!quickCreateDraft.name.trim()) return;
+    setQuickCreateSaving(true);
+    try {
+      const result = await createCustomer({
+        name: quickCreateDraft.name.trim(),
+        mobile: quickCreateDraft.mobile.trim(),
+      });
+      if (result?.status === "error") throw new Error(result.message);
+      const newCustomer = { id: result.id, name: result.name };
+      setCustomers((prev) => [newCustomer, ...prev]);
+      setForm((prev) => ({ ...prev, customer_id: String(result.id) }));
+      setQuickCreateOpen(false);
+      setQuickCreateDraft({ name: "", mobile: "" });
+      toast.success(tr("مشتری جدید ثبت شد", "تم تسجيل عميل جديد", "Yeni müşteri kaydedildi", "New customer created"));
+    } catch (error) {
+      toast.error(translateApiError(error.message, language) || tr("ثبت مشتری ناموفق بود", "فشل تسجيل العميل", "Müşteri oluşturulamadı", "Failed to create customer"));
+    } finally {
+      setQuickCreateSaving(false);
+    }
+  }
 
   async function saveAllCache(payload) {
     await setCache(CUSTOMERS_CACHE_KEY, payload.customers || []);
@@ -1120,21 +1169,42 @@ export default function Invoices() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           <Field label={counterpartyLabel} icon={<UserRound size={16} />}>
-            <select
-              value={form.customer_id}
-              onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-              className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-            >
-              <option value="">{label.selectCustomer}</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name || c.full_name || c.title || `#${c.id}`}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={form.customer_id}
+                onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
+                className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
+              >
+                <option value="">{label.selectCustomer}</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || c.full_name || c.title || `#${c.id}`}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setQuickCreateOpen(true)}
+                title={tr("مشتری جدید", "عميل جديد", "Yeni müşteri", "New customer")}
+                className="shrink-0 w-11 h-11 rounded-[var(--erp-radius-md)] bg-[var(--erp-accent)] text-black flex items-center justify-center"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
             {customers.length === 0 ? (
               <p className="text-xs mt-2" style={{ color: "var(--erp-warning)" }}>{label.emptyCustomers}</p>
             ) : null}
+            {selectedCustomerLoyalty && (
+              <div className="mt-2 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full w-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>
+                <Award size={12} />
+                {tr(
+                  `سطح ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (${selectedCustomerLoyalty.discount_percent}٪ تخفیف)` : ""}`,
+                  `مستوى ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (خصم ${selectedCustomerLoyalty.discount_percent}٪)` : ""}`,
+                  `${selectedCustomerLoyalty.level} seviyesi${selectedCustomerLoyalty.discount_percent ? ` (%${selectedCustomerLoyalty.discount_percent} indirim)` : ""}`,
+                  `${selectedCustomerLoyalty.level} tier${selectedCustomerLoyalty.discount_percent ? ` (${selectedCustomerLoyalty.discount_percent}% discount)` : ""}`
+                )}
+              </div>
+            )}
           </Field>
 
           <Field label={label.shippingCost} hint={label.shippingHint} icon={<Truck size={16} />}>
@@ -1341,6 +1411,38 @@ export default function Invoices() {
           onDetected={handleBarcodeDetected}
           fa={fa}
         />
+
+        <Modal open={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} maxWidthClassName="max-w-sm" className="p-5" labelledBy="quick-create-customer-title">
+          <div className="flex items-center justify-between mb-4">
+            <h3 id="quick-create-customer-title" className="font-black flex items-center gap-2" style={{ color: "var(--erp-accent)" }}>
+              <UserRound size={18} /> {tr("مشتری جدید", "عميل جديد", "Yeni müşteri", "New customer")}
+            </h3>
+            <button onClick={() => setQuickCreateOpen(false)} className="text-[var(--erp-muted)] hover:text-[var(--erp-text)]"><X size={20} /></button>
+          </div>
+          <div className="space-y-3">
+            <input
+              autoFocus
+              value={quickCreateDraft.name}
+              onChange={(e) => setQuickCreateDraft((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder={tr("نام مشتری", "اسم العميل", "Müşteri adı", "Customer name")}
+              className="w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none text-[var(--erp-text)]"
+            />
+            <input
+              value={quickCreateDraft.mobile}
+              onChange={(e) => setQuickCreateDraft((prev) => ({ ...prev, mobile: e.target.value }))}
+              placeholder={tr("شماره موبایل (اختیاری)", "رقم الجوال (اختياري)", "Cep telefonu (isteğe bağlı)", "Mobile number (optional)")}
+              className="w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none text-[var(--erp-text)]"
+            />
+            <button
+              type="button"
+              onClick={submitQuickCreateCustomer}
+              disabled={quickCreateSaving || !quickCreateDraft.name.trim()}
+              className="w-full py-3 rounded-xl bg-[var(--erp-accent)] text-black font-black disabled:opacity-60"
+            >
+              {quickCreateSaving ? "..." : tr("ثبت و انتخاب", "حفظ واختيار", "Kaydet ve seç", "Save & select")}
+            </button>
+          </div>
+        </Modal>
 
         {!editingId && (
           <div className="mt-5">

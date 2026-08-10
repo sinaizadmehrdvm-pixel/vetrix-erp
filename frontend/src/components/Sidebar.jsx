@@ -5,7 +5,7 @@ import {
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
-  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, IdCard, FileSignature, Image, MessageSquareText, LifeBuoy,
+  BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -24,10 +24,8 @@ const groups = [
       { key: "visitorModule", icon: Smartphone, path: "/visitor", roles: ["admin", "sales"] },
       { key: "products", icon: Package, path: "/products" },
       { key: "invoices", icon: Receipt, path: "/invoices" },
-      { key: "invoiceDesigner", icon: LayoutTemplate, path: "/invoice-designer", roles: ["admin", "accountant", "sales"] },
       { key: "recurringInvoices", icon: CalendarClock, path: "/recurring-invoices", roles: ["admin", "accountant", "sales"] },
       { key: "paymentReminders", icon: BellRing, path: "/payment-reminders", roles: ["admin", "accountant", "sales"] },
-      { key: "messageTemplates", icon: MessageSquareText, path: "/message-templates", roles: ["admin", "accountant", "sales"] },
       { key: "transactions", icon: ArrowRightLeft, path: "/transactions", roles: ["admin", "accountant", "sales", "viewer", "user"] },
       { key: "expenses", icon: Wallet, path: "/expenses", roles: ["admin", "accountant", "viewer", "user"] },
     ],
@@ -59,9 +57,6 @@ const groups = [
       { key: "reports", icon: BarChart3, path: "/reports" },
       { key: "onlineCommerce", icon: Globe2, path: "/online-commerce", roles: ["admin", "accountant", "sales"] },
       { key: "catalogManager", icon: BookOpen, path: "/catalog-manager", roles: ["admin", "accountant", "sales"] },
-      { key: "businessCardDesigner", icon: IdCard, path: "/business-card-designer", roles: ["admin", "accountant", "sales"] },
-      { key: "letterheadDesigner", icon: FileSignature, path: "/letterhead-designer", roles: ["admin", "accountant", "sales"] },
-      { key: "bannerDesigner", icon: Image, path: "/banner-designer", roles: ["admin", "accountant", "sales"] },
       { key: "changeRequests", icon: BrainCircuit, path: "/change-requests", roles: ["admin", "accountant", "sales", "warehouse"] },
       { key: "financialStatements", icon: BarChart3, path: "/financial-statements", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
@@ -86,6 +81,8 @@ const groups = [
       { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
       { key: "financialPolicy", icon: Scale, path: "/financial-policy", roles: ["admin"] },
+      { key: "designStudio", icon: LayoutTemplate, path: "/design-studio", roles: ["admin", "accountant", "sales"] },
+      { key: "messageTemplates", icon: MessageSquareText, path: "/message-templates", roles: ["admin", "accountant", "sales"] },
       { key: "settings", icon: Settings, path: "/settings", roles: ["admin"] },
       { key: "accountSecurity", icon: ShieldCheck, path: "/account-security" },
       { key: "helpCenter", icon: LifeBuoy, path: "/help" },

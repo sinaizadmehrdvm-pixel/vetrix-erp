@@ -4797,6 +4797,136 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(never_visited_entry["overdue"])
         self.assertIsNone(never_visited_entry["days_since_last_visit"])
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_product_category_brand_persist_and_search_filters(self):
+        # Regression test: brand/main_category/sub_category/min_stock/
+        # is_active were accepted by the product form but silently dropped
+        # on save because ProductCreate never declared those fields.
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        cpap = self.client.post("/products", headers=admin_headers, json={
+            "name": "CPAP Search Test Device", "price": 5000, "buy_price": 3000, "stock": 2, "min_stock": 5,
+            "brand": "ResMed", "main_category": "Medical Equipment", "sub_category": "Respiratory",
+        })
+        self.assertEqual(cpap.status_code, 200, cpap.text)
+        self.assertEqual(cpap.json()["brand"], "ResMed")
+        self.assertEqual(cpap.json()["main_category"], "Medical Equipment")
+        self.assertEqual(cpap.json()["sub_category"], "Respiratory")
+        self.assertEqual(cpap.json()["min_stock"], 5)
+        self.assertTrue(cpap.json()["is_active"])
+        cpap_id = cpap.json()["id"]
+
+        # Persists across a fresh read too, not just the create response.
+        listed = self.client.get("/products", headers=admin_headers).json()
+        cpap_listed = next(p for p in listed if p["id"] == cpap_id)
+        self.assertEqual(cpap_listed["brand"], "ResMed")
+        self.assertEqual(cpap_listed["main_category"], "Medical Equipment")
+
+        other = self.client.post("/products", headers=admin_headers, json={
+            "name": "Unrelated Search Test Product", "price": 100, "buy_price": 50, "stock": 50,
+            "brand": "OtherBrand", "main_category": "General",
+        })
+        self.assertEqual(other.status_code, 200, other.text)
+
+        # Combined group+category+text search - the example from the spec.
+        combined = self.client.get(
+            "/products?main_category=Medical+Equipment&sub_category=Respiratory&search=CPAP",
+            headers=admin_headers,
+        ).json()
+        self.assertEqual({p["id"] for p in combined}, {cpap_id})
+
+        # stock_status=low_stock: stock(2) > 0 and <= min_stock(5).
+        low_stock = self.client.get("/products?stock_status=low_stock", headers=admin_headers).json()
+        self.assertIn(cpap_id, {p["id"] for p in low_stock})
+        self.assertNotIn(other.json()["id"], {p["id"] for p in low_stock})
+
+        # Update can deactivate; is_active filter respects it; edit persists
+        # brand unchanged (partial-style behavior via explicit resend).
+        deactivate = self.client.put(f"/products/{cpap_id}", headers=admin_headers, json={
+            "name": "CPAP Search Test Device", "price": 5000, "buy_price": 3000, "stock": 2, "min_stock": 5,
+            "brand": "ResMed", "main_category": "Medical Equipment", "sub_category": "Respiratory",
+            "is_active": False,
+        })
+        self.assertEqual(deactivate.status_code, 200, deactivate.text)
+        self.assertFalse(deactivate.json()["is_active"])
+
+        active_only = self.client.get("/products?is_active=true", headers=admin_headers).json()
+        self.assertNotIn(cpap_id, {p["id"] for p in active_only})
+        inactive_only = self.client.get("/products?is_active=false", headers=admin_headers).json()
+        self.assertIn(cpap_id, {p["id"] for p in inactive_only})
+
+        # No params at all still returns the full unfiltered list (backward compatible).
+        unfiltered = self.client.get("/products", headers=admin_headers).json()
+        self.assertIn(cpap_id, {p["id"] for p in unfiltered})
+        self.assertIn(other.json()["id"], {p["id"] for p in unfiltered})
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzz_payment_providers_crud_and_gateway_fallback(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        # Unsupported provider key is rejected.
+        bad = self.client.post("/api/payment-providers", headers=admin_headers, json={"provider_key": "not_a_real_provider"})
+        self.assertEqual(bad.status_code, 400, bad.text)
+
+        created = self.client.post("/api/payment-providers", headers=admin_headers, json={
+            "provider_key": "sandbox", "display_name": "Sandbox Test", "enabled": True, "mode": "test",
+        })
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertTrue(created.json()["enabled"])
+
+        listed = self.client.get("/api/payment-providers", headers=admin_headers)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        sandbox_row = next(i for i in listed.json()["items"] if i["provider_key"] == "sandbox")
+        self.assertEqual(sandbox_row["display_name"], "Sandbox Test")
+        self.assertIn("pos_terminal_generic", listed.json()["available_keys"])
+
+        # Upsert again with the same key updates in place, not a duplicate row.
+        updated = self.client.post("/api/payment-providers", headers=admin_headers, json={
+            "provider_key": "sandbox", "display_name": "Sandbox Renamed", "enabled": True, "mode": "test",
+        })
+        self.assertEqual(updated.status_code, 200, updated.text)
+        listed_again = self.client.get("/api/payment-providers", headers=admin_headers).json()
+        sandbox_rows = [i for i in listed_again["items"] if i["provider_key"] == "sandbox"]
+        self.assertEqual(len(sandbox_rows), 1)
+        self.assertEqual(sandbox_rows[0]["display_name"], "Sandbox Renamed")
+
+        # Non-admin cannot read or write provider config.
+        sales_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Payment Providers Sales User", "username": "ci-sales-payprov", "password": "StrongPayProvPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_user.status_code, 200, sales_user.text)
+        sales_headers, _ = self._login("ci-sales-payprov", "StrongPayProvPass!42")
+        denied_read = self.client.get("/api/payment-providers", headers=sales_headers)
+        self.assertEqual(denied_read.status_code, 403, denied_read.text)
+        denied_write = self.client.post("/api/payment-providers", headers=sales_headers, json={"provider_key": "sandbox", "enabled": True})
+        self.assertEqual(denied_write.status_code, 403, denied_write.text)
+
+        # The DB-enabled provider works for real invoice payment requests
+        # WITHOUT VETRIX_PAYMENT_PROVIDER being set at all - proves the new
+        # DB-config path, not just the pre-existing env-var path.
+        customer = self.client.post("/customers", headers=admin_headers, json={"name": "Payment Provider DB Customer"})
+        self.assertEqual(customer.status_code, 200, customer.text)
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Payment Provider DB Product", "price": 1000, "buy_price": 500, "stock": 10},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={"invoice_type": "sale", "customer_id": customer.json()["id"], "items": [{"product_id": product.json()["id"], "quantity": 1, "unit_price": 1000}]},
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+        invoice_id = invoice.json()["invoice_id"]
+
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": ""}, clear=False):
+            os.environ.pop("VETRIX_PAYMENT_PROVIDER", None)
+            requested = self.client.post(f"/api/payments/invoices/{invoice_id}/request", headers=admin_headers)
+            self.assertEqual(requested.status_code, 200, requested.text)
+            self.assertEqual(requested.json()["provider"], "sandbox")
+
+        # Resetting the provider removes it - falls back to failing closed again.
+        reset = self.client.delete("/api/payment-providers/sandbox", headers=admin_headers)
+        self.assertEqual(reset.status_code, 200, reset.text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -77,7 +77,18 @@ class SimulatePayload(BaseModel):
     outcome: str  # "success" or "failure"
 
 
-def _active_provider() -> str:
+def _active_provider(company_id=None) -> str:
+    """DB-configured provider (Settings > Payment Integrations, see
+    app/payment_providers.py) takes priority over the env var - fully
+    backward compatible for any deployment that only ever set
+    VETRIX_PAYMENT_PROVIDER and never touched the new settings UI."""
+    if company_id is not None:
+        from app.payment_providers import get_enabled_provider
+
+        configured = get_enabled_provider(company_id)
+        if configured:
+            return configured["provider_key"]
+
     provider = os.getenv("VETRIX_PAYMENT_PROVIDER", "").strip().lower()
     if not provider:
         raise HTTPException(status_code=503, detail="Online payment gateway is not configured")
@@ -119,7 +130,14 @@ def _create_session(db: Session, invoice: Invoice, provider: str) -> PaymentSess
     return session
 
 
-def _zarinpal_merchant_id() -> str:
+def _zarinpal_merchant_id(company_id=None) -> str:
+    if company_id is not None:
+        from app.payment_providers import get_enabled_provider
+
+        configured = get_enabled_provider(company_id, preferred_keys=("zarinpal",))
+        if configured and configured.get("merchant_id"):
+            return configured["merchant_id"]
+
     merchant_id = os.getenv("VETRIX_ZARINPAL_MERCHANT_ID", "").strip()
     if not merchant_id:
         raise HTTPException(status_code=503, detail="VETRIX_ZARINPAL_MERCHANT_ID is not configured")
@@ -127,7 +145,7 @@ def _zarinpal_merchant_id() -> str:
 
 
 def _zarinpal_request_payment(session: PaymentSession, description: str) -> str:
-    merchant_id = _zarinpal_merchant_id()
+    merchant_id = _zarinpal_merchant_id(session.company_id)
     callback_url = f"{os.getenv('VETRIX_BACKEND_URL', 'http://localhost:8000').rstrip('/')}/api/payments/callback?authority={session.authority}"
     response = httpx.post(
         ZARINPAL_REQUEST_URL,
@@ -149,7 +167,7 @@ def _zarinpal_request_payment(session: PaymentSession, description: str) -> str:
 
 
 def _zarinpal_verify(session: PaymentSession) -> bool:
-    merchant_id = _zarinpal_merchant_id()
+    merchant_id = _zarinpal_merchant_id(session.company_id)
     response = httpx.post(
         ZARINPAL_VERIFY_URL,
         json={
@@ -198,7 +216,6 @@ def request_payment_for_invoice(invoice_id: int) -> dict:
     """Shared entry point for both the staff-facing and customer-portal
     routes; the caller is responsible for verifying the requester may act
     on this invoice before calling this."""
-    provider = _active_provider()
     db: Session = SessionLocal()
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -207,6 +224,7 @@ def request_payment_for_invoice(invoice_id: int) -> dict:
         if invoice.invoice_type != "sale":
             raise HTTPException(status_code=400, detail="Only sale invoices can be paid online")
 
+        provider = _active_provider(invoice.company_id)
         session = _create_session(db, invoice, provider)
 
         if provider == "sandbox":

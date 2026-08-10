@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useStableCallback } from "../hooks/useStableCallback";
 import {
   ArrowDown,
@@ -126,6 +126,9 @@ export default function DocumentDesigner({ kind }) {
   const [snapGrid, setSnapGrid] = useState(true);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [searchParams] = useSearchParams();
+  const requestedTemplateId = searchParams.get("templateId");
+  const [autoLoadedFor, setAutoLoadedFor] = useState(null);
 
   const page = KIND_PAGE_SIZES[kind];
   const selected = useMemo(() => config.elements.find((x) => x.id === selectedId) || null, [config, selectedId]);
@@ -146,6 +149,20 @@ export default function DocumentDesigner({ kind }) {
     const timer = setTimeout(() => { void stableLoadTemplates(); }, 0);
     return () => clearTimeout(timer);
   }, [stableLoadTemplates]);
+
+  // Arriving from the Design Studio hub with ?templateId= loads that
+  // template straight into the canvas instead of a blank one.
+  useEffect(() => {
+    if (!requestedTemplateId || autoLoadedFor === requestedTemplateId || templates.length === 0) return;
+    const match = templates.find((t) => String(t.id) === String(requestedTemplateId));
+    if (!match) return;
+    const timer = setTimeout(() => {
+      loadTemplate(match);
+      setAutoLoadedFor(requestedTemplateId);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedTemplateId, templates, autoLoadedFor]);
 
   function updateElement(id, patch) {
     setConfig((prev) => ({

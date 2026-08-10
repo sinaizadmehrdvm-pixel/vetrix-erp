@@ -224,6 +224,7 @@ export const translations = {
     businessCardDesigner: "Business card designer",
     letterheadDesigner: "Letterhead designer",
     bannerDesigner: "Banner designer",
+    designStudio: "Design Studio",
     messageTemplates: "Message templates",
   },
 
@@ -452,6 +453,7 @@ export const translations = {
     businessCardDesigner: "طراح کارت ویزیت",
     letterheadDesigner: "طراح سربرگ",
     bannerDesigner: "طراح بنر تبلیغاتی",
+    designStudio: "استودیوی طراحی",
     messageTemplates: "قالب‌های پیام",
   },
 
@@ -680,6 +682,7 @@ export const translations = {
     businessCardDesigner: "مصمم بطاقة العمل",
     letterheadDesigner: "مصمم الترويسة",
     bannerDesigner: "مصمم اللافتة الإعلانية",
+    designStudio: "استوديو التصميم",
     messageTemplates: "قوالب الرسائل",
   },
 
@@ -908,6 +911,7 @@ export const translations = {
     businessCardDesigner: "Kartvizit tasarımcısı",
     letterheadDesigner: "Antetli kağıt tasarımcısı",
     bannerDesigner: "Banner tasarımcısı",
+    designStudio: "Tasarım Stüdyosu",
     messageTemplates: "Mesaj şablonları",
   },
 };

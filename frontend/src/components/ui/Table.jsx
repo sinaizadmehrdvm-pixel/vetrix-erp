@@ -127,6 +127,12 @@ export function Td({ align = "start", className = "", style, children, ...rest }
   );
 }
 
+// Row-numbering convention (no dedicated component - it's one line at the
+// call site): render `{n(startIndex + index + 1)}` in a leading
+// <Td className="text-[var(--erp-muted)] font-bold">, where startIndex is
+// 0 for an unpaginated table or (page-1)*pageSize for a paginated one -
+// see Customers.jsx/Products.jsx for existing call sites.
+
 export function EmptyRow({ colSpan, children }) {
   return (
     <tr>

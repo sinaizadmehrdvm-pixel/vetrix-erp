@@ -95,7 +95,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
         <ul
           ref={listRef}
           role="listbox"
-          className="absolute z-30 shadow-2xl"
+          className="absolute z-30"
           style={{
             top: "calc(100% + 6px)",
             insetInlineStart: 0,
@@ -105,6 +105,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
             background: "var(--erp-panel-solid)",
             border: "1px solid var(--erp-border)",
             borderRadius: "var(--erp-radius-md, 14px)",
+            boxShadow: "var(--erp-shadow)",
             padding: 6,
             margin: 0,
             listStyle: "none",

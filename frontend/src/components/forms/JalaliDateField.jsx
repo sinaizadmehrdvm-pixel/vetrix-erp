@@ -222,8 +222,11 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
 
       {open && (
         <div
-          className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] shadow-2xl p-3"
-          style={{ position: "absolute", top: "100%", marginTop: 6, zIndex: 50, width: 260, insetInlineEnd: 0 }}
+          className="border border-[var(--erp-border)] bg-[var(--erp-panel)] p-3"
+          style={{
+            position: "absolute", top: "100%", marginTop: 6, zIndex: 50, width: 260, insetInlineEnd: 0,
+            borderRadius: "var(--erp-radius-lg)", boxShadow: "var(--erp-shadow)",
+          }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <button type="button" onClick={goPrevMonth} aria-label={tr("ماه قبل", "الشهر السابق", "Önceki ay", "Previous month")} className="rounded-lg bg-[var(--erp-panel-solid)] text-[var(--erp-text)] flex items-center justify-center" style={{ width: 26, height: 26 }}>

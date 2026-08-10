@@ -112,6 +112,7 @@ export async function getCustomers(assignedRepId) {
 export async function getCustomer(id) { return await request(`/customers/${id}`); }
 export async function getCustomerLedger(id) { return await request(`/customers/${id}/ledger`); }
 export async function createCustomer(data) { return await request("/customers", { method: "POST", body: JSON.stringify(data) }); }
+export async function getCustomerLoyalty(customerId) { return await request(`/customers/${customerId}/loyalty`); }
 export async function updateCustomer(id, data) { return await request(`/customers/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteCustomer(id) { return await request(`/customers/${id}`, { method: "DELETE" }); }
 
@@ -152,7 +153,12 @@ export async function exportCustomerProfilePdf(payload, filename) {
   triggerBlobDownload(blob, filename || "vetrix-customer-profile.pdf");
 }
 
-export async function getProducts() { return await request("/products"); }
+export async function getProducts(params = {}) {
+  const query = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+  ).toString();
+  return await request(query ? `/products?${query}` : "/products");
+}
 export async function lookupProductByCode(code) {
   return await request(`/products/lookup?code=${encodeURIComponent(code)}`);
 }
@@ -267,6 +273,15 @@ export async function deletePdfTemplate(id) {
   return await res.json();
 }
 
+export async function renamePdfTemplate(id, name) {
+  const res = await fetch(`${API_URL}/designer/template/${id}/rename`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  return await res.json();
+}
+
 // Vetrix CRM API - Enterprise Customer 360
 export async function getCrmDashboard() { return await request(`/api/crm/dashboard`); }
 export async function getCrmCustomer360(id) { return await request(`/api/crm/customers/${id}`); }
@@ -346,6 +361,17 @@ export async function sendInvoicePaymentLinkTelegram(invoiceId) {
 }
 export async function sendInvoicePaymentLinkWhatsappAuto(invoiceId) {
   return await request(`/api/payments/invoices/${invoiceId}/send-whatsapp-auto`, { method: "POST" });
+}
+
+// Payment provider/adapter configuration (Settings > Payment Integrations)
+export async function getPaymentProviders() {
+  return await request(`/api/payment-providers`);
+}
+export async function savePaymentProvider(data) {
+  return await request(`/api/payment-providers`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function resetPaymentProvider(providerKey) {
+  return await request(`/api/payment-providers/${encodeURIComponent(providerKey)}`, { method: "DELETE" });
 }
 
 // Modular per-industry invoice fields (Phase 2)

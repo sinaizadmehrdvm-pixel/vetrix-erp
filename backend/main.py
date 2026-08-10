@@ -88,6 +88,7 @@ from app.customer_portal import router as customer_portal_router
 from app.supplier_portal import router as supplier_portal_router
 from app.recurring_invoices import maybe_generate_due_recurring_invoices, router as recurring_invoices_router
 from app.payment_gateway import router as payment_gateway_router
+from app.payment_providers import router as payment_providers_router
 from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
 from app.report_delivery import maybe_send_scheduled_reports, router as report_delivery_router
 from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
@@ -210,6 +211,7 @@ def ensure_database_schema():
         "barcode3": "barcode3 VARCHAR",
         "description": "description VARCHAR",
         "count_in_pack": "count_in_pack FLOAT",
+        "is_active": "is_active BOOLEAN NOT NULL DEFAULT 1",
     }
     for name, sql in product_columns.items():
         ensure_sqlite_column("products", name, sql)
@@ -388,6 +390,7 @@ COMPANY_SCOPED_TABLES = [
     "invoice_payment_allocations", "invoice_installment_plans", "invoice_installment_schedule",
     "approval_rules", "approval_requests", "approval_events",
     "idempotency_keys",
+    "payment_providers",
 ]
 
 
@@ -468,6 +471,7 @@ app.include_router(customer_portal_router)
 app.include_router(supplier_portal_router)
 app.include_router(recurring_invoices_router)
 app.include_router(payment_gateway_router)
+app.include_router(payment_providers_router)
 app.include_router(payment_reminders_router)
 app.include_router(report_delivery_router)
 app.include_router(warehouses_router)
@@ -637,13 +641,23 @@ class ProductCreate(BaseModel):
     barcode2: Optional[str] = None
     barcode3: Optional[str] = None
     code: Optional[str] = None
+    sku: Optional[str] = None
     price: Optional[float] = None
     sell_price: Optional[float] = None
     buy_price: Optional[float] = None
     unit: Optional[str] = "عدد"
     stock: float = 0
+    min_stock: Optional[float] = None
+    minimum_stock: Optional[float] = None
     preferred_supplier_id: Optional[int] = None
     lead_time_days: int = 0
+    brand: Optional[str] = None
+    main_category: Optional[str] = None
+    sub_category: Optional[str] = None
+    image: Optional[str] = None
+    description: Optional[str] = None
+    count_in_pack: Optional[float] = None
+    is_active: bool = True
 
 
 class InvoiceItemCreate(BaseModel):
@@ -974,6 +988,7 @@ def product_to_dict(product):
         "preferred_supplier_id": getattr(product, "preferred_supplier_id", None),
         "lead_time_days": int(getattr(product, "lead_time_days", 0) or 0),
         "low_stock": min_stock > 0 and stock <= min_stock,
+        "is_active": bool(getattr(product, "is_active", True)),
         "profit_per_unit": sell_price - buy_price,
         "stock_value_buy": stock * buy_price,
         "stock_value_sell": stock * sell_price,
@@ -1261,10 +1276,50 @@ def delete_customer(customer_id: int, request: Request):
 
 
 @app.get("/products")
-def list_products(request: Request):
+def list_products(
+    request: Request,
+    search: Optional[str] = None,
+    main_category: Optional[str] = None,
+    sub_category: Optional[str] = None,
+    brand: Optional[str] = None,
+    unit: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    stock_status: Optional[str] = None,
+):
+    """All filters are optional and additive (AND'd together) - omitting
+    every one preserves the exact old full-fetch behavior. Filtering
+    happens in SQL, not after loading the whole table, so this stays
+    efficient as the product count grows."""
     db: Session = SessionLocal()
     try:
         query = db.query(Product).filter(Product.company_id == current_company_id(request))
+        if search and search.strip():
+            like = f"%{search.strip()}%"
+            query = query.filter(
+                Product.name.ilike(like)
+                | Product.code.ilike(like)
+                | Product.barcode.ilike(like)
+                | Product.sku.ilike(like)
+                | Product.brand.ilike(like)
+            )
+        if main_category:
+            query = query.filter(Product.main_category == main_category)
+        if sub_category:
+            query = query.filter(Product.sub_category == sub_category)
+        if brand:
+            query = query.filter(Product.brand == brand)
+        if unit:
+            query = query.filter(Product.unit == unit)
+        if is_active is not None:
+            query = query.filter(Product.is_active == is_active)
+        if stock_status == "out_of_stock":
+            query = query.filter(Product.stock <= 0)
+        elif stock_status == "low_stock":
+            query = query.filter(Product.stock > 0, Product.min_stock > 0, Product.stock <= Product.min_stock)
+        elif stock_status == "in_stock":
+            query = query.filter(Product.stock > 0).filter(
+                (Product.min_stock <= 0) | (Product.stock > Product.min_stock)
+            )
         return [product_to_dict(product) for product in query.all()]
     finally:
         db.close()
@@ -1311,13 +1366,22 @@ def create_product(data: ProductCreate, request: Request):
             barcode=data.barcode or data.code or "",
             barcode2=data.barcode2 or None,
             barcode3=data.barcode3 or None,
+            sku=data.sku or "",
             unit=data.unit or "عدد",
             buy_price=float(accounting_money(data.buy_price or 0)),
             sell_price=float(accounting_money(sell_price)),
             price=float(accounting_money(sell_price)),
             stock=opening_stock,
+            min_stock=float(data.min_stock if data.min_stock is not None else (data.minimum_stock or 0)),
             preferred_supplier_id=data.preferred_supplier_id,
             lead_time_days=data.lead_time_days or 0,
+            brand=data.brand or "",
+            main_category=data.main_category or "",
+            sub_category=data.sub_category or "",
+            image=data.image or "",
+            description=data.description,
+            count_in_pack=data.count_in_pack,
+            is_active=data.is_active,
             company_id=current_company_id(request),
         )
         db.add(product)
@@ -1373,13 +1437,26 @@ def update_product(product_id: int, data: ProductCreate, request: Request):
         product.barcode = data.barcode or data.code or product.barcode or ""
         product.barcode2 = data.barcode2 or product.barcode2 or None
         product.barcode3 = data.barcode3 or product.barcode3 or None
+        product.sku = data.sku if data.sku is not None else (product.sku or "")
         product.unit = data.unit or product.unit or "عدد"
         product.buy_price = float(accounting_money(data.buy_price or 0))
         product.sell_price = float(accounting_money(sell_price))
         product.price = float(accounting_money(sell_price))
         product.stock = requested_stock
+        product.min_stock = float(
+            data.min_stock if data.min_stock is not None
+            else data.minimum_stock if data.minimum_stock is not None
+            else (product.min_stock or 0)
+        )
         product.preferred_supplier_id = data.preferred_supplier_id
         product.lead_time_days = data.lead_time_days or 0
+        product.brand = data.brand if data.brand is not None else (product.brand or "")
+        product.main_category = data.main_category if data.main_category is not None else (product.main_category or "")
+        product.sub_category = data.sub_category if data.sub_category is not None else (product.sub_category or "")
+        product.image = data.image if data.image is not None else (product.image or "")
+        product.description = data.description if data.description is not None else product.description
+        product.count_in_pack = data.count_in_pack if data.count_in_pack is not None else product.count_in_pack
+        product.is_active = data.is_active
 
         if not has_inventory_history:
             sync_product_opening_general_ledger(db, product)

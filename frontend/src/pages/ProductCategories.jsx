@@ -175,6 +175,7 @@ export default function ProductCategories() {
           <table className="w-full">
             <thead>
               <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+                <th className="p-4 text-start w-12">{language === "fa" ? "ردیف" : "#"}</th>
                 <th className="p-4 text-start">ID</th>
                 <th className="p-4 text-start">{language === "fa" ? "گروه اصلی" : language === "ar" ? "الرئيسي" : language === "tr" ? "Ana" : "Main"}</th>
                 <th className="p-4 text-start">{language === "fa" ? "گروه فرعی" : language === "ar" ? "الفرعي" : language === "tr" ? "Alt" : "Sub"}</th>
@@ -184,11 +185,12 @@ export default function ProductCategories() {
             </thead>
 
             <tbody>
-              {filtered.map((item) => {
+              {filtered.map((item, index) => {
                 const isEditing = editingId === item.id;
                 if (isEditing) {
                   return (
                     <tr key={item.id} className="border-b border-[var(--erp-border)] bg-cyan-500/5">
+                      <td className="p-4 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
                       <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
                       <td className="p-2">
                         <input
@@ -237,6 +239,7 @@ export default function ProductCategories() {
                     key={item.id}
                     className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5"
                   >
+                    <td className="p-4 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
                     <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
                     <td className="p-4 font-bold text-[var(--erp-text)]">{item.main_category}</td>
                     <td className="p-4 text-[var(--erp-text)]">{item.sub_category || "-"}</td>

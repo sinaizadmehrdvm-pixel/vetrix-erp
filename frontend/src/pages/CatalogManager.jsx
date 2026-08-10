@@ -6,6 +6,7 @@ import QRCodeLib from "qrcode";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
+import Modal from "../components/ui/Modal";
 import {
   createCatalogLink,
   downloadAuthenticatedFile,
@@ -62,10 +63,9 @@ function CatalogQrModal({ catalog, language, onClose }) {
   }, [url]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-3xl bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-6 text-center" onClick={(e) => e.stopPropagation()}>
+    <Modal open onClose={onClose} maxWidthClassName="max-w-sm" className="p-6 text-center" labelledBy="catalog-qr-title">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-black" style={{ color: "var(--erp-accent)" }}>{catalog.title}</h3>
+          <h3 id="catalog-qr-title" className="font-black" style={{ color: "var(--erp-accent)" }}>{catalog.title}</h3>
           <button onClick={onClose} className="text-[var(--erp-muted)]"><X size={20} /></button>
         </div>
         {dataUrl ? (
@@ -93,8 +93,7 @@ function CatalogQrModal({ catalog, language, onClose }) {
             {language === "fa" ? "دانلود تصویر QR" : language === "ar" ? "تنزيل صورة QR" : language === "tr" ? "QR görselini indir" : "Download QR image"}
           </a>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 
