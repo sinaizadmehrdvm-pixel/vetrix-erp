@@ -63,6 +63,8 @@ const MessageTemplates = lazy(() => import("./pages/MessageTemplates"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const DesignStudio = lazy(() => import("./pages/DesignStudio"));
 const Warehouses = lazy(() => import("./pages/Warehouses"));
+const Branches = lazy(() => import("./pages/Branches"));
+const ExecutiveAlerts = lazy(() => import("./pages/ExecutiveAlerts"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
 const InvoiceVerifyView = lazy(() => import("./pages/InvoiceVerifyView"));
@@ -250,6 +252,8 @@ function AppContent() {
           <Route path="help" element={<HelpCenter />} />
           <Route path="design-studio" element={<DesignStudio />} />
           <Route path="warehouses" element={<Warehouses />} />
+          <Route path="branches" element={<Branches />} />
+          <Route path="executive-alerts" element={<ExecutiveAlerts />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

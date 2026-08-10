@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Factory, Plus, RefreshCw, Send, PackageCheck, XCircle, Trash2 } from "lucide-react";
+import { Factory, Plus, RefreshCw, Send, PackageCheck, XCircle, Trash2, History } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
-import { getCustomers, getProducts, getPurchaseOrders, createPurchaseOrder, sendPurchaseOrder, cancelPurchaseOrder, receivePurchaseOrder } from "../services/api";
+import { getCustomers, getProducts, getPurchaseOrders, createPurchaseOrder, dispatchPurchaseOrder, getPurchaseOrderDispatchLog, cancelPurchaseOrder, receivePurchaseOrder } from "../services/api";
+import Modal from "../components/ui/Modal";
 
 const inputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-3 outline-none transition-all w-full";
 const button = "border-0 rounded-2xl px-4 py-3 font-black cursor-pointer inline-flex items-center gap-2";
+
+const DISPATCH_METHODS = ["email", "sms", "whatsapp", "telegram", "manual", "print_pdf", "copy_text"];
+
+const DISPATCH_STATUS_TONE = {
+  sent: "bg-emerald-400/10 text-emerald-300",
+  delivered: "bg-emerald-400/10 text-emerald-300",
+  failed: "bg-rose-400/10 text-rose-300",
+  cancelled: "bg-rose-400/10 text-rose-300",
+};
 
 function toNumber(value) { return Number(String(value ?? "").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[,،]/g, "").replace(/[^\d.-]/g, "") || 0); }
 function Field({ label, children }) { return <div className="space-y-2"><label className="text-sm font-bold text-[var(--erp-accent)] block">{label}</label>{children}</div>; }
@@ -29,6 +39,11 @@ export default function PurchaseOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ supplier_id: "", note: "", items: [{ product_id: "", quantity: "", unit_price: "" }] });
+  const [dispatchModal, setDispatchModal] = useState(null); // { po }
+  const [dispatchForm, setDispatchForm] = useState({ method: "email", destination: "", note: "" });
+  const [dispatching, setDispatching] = useState(false);
+  const [historyModal, setHistoryModal] = useState(null); // { po, items }
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const label = {
     title: fa ? "سفارش خرید" : language === "ar" ? "أوامر الشراء" : language === "tr" ? "Satın Alma Siparişleri" : "Purchase Orders",
@@ -49,6 +64,29 @@ export default function PurchaseOrders() {
     receive: fa ? "ثبت دریافت کالا" : language === "ar" ? "تسجيل الاستلام" : language === "tr" ? "Teslim Alındı İşaretle" : "Mark received",
     cancel: fa ? "لغو" : language === "ar" ? "إلغاء" : language === "tr" ? "İptal" : "Cancel",
     total: fa ? "جمع کل" : language === "ar" ? "الإجمالي" : language === "tr" ? "Toplam" : "Total",
+    history: fa ? "تاریخچه ارسال" : language === "ar" ? "سجل الإرسال" : language === "tr" ? "Gönderim geçmişi" : "Dispatch history",
+    dispatchTitle: fa ? "ارسال سفارش خرید" : language === "ar" ? "إرسال أمر الشراء" : language === "tr" ? "Siparişi gönder" : "Dispatch purchase order",
+    method: fa ? "روش ارسال" : language === "ar" ? "طريقة الإرسال" : language === "tr" ? "Gönderim yöntemi" : "Dispatch method",
+    destination: fa ? "مقصد (اختیاری - در صورت خالی بودن از اطلاعات تأمین‌کننده استفاده می‌شود)" : language === "ar" ? "الوجهة (اختياري - إن تُرك فارغًا تُستخدم بيانات المورّد)" : language === "tr" ? "Hedef (boş bırakılırsa tedarikçi bilgisi kullanılır)" : "Destination (optional — falls back to supplier's info)",
+    dispatchNote: fa ? "یادداشت (اختیاری)" : language === "ar" ? "ملاحظة (اختياري)" : language === "tr" ? "Not (isteğe bağlı)" : "Note (optional)",
+    dispatchSend: fa ? "ارسال" : language === "ar" ? "إرسال" : language === "tr" ? "Gönder" : "Dispatch",
+    resend: fa ? "ارسال مجدد" : language === "ar" ? "إعادة الإرسال" : language === "tr" ? "Yeniden gönder" : "Resend",
+    noDispatch: fa ? "هنوز ارسالی ثبت نشده است." : language === "ar" ? "لم يتم تسجيل أي إرسال بعد." : language === "tr" ? "Henüz gönderim kaydedilmedi." : "No dispatch recorded yet.",
+    methodLabel: {
+      email: fa ? "ایمیل" : language === "ar" ? "بريد إلكتروني" : language === "tr" ? "E-posta" : "Email",
+      sms: fa ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS",
+      whatsapp: "WhatsApp",
+      telegram: "Telegram",
+      manual: fa ? "تحویل دستی" : language === "ar" ? "تسليم يدوي" : language === "tr" ? "Elden teslim" : "Manual delivery",
+      print_pdf: fa ? "چاپ / دانلود PDF" : language === "ar" ? "طباعة / تنزيل PDF" : language === "tr" ? "Yazdır / PDF indir" : "Print / download PDF",
+      copy_text: fa ? "کپی متن سفارش" : language === "ar" ? "نسخ نص الطلب" : language === "tr" ? "Sipariş metnini kopyala" : "Copy order text",
+    },
+    dispatchStatusLabel: {
+      sent: fa ? "ارسال شد" : language === "ar" ? "تم الإرسال" : language === "tr" ? "Gönderildi" : "Sent",
+      delivered: fa ? "تحویل شد" : language === "ar" ? "تم التسليم" : language === "tr" ? "Teslim edildi" : "Delivered",
+      failed: fa ? "ناموفق" : language === "ar" ? "فشل" : language === "tr" ? "Başarısız" : "Failed",
+      cancelled: fa ? "لغوشده" : language === "ar" ? "ملغى" : language === "tr" ? "İptal edildi" : "Cancelled",
+    },
     status: {
       draft: fa ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft",
       sent: fa ? "ارسال‌شده" : language === "ar" ? "مُرسَل" : language === "tr" ? "Gönderildi" : "Sent",
@@ -93,11 +131,57 @@ export default function PurchaseOrders() {
     } catch (err) { toast.error(err.message); }
   }
 
-  async function doSend(id) { try { await sendPurchaseOrder(id); await load(); } catch (e) { toast.error(e.message); } }
   async function doCancel(id) { try { await cancelPurchaseOrder(id); await load(); } catch (e) { toast.error(e.message); } }
   async function doReceive(id) {
     if (!window.confirm(fa ? "با ثبت دریافت، موجودی کالاها افزایش می‌یابد. ادامه می‌دهید؟" : "Marking received will increase stock for every line. Continue?")) return;
     try { await receivePurchaseOrder(id); toast.success(label.receive); await load(); } catch (e) { toast.error(e.message); }
+  }
+
+  function openDispatch(po) {
+    setDispatchForm({ method: "email", destination: "", note: "" });
+    setDispatchModal({ po });
+  }
+
+  async function submitDispatch(e) {
+    e.preventDefault();
+    if (dispatchForm.method === "copy_text") {
+      const po = dispatchModal.po;
+      const text = `${label.title} #${po.id} — ${po.supplier_name || label.noSupplier}\n` +
+        po.items.map((it) => `${it.product_name} × ${it.quantity} = ${it.line_total}`).join("\n") +
+        `\n${label.total}: ${po.total_amount}`;
+      try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be unavailable; the log entry below still records the attestation */ }
+    }
+    if (dispatchForm.method === "print_pdf") {
+      window.print();
+    }
+    setDispatching(true);
+    try {
+      const result = await dispatchPurchaseOrder(dispatchModal.po.id, dispatchForm);
+      if (result.status === "sent" || result.status === "delivered") {
+        toast.success(`${label.methodLabel[dispatchForm.method]}: ${label.dispatchStatusLabel[result.status]}`);
+      } else {
+        toast.error(result.detail || label.dispatchStatusLabel[result.status] || result.status);
+      }
+      setDispatchModal(null);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDispatching(false);
+    }
+  }
+
+  async function openHistory(po) {
+    setHistoryModal({ po, items: [] });
+    setHistoryLoading(true);
+    try {
+      const data = await getPurchaseOrderDispatchLog(po.id);
+      setHistoryModal({ po, items: data.items || [] });
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   return (
@@ -188,16 +272,73 @@ export default function PurchaseOrders() {
 
             {po.status !== "received" && po.status !== "cancelled" && (
               <div className="flex gap-2 flex-wrap">
-                {po.status === "draft" && (
-                  <button onClick={() => doSend(po.id)} className={`${button} bg-cyan-500/15 text-cyan-200`}><Send size={15} />{label.send}</button>
-                )}
+                <button onClick={() => openDispatch(po)} className={`${button} bg-cyan-500/15 text-cyan-200`}>
+                  <Send size={15} />{po.status === "draft" ? label.send : label.resend}
+                </button>
                 <button onClick={() => doReceive(po.id)} className={`${button} bg-emerald-500/15 text-emerald-200`}><PackageCheck size={15} />{label.receive}</button>
                 <button onClick={() => doCancel(po.id)} className={`${button} bg-rose-500/10 text-rose-300`}><XCircle size={15} />{label.cancel}</button>
               </div>
             )}
+            <button onClick={() => openHistory(po)} className={`${button} bg-transparent text-[var(--erp-muted)] px-0 py-2 mt-2 text-sm`}>
+              <History size={14} />{label.history}
+            </button>
           </div>
         ))}
       </div>
+
+      <Modal open={!!dispatchModal} onClose={() => setDispatchModal(null)} maxWidthClassName="max-w-lg" labelledBy="po-dispatch-title">
+        {dispatchModal && (
+          <form onSubmit={submitDispatch} className="p-5 space-y-3">
+            <h2 id="po-dispatch-title" className="text-lg font-bold">{label.dispatchTitle} — #{n(dispatchModal.po.id)}</h2>
+            <Field label={label.method}>
+              <select className={inputClass} value={dispatchForm.method} onChange={(e) => setDispatchForm({ ...dispatchForm, method: e.target.value })}>
+                {DISPATCH_METHODS.map((m) => <option key={m} value={m}>{label.methodLabel[m]}</option>)}
+              </select>
+            </Field>
+            {!["manual", "print_pdf", "copy_text"].includes(dispatchForm.method) && (
+              <Field label={label.destination}>
+                <input className={inputClass} value={dispatchForm.destination} onChange={(e) => setDispatchForm({ ...dispatchForm, destination: e.target.value })} />
+              </Field>
+            )}
+            <Field label={label.dispatchNote}>
+              <input className={inputClass} value={dispatchForm.note} onChange={(e) => setDispatchForm({ ...dispatchForm, note: e.target.value })} />
+            </Field>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setDispatchModal(null)} className={`${button} bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]`}>
+                {label.cancel}
+              </button>
+              <button type="submit" disabled={dispatching} className={`${button} bg-[var(--erp-accent)] text-slate-950`}>
+                <Send size={15} />{label.dispatchSend}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={!!historyModal} onClose={() => setHistoryModal(null)} maxWidthClassName="max-w-xl" labelledBy="po-history-title">
+        {historyModal && (
+          <div className="p-5 space-y-3">
+            <h2 id="po-history-title" className="text-lg font-bold">{label.history} — #{n(historyModal.po.id)}</h2>
+            {historyLoading ? (
+              <p className="text-[var(--erp-muted)]">…</p>
+            ) : historyModal.items.length === 0 ? (
+              <p className="text-[var(--erp-muted)]">{label.noDispatch}</p>
+            ) : (
+              <div className="space-y-2">
+                {historyModal.items.map((entry) => (
+                  <div key={entry.id} className="rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-bold">{label.methodLabel[entry.method] || entry.method}{entry.destination ? ` — ${entry.destination}` : ""}</span>
+                      <span className={`px-2 py-1 rounded-lg text-xs font-black ${DISPATCH_STATUS_TONE[entry.status] || ""}`}>{label.dispatchStatusLabel[entry.status] || entry.status}</span>
+                    </div>
+                    <div className="text-xs text-[var(--erp-muted)] mt-1">{date(entry.created_at)}{entry.detail ? ` · ${entry.detail}` : ""}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

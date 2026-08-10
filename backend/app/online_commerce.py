@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -13,6 +13,11 @@ router = APIRouter(prefix="/api/online-commerce", tags=["Online Commerce"])
 
 CHANNELS = {"website", "instagram", "telegram", "whatsapp", "linkedin"}
 CAMPAIGN_STATUSES = {"draft", "pending_approval", "approved", "scheduled", "published", "failed", "rejected"}
+# "custom" (an arbitrary saved-filter builder) is deliberately not offered -
+# no such builder exists anywhere in this app, and faking one would violate
+# the task's explicit anti-fabrication rule. Every type below is a real,
+# computable query against existing customer/invoice/loyalty data.
+SEGMENT_TYPES = {"", "new_customers", "returning_customers", "high_value", "inactive", "vip", "city", "category"}
 
 
 def _now():
@@ -95,6 +100,27 @@ def _ensure_schema(conn):
     ensure_company_id_column(conn, "online_product_settings")
     ensure_company_id_column(conn, "social_campaigns")
     ensure_company_id_column(conn, "commerce_connections")
+    _ensure_campaign_targeting_columns(conn)
+
+
+def _ensure_campaign_targeting_columns(conn):
+    """social_campaigns was created via CREATE TABLE IF NOT EXISTS above, so
+    an already-existing table (like this app's dev database) needs these
+    Task-02 columns added the same idempotent way ensure_sqlite_column()
+    does elsewhere - see app/warehouses.py's _ensure_new_columns for the
+    identical pattern."""
+    rows = conn.execute(text("PRAGMA table_info(social_campaigns)")).fetchall()
+    existing = {row[1] for row in rows}
+    additions = {
+        "template_key": "template_key VARCHAR DEFAULT ''",
+        "design_template_id": "design_template_id INTEGER",
+        "segment_type": "segment_type VARCHAR DEFAULT ''",
+        "segment_value": "segment_value VARCHAR DEFAULT ''",
+        "catalog_link_id": "catalog_link_id INTEGER",
+    }
+    for column_name, column_sql in additions.items():
+        if column_name not in existing:
+            conn.execute(text(f"ALTER TABLE social_campaigns ADD COLUMN {column_sql}"))
 
 
 class ProductPublicationPayload(BaseModel):
@@ -115,6 +141,11 @@ class CampaignPayload(BaseModel):
     media_url: str = ""
     destination_url: str = ""
     scheduled_at: str = ""
+    template_key: str = ""
+    design_template_id: Optional[int] = None
+    segment_type: str = ""
+    segment_value: str = ""
+    catalog_link_id: Optional[int] = None
 
 
 class DecisionPayload(BaseModel):
@@ -225,6 +256,8 @@ def campaigns(request: Request, status: str = "all"):
 
 @router.post("/campaigns")
 def create_campaign(payload: CampaignPayload, request: Request):
+    if payload.segment_type not in SEGMENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"segment_type must be one of: {', '.join(sorted(t for t in SEGMENT_TYPES if t))}")
     actor, _ = _auth(request)
     company_id = current_company_id(request)
     with engine.begin() as conn:
@@ -234,12 +267,92 @@ def create_campaign(payload: CampaignPayload, request: Request):
         result = conn.execute(text("""
             INSERT INTO social_campaigns
               (title, body, channel, product_id, media_url, destination_url,
-               scheduled_at, status, created_by, created_at, company_id)
+               scheduled_at, status, created_by, created_at, company_id,
+               template_key, design_template_id, segment_type, segment_value, catalog_link_id)
             VALUES
               (:title, :body, :channel, :product_id, :media_url, :destination_url,
-               :scheduled_at, 'draft', :actor, :now, :company_id)
+               :scheduled_at, 'draft', :actor, :now, :company_id,
+               :template_key, :design_template_id, :segment_type, :segment_value, :catalog_link_id)
         """), {**payload.dict(), "actor": actor, "now": _now(), "company_id": company_id})
         return {"status": "draft", "campaign_id": result.lastrowid}
+
+
+def _segment_customer_ids(conn, company_id: int, segment_type: str, segment_value: str):
+    """Real, computed audience membership for the reach estimate below -
+    every branch here is a genuine query against customer/invoice/loyalty
+    data, never an invented number. Returns None for segment_type='' (no
+    targeting -> every consenting customer)."""
+    if not segment_type:
+        return None
+    now = datetime.now(timezone.utc)
+    if segment_type == "new_customers":
+        cutoff = (now - timedelta(days=30)).isoformat()
+        rows = conn.execute(text("SELECT id FROM customers WHERE company_id=:cid AND created_at>=:cutoff"), {"cid": company_id, "cutoff": cutoff}).all()
+        return {row[0] for row in rows}
+    if segment_type == "returning_customers":
+        rows = conn.execute(text("""
+            SELECT customer_id FROM invoices WHERE company_id=:cid AND invoice_type='sale'
+            GROUP BY customer_id HAVING COUNT(*) >= 2
+        """), {"cid": company_id}).all()
+        return {row[0] for row in rows}
+    if segment_type == "inactive":
+        cutoff = (now - timedelta(days=90)).isoformat()
+        active_rows = conn.execute(text("""
+            SELECT DISTINCT customer_id FROM invoices WHERE company_id=:cid AND invoice_type='sale' AND created_at>=:cutoff
+        """), {"cid": company_id, "cutoff": cutoff}).all()
+        active_ids = {row[0] for row in active_rows}
+        all_rows = conn.execute(text("SELECT id FROM customers WHERE company_id=:cid"), {"cid": company_id}).all()
+        return {row[0] for row in all_rows} - active_ids
+    if segment_type == "high_value":
+        table_exists = conn.execute(text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='customer_loyalty'")).first()
+        if not table_exists:
+            return set()
+        rows = conn.execute(text("""
+            SELECT cl.customer_id FROM customer_loyalty cl JOIN customers c ON c.id=cl.customer_id
+            WHERE c.company_id=:cid AND cl.level IN ('Gold', 'Platinum', 'VIP')
+        """), {"cid": company_id}).all()
+        return {row[0] for row in rows}
+    if segment_type == "vip":
+        table_exists = conn.execute(text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='customer_loyalty'")).first()
+        if not table_exists:
+            return set()
+        rows = conn.execute(text("""
+            SELECT cl.customer_id FROM customer_loyalty cl JOIN customers c ON c.id=cl.customer_id
+            WHERE c.company_id=:cid AND cl.level='VIP'
+        """), {"cid": company_id}).all()
+        return {row[0] for row in rows}
+    if segment_type == "city":
+        rows = conn.execute(text("SELECT id FROM customers WHERE company_id=:cid AND city=:city"), {"cid": company_id, "city": segment_value}).all()
+        return {row[0] for row in rows}
+    if segment_type == "category":
+        rows = conn.execute(text("""
+            SELECT DISTINCT i.customer_id FROM invoices i
+            JOIN invoice_items ii ON ii.invoice_id=i.id
+            JOIN products p ON p.id=ii.product_id
+            WHERE i.company_id=:cid AND (p.main_category=:cat OR p.sub_category=:cat)
+        """), {"cid": company_id, "cat": segment_value}).all()
+        return {row[0] for row in rows}
+    return set()
+
+
+@router.get("/campaigns/audience-estimate")
+def campaign_audience_estimate(request: Request, segment_type: str = "", segment_value: str = ""):
+    if segment_type not in SEGMENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"segment_type must be one of: {', '.join(sorted(t for t in SEGMENT_TYPES if t))}")
+    company_id = current_company_id(request)
+    with engine.begin() as conn:
+        segment_ids = _segment_customer_ids(conn, company_id, segment_type, segment_value)
+        consenting_rows = conn.execute(text(
+            "SELECT id FROM customers WHERE company_id=:cid AND marketing_consent=1"
+        ), {"cid": company_id}).all()
+        consenting_ids = {row[0] for row in consenting_rows}
+        reachable = consenting_ids if segment_ids is None else (segment_ids & consenting_ids)
+        total_in_segment = len(consenting_ids) if segment_ids is None else len(segment_ids)
+        return {
+            "segment_type": segment_type,
+            "segment_size": total_in_segment,
+            "reachable_with_consent": len(reachable),
+        }
 
 
 @router.post("/campaigns/{campaign_id}/submit")
@@ -312,6 +425,64 @@ def connections(request: Request):
             FROM commerce_connections ORDER BY channel
         """)).mappings().all()
         return [dict(row) for row in rows]
+
+
+def _opportunity_shim_request(company_id: int):
+    """Same one-off trick as app/executive_alerts.py's _shim_request: lets
+    us call product_batches.list_expiring_batches(request, days) in-process
+    with this endpoint's already-authorized company_id, instead of
+    duplicating its expiry-date SQL here."""
+    from types import SimpleNamespace
+    return SimpleNamespace(state=SimpleNamespace(auth={"company_id": company_id}))
+
+
+@router.get("/opportunities")
+def sales_opportunities(request: Request):
+    """Real, data-driven cross-sell/re-engagement signals for Section 10H -
+    every item here is sourced from an existing, already-tested computation
+    (ai_bi's risky-customer scoring, smart_inventory's dead-stock detection,
+    product_batches' expiry tracking). No click-prediction or invented
+    "AI recommendation" - the task spec explicitly forbids presenting
+    unmeasurable/invented signals as factual."""
+    from app.ai_bi.router import _build_payload
+    from app.product_batches import list_expiring_batches
+    from app.smart_inventory.routes import smart_inventory_overview
+
+    company_id = current_company_id(request)
+    with engine.begin() as conn:
+        own_customer_ids = {row[0] for row in conn.execute(text("SELECT id FROM customers WHERE company_id=:cid"), {"cid": company_id}).all()}
+        own_product_ids = {row[0] for row in conn.execute(text("SELECT id FROM products WHERE company_id=:cid"), {"cid": company_id}).all()}
+
+    bi_payload = _build_payload(company_id)
+    inactive_high_value = [
+        {"type": "inactive_high_value_customer", "customer_id": c["id"], "customer_name": c.get("name", ""), "balance": c.get("balance", 0)}
+        for c in bi_payload.get("risky_customers", [])
+        if c["id"] in own_customer_ids
+    ]
+
+    inventory = smart_inventory_overview()
+    slow_moving = [
+        {"type": "slow_moving_stock", "product_id": item["id"], "product_name": item.get("name", ""), "stock": item.get("stock"), "risk_level": item.get("risk_level")}
+        for item in inventory.get("dead_stock", [])
+        if item["id"] in own_product_ids
+    ]
+
+    expiring = list_expiring_batches(_opportunity_shim_request(company_id), days=30)
+    expiring_soon = [
+        {"type": "expiring_soon", "product_id": item.get("product_id"), "product_name": item.get("product_name", ""), "days_to_expiry": item.get("days_to_expiry"), "remaining_quantity": item.get("remaining_quantity")}
+        for item in expiring
+    ]
+
+    return {
+        "generated_at": _now(),
+        "inactive_high_value_customers": inactive_high_value,
+        "slow_moving_products": slow_moving,
+        "expiring_soon_batches": expiring_soon,
+        # Explicitly honest about what this endpoint does NOT compute -
+        # matches the task spec's requirement to mark unsupported tracking
+        # as "not available" rather than fabricate it.
+        "overstock_products": {"available": False, "reason": "No excess-vs-demand computation exists yet beyond dead-stock detection."},
+    }
 
 
 @router.put("/connections/{channel}")

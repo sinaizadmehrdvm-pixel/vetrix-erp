@@ -3,7 +3,7 @@ import {
   LayoutDashboard, UsersRound, Package, Receipt, Wallet, BarChart3, Settings,
   LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
-  BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck,
+  BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
   BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
 } from "lucide-react";
@@ -34,6 +34,7 @@ const groups = [
     id: "inventory", labelKey: "groupInventory",
     items: [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
+      { key: "branches", icon: Building2, path: "/branches", roles: ["admin", "warehouse"] },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
       { key: "multiWarehouse", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
       { key: "purchaseOrders", icon: Factory, path: "/purchase-orders", roles: ["admin", "warehouse", "accountant"] },
@@ -43,6 +44,7 @@ const groups = [
   {
     id: "accounting", labelKey: "groupAccounting",
     items: [
+      { key: "executiveAlerts", icon: ShieldAlert, path: "/executive-alerts", roles: ["admin", "accountant"] },
       { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "taxAccounting", icon: BadgePercent, path: "/tax-accounting", roles: ["admin", "accountant", "viewer", "user"] },

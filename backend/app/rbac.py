@@ -109,6 +109,10 @@ READ_RULES = (
     # warehouses to pick one for a line item; management (create/transfer/
     # deactivate) is still gated to admin/warehouse below.
     ("/api/warehouses", ALL_ROLES),
+    # Same reasoning as warehouses above - any role assigning a warehouse or
+    # invoice to a location needs to read the branch list; management is
+    # still gated to admin/warehouse below.
+    ("/api/branches", ALL_ROLES),
     ("/reports", ALL_ROLES),
     ("/export", ALL_ROLES),
     ("/print", ALL_ROLES),
@@ -168,6 +172,10 @@ READ_RULES = (
     ("/api/field-visits", {"admin", "accountant", "sales"}),
     ("/api/invoice-payments", {"admin", "accountant"}),
     ("/api/approvals", {"admin", "accountant"}),
+    # Aggregates receivables/payables/cheques/stock into one financial
+    # summary - same admin/accountant scoping as the underlying sources
+    # (aging.py, treasury.py) it reads from.
+    ("/api/executive-alerts", {"admin", "accountant"}),
 )
 
 MUTATION_RULES = (
@@ -214,6 +222,7 @@ MUTATION_RULES = (
     ("/api/smart-inventory", {"admin", "warehouse"}),
     ("/warehouse", {"admin", "warehouse"}),
     ("/api/warehouses", {"admin", "warehouse"}),
+    ("/api/branches", {"admin", "warehouse"}),
     ("/api/purchase-orders", {"admin", "warehouse"}),
     ("/api/product-batches", {"admin", "warehouse"}),
     # Coarse gate only - preview (products) vs. apply/rollback (always
@@ -232,6 +241,7 @@ MUTATION_RULES = (
     ("/designer", {"admin", "accountant", "sales"}),
     ("/api/invoice-payments", {"admin", "accountant"}),
     ("/api/approvals", {"admin", "accountant"}),
+    ("/api/executive-alerts", {"admin", "accountant"}),
 )
 
 

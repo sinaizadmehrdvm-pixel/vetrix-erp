@@ -92,6 +92,8 @@ from app.payment_providers import router as payment_providers_router
 from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
 from app.report_delivery import maybe_send_scheduled_reports, router as report_delivery_router
 from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
+from app.branches import router as branches_router
+from app.executive_alerts import router as executive_alerts_router
 from app.purchase_orders import router as purchase_orders_router
 from app.customers_export import router as customers_export_router
 from app.import_report_export import router as import_report_export_router
@@ -174,6 +176,12 @@ def ensure_database_schema():
         # and distance sorting - see app/field_visits.py.
         "latitude": "latitude FLOAT",
         "longitude": "longitude FLOAT",
+        # Marketing-campaign consent only (Task 02 Section 10) - defaults to
+        # true (opt-in), a deliberate product decision: existing customers
+        # are treated as already reachable, matching today's de-facto
+        # behavior. Unrelated to transactional sends (payment reminders,
+        # invoice links) which never checked this and still don't.
+        "marketing_consent": "marketing_consent BOOLEAN DEFAULT 1 NOT NULL",
     }
 
     invoice_columns = {
@@ -363,8 +371,8 @@ COMPANY_SCOPED_TABLES = [
     "customers", "products", "invoices", "invoice_items", "accounting_entries",
     "expenses", "stock_movements",
     "warehouses", "warehouse_stock",
-    "purchase_orders", "purchase_order_items",
-    "product_batches", "product_categories", "price_tiers",
+    "purchase_orders", "purchase_order_items", "purchase_order_dispatch_log",
+    "product_batches", "product_categories", "price_tiers", "pricing_rules",
     "recurring_invoice_templates", "payment_reminder_log", "payment_sessions",
     "einvoice_submissions", "catalog_links", "catalog_orders",
     "inbound_catalog_messages",
@@ -391,6 +399,8 @@ COMPANY_SCOPED_TABLES = [
     "approval_rules", "approval_requests", "approval_events",
     "idempotency_keys",
     "payment_providers",
+    "branches",
+    "executive_alert_settings",
 ]
 
 
@@ -475,6 +485,8 @@ app.include_router(payment_providers_router)
 app.include_router(payment_reminders_router)
 app.include_router(report_delivery_router)
 app.include_router(warehouses_router)
+app.include_router(branches_router)
+app.include_router(executive_alerts_router)
 app.include_router(purchase_orders_router)
 app.include_router(customers_export_router)
 app.include_router(import_report_export_router)
@@ -633,6 +645,7 @@ class CustomerCreate(BaseModel):
     telegram_chat_id: str = ""
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    marketing_consent: bool = True
 
 
 class ProductCreate(BaseModel):
@@ -948,6 +961,7 @@ def customer_to_dict(db: Session, c: Customer):
         "telegram_chat_id": getattr(c, "telegram_chat_id", "") or "",
         "latitude": getattr(c, "latitude", None),
         "longitude": getattr(c, "longitude", None),
+        "marketing_consent": bool(getattr(c, "marketing_consent", True)),
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -1081,6 +1095,7 @@ def create_customer(data: CustomerCreate, request: Request):
             telegram_chat_id=data.telegram_chat_id,
             latitude=data.latitude,
             longitude=data.longitude,
+            marketing_consent=data.marketing_consent,
             company_id=current_company_id(request),
         )
         db.add(customer)
@@ -1198,6 +1213,7 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         customer.telegram_chat_id = data.telegram_chat_id
         customer.latitude = data.latitude
         customer.longitude = data.longitude
+        customer.marketing_consent = data.marketing_consent
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (

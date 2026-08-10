@@ -13,6 +13,7 @@ a Customer row with customer_type "supplier" or "both" (see Customers.jsx),
 so purchase orders reference Customer.id via supplier_id, consistent with
 that existing convention rather than introducing a parallel concept.
 """
+import re
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
@@ -23,12 +24,29 @@ from sqlalchemy import Column, DateTime, Float, Integer, String, text
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine
+from app.email_utils import send_email, smtp_configured
+from app.message_templates import get_effective_template
 from app.models.customer import Customer
 from app.models.product import Product
 from app.company_scope import current_company_id
+from app.sms_utils import send_sms, sms_configured
+from app.telegram_utils import send_telegram_message, telegram_configured
+from app.whatsapp_utils import send_whatsapp_message, whatsapp_configured
 
 router = APIRouter(prefix="/api/purchase-orders", tags=["Purchase Orders"])
 MONEY_STEP = Decimal("0.01")
+
+# email/sms/whatsapp/telegram are real, provider-backed sends (fail closed
+# with an honest "not configured" status when the company hasn't set up
+# that channel - see _dispatch_via_channel). manual/print_pdf/copy_text are
+# staff-attested delivery: there is no real shareable PO link/portal in this
+# app today (confirmed: app/supplier_portal.py only covers a supplier's own
+# invoices/ledger, not receiving purchase orders), so these three simply
+# record what the user says they did rather than faking a delivery channel
+# that doesn't exist.
+AUTOMATED_METHODS = {"email", "sms", "whatsapp", "telegram"}
+STAFF_ATTESTED_METHODS = {"manual", "print_pdf", "copy_text"}
+DISPATCH_METHODS = AUTOMATED_METHODS | STAFF_ATTESTED_METHODS
 
 
 def _money(value):
@@ -69,8 +87,28 @@ class PurchaseOrderItem(Base):
     company_id = Column(Integer, nullable=True)
 
 
+class PurchaseOrderDispatchLog(Base):
+    """Mirrors app/payment_reminders.py's PaymentReminderLog convention:
+    a per-feature log table rather than a generic audit_trail (which
+    doesn't exist anywhere in this app) - every dispatch attempt is
+    recorded regardless of outcome, so "sent" is never claimed without a
+    real, visible record of how/when/by whom/with what result."""
+    __tablename__ = "purchase_order_dispatch_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    purchase_order_id = Column(Integer, nullable=False)
+    method = Column(String, nullable=False)
+    destination = Column(String, default="")
+    status = Column(String, nullable=False)  # sending / sent / delivered / failed / cancelled
+    detail = Column(String, default="")
+    sent_by_user_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    company_id = Column(Integer, nullable=True)
+
+
 PurchaseOrder.__table__.create(bind=engine, checkfirst=True)
 PurchaseOrderItem.__table__.create(bind=engine, checkfirst=True)
+PurchaseOrderDispatchLog.__table__.create(bind=engine, checkfirst=True)
 
 
 class POItemCreate(BaseModel):
@@ -187,19 +225,169 @@ def create_purchase_order(data: POCreate, request: Request):
         db.close()
 
 
-@router.post("/{po_id}/send")
-def send_purchase_order(po_id: int, request: Request):
-    with engine.begin() as conn:
-        row = conn.execute(
-            text("SELECT status FROM purchase_orders WHERE id=:id AND company_id=:company_id"),
-            {"id": po_id, "company_id": current_company_id(request)},
-        ).first()
-        if not row:
+class DispatchRequest(BaseModel):
+    method: str
+    destination: str = ""
+    note: str = ""
+
+
+def _dispatch_log_dict(row: PurchaseOrderDispatchLog) -> dict:
+    return {
+        "id": row.id, "purchase_order_id": row.purchase_order_id, "method": row.method,
+        "destination": row.destination, "status": row.status, "detail": row.detail,
+        "sent_by_user_id": row.sent_by_user_id, "created_at": row.created_at,
+    }
+
+
+def _record_dispatch(db: Session, po_id: int, method: str, destination: str, status: str, detail: str, user_id, company_id) -> PurchaseOrderDispatchLog:
+    entry = PurchaseOrderDispatchLog(
+        purchase_order_id=po_id, method=method, destination=(destination or "")[:255],
+        status=status, detail=(detail or "")[:1000], sent_by_user_id=user_id, company_id=company_id,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def _dispatch_language(supplier: Optional[Customer]) -> str:
+    # No per-supplier language preference exists on Customer; the app's own
+    # UI language convention is Persian-first (see payment_reminders.py's
+    # _language_for_policy default), used here as the same honest default
+    # rather than guessing a supplier's language from unrelated fields.
+    return "fa"
+
+
+def _dispatch_message(db: Session, po: PurchaseOrder, supplier_name: str, channel: str, company_id) -> dict:
+    language = _dispatch_language(None)
+    template = get_effective_template(db.connection(), "purchase_order_dispatch", channel, language, company_id)
+    fmt = {"id": po.id, "name": supplier_name or "", "amount": f"{po.total_amount:,.0f}", "brand": "Vetrix ERP"}
+    return {
+        "subject": (template.get("subject") or "").format(**fmt),
+        "body": (template.get("body") or "").format(**fmt),
+    }
+
+
+def _whatsapp_number(raw: str) -> str:
+    return re.sub(r"\D", "", raw or "")
+
+
+@router.post("/{po_id}/dispatch")
+def dispatch_purchase_order(po_id: int, data: DispatchRequest, request: Request):
+    if data.method not in DISPATCH_METHODS:
+        raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(DISPATCH_METHODS))}")
+
+    auth = getattr(request.state, "auth", {})
+    try:
+        user_id = int(auth["sub"])
+    except (KeyError, TypeError, ValueError):
+        user_id = None
+
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id, PurchaseOrder.company_id == company_id).first()
+        if not po:
             raise HTTPException(status_code=404, detail="Purchase order not found")
-        if row[0] != "draft":
-            raise HTTPException(status_code=400, detail="Only a draft purchase order can be sent")
-        conn.execute(text("UPDATE purchase_orders SET status='sent' WHERE id=:id"), {"id": po_id})
-    return {"status": "sent", "id": po_id}
+        if po.status in ("received", "cancelled"):
+            raise HTTPException(status_code=400, detail=f"A {po.status} purchase order cannot be dispatched")
+
+        supplier = db.query(Customer).filter(Customer.id == po.supplier_id, Customer.company_id == company_id).first() if po.supplier_id else None
+        supplier_name = po.supplier_name or (supplier.name if supplier else "")
+
+        if data.method in STAFF_ATTESTED_METHODS:
+            destination = data.destination.strip() or (supplier_name or "—")
+            entry = _record_dispatch(
+                db, po_id, data.method, destination, "sent",
+                data.note.strip() or f"Recorded manually by user {user_id}", user_id, company_id,
+            )
+            if po.status == "draft":
+                po.status = "sent"
+                db.commit()
+            return {"status": entry.status, "id": entry.id, "method": entry.method}
+
+        # Automated channels: a real send is attempted; the PO only ever
+        # flips to "sent" if the provider actually accepted the message -
+        # matching payment_reminders.py's send_reminder_for_invoice pattern.
+        if data.method == "email":
+            destination = data.destination.strip() or (supplier.email if supplier else "")
+            if not smtp_configured(company_id):
+                entry = _record_dispatch(db, po_id, "email", destination, "failed", "Email is not configured", user_id, company_id)
+                return {"status": entry.status, "id": entry.id, "method": entry.method, "detail": entry.detail}
+            if not destination:
+                entry = _record_dispatch(db, po_id, "email", destination, "failed", "Supplier has no email on file", user_id, company_id)
+                return {"status": entry.status, "id": entry.id, "method": entry.method, "detail": entry.detail}
+            message = _dispatch_message(db, po, supplier_name, "email", company_id)
+            try:
+                send_email(company_id, destination, message["subject"], message["body"])
+                entry = _record_dispatch(db, po_id, "email", destination, "sent", f"Sent to {destination}", user_id, company_id)
+            except Exception as error:
+                entry = _record_dispatch(db, po_id, "email", destination, "failed", str(error), user_id, company_id)
+        elif data.method == "sms":
+            destination = data.destination.strip() or (getattr(supplier, "mobile", "") or getattr(supplier, "phone", "") if supplier else "")
+            if not sms_configured(company_id):
+                entry = _record_dispatch(db, po_id, "sms", destination, "failed", "SMS is not configured", user_id, company_id)
+            elif not destination:
+                entry = _record_dispatch(db, po_id, "sms", destination, "failed", "Supplier has no phone number on file", user_id, company_id)
+            else:
+                message = _dispatch_message(db, po, supplier_name, "message", company_id)
+                try:
+                    send_sms(company_id, destination, message["body"])
+                    entry = _record_dispatch(db, po_id, "sms", destination, "sent", f"Sent to {destination}", user_id, company_id)
+                except Exception as error:
+                    entry = _record_dispatch(db, po_id, "sms", destination, "failed", str(error), user_id, company_id)
+        elif data.method == "whatsapp":
+            destination = _whatsapp_number(data.destination) or _whatsapp_number(getattr(supplier, "mobile", "") or getattr(supplier, "phone", "") if supplier else "")
+            if not whatsapp_configured(company_id):
+                entry = _record_dispatch(db, po_id, "whatsapp", destination, "failed", "WhatsApp is not configured", user_id, company_id)
+            elif not destination:
+                entry = _record_dispatch(db, po_id, "whatsapp", destination, "failed", "Supplier has no phone number on file", user_id, company_id)
+            else:
+                message = _dispatch_message(db, po, supplier_name, "message", company_id)
+                try:
+                    send_whatsapp_message(company_id, destination, message["body"])
+                    entry = _record_dispatch(db, po_id, "whatsapp", destination, "sent", f"Sent to {destination}", user_id, company_id)
+                except Exception as error:
+                    entry = _record_dispatch(db, po_id, "whatsapp", destination, "failed", str(error), user_id, company_id)
+        else:  # telegram
+            destination = data.destination.strip() or (getattr(supplier, "telegram_chat_id", "") if supplier else "")
+            if not telegram_configured(company_id):
+                entry = _record_dispatch(db, po_id, "telegram", destination, "failed", "Telegram is not configured", user_id, company_id)
+            elif not destination:
+                entry = _record_dispatch(db, po_id, "telegram", destination, "failed", "Supplier has no Telegram chat on file (they must message the bot first)", user_id, company_id)
+            else:
+                message = _dispatch_message(db, po, supplier_name, "message", company_id)
+                try:
+                    send_telegram_message(company_id, destination, message["body"])
+                    entry = _record_dispatch(db, po_id, "telegram", destination, "sent", f"Sent to chat {destination}", user_id, company_id)
+                except Exception as error:
+                    entry = _record_dispatch(db, po_id, "telegram", destination, "failed", str(error), user_id, company_id)
+
+        if entry.status == "sent" and po.status == "draft":
+            po.status = "sent"
+            db.commit()
+        return {"status": entry.status, "id": entry.id, "method": entry.method, "detail": entry.detail}
+    finally:
+        db.close()
+
+
+@router.get("/{po_id}/dispatch-log")
+def list_dispatch_log(po_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id, PurchaseOrder.company_id == company_id).first()
+        if not po:
+            raise HTTPException(status_code=404, detail="Purchase order not found")
+        rows = (
+            db.query(PurchaseOrderDispatchLog)
+            .filter(PurchaseOrderDispatchLog.purchase_order_id == po_id, PurchaseOrderDispatchLog.company_id == company_id)
+            .order_by(PurchaseOrderDispatchLog.id.desc())
+            .all()
+        )
+        return {"items": [_dispatch_log_dict(row) for row in rows]}
+    finally:
+        db.close()
 
 
 @router.post("/{po_id}/cancel")

@@ -2991,6 +2991,263 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(after_delete.json()["unit_price"], 1000)
 
+    def test_zzzzzzzzzzzzzzz_pricing_rules_precedence_and_boundaries(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        product = self.client.post(
+            "/products",
+            headers=headers,
+            json={"name": "Pricing Rule Product", "price": 1000, "stock": 500, "main_category": "Beverages"},
+        )
+        product_id = product.json()["id"]
+
+        vip_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "VIP Rule Buyer"},
+        )
+        vip_customer_id = vip_customer.json()["id"]
+
+        # Category-wide 10% discount, quantity 1-99.
+        category_rule = self.client.post(
+            "/api/pricing/rules",
+            headers=headers,
+            json={
+                "name": "Beverages 10% off", "priority": 100, "scope_type": "category", "scope_value": "Beverages",
+                "customer_scope_type": "any", "min_quantity": 1, "max_quantity": 99,
+                "price_mode": "percent_discount", "price_value": 10, "status": "active",
+            },
+        )
+        self.assertEqual(category_rule.status_code, 200, category_rule.text)
+
+        # More specific: this exact customer + this exact product gets a flat 600.
+        customer_rule = self.client.post(
+            "/api/pricing/rules",
+            headers=headers,
+            json={
+                "name": "VIP flat price", "priority": 50, "scope_type": "product", "scope_value": str(product_id),
+                "customer_scope_type": "customer", "customer_scope_value": str(vip_customer_id),
+                "min_quantity": 1, "price_mode": "fixed", "price_value": 600, "status": "active",
+            },
+        )
+        self.assertEqual(customer_rule.status_code, 200, customer_rule.text)
+
+        # A non-VIP customer only qualifies for the category rule (1000 * 0.9 = 900).
+        category_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=5", headers=headers
+        )
+        self.assertEqual(category_quote.json()["unit_price"], 900)
+        self.assertEqual(category_quote.json()["source"], "pricing_rule")
+
+        # The VIP customer matches both rules; the more specific customer+product
+        # rule must win over the category rule (precedence test).
+        vip_quote = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=5&customer_id={vip_customer_id}",
+            headers=headers,
+        )
+        self.assertEqual(vip_quote.json()["unit_price"], 600)
+        self.assertEqual(vip_quote.json()["rule_id"], customer_rule.json()["id"])
+        self.assertEqual(len(vip_quote.json()["matched_rules"]), 2)
+
+        # Boundary: quantity 99 is inside the category rule's max_quantity,
+        # quantity 100 falls outside it entirely (no rule matches -> base price).
+        boundary_in_range = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=99", headers=headers
+        )
+        self.assertEqual(boundary_in_range.json()["unit_price"], 900)
+        boundary_out_of_range = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=100", headers=headers
+        )
+        self.assertEqual(boundary_out_of_range.json()["unit_price"], 1000)
+        self.assertEqual(boundary_out_of_range.json()["source"], "base")
+
+        # Date validity: a rule whose window has already ended must not match.
+        expired_rule = self.client.post(
+            "/api/pricing/rules",
+            headers=headers,
+            json={
+                "name": "Expired promo", "priority": 10, "scope_type": "all", "customer_scope_type": "any",
+                "min_quantity": 1, "price_mode": "fixed", "price_value": 1,
+                "start_date": "2020-01-01", "end_date": "2020-01-31", "status": "active",
+            },
+        )
+        self.assertEqual(expired_rule.status_code, 200, expired_rule.text)
+        still_900 = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=5", headers=headers
+        )
+        self.assertEqual(still_900.json()["unit_price"], 900)
+
+        rules_list = self.client.get("/api/pricing/rules", headers=headers)
+        self.assertEqual(rules_list.status_code, 200, rules_list.text)
+        self.assertEqual(len(rules_list.json()["items"]), 3)
+
+        updated = self.client.put(
+            f"/api/pricing/rules/{category_rule.json()['id']}",
+            headers=headers,
+            json={
+                "name": "Beverages 20% off", "priority": 100, "scope_type": "category", "scope_value": "Beverages",
+                "customer_scope_type": "any", "min_quantity": 1, "max_quantity": 99,
+                "price_mode": "percent_discount", "price_value": 20, "status": "active",
+            },
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        after_update = self.client.get(
+            f"/api/pricing/quote?product_id={product_id}&quantity=5", headers=headers
+        )
+        self.assertEqual(after_update.json()["unit_price"], 800)
+
+        deleted = self.client.delete(f"/api/pricing/rules/{expired_rule.json()['id']}", headers=headers)
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+
+        invalid_scope = self.client.post(
+            "/api/pricing/rules",
+            headers=headers,
+            json={"name": "Bad", "scope_type": "not-a-scope", "customer_scope_type": "any", "price_mode": "fixed", "price_value": 1},
+        )
+        self.assertEqual(invalid_scope.status_code, 400)
+
+    def test_zzzzzzzzzzzzzzzz_executive_alerts_summary_and_permissions(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        # Overdue receivable: a sale invoice, unpaid, with a due date in the past.
+        overdue_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Overdue Alert Customer"},
+        )
+        overdue_customer_id = overdue_customer.json()["id"]
+        product = self.client.post(
+            "/products", headers=headers, json={"name": "Alert Product", "price": 500, "stock": 3, "min_stock": 10},
+        )
+        product_id = product.json()["id"]
+        overdue_invoice = self.client.post(
+            "/invoices",
+            headers=headers,
+            json={
+                "customer_id": overdue_customer_id, "invoice_type": "sale", "due_date": "2020-01-01",
+                "items": [{"product_id": product_id, "quantity": 1, "unit_price": 500}],
+            },
+        )
+        self.assertEqual(overdue_invoice.status_code, 200, overdue_invoice.text)
+
+        summary = self.client.get("/api/executive-alerts/summary", headers=headers)
+        self.assertEqual(summary.status_code, 200, summary.text)
+        payload = summary.json()
+        self.assertIn("counts", payload)
+        self.assertIn("items", payload)
+        self.assertGreaterEqual(payload["counts"]["critical"], 1)
+
+        receivable_alerts = [i for i in payload["items"] if i["category"] == "receivable" and i["related_id"] == overdue_customer_id]
+        self.assertTrue(receivable_alerts, "expected the overdue invoice to surface as a receivable alert")
+        self.assertEqual(receivable_alerts[0]["severity"], "critical")
+
+        low_stock_alerts = [i for i in payload["items"] if i["category"] == "low_stock" and i["related_id"] == product_id]
+        self.assertTrue(low_stock_alerts, "expected the below-min_stock product to surface as a low_stock alert")
+
+        # Thresholds are configurable and persist.
+        updated_settings = self.client.put(
+            "/api/executive-alerts/settings", headers=headers,
+            json={"alert_days_before_due": 10, "minimum_receivable_amount": 100000},
+        )
+        self.assertEqual(updated_settings.status_code, 200, updated_settings.text)
+        self.assertEqual(updated_settings.json()["alert_days_before_due"], 10)
+        refetched_settings = self.client.get("/api/executive-alerts/settings", headers=headers)
+        self.assertEqual(refetched_settings.json()["minimum_receivable_amount"], 100000)
+
+        # A high minimum_receivable_amount should filter out the small overdue invoice.
+        filtered_summary = self.client.get("/api/executive-alerts/summary", headers=headers)
+        filtered_receivables = [i for i in filtered_summary.json()["items"] if i["category"] == "receivable" and i["related_id"] == overdue_customer_id]
+        self.assertFalse(filtered_receivables, "500-amount invoice should be filtered out by a 100000 minimum")
+
+        # Non-admin/accountant roles are denied (matches aging/treasury's own scoping).
+        sales_user = self.client.post(
+            "/users", headers=headers,
+            json={"full_name": "Sales Alert Viewer", "username": "sales-alert-viewer", "password": "StrongSalesPassword!42", "role": "sales"},
+        )
+        self.assertEqual(sales_user.status_code, 200, sales_user.text)
+        sales_login = self.client.post("/login", json={"username": "sales-alert-viewer", "password": "StrongSalesPassword!42"})
+        sales_headers = {"Authorization": f"Bearer {sales_login.json()['access_token']}"}
+        denied = self.client.get("/api/executive-alerts/summary", headers=sales_headers)
+        self.assertEqual(denied.status_code, 403)
+
+    def test_zzzzzzzzzzzzzzzzz_online_sales_segments_and_opportunities(self):
+        admin_login = self.client.post(
+            "/login",
+            json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        # New customers default to marketing_consent=True (opt-in) per the
+        # confirmed product decision - nothing extra needs to be sent.
+        consenting_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Consent Default Customer", "city": "Tehran"},
+        )
+        self.assertEqual(consenting_customer.status_code, 200, consenting_customer.text)
+        consenting_detail = self.client.get(f"/customers/{consenting_customer.json()['id']}", headers=headers)
+        self.assertTrue(consenting_detail.json()["customer"]["marketing_consent"])
+
+        opted_out_customer = self.client.post(
+            "/customers", headers=headers, json={"name": "Opted Out Customer", "city": "Tehran", "marketing_consent": False},
+        )
+        self.assertEqual(opted_out_customer.status_code, 200, opted_out_customer.text)
+        opted_out_detail = self.client.get(f"/customers/{opted_out_customer.json()['id']}", headers=headers)
+        self.assertFalse(opted_out_detail.json()["customer"]["marketing_consent"])
+
+        # Audience estimate: city segment should include both Tehran customers
+        # in segment_size, but only the consenting one in reachable_with_consent.
+        estimate = self.client.get(
+            "/api/online-commerce/campaigns/audience-estimate?segment_type=city&segment_value=Tehran",
+            headers=headers,
+        )
+        self.assertEqual(estimate.status_code, 200, estimate.text)
+        payload = estimate.json()
+        self.assertGreaterEqual(payload["segment_size"], 2)
+        self.assertLess(payload["reachable_with_consent"], payload["segment_size"])
+
+        invalid_segment = self.client.get(
+            "/api/online-commerce/campaigns/audience-estimate?segment_type=not-a-segment", headers=headers,
+        )
+        self.assertEqual(invalid_segment.status_code, 400)
+
+        # Campaign creation persists the new targeting/template/design fields.
+        campaign = self.client.post(
+            "/api/online-commerce/campaigns",
+            headers=headers,
+            json={
+                "title": "City promo", "body": "Special offer", "channel": "telegram",
+                "segment_type": "city", "segment_value": "Tehran", "template_key": "campaign_promo",
+            },
+        )
+        self.assertEqual(campaign.status_code, 200, campaign.text)
+        campaign_list = self.client.get("/api/online-commerce/campaigns", headers=headers)
+        created = next(c for c in campaign_list.json() if c["id"] == campaign.json()["campaign_id"])
+        self.assertEqual(created["segment_type"], "city")
+        self.assertEqual(created["segment_value"], "Tehran")
+        self.assertEqual(created["template_key"], "campaign_promo")
+
+        invalid_campaign_segment = self.client.post(
+            "/api/online-commerce/campaigns",
+            headers=headers,
+            json={"title": "Bad segment", "channel": "telegram", "segment_type": "custom"},
+        )
+        self.assertEqual(invalid_campaign_segment.status_code, 400)
+
+        # Sales opportunities: real, sourced data - never fabricated.
+        opportunities = self.client.get("/api/online-commerce/opportunities", headers=headers)
+        self.assertEqual(opportunities.status_code, 200, opportunities.text)
+        opp_payload = opportunities.json()
+        self.assertIn("inactive_high_value_customers", opp_payload)
+        self.assertIn("slow_moving_products", opp_payload)
+        self.assertIn("expiring_soon_batches", opp_payload)
+        self.assertFalse(opp_payload["overstock_products"]["available"])
+
     def test_zzzzzzzzzzzzzz_barcode_lookup_endpoint(self):
         admin_login = self.client.post(
             "/login",

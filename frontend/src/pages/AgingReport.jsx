@@ -6,6 +6,8 @@ import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput, invoiceTypeLabel } from "../localization/helpers";
 import { getAgingReport } from "../services/agingApi";
+import ReportHeader from "../components/reports/ReportHeader";
+import ReportFooter from "../components/reports/ReportFooter";
 
 export default function AgingReport() {
   const { language, dir, money, date, n } = useLanguage();
@@ -85,6 +87,12 @@ export default function AgingReport() {
         <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", alignSelf: "end" }}><Printer size={16} />{copy.print}</button>
       </div>
     </header>
+    <ReportHeader
+      title={copy.title}
+      subtitle={copy.subtitle}
+      period={asOf ? date(asOf) : undefined}
+      filterSummary={side !== "all" ? copy[side] : undefined}
+    />
     {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
     {data && <>
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(185px,1fr))", gap: 12, marginBottom: 16 }}>
@@ -95,11 +103,12 @@ export default function AgingReport() {
       </section>
       <nav className="no-print" style={{ display:"flex", gap:8, marginBottom:12 }}>{["all","receivable","payable"].map((value)=><button key={value} onClick={()=>setSide(value)} style={{ ...button, background:side===value?"var(--erp-accent)":"var(--erp-panel-solid)", color:side===value?"#05202a":"var(--erp-muted)" }}>{copy[value]}</button>)}</nav>
       {data.summary.over_credit_limit_count > 0 && <div style={{ ...card, padding:14, marginBottom:12, color:"#fbbf24" }}><AlertTriangle size={17} style={{ display:"inline", marginInlineEnd:8 }}/>{copy.creditWarning}: {n(data.summary.over_credit_limit_count)}</div>}
-      <section style={{ ...card, overflowX:"auto" }}><table style={{ width:"100%", borderCollapse:"collapse", minWidth:900 }}>
+      <section style={{ ...card, overflowX:"auto" }}><table className="erp-report-table" style={{ width:"100%", borderCollapse:"collapse", minWidth:900 }}>
         <thead><tr>{[copy.invoice,copy.party,copy.due,copy.age,copy.total,copy.settled,copy.outstanding].map(label=><th key={label} style={{ padding:13,textAlign:"start",color:"var(--erp-accent)",borderBottom:"1px solid var(--erp-border)" }}>{label}</th>)}</tr></thead>
         <tbody>{!items.length && <tr><td colSpan={7} style={{ padding:25,textAlign:"center",color:"var(--erp-muted)" }}>{copy.noRows}</td></tr>}
         {items.map(item=><tr key={item.invoice_id}><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>#{n(item.invoice_id)}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{invoiceTypeLabel(item.invoice_type, language)}</div></td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{item.customer_name}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)" }}>{date(item.due_date)}</td><td style={{ padding:13,borderTop:"1px solid var(--erp-border)",color:item.days_overdue?"#fbbf24":"#86efac" }}>{n(item.days_overdue)}<div style={{ color:"var(--erp-muted)",fontSize:12 }}>{copy[item.bucket]}</div></td>{[item.total_amount,item.settled_amount,item.outstanding_amount].map((value,index)=><td key={index} style={{ padding:13,borderTop:"1px solid var(--erp-border)",fontWeight:index===2?900:500,color:index===2?(item.side==="receivable"?"#86efac":"#fda4af"):"inherit" }}>{money(value)}</td>)}</tr>)}</tbody>
       </table></section>
+      <ReportFooter confidential />
     </>}
   </div>;
 }

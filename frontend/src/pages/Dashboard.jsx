@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import StatsCard from "../widgets/StatsCard";
+import ExecutiveAlertsPanel from "../widgets/ExecutiveAlertsPanel";
 import DateBadge from "../widgets/DateBadge";
 import SalesChart from "../charts/SalesChart";
 import InventoryAlerts from "../smart/InventoryAlerts";
@@ -400,6 +401,8 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      <ExecutiveAlertsPanel />
 
       {error && (
         <Notice tone="danger" className="mb-5 flex items-center gap-2">

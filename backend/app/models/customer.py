@@ -44,5 +44,9 @@ class Customer(Base):
     # check-ins and distance-based sorting - see app/field_visits.py.
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    # Marketing-campaign consent only (Task 02 Section 10) - defaults to
+    # opt-in (see main.py's ensure_database_schema for the reasoning);
+    # unrelated to transactional sends like payment reminders.
+    marketing_consent = Column(Boolean, default=True, nullable=False)
     # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
     company_id = Column(Integer, nullable=True)

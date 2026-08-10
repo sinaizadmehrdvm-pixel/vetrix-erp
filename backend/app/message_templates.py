@@ -50,6 +50,24 @@ DEFAULT_TEMPLATES = {
         "tr": {"subject": "", "body": "Sayın {name},\n\n{id} numaralı fatura için {amount} tutarını güvenle ödemek üzere aşağıdaki bağlantıyı kullanın:\n{link}\n\nBu bağlantı size özeldir ve doğrudan {brand} ile bağlantılıdır.\n\nTeşekkürler,\n{brand}"},
         "en": {"subject": "", "body": "Dear {name},\n\nTo securely pay {amount} for invoice #{id}, use the link below:\n{link}\n\nThis link is unique to you and connects directly to {brand}.\n\nThank you,\n{brand}"},
     },
+    ("purchase_order_dispatch", "email"): {
+        "fa": {"subject": "سفارش خرید شماره {id} از {brand}", "body": "سلام {name} عزیز،\n\nسفارش خرید شماره {id} به مبلغ {amount} برای شما ارسال شد. لطفاً پس از بررسی، تأیید یا زمان تحویل را اعلام فرمایید.\n\nبا تشکر،\n{brand}"},
+        "ar": {"subject": "أمر الشراء رقم {id} من {brand}", "body": "مرحبًا {name}،\n\nتم إرسال أمر الشراء رقم {id} بمبلغ {amount} إليكم. يرجى المراجعة وتأكيد موعد التسليم.\n\nشكرًا لكم،\n{brand}"},
+        "tr": {"subject": "{id} numaralı satın alma siparişi - {brand}", "body": "Sayın {name},\n\n{id} numaralı, {amount} tutarındaki satın alma siparişi size gönderildi. Lütfen inceleyip teslimat tarihini onaylayın.\n\nTeşekkürler,\n{brand}"},
+        "en": {"subject": "Purchase order #{id} from {brand}", "body": "Dear {name},\n\nPurchase order #{id} for {amount} has been sent to you. Please review and confirm delivery timing.\n\nThank you,\n{brand}"},
+    },
+    ("campaign_promo", "message"): {
+        "fa": {"subject": "", "body": "سلام {name} عزیز،\n\n{brand} پیشنهاد ویژه‌ای برای شما دارد. برای مشاهده جزئیات: {link}\n\nبرای توقف دریافت پیام‌های تبلیغاتی به ما اطلاع دهید."},
+        "ar": {"subject": "", "body": "مرحبًا {name}،\n\nلدى {brand} عرض خاص لك. لعرض التفاصيل: {link}\n\nلإيقاف الرسائل الترويجية، يرجى إخبارنا."},
+        "tr": {"subject": "", "body": "Sayın {name},\n\n{brand} sizin için özel bir teklif hazırladı. Detaylar için: {link}\n\nTanıtım mesajlarını almak istemiyorsanız lütfen bize bildirin."},
+        "en": {"subject": "", "body": "Dear {name},\n\n{brand} has a special offer for you. See details: {link}\n\nTo stop receiving promotional messages, please let us know."},
+    },
+    ("purchase_order_dispatch", "message"): {
+        "fa": {"subject": "", "body": "سلام {name} عزیز،\n\nسفارش خرید شماره {id} به مبلغ {amount} برای شما ارسال شد. لطفاً تأیید فرمایید.\n\n{brand}"},
+        "ar": {"subject": "", "body": "مرحبًا {name}،\n\nتم إرسال أمر الشراء رقم {id} بمبلغ {amount} إليكم. يرجى التأكيد.\n\n{brand}"},
+        "tr": {"subject": "", "body": "Sayın {name},\n\n{id} numaralı, {amount} tutarındaki satın alma siparişi size gönderildi. Lütfen onaylayın.\n\n{brand}"},
+        "en": {"subject": "", "body": "Dear {name},\n\nPurchase order #{id} for {amount} has been sent to you. Please confirm.\n\n{brand}"},
+    },
 }
 
 KEY_LABELS = {
@@ -57,6 +75,8 @@ KEY_LABELS = {
     "payment_reminder_firm": {"fa": "یادآوری پرداخت - لحن جدی", "ar": "تذكير الدفع - حازم", "tr": "Ödeme hatırlatma - kararlı", "en": "Payment reminder - firm"},
     "payment_reminder_urgent": {"fa": "یادآوری پرداخت - اخطار نهایی", "ar": "تذكير الدفع - إشعار نهائي", "tr": "Ödeme hatırlatma - son uyarı", "en": "Payment reminder - urgent"},
     "invoice_payment_link": {"fa": "لینک پرداخت امن فاکتور", "ar": "رابط الدفع الآمن للفاتورة", "tr": "Güvenli fatura ödeme bağlantısı", "en": "Secure invoice payment link"},
+    "purchase_order_dispatch": {"fa": "ارسال سفارش خرید به تأمین‌کننده", "ar": "إرسال أمر الشراء إلى المورد", "tr": "Satın alma siparişini tedarikçiye gönder", "en": "Purchase order dispatch to supplier"},
+    "campaign_promo": {"fa": "پیام تبلیغاتی کمپین", "ar": "رسالة الحملة الترويجية", "tr": "Kampanya tanıtım mesajı", "en": "Campaign promotional message"},
 }
 
 

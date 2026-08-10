@@ -76,6 +76,7 @@ const emptyForm = {
   notes: "",
   pricing_group: "retail",
   assigned_rep_id: "",
+  marketing_consent: true,
 };
 
 function toNumber(value) {
@@ -564,6 +565,7 @@ export default function Customers() {
       notes: form.notes || "",
       pricing_group: form.pricing_group || "retail",
       assigned_rep_id: form.assigned_rep_id ? Number(form.assigned_rep_id) : null,
+      marketing_consent: form.marketing_consent !== false,
     };
   }
 
@@ -659,6 +661,7 @@ export default function Customers() {
       credit_limit: toNumber(item.credit_limit),
       notes: item.notes || "",
       pricing_group: item.pricing_group || "retail",
+      marketing_consent: item.marketing_consent !== false,
     };
   }
 
@@ -1100,6 +1103,15 @@ export default function Customers() {
               <option key={rep.id} value={rep.id}>{rep.full_name || rep.username}</option>
             ))}
           </Select>
+
+          <label className="flex items-center gap-2 font-bold self-center">
+            <input
+              type="checkbox"
+              checked={form.marketing_consent !== false}
+              onChange={(e) => setForm({ ...form, marketing_consent: e.target.checked })}
+            />
+            {fa ? "رضایت به دریافت پیام‌های تبلیغاتی" : language === "ar" ? "الموافقة على تلقي الرسائل الترويجية" : language === "tr" ? "Tanıtım mesajlarını almayı kabul ediyorum" : "Consents to marketing messages"}
+          </label>
 
           <Input
             placeholder={t("phone")}

@@ -32,6 +32,7 @@ from app.company_scope import current_company_id
 router = APIRouter(prefix="/api/warehouses", tags=["Multi-Branch Warehouses"])
 
 DEFAULT_WAREHOUSE_NAME = "Main"
+WAREHOUSE_TYPES = {"main", "branch_stockroom", "distribution_center", "retail_backroom", "other"}
 
 
 class Warehouse(Base):
@@ -45,6 +46,14 @@ class Warehouse(Base):
     active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     company_id = Column(Integer, nullable=True)
+    branch_id = Column(Integer, nullable=True)
+    postal_code = Column(String, default="")
+    phone = Column(String, default="")
+    responsible_person = Column(String, default="")
+    warehouse_type = Column(String, default="main")
+    description = Column(String, default="")
+    capacity = Column(Float, nullable=True)
+    capacity_unit = Column(String, default="")
 
 
 class WarehouseStock(Base):
@@ -62,10 +71,58 @@ Warehouse.__table__.create(bind=engine, checkfirst=True)
 WarehouseStock.__table__.create(bind=engine, checkfirst=True)
 
 
+def _ensure_new_columns(conn):
+    """Warehouse was created via SQLAlchemy's declarative Table.create(),
+    which only handles brand-new tables - an already-existing warehouses
+    table (like this app's dev database) needs these Task-02 columns added
+    the same idempotent way main.py's ensure_sqlite_column() does."""
+    rows = conn.execute(text("PRAGMA table_info(warehouses)")).fetchall()
+    existing = {row[1] for row in rows}
+    additions = {
+        "branch_id": "branch_id INTEGER",
+        "postal_code": "postal_code VARCHAR DEFAULT ''",
+        "phone": "phone VARCHAR DEFAULT ''",
+        "responsible_person": "responsible_person VARCHAR DEFAULT ''",
+        "warehouse_type": "warehouse_type VARCHAR DEFAULT 'main'",
+        "description": "description VARCHAR DEFAULT ''",
+        "capacity": "capacity FLOAT",
+        "capacity_unit": "capacity_unit VARCHAR DEFAULT ''",
+    }
+    for column_name, column_sql in additions.items():
+        if column_name not in existing:
+            conn.execute(text(f"ALTER TABLE warehouses ADD COLUMN {column_sql}"))
+
+
+with engine.begin() as _conn:
+    _ensure_new_columns(_conn)
+
+
 class WarehouseCreate(BaseModel):
     name: str
     code: str = ""
     address: str = ""
+    branch_id: Optional[int] = None
+    postal_code: str = ""
+    phone: str = ""
+    responsible_person: str = ""
+    warehouse_type: str = "main"
+    description: str = ""
+    capacity: Optional[float] = None
+    capacity_unit: str = ""
+
+
+class WarehouseUpdate(BaseModel):
+    name: str
+    code: str = ""
+    address: str = ""
+    branch_id: Optional[int] = None
+    postal_code: str = ""
+    phone: str = ""
+    responsible_person: str = ""
+    warehouse_type: str = "main"
+    description: str = ""
+    capacity: Optional[float] = None
+    capacity_unit: str = ""
 
 
 class TransferRequest(BaseModel):
@@ -181,15 +238,26 @@ def _record_transfer_movement(db: Session, product: Product, from_name: str, to_
     )
 
 
+def _validate_warehouse_type(warehouse_type: str):
+    if warehouse_type not in WAREHOUSE_TYPES:
+        raise HTTPException(status_code=400, detail=f"warehouse_type must be one of: {', '.join(sorted(WAREHOUSE_TYPES))}")
+
+
 @router.post("")
 def create_warehouse(data: WarehouseCreate, request: Request):
     if not data.name.strip():
         raise HTTPException(status_code=400, detail="Warehouse name is required")
+    _validate_warehouse_type(data.warehouse_type)
     db: Session = SessionLocal()
     try:
         company_id = current_company_id(request)
         _ensure_default_warehouse(db, company_id)
-        warehouse = Warehouse(name=data.name.strip(), code=data.code, address=data.address, is_default=False, active=True, company_id=company_id)
+        warehouse = Warehouse(
+            name=data.name.strip(), code=data.code, address=data.address, is_default=False, active=True,
+            company_id=company_id, branch_id=data.branch_id, postal_code=data.postal_code, phone=data.phone,
+            responsible_person=data.responsible_person, warehouse_type=data.warehouse_type,
+            description=data.description, capacity=data.capacity, capacity_unit=data.capacity_unit,
+        )
         db.add(warehouse)
         db.commit()
         db.refresh(warehouse)
@@ -198,22 +266,55 @@ def create_warehouse(data: WarehouseCreate, request: Request):
         db.close()
 
 
+def _warehouse_to_dict(w: Warehouse) -> dict:
+    return {
+        "id": w.id, "name": w.name, "code": w.code, "address": w.address,
+        "is_default": w.is_default, "active": w.active, "created_at": w.created_at,
+        "branch_id": w.branch_id, "postal_code": w.postal_code, "phone": w.phone,
+        "responsible_person": w.responsible_person, "warehouse_type": w.warehouse_type,
+        "description": w.description, "capacity": w.capacity, "capacity_unit": w.capacity_unit,
+    }
+
+
 @router.get("")
-def list_warehouses(request: Request):
+def list_warehouses(request: Request, branch_id: Optional[int] = None):
     db: Session = SessionLocal()
     try:
         company_id = current_company_id(request)
         _ensure_default_warehouse(db, company_id)
-        warehouses = db.query(Warehouse).filter(Warehouse.company_id == company_id).order_by(Warehouse.is_default.desc(), Warehouse.id.asc()).all()
-        return {
-            "items": [
-                {
-                    "id": w.id, "name": w.name, "code": w.code, "address": w.address,
-                    "is_default": w.is_default, "active": w.active, "created_at": w.created_at,
-                }
-                for w in warehouses
-            ]
-        }
+        query = db.query(Warehouse).filter(Warehouse.company_id == company_id)
+        if branch_id is not None:
+            query = query.filter(Warehouse.branch_id == branch_id)
+        warehouses = query.order_by(Warehouse.is_default.desc(), Warehouse.id.asc()).all()
+        return {"items": [_warehouse_to_dict(w) for w in warehouses]}
+    finally:
+        db.close()
+
+
+@router.put("/{warehouse_id}")
+def update_warehouse(warehouse_id: int, data: WarehouseUpdate, request: Request):
+    if not data.name.strip():
+        raise HTTPException(status_code=400, detail="Warehouse name is required")
+    _validate_warehouse_type(data.warehouse_type)
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id, Warehouse.company_id == company_id).first()
+        if not warehouse:
+            raise HTTPException(status_code=404, detail="Warehouse not found")
+        warehouse.name = data.name.strip()
+        warehouse.code = data.code
+        warehouse.address = data.address
+        warehouse.branch_id = data.branch_id
+        warehouse.postal_code = data.postal_code
+        warehouse.phone = data.phone
+        warehouse.responsible_person = data.responsible_person
+        warehouse.warehouse_type = data.warehouse_type
+        warehouse.description = data.description
+        warehouse.capacity = data.capacity
+        warehouse.capacity_unit = data.capacity_unit
+        db.commit()
+        return {"status": "updated"}
     finally:
         db.close()
 
@@ -230,6 +331,20 @@ def deactivate_warehouse(warehouse_id: int, request: Request):
         warehouse.active = False
         db.commit()
         return {"status": "deactivated"}
+    finally:
+        db.close()
+
+
+@router.post("/{warehouse_id}/activate")
+def activate_warehouse(warehouse_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        warehouse = db.query(Warehouse).filter(Warehouse.id == warehouse_id, Warehouse.company_id == current_company_id(request)).first()
+        if not warehouse:
+            raise HTTPException(status_code=404, detail="Warehouse not found")
+        warehouse.active = True
+        db.commit()
+        return {"status": "activated"}
     finally:
         db.close()
 

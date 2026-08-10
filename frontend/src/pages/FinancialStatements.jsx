@@ -17,6 +17,8 @@ import { toPersianDigits } from "../localization/helpers";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import ReportHeader from "../components/reports/ReportHeader";
+import ReportFooter from "../components/reports/ReportFooter";
 
 export default function FinancialStatements() {
   const { language, dir, money, date, n } = useLanguage();
@@ -211,6 +213,13 @@ export default function FinancialStatements() {
         </div>
       </header>
 
+      <ReportHeader
+        title={copy.title}
+        subtitle={copy.subtitle}
+        period={data?.period?.name || (data?.date_range ? `${date(data.date_range.start_date)} — ${date(data.date_range.end_date)}` : copy.allTime)}
+        filterSummary={active === "balance" ? copy.balance : active === "income" ? copy.income : copy.cash}
+      />
+
       {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
 
       {data && (
@@ -248,6 +257,8 @@ export default function FinancialStatements() {
           {active === "balance" && <BalanceSheet data={data.balance_sheet} copy={copy} money={money} language={language} card={card} />}
           {active === "income" && <IncomeStatement data={data.income_statement} copy={copy} money={money} language={language} card={card} />}
           {active === "cash" && <CashFlow data={data.cash_flow} copy={copy} money={money} language={language} card={card} />}
+
+          <ReportFooter confidential />
         </>
       )}
     </div>

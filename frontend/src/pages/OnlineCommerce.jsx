@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck, TrendingDown, TrendingUp, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { API_URL, getAuthHeaders } from "../services/api";
+import { API_URL, getAuthHeaders, getCatalogLinks, getPdfTemplates } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
+const SEGMENT_TYPES = ["", "new_customers", "returning_customers", "high_value", "inactive", "vip", "city", "category"];
+const TEMPLATE_KEYS = ["", "campaign_promo"];
 
 async function storefrontApi(path) {
   const response = await fetch(`${API_URL}/api/storefront-sync${path}`, {
@@ -54,8 +56,14 @@ export default function OnlineCommerce() {
   const [checkingConnections, setCheckingConnections] = useState(false);
   const [campaign, setCampaign] = useState({
     title: "", body: "", channel: "instagram", product_id: "", media_url: "",
-    destination_url: "", scheduled_at: "",
+    destination_url: "", scheduled_at: "", template_key: "", design_template_id: "",
+    segment_type: "", segment_value: "", catalog_link_id: "",
   });
+  const [designTemplates, setDesignTemplates] = useState([]);
+  const [catalogLinks, setCatalogLinks] = useState([]);
+  const [audienceEstimate, setAudienceEstimate] = useState(null);
+  const [opportunities, setOpportunities] = useState(null);
+  const [loadingOpportunities, setLoadingOpportunities] = useState(false);
 
   const labels = {
     title: tr("مرکز فروش آنلاین و تبلیغات", "مركز المبيعات والإعلانات عبر الإنترنت", "Çevrimiçi Satış ve Reklam Merkezi", "Online Sales & Advertising"),
@@ -68,17 +76,33 @@ export default function OnlineCommerce() {
     products: tr("کالاهای سایت", "منتجات الموقع", "Site ürünleri", "Website products"),
     campaigns: tr("کمپین‌های تبلیغاتی", "الحملات الإعلانية", "Reklam kampanyaları", "Campaigns"),
     connections: tr("اتصال‌ها", "الاتصالات", "Bağlantılar", "Connections"),
+    opportunities: tr("فرصت‌های فروش", "فرص المبيعات", "Satış fırsatları", "Sales opportunities"),
   };
+
+  const segmentLabel = (s) => ({
+    "": tr("همه مشتریان راضی به دریافت پیام", "جميع العملاء الموافقين على التلقي", "Mesaj almayı kabul eden tüm müşteriler", "All consenting customers"),
+    new_customers: tr("مشتریان جدید (۳۰ روز اخیر)", "عملاء جدد (آخر 30 يومًا)", "Yeni müşteriler (son 30 gün)", "New customers (last 30 days)"),
+    returning_customers: tr("مشتریان بازگشتی", "العملاء العائدون", "Geri dönen müşteriler", "Returning customers"),
+    high_value: tr("مشتریان باارزش (سطح طلایی به بالا)", "عملاء ذوو قيمة عالية", "Yüksek değerli müşteriler", "High-value customers"),
+    inactive: tr("مشتریان غیرفعال (بدون خرید ۹۰ روز اخیر)", "عملاء غير نشطين (90 يومًا)", "Etkin olmayan müşteriler (90 gün)", "Inactive customers (90+ days)"),
+    vip: tr("مشتریان VIP", "عملاء VIP", "VIP müşteriler", "VIP customers"),
+    city: tr("بر اساس شهر", "حسب المدينة", "Şehre göre", "By city"),
+    category: tr("بر اساس دسته‌بندی خرید", "حسب فئة الشراء", "Satın alma kategorisine göre", "By purchase category"),
+  }[s] || s);
 
   async function load() {
     setLoading(true);
     try {
-      const [summaryData, productData, campaignData] = await Promise.all([
+      const [summaryData, productData, campaignData, designData, catalogData] = await Promise.all([
         api("/summary"), api("/products"), api("/campaigns"),
+        getPdfTemplates("banner").catch(() => []),
+        getCatalogLinks().catch(() => ({ items: [] })),
       ]);
       setSummary(summaryData);
       setProducts(productData);
       setCampaigns(campaignData);
+      setDesignTemplates(Array.isArray(designData) ? designData : (designData.items || []));
+      setCatalogLinks(catalogData.items || []);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -90,6 +114,33 @@ export default function OnlineCommerce() {
     const timer = setTimeout(() => { void load(); }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      api(`/campaigns/audience-estimate?segment_type=${campaign.segment_type}&segment_value=${encodeURIComponent(campaign.segment_value)}`)
+        .then(setAudienceEstimate)
+        .catch(() => setAudienceEstimate(null));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [campaign.segment_type, campaign.segment_value]);
+
+  async function loadOpportunities() {
+    setLoadingOpportunities(true);
+    try {
+      setOpportunities(await api("/opportunities"));
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoadingOpportunities(false);
+    }
+  }
+
+  const stableLoadOpportunities = useStableCallback(loadOpportunities);
+
+  useEffect(() => {
+    if (tab === "opportunities") { const timer = setTimeout(() => { void stableLoadOpportunities(); }, 0); return () => clearTimeout(timer); }
+    return undefined;
+  }, [tab, stableLoadOpportunities]);
 
   async function checkConnections(showToast = false) {
     if (!["admin", "accountant"].includes(user?.role)) return;
@@ -175,10 +226,16 @@ export default function OnlineCommerce() {
         body: JSON.stringify({
           ...campaign,
           product_id: campaign.product_id ? Number(campaign.product_id) : null,
+          design_template_id: campaign.design_template_id ? Number(campaign.design_template_id) : null,
+          catalog_link_id: campaign.catalog_link_id ? Number(campaign.catalog_link_id) : null,
         }),
       });
       await api(`/campaigns/${created.campaign_id}/submit`, { method: "POST" });
-      setCampaign({ title: "", body: "", channel: "instagram", product_id: "", media_url: "", destination_url: "", scheduled_at: "" });
+      setCampaign({
+        title: "", body: "", channel: "instagram", product_id: "", media_url: "",
+        destination_url: "", scheduled_at: "", template_key: "", design_template_id: "",
+        segment_type: "", segment_value: "", catalog_link_id: "",
+      });
       toast.success(tr("کمپین برای تأیید مدیر ارسال شد", "تم إرسال الحملة لموافقة المدير", "Kampanya yönetici onayına gönderildi", "Campaign submitted for manager approval"));
       load();
     } catch (error) { toast.error(error.message); }
@@ -214,6 +271,7 @@ export default function OnlineCommerce() {
         {[
           ["products", labels.products, PackageCheck],
           ["campaigns", labels.campaigns, Megaphone],
+          ["opportunities", labels.opportunities, TrendingUp],
           ["connections", labels.connections, Globe2],
         ].map(([id, text, Icon]) => (
           <button key={id} onClick={() => setTab(id)} className="rounded-xl px-4 py-3 font-black flex items-center gap-2"
@@ -259,6 +317,47 @@ export default function OnlineCommerce() {
             <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.product_id} onChange={(e) => setCampaign({ ...campaign, product_id: e.target.value })}><option value="">{tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product")}</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
             <label className="block text-sm font-bold">{tr("متن تبلیغ", "نص الإعلان", "Reklam metni", "Post copy")}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></label>
             <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
+
+            <label className="block text-sm font-bold">{tr("مخاطب هدف", "الجمهور المستهدف", "Hedef kitle", "Target audience")}
+              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.segment_type} onChange={(e) => setCampaign({ ...campaign, segment_type: e.target.value, segment_value: "" })}>
+                {SEGMENT_TYPES.map((s) => <option key={s} value={s}>{segmentLabel(s)}</option>)}
+              </select>
+            </label>
+            {campaign.segment_type === "city" && (
+              <Input label={tr("نام شهر", "اسم المدينة", "Şehir adı", "City name")} value={campaign.segment_value} onChange={(value) => setCampaign({ ...campaign, segment_value: value })} />
+            )}
+            {campaign.segment_type === "category" && (
+              <Input label={tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name")} value={campaign.segment_value} onChange={(value) => setCampaign({ ...campaign, segment_value: value })} />
+            )}
+            {audienceEstimate && (
+              <div className="rounded-xl p-3 flex items-center gap-2 text-sm" style={{ background: "var(--erp-glow)" }}>
+                <Users size={16} className="erp-accent" />
+                {tr(
+                  `تخمین مخاطب: ${audienceEstimate.reachable_with_consent} نفر (از ${audienceEstimate.segment_size} مشتری در این بخش)`,
+                  `تقدير الجمهور: ${audienceEstimate.reachable_with_consent} (من أصل ${audienceEstimate.segment_size} في هذه الفئة)`,
+                  `Tahmini kitle: ${audienceEstimate.reachable_with_consent} kişi (bu segmentteki ${audienceEstimate.segment_size} müşteriden)`,
+                  `Estimated reach: ${audienceEstimate.reachable_with_consent} (of ${audienceEstimate.segment_size} customers in this segment)`
+                )}
+              </div>
+            )}
+
+            <label className="block text-sm font-bold">{tr("قالب پیام (اختیاری)", "قالب الرسالة (اختياري)", "Mesaj şablonu (isteğe bağlı)", "Message template (optional)")}
+              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.template_key} onChange={(e) => setCampaign({ ...campaign, template_key: e.target.value })}>
+                {TEMPLATE_KEYS.map((k) => <option key={k} value={k}>{k || tr("بدون قالب", "بدون قالب", "Şablonsuz", "No template")}</option>)}
+              </select>
+            </label>
+            <label className="block text-sm font-bold">{tr("طرح گرافیکی (Design Studio)", "التصميم الجرافيكي", "Grafik tasarım", "Design (Design Studio)")}
+              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.design_template_id} onChange={(e) => setCampaign({ ...campaign, design_template_id: e.target.value })}>
+                <option value="">{tr("بدون طرح", "بدون تصميم", "Tasarımsız", "No design")}</option>
+                {designTemplates.map((t) => <option key={t.id} value={t.id}>{t.name || `#${t.id}`}</option>)}
+              </select>
+            </label>
+            <label className="block text-sm font-bold">{tr("لینک کاتالوگ (اختیاری)", "رابط الكتالوج (اختياري)", "Katalog bağlantısı (isteğe bağlı)", "Catalog link (optional)")}
+              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.catalog_link_id} onChange={(e) => setCampaign({ ...campaign, catalog_link_id: e.target.value })}>
+                <option value="">{tr("بدون کاتالوگ", "بدون كتالوج", "Katalogsuz", "No catalog")}</option>
+                {catalogLinks.map((c) => <option key={c.id} value={c.id}>{c.title || `#${c.id}`}</option>)}
+              </select>
+            </label>
             <label className="block text-sm font-bold">
               {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}
               <div className="space-y-2 mt-1">
@@ -295,6 +394,42 @@ export default function OnlineCommerce() {
             {campaigns.map((item) => <CampaignCard key={item.id} item={item} language={language} canQueue={["admin", "accountant"].includes(user?.role) && ["approved", "scheduled"].includes(item.status)} onQueue={() => queueCampaign(item)} />)}
             {!campaigns.length && <div className="erp-surface rounded-3xl p-8 text-center">{tr("کمپینی ثبت نشده است.", "لا توجد حملات مسجلة.", "Kayıtlı kampanya yok.", "No campaigns yet.")}</div>}
           </div>
+        </div>
+      )}
+
+      {tab === "opportunities" && (
+        <div className="space-y-4">
+          {loadingOpportunities && !opportunities ? (
+            <div className="erp-surface rounded-3xl p-8 text-center" style={{ color: "var(--erp-muted)" }}>{tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</div>
+          ) : opportunities && (
+            <>
+              <OpportunitySection
+                icon={<Users size={20} className="erp-accent" />}
+                title={tr("مشتریان باارزش غیرفعال", "عملاء ذوو قيمة عالية غير نشطين", "Etkin olmayan yüksek değerli müşteriler", "Inactive high-value customers")}
+                items={opportunities.inactive_high_value_customers}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.customer_name} — ${money(item.balance)}`}
+              />
+              <OpportunitySection
+                icon={<TrendingDown size={20} className="erp-accent" />}
+                title={tr("کالاهای کم‌فروش / راکد", "منتجات بطيئة الحركة / راكدة", "Yavaş satan / durgun ürünler", "Slow-moving / dead stock")}
+                items={opportunities.slow_moving_products}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.product_name} — ${tr("موجودی", "المخزون", "Stok", "Stock")}: ${n(item.stock || 0)}`}
+              />
+              <OpportunitySection
+                icon={<AlertTriangle size={20} className="erp-accent" />}
+                title={tr("نزدیک به انقضا", "قريبة الانتهاء", "Son kullanma tarihi yaklaşan", "Expiring soon")}
+                items={opportunities.expiring_soon_batches}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.product_name} — ${n(item.days_to_expiry)} ${tr("روز مانده", "يومًا متبقيًا", "gün kaldı", "days left")}`}
+              />
+              <div className="erp-surface rounded-2xl p-4 text-sm flex items-center gap-2" style={{ color: "var(--erp-muted)" }}>
+                <AlertTriangle size={16} />
+                {tr("تشخیص «اضافه‌موجودی» فراتر از کالاهای راکد هنوز پیاده‌سازی نشده است.", "لم يتم تطبيق اكتشاف \"الفائض\" بعد الجرد الراكد بعد.", "Durgun stok tespiti dışında \"fazla stok\" tespiti henüz uygulanmadı.", "\"Overstock\" detection beyond dead-stock isn't implemented yet.")}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -379,6 +514,23 @@ function Toggle({ value, onChange }) {
 
 function Input({ label, value, onChange, type = "text", required = false }) {
   return <label className="block text-sm font-bold">{label}<input required={required} type={type} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={value} onChange={(e) => onChange(e.target.value)} /></label>;
+}
+
+function OpportunitySection({ icon, title, items, empty, render }) {
+  return (
+    <div className="erp-surface rounded-3xl p-5">
+      <div className="flex items-center gap-2 mb-3">{icon}<h3 className="text-lg font-black">{title}</h3></div>
+      {!items?.length ? (
+        <p style={{ color: "var(--erp-muted)" }}>{empty}</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item, index) => (
+            <div key={index} className="rounded-xl p-3 text-sm" style={{ background: "var(--erp-panel-solid)" }}>{render(item)}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CampaignCard({ item, language, canQueue, onQueue }) {

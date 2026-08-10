@@ -335,10 +335,38 @@ img, svg { max-width: 100%; }
 }
 
 @media print {
+  /* Overriding the design tokens themselves (not just body/.erp-main) means
+     every existing `style={{ background: "var(--erp-panel)" }}` inline
+     usage across the app - there are dozens - resolves to a light color on
+     paper automatically, regardless of which theme (including dark) was
+     active on screen. This is the root-cause fix for report/card panels
+     that otherwise kept their dark backgrounds when printed. */
+  :root {
+    --erp-bg: #ffffff; --erp-bg-soft: #ffffff; --erp-panel: #ffffff; --erp-panel-solid: #f8fafc;
+    --erp-text: #111827; --erp-muted: #52657b; --erp-border: #cbd5e1; --erp-glow: transparent;
+    --erp-shadow: none;
+  }
   body { overflow: visible; background: #fff; color: #111827; }
-  .erp-sidebar, .erp-mobile-menu, .erp-sidebar-backdrop, .erp-skip-link { display: none !important; }
+  .erp-sidebar, .erp-mobile-menu, .erp-sidebar-backdrop, .erp-skip-link, .no-print { display: none !important; }
   .erp-layout, .erp-main { display: block; height: auto; overflow: visible; background: #fff !important; color: #111827 !important; }
   .erp-main { padding: 0; }
   .erp-main :where(.overflow-x-auto, .erp-table-scroll) { overflow: visible; border: 0; }
   .erp-main :where(table) { min-width: 0; color: #111827; }
+
+  /* Shared report primitives (components/reports/ReportHeader.jsx,
+     ReportFooter.jsx): repeat the table header on every printed page and
+     never split a data row across a page break. */
+  .erp-report-table thead { display: table-header-group; }
+  .erp-report-table tfoot { display: table-footer-group; }
+  .erp-report-table tr { page-break-inside: avoid; }
+  .erp-report-footer { page-break-inside: avoid; }
+
+  /* "Page X of Y" - degrades gracefully (no page numbers, not a fake
+     "Page 1 of 1") on browsers that don't support the CSS Paged Media
+     counter(pages) total-page counter in print. */
+  .erp-report-page-number::after { content: counter(page) " / " counter(pages); }
+}
+
+@page {
+  margin: 14mm 12mm;
 }

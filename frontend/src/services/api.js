@@ -298,6 +298,13 @@ export async function deleteCrmTask(taskId) { return await request(`/api/crm/tas
 export async function getCrmInteractions(customerId) { return await request(`/api/crm/customers/${customerId}/interactions`); }
 export async function createCrmInteraction(customerId, data) { return await request(`/api/crm/customers/${customerId}/interactions`, { method: "POST", body: JSON.stringify(data) }); }
 
+// Executive Alerts / Daily Situation Review
+export async function getExecutiveAlertsSummary() { return await request("/api/executive-alerts/summary"); }
+export async function getExecutiveAlertSettings() { return await request("/api/executive-alerts/settings"); }
+export async function updateExecutiveAlertSettings(data) {
+  return await request("/api/executive-alerts/settings", { method: "PUT", body: JSON.stringify(data) });
+}
+
 // Vetrix AI Business Intelligence API
 export async function getAiBiSummary() { return await request(`/api/ai-bi/summary`); }
 export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`); }
@@ -442,6 +449,31 @@ export async function getWarehouseProducts(warehouseId) {
 export async function transferWarehouseStock(data) {
   return await request("/api/warehouses/transfer", { method: "POST", body: JSON.stringify(data) });
 }
+export async function updateWarehouse(id, data) {
+  return await request(`/api/warehouses/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function activateWarehouse(id) {
+  return await request(`/api/warehouses/${id}/activate`, { method: "POST" });
+}
+
+// Branches
+export async function getBranches(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return await request(`/api/branches${qs ? `?${qs}` : ""}`);
+}
+export async function getBranch(id) { return await request(`/api/branches/${id}`); }
+export async function createBranch(data) {
+  return await request("/api/branches", { method: "POST", body: JSON.stringify(data) });
+}
+export async function updateBranch(id, data) {
+  return await request(`/api/branches/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function deactivateBranch(id) {
+  return await request(`/api/branches/${id}/deactivate`, { method: "POST" });
+}
+export async function activateBranch(id) {
+  return await request(`/api/branches/${id}/activate`, { method: "POST" });
+}
 
 // Purchase orders
 export async function getPurchaseOrders() { return await request("/api/purchase-orders"); }
@@ -449,7 +481,10 @@ export async function getPurchaseOrder(id) { return await request(`/api/purchase
 export async function createPurchaseOrder(data) {
   return await request("/api/purchase-orders", { method: "POST", body: JSON.stringify(data) });
 }
-export async function sendPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/send`, { method: "POST" }); }
+export async function dispatchPurchaseOrder(id, data) {
+  return await request(`/api/purchase-orders/${id}/dispatch`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function getPurchaseOrderDispatchLog(id) { return await request(`/api/purchase-orders/${id}/dispatch-log`); }
 export async function cancelPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/cancel`, { method: "POST" }); }
 export async function receivePurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/receive`, { method: "POST" }); }
 
@@ -520,10 +555,21 @@ export async function createPriceTier(data) {
 export async function deletePriceTier(id) {
   return await request(`/api/pricing/tiers/${id}`, { method: "DELETE" });
 }
-export async function getPriceQuote(productId, quantity, customerId) {
+export async function getPriceQuote(productId, quantity, customerId, extra = {}) {
   const params = new URLSearchParams({ product_id: productId, quantity: quantity || 1 });
   if (customerId) params.set("customer_id", customerId);
+  Object.entries(extra).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") params.set(k, v); });
   return await request(`/api/pricing/quote?${params.toString()}`);
+}
+export async function getPricingRules() { return await request("/api/pricing/rules"); }
+export async function createPricingRule(data) {
+  return await request("/api/pricing/rules", { method: "POST", body: JSON.stringify(data) });
+}
+export async function updatePricingRule(id, data) {
+  return await request(`/api/pricing/rules/${id}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export async function deletePricingRule(id) {
+  return await request(`/api/pricing/rules/${id}`, { method: "DELETE" });
 }
 
 // Vetrix Smart Inventory API - Enterprise Phase 2

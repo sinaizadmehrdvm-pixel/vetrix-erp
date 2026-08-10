@@ -1,27 +1,40 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, Plus, ShieldOff, Warehouse as WarehouseIcon } from "lucide-react";
+import { ArrowRightLeft, Pencil, Plus, ShieldCheck, ShieldOff, Warehouse as WarehouseIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
+  activateWarehouse,
   createWarehouse,
   deactivateWarehouse,
+  getBranches,
   getProducts,
   getWarehouseProducts,
   getWarehouseStockBreakdown,
   getWarehouses,
   transferWarehouseStock,
+  updateWarehouse,
 } from "../services/api";
+import Modal from "../components/ui/Modal";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
 const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
+const WAREHOUSE_TYPES = ["main", "branch_stockroom", "distribution_center", "retail_backroom", "other"];
+
+const emptyEditDraft = {
+  name: "", code: "", address: "", branch_id: "", postal_code: "", phone: "",
+  responsible_person: "", warehouse_type: "main", description: "", capacity: "", capacity_unit: "",
+};
+
 export default function Warehouses() {
   const { dir, language, n } = useLanguage();
+  const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
 
   const [warehouses, setWarehouses] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -29,6 +42,13 @@ export default function Warehouses() {
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [createBranchId, setCreateBranchId] = useState("");
+  const [createType, setCreateType] = useState("main");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [editDraft, setEditDraft] = useState(emptyEditDraft);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [breakdownProductId, setBreakdownProductId] = useState("");
   const [breakdown, setBreakdown] = useState(null);
@@ -47,15 +67,18 @@ export default function Warehouses() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [warehousesData, productsData] = await Promise.all([getWarehouses(), getProducts()]);
+      const [warehousesData, productsData, branchesData] = await Promise.all([getWarehouses(), getProducts(), getBranches()]);
       setWarehouses(warehousesData.items || []);
       setProducts(Array.isArray(productsData) ? productsData : []);
+      setBranches(branchesData.items || []);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
   }
+
+  const branchName = (branchId) => branches.find((b) => b.id === branchId)?.name || "";
 
   useEffect(() => {
     const timer = setTimeout(() => { void loadAll(); }, 0);
@@ -70,10 +93,16 @@ export default function Warehouses() {
     }
     setCreating(true);
     try {
-      await createWarehouse({ name: name.trim(), code });
+      await createWarehouse({
+        name: name.trim(), code,
+        branch_id: createBranchId ? Number(createBranchId) : null,
+        warehouse_type: createType,
+      });
       toast.success(language === "fa" ? "انبار ساخته شد." : language === "ar" ? "تم إنشاء المستودع." : language === "tr" ? "Depo oluşturuldu." : "Warehouse created.");
       setName("");
       setCode("");
+      setCreateBranchId("");
+      setCreateType("main");
       await loadAll();
     } catch (err) {
       toast.error(err.message);
@@ -89,6 +118,50 @@ export default function Warehouses() {
       await loadAll();
     } catch (err) {
       toast.error(err.message);
+    }
+  }
+
+  async function handleActivate(id) {
+    try {
+      await activateWarehouse(id);
+      toast.success(tr("انبار فعال شد.", "تم تفعيل المستودع.", "Depo etkinleştirildi.", "Warehouse activated."));
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  function openEdit(w) {
+    setEditId(w.id);
+    setEditDraft({
+      name: w.name || "", code: w.code || "", address: w.address || "",
+      branch_id: w.branch_id ?? "", postal_code: w.postal_code || "", phone: w.phone || "",
+      responsible_person: w.responsible_person || "", warehouse_type: w.warehouse_type || "main",
+      description: w.description || "", capacity: w.capacity ?? "", capacity_unit: w.capacity_unit || "",
+    });
+    setEditOpen(true);
+  }
+
+  async function handleSaveEdit(event) {
+    event.preventDefault();
+    if (!editDraft.name.trim()) {
+      toast.error(tr("نام انبار را وارد کنید.", "أدخل اسم المستودع.", "Depo adını girin.", "Enter a warehouse name."));
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateWarehouse(editId, {
+        ...editDraft,
+        branch_id: editDraft.branch_id === "" ? null : Number(editDraft.branch_id),
+        capacity: editDraft.capacity === "" ? null : Number(editDraft.capacity),
+      });
+      toast.success(tr("انبار ویرایش شد.", "تم تعديل المستودع.", "Depo güncellendi.", "Warehouse updated."));
+      setEditOpen(false);
+      await loadAll();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -163,7 +236,7 @@ export default function Warehouses() {
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <Plus size={18} /> {language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}
         </h2>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <input
             className={inputClass + " mb-0"}
             placeholder={language === "fa" ? "نام انبار (مثلاً «شعبه شمال»)" : language === "ar" ? "اسم المستودع (مثال: «الفرع الشمالي»)" : language === "tr" ? "Depo adı (örn. \"Kuzey şubesi\")" : "Warehouse name (e.g. \"North branch\")"}
@@ -176,6 +249,13 @@ export default function Warehouses() {
             value={code}
             onChange={(e) => setCode(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
+          <select className={inputClass + " mb-0"} value={createBranchId} onChange={(e) => setCreateBranchId(e.target.value)}>
+            <option value="">{tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch")}</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <select className={inputClass + " mb-0"} value={createType} onChange={(e) => setCreateType(e.target.value)}>
+            {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
           <button type="submit" disabled={creating} className={buttonClass}>
             <Plus size={16} />
             {creating ? (language === "fa" ? "در حال ساخت..." : language === "ar" ? "جارٍ الإنشاء..." : language === "tr" ? "Oluşturuluyor..." : "Creating...") : (language === "fa" ? "ساخت" : language === "ar" ? "إنشاء" : language === "tr" ? "Oluştur" : "Create")}
@@ -205,21 +285,68 @@ export default function Warehouses() {
                       </span>
                     )}
                   </div>
-                  {w.code && <div className="text-xs text-[var(--erp-muted)]">{w.code}</div>}
+                  <div className="text-xs text-[var(--erp-muted)] flex gap-2">
+                    {w.code && <span>{w.code}</span>}
+                    {w.branch_id && <span>{branchName(w.branch_id)}</span>}
+                  </div>
                 </div>
-                {!w.is_default && w.active && (
-                  <button
-                    onClick={() => handleDeactivate(w.id)}
-                    className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1"
-                  >
-                    <ShieldOff size={14} /> {language === "fa" ? "غیرفعال کردن" : language === "ar" ? "إلغاء التفعيل" : language === "tr" ? "Devre Dışı Bırak" : "Deactivate"}
+                <div className="flex items-center gap-2">
+                  <button onClick={() => openEdit(w)} className="p-2 rounded-xl bg-[var(--erp-panel)] border border-[var(--erp-border)]" title={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
+                    <Pencil size={14} />
                   </button>
-                )}
+                  {!w.is_default && (w.active ? (
+                    <button
+                      onClick={() => handleDeactivate(w.id)}
+                      className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1"
+                    >
+                      <ShieldOff size={14} /> {language === "fa" ? "غیرفعال کردن" : language === "ar" ? "إلغاء التفعيل" : language === "tr" ? "Devre Dışı Bırak" : "Deactivate"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleActivate(w.id)}
+                      className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-300 text-sm font-bold flex items-center gap-1"
+                    >
+                      <ShieldCheck size={14} /> {tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} maxWidthClassName="max-w-2xl" labelledBy="warehouse-edit-title">
+        <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
+          <h2 id="warehouse-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش انبار", "تعديل المستودع", "Depoyu düzenle", "Edit warehouse")}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input className={inputClass} placeholder={tr("نام", "الاسم", "Ad", "Name")} value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
+            <input className={inputClass} placeholder={tr("کد", "الرمز", "Kod", "Code")} value={editDraft.code} onChange={(e) => setEditDraft({ ...editDraft, code: e.target.value })} />
+            <select className={inputClass} value={editDraft.branch_id} onChange={(e) => setEditDraft({ ...editDraft, branch_id: e.target.value })}>
+              <option value="">{tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch")}</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <select className={inputClass} value={editDraft.warehouse_type} onChange={(e) => setEditDraft({ ...editDraft, warehouse_type: e.target.value })}>
+              {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input className={inputClass} placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={editDraft.address} onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })} />
+            <input className={inputClass} placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={editDraft.postal_code} onChange={(e) => setEditDraft({ ...editDraft, postal_code: e.target.value })} />
+            <input className={inputClass} placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={editDraft.phone} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
+            <input className={inputClass} placeholder={tr("مسئول انبار", "المسؤول", "Sorumlu kişi", "Responsible person")} value={editDraft.responsible_person} onChange={(e) => setEditDraft({ ...editDraft, responsible_person: e.target.value })} />
+            <input className={inputClass} type="number" step="any" placeholder={tr("ظرفیت", "السعة", "Kapasite", "Capacity")} value={editDraft.capacity} onChange={(e) => setEditDraft({ ...editDraft, capacity: e.target.value })} />
+            <input className={inputClass} placeholder={tr("واحد ظرفیت (مثلاً متر مربع)", "وحدة السعة", "Kapasite birimi", "Capacity unit")} value={editDraft.capacity_unit} onChange={(e) => setEditDraft({ ...editDraft, capacity_unit: e.target.value })} />
+            <textarea className={inputClass + " md:col-span-2"} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} value={editDraft.description} onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })} />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel)] border border-[var(--erp-border)]">
+              {tr("انصراف", "إلغاء", "İptal", "Cancel")}
+            </button>
+            <button type="submit" disabled={savingEdit} className={buttonClass}>
+              {savingEdit ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
