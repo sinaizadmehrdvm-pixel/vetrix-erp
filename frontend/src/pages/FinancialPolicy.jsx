@@ -154,11 +154,12 @@ export default function FinancialPolicy() {
   const input = { background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 12, padding: "11px 12px", width: "100%" };
   // Some select options (rounding mode, calendar, measurement system) have
   // long labels in every language (the longest Turkish rounding label is
-  // ~36 characters) - an em-based min-width (scales with the actual
-  // rendered font, same fix pattern as JalaliDateField's 9.5em) keeps the
-  // box wide enough that its text is never clipped, regardless of how many
-  // columns the surrounding grid ends up with.
-  const selectWide = { ...input, minWidth: "20em" };
+  // ~36 characters). Giving the SELECT itself a wide min-width caused it
+  // to overflow its grid cell and visually overlap the neighboring field
+  // (a real regression seen in testing) - instead the wrapping <label>
+  // spans two grid tracks (wideField below), which reserves real layout
+  // space so nothing overlaps, and the select still fills that wider box.
+  const wideField = { gridColumn: "span 2" };
 
   return <div dir={dir} style={{ color: "var(--erp-text)", maxWidth: 1500, margin: "0 auto" }}>
     <header style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
@@ -201,13 +202,13 @@ export default function FinancialPolicy() {
         }} style={input}>{countries.map(item => <option key={item.code} value={item.code}>{language === "fa" ? item.name.fa : item.name.en}</option>)}</select></label>
         <label>{text.currency}<input required minLength={3} maxLength={3} value={draft.currency_code} onChange={e => setDraft({ ...draft, currency_code: e.target.value.toUpperCase() })} style={input} /></label>
         <label>{text.decimals}<select value={draft.decimal_places} onChange={e => setDraft({ ...draft, decimal_places: e.target.value })} style={input}>{[0,1,2,3,4].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
-        <label>{text.rounding}<select value={draft.rounding_mode} onChange={e => setDraft({ ...draft, rounding_mode: e.target.value })} style={selectWide}>{Object.keys(ROUNDING_LABELS).map(key => <option key={key} value={key}>{ROUNDING_LABELS[key][language] || ROUNDING_LABELS[key].en}</option>)}</select></label>
+        <label style={wideField}>{text.rounding}<select value={draft.rounding_mode} onChange={e => setDraft({ ...draft, rounding_mode: e.target.value })} style={input}>{Object.keys(ROUNDING_LABELS).map(key => <option key={key} value={key}>{ROUNDING_LABELS[key][language] || ROUNDING_LABELS[key].en}</option>)}</select></label>
         <label>{text.effective}<JalaliDateField value={draft.effective_from} onChange={(iso) => setDraft({ ...draft, effective_from: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-bg)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-xl p-[11px_12px] w-full" /></label>
-        <label>{text.calendar}<select value={draft.calendar_system} onChange={e => setDraft({ ...draft, calendar_system: e.target.value })} style={selectWide}>{Object.keys(CALENDAR_LABELS).map(key => <option key={key} value={key}>{CALENDAR_LABELS[key][language] || CALENDAR_LABELS[key].en}</option>)}</select></label>
+        <label style={wideField}>{text.calendar}<select value={draft.calendar_system} onChange={e => setDraft({ ...draft, calendar_system: e.target.value })} style={input}>{Object.keys(CALENDAR_LABELS).map(key => <option key={key} value={key}>{CALENDAR_LABELS[key][language] || CALENDAR_LABELS[key].en}</option>)}</select></label>
         <label>{text.timeZone}<input required value={draft.time_zone} onChange={e => setDraft({ ...draft, time_zone: e.target.value })} style={input} /></label>
         <label>{text.firstDay}<select value={draft.first_day_of_week} onChange={e => setDraft({ ...draft, first_day_of_week: e.target.value })} style={input}>{[0,1,2,3,4,5,6].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
         <label>{text.fiscalStart}<input required value={draft.fiscal_year_start} onChange={e => setDraft({ ...draft, fiscal_year_start: e.target.value })} style={input} /></label>
-        <label>{text.measurement}<select value={draft.measurement_system} onChange={e => setDraft({ ...draft, measurement_system: e.target.value })} style={selectWide}>{Object.keys(MEASUREMENT_LABELS).map(key => <option key={key} value={key}>{MEASUREMENT_LABELS[key][language] || MEASUREMENT_LABELS[key].en}</option>)}</select></label>
+        <label style={wideField}>{text.measurement}<select value={draft.measurement_system} onChange={e => setDraft({ ...draft, measurement_system: e.target.value })} style={input}>{Object.keys(MEASUREMENT_LABELS).map(key => <option key={key} value={key}>{MEASUREMENT_LABELS[key][language] || MEASUREMENT_LABELS[key].en}</option>)}</select></label>
         <label>{text.taxRate}<input type="text" inputMode="numeric" required value={language === "fa" ? toPersianDigits(draft.tax_percent) : draft.tax_percent} onChange={e => setDraft({ ...draft, tax_percent: cleanNumberInput(e.target.value) })} style={input} /></label>
       </div>
       <button disabled={saving} style={{ marginTop: 13, border: 0, borderRadius: 13, padding: "11px 16px", background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028", fontWeight: 900 }}>{saving ? "..." : text.save}</button>
