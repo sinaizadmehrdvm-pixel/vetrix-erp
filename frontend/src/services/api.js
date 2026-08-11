@@ -676,4 +676,25 @@ export async function getSmartInventoryProductInsight(productId, params = {}) {
 export async function getCrmCustomerLoyalty(id) { return await request(`/api/crm/customers/${id}/loyalty`); }
 export async function redeemCrmCustomerPoints(id, data) { return await request(`/api/crm/customers/${id}/loyalty/redeem`, { method: "POST", body: JSON.stringify(data) }); }
 
+// Executive Conversational Agent (Task 05)
+export async function askExecutiveAgent(text, conversationId, language) {
+  return await request("/api/executive-agent/ask", {
+    method: "POST",
+    body: JSON.stringify({ text, conversation_id: conversationId || null, language }),
+  });
+}
+export async function listExecutiveAgentConversations() { return await request("/api/executive-agent/conversations"); }
+export async function getExecutiveAgentConversation(id) { return await request(`/api/executive-agent/conversations/${id}`); }
+export async function resetExecutiveAgentConversation(id) { return await request(`/api/executive-agent/conversations/${id}`, { method: "DELETE" }); }
+export async function getExecutiveAgentSuggestions(language) { return await request(`/api/executive-agent/suggestions?language=${language}`); }
+export async function getExecutiveAgentBrief(language) { return await request(`/api/executive-agent/brief?language=${language}`); }
+export async function getExecutiveAgentStatus() { return await request("/api/executive-agent/status"); }
+export async function getExecutiveAgentSettings() { return await request("/api/executive-agent/settings"); }
+export async function updateExecutiveAgentSettings(data) { return await request("/api/executive-agent/settings", { method: "PUT", body: JSON.stringify(data) }); }
+export async function getExecutiveAgentCategories() { return await request("/api/executive-agent/available-categories"); }
+export async function listExecutiveAgentToolRuns() { return await request("/api/executive-agent/tool-runs"); }
+export async function createExecutiveAgentBindingCode() { return await request("/api/executive-agent/telegram/binding-code", { method: "POST" }); }
+export async function listExecutiveAgentTelegramBindings() { return await request("/api/executive-agent/telegram/bindings"); }
+export async function revokeExecutiveAgentTelegramBinding(id) { return await request(`/api/executive-agent/telegram/bindings/${id}`, { method: "DELETE" }); }
+
 export { API_URL };

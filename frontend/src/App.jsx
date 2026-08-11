@@ -40,6 +40,7 @@ const AuditTrail = lazy(() => import("./pages/AuditTrail"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const CompanyManagement = lazy(() => import("./pages/CompanyManagement"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const ExecutiveAgent = lazy(() => import("./pages/ExecutiveAgent"));
 const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
 const BackupRecovery = lazy(() => import("./pages/BackupRecovery"));
@@ -231,6 +232,7 @@ function AppContent() {
           <Route path="user-management" element={<UserManagement />} />
           <Route path="company-management" element={<CompanyManagement />} />
           <Route path="company-profile" element={<CompanyProfile />} />
+          <Route path="executive-agent" element={<ExecutiveAgent />} />
           <Route path="hr/employees" element={<Employees />} />
           <Route path="hr/employees/:id" element={<EmployeeProfile />} />
           <Route path="backup-recovery" element={<BackupRecovery />} />

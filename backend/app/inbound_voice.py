@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,6 +12,8 @@ from sqlalchemy import text
 from app.catalog_messaging import ingest_catalog_order_message, is_catalog_order_message
 from app.change_requests import _ensure_schema, _event
 from app.database import engine
+
+_BINDING_CODE_PATTERN = re.compile(r"^[0-9a-fA-F]{8}$")
 
 router = APIRouter(prefix="/api/inbound-voice", tags=["Verified Voice Webhooks"])
 
@@ -286,6 +289,46 @@ def run_connection_diagnostics(request: Request):
     return result
 
 
+def _try_executive_agent(chat_id: str, text_body: str):
+    """Executive Agent handling for an already-HMAC-verified Telegram
+    update (Task 05, Section 13) - tried BEFORE the existing catalog-order/
+    voice flow below, but returns None (never touching anything) unless
+    the message is either a binding code or comes from an already-verified,
+    bound chat, so every prior behavior for every other sender is
+    unchanged. Only a real, non-empty text message from a chat bound to a
+    real admin/accountant VETRIX user ever reaches answer_question()."""
+    if not text_body.strip():
+        return None
+    from app.executive_agent.agent import answer_question, resolve_telegram_binding, verify_binding_code
+    from app.telegram_utils import send_telegram_message
+
+    candidate_code = text_body.strip()
+    if _BINDING_CODE_PATTERN.fullmatch(candidate_code):
+        outcome = verify_binding_code(chat_id, candidate_code, engine=engine)
+        if outcome is not None:
+            company_id = outcome.get("company_id")
+            if outcome["status"] == "expired":
+                reply = "This binding code has expired. Generate a new one in VETRIX and try again."
+            else:
+                reply = "This Telegram chat is now linked to your VETRIX account. Ask a question any time, e.g. \"today's summary\"."
+            try:
+                send_telegram_message(company_id, chat_id, reply)
+            except ValueError:
+                pass
+            return {"status": "handled"}
+
+    binding = resolve_telegram_binding(chat_id, engine=engine)
+    if not binding:
+        return None
+    user_id, role, company_id = binding
+    result = answer_question(user_id, role, company_id, text_body.strip(), None, "telegram", "fa", engine=engine)
+    try:
+        send_telegram_message(company_id, chat_id, result["text"])
+    except ValueError:
+        pass
+    return {"status": "handled"}
+
+
 @router.post("/telegram")
 async def telegram_webhook(request: Request):
     _verify_telegram_secret(
@@ -294,6 +337,10 @@ async def telegram_webhook(request: Request):
     payload = await request.json()
     message = payload.get("message") or payload.get("channel_post") or {}
     text_body = message.get("text") or message.get("caption") or ""
+    chat = message.get("chat") or {}
+    agent_result = _try_executive_agent(str(chat.get("id") or ""), text_body)
+    if agent_result is not None:
+        return agent_result
     if is_catalog_order_message(text_body):
         chat = message.get("chat") or {}
         sender = str(chat.get("id") or "")

@@ -187,6 +187,10 @@ READ_RULES = (
     # (admin/manager-of-direct-reports/self/accountant-for-compensation).
     ("/api/hr", ALL_ROLES),
     ("/api/backup-delivery", {"admin"}),
+    # Fine-grained role check (admin/accountant only) happens inside the
+    # module itself; the coarse gate here just needs to admit those roles
+    # plus admin for the settings/binding-management sub-routes.
+    ("/api/executive-agent", {"admin", "accountant"}),
 )
 
 MUTATION_RULES = (
@@ -257,6 +261,7 @@ MUTATION_RULES = (
     ("/api/company-profile", {"admin"}),
     ("/api/hr", ALL_ROLES),
     ("/api/backup-delivery", {"admin"}),
+    ("/api/executive-agent", {"admin", "accountant"}),
 )
 
 

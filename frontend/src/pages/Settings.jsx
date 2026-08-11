@@ -23,6 +23,7 @@ import Button from "../components/ui/Button";
 import Notice from "../components/ui/Notice";
 import Field, { Input, Select, Textarea } from "../components/ui/Field";
 import PaymentProvidersCard from "../components/settings/PaymentProvidersCard";
+import ExecutiveAgentSettingsCard from "../components/settings/ExecutiveAgentSettingsCard";
 
 const emptySettings = {
   company_name: "Vetrix ERP",
@@ -742,6 +743,8 @@ export default function Settings() {
       </Card>
 
       <PaymentProvidersCard />
+
+      <ExecutiveAgentSettingsCard />
 
       <Card icon={Bell} title={label.smtpTitle}>
         <p className="text-sm mb-4" style={{ color: "var(--erp-muted)" }}>{label.smtpHint}</p>

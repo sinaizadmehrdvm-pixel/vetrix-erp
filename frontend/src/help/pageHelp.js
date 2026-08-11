@@ -585,6 +585,33 @@ export const pageHelp = {
       en: ["This page is for that company's own admin only — use Company Management (super-admin) to manage multiple companies."],
     },
   }),
+  executiveAgent: entry({
+    title: { fa: "دستیار مدیریتی", ar: "المساعد التنفيذي", tr: "Yönetici Asistanı", en: "Executive Agent" },
+    purpose: {
+      fa: "به سوال‌های کسب‌وکاری مدیران (فروش، سود، مطالبات، موجودی، شعبه‌ها، بودجه و غیره) با داده واقعی و قابل استناد پاسخ می‌دهد؛ هرگز عددی را حدس نمی‌زند و هیچ عملیات نوشتنی را بی‌درنگ اجرا نمی‌کند.",
+      ar: "يجيب على أسئلة المدراء التجارية (المبيعات، الربح، الذمم، المخزون، الفروع، الميزانية...) ببيانات حقيقية وقابلة للتوثيق؛ لا يخمّن رقماً أبداً ولا ينفّذ أي إجراء كتابة فوراً.",
+      tr: "Yöneticilerin iş sorularını (satış, kâr, alacaklar, envanter, şubeler, bütçe vb.) gerçek ve kanıtlanabilir verilerle yanıtlar; asla bir sayıyı tahmin etmez ve hiçbir yazma işlemini anında yürütmez.",
+      en: "Answers managers' business questions (sales, profit, receivables, inventory, branches, budget, etc.) with real, evidence-backed data — it never guesses a figure and never executes a write action immediately.",
+    },
+    mainActions: {
+      fa: ["پرسیدن سوال به فارسی/عربی/ترکی/انگلیسی", "مشاهده جزئیات و منبع هر پاسخ", "استفاده از پیشنهادها یا خلاصه امروز", "بازنشانی گفتگو", "اتصال شماره تلگرام برای پرسیدن سوال از آنجا"],
+      ar: ["طرح سؤال بالفارسية/العربية/التركية/الإنجليزية", "عرض التفاصيل ومصدر كل إجابة", "استخدام الاقتراحات أو ملخص اليوم", "إعادة تعيين المحادثة", "ربط حساب تيليجرام للسؤال من هناك"],
+      tr: ["Farsça/Arapça/Türkçe/İngilizce soru sorun", "Her yanıtın ayrıntılarını ve kaynağını görüntüleyin", "Önerileri veya günlük özeti kullanın", "Görüşmeyi sıfırlayın", "Oradan soru sormak için Telegram hesabını bağlayın"],
+      en: ["Ask a question in Persian/Arabic/Turkish/English", "View the details and source behind each answer", "Use suggestions or the daily summary", "Reset the conversation", "Bind a Telegram chat to ask questions from there"],
+    },
+    keyFields: {
+      fa: ["وضعیت STT/TTS/هوش مصنوعی زبانی همیشه صادقانه نمایش داده می‌شود", "پاسخ‌ها فقط بر اساس نقش و شرکت فعال کاربر است"],
+      ar: ["حالة تحويل الصوت/النص والذكاء اللغوي تُعرض دائماً بصدق", "الإجابات تقتصر فقط على دور المستخدم وشركته الحالية"],
+      tr: ["STT/TTS/dil yapay zekası durumu her zaman dürüstçe gösterilir", "Yanıtlar yalnızca kullanıcının rolü ve aktif şirketiyle sınırlıdır"],
+      en: ["STT/TTS/language-AI status is always shown honestly", "Answers are always scoped to the user's role and active company"],
+    },
+    warnings: {
+      fa: ["دستیار هرگز درخواستی مانند «پیام یادآوری بفرست» را بی‌درنگ اجرا نمی‌کند؛ آن را به یک درخواست تغییر پیش‌نویس در مرکز درخواست‌های تغییر تبدیل می‌کند که نیاز به تأیید دارد.", "این بخش فقط برای نقش‌های مدیر و حسابدار در دسترس است."],
+      ar: ["لن ينفّذ المساعد أبداً طلباً مثل «أرسل رسالة تذكير» فوراً؛ يحوّله إلى طلب تغيير مسودة في مركز طلبات التغيير يتطلب الموافقة.", "هذا القسم متاح فقط لأدوار المدير والمحاسب."],
+      tr: ["Asistan «hatırlatma mesajı gönder» gibi bir isteği asla anında yürütmez; onay gerektiren taslak bir Değişiklik İsteği'ne dönüştürür.", "Bu bölüm yalnızca yönetici ve muhasebeci rolleri için kullanılabilir."],
+      en: ["The agent never executes a request like \"send a reminder message\" immediately — it turns it into a draft Change Request that needs approval.", "This area is only available to admin and accountant roles."],
+    },
+  }),
   backupRecovery: entry({
     title: { fa: "پشتیبان‌گیری و بازیابی", ar: "النسخ الاحتياطي والاستعادة", tr: "Yedekleme ve Kurtarma", en: "Backup & Recovery" },
     purpose: {

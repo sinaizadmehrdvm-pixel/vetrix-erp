@@ -63,6 +63,7 @@ from app.accounting.budget_plans import router as budget_plans_router
 from app.bi_improvement import router as bi_improvement_router
 from app.company_profile import router as company_profile_router
 from app.hr import router as hr_router
+from app.executive_agent.agent import router as executive_agent_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
 from app.accounting.treasury import router as treasury_router
@@ -413,6 +414,8 @@ COMPANY_SCOPED_TABLES = [
     "employees", "employee_history", "employee_compensation", "employee_leave_balances",
     "employee_leave_requests", "employee_attendance", "employee_performance_reviews",
     "backup_delivery_policies", "backup_delivery_log",
+    "executive_agent_conversations", "executive_agent_messages",
+    "executive_agent_tool_runs", "executive_agent_external_bindings",
 ]
 
 
@@ -468,6 +471,7 @@ app.include_router(budget_plans_router)
 app.include_router(bi_improvement_router)
 app.include_router(company_profile_router)
 app.include_router(hr_router)
+app.include_router(executive_agent_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
 app.include_router(treasury_router)

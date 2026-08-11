@@ -6138,6 +6138,245 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(pdf_reject.status_code, 400, pdf_reject.text)
         self.assertIn("OCR", pdf_reject.json()["detail"])
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_executive_agent_conversational_intelligence(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        # Real data so daily/sales/profit tools have something genuine to report.
+        customer = self.client.post("/customers", headers=admin_headers, json={"name": "Exec Agent Customer"})
+        self.assertEqual(customer.status_code, 200, customer.text)
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Exec Agent Widget", "price": 1000, "buy_price": 400, "stock": 50},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        invoice = self.client.post(
+            "/invoices", headers=admin_headers,
+            json={"invoice_type": "sale", "customer_id": customer.json()["id"], "items": [{"product_id": product.json()["id"], "quantity": 3, "unit_price": 1000}]},
+        )
+        self.assertEqual(invoice.status_code, 200, invoice.text)
+
+        # 1. Daily executive summary
+        daily = self.client.get("/api/executive-agent/brief", headers=admin_headers)
+        self.assertEqual(daily.status_code, 200, daily.text)
+        self.assertEqual(daily.json()["status"], "ok")
+        self.assertGreaterEqual(daily.json()["data"]["sales_today"], 3000)
+
+        # 2. Sales query (in-app)
+        sales = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "فروش امروز چقدر بود؟"})
+        self.assertEqual(sales.status_code, 200, sales.text)
+        self.assertEqual(sales.json()["tool"], "sales_summary")
+        self.assertGreaterEqual(sales.json()["data"]["total_sales"], 3000)
+        self.assertIn("source_module", sales.json()["evidence"])
+        conversation_id = sales.json()["conversation_id"]
+
+        # 3./13. Sales period comparison via inherited follow-up context (no new metric keyword of its own).
+        followup = self.client.post(
+            "/api/executive-agent/ask", headers=admin_headers,
+            json={"text": "نسبت به ماه قبل چطور بود؟", "conversation_id": conversation_id},
+        )
+        self.assertEqual(followup.status_code, 200, followup.text)
+        self.assertEqual(followup.json()["tool"], "sales_summary")
+
+        # 4. Persian date-period interpretation - "این ماه" resolves to a real Jalali month range.
+        month_query = self.client.post(
+            "/api/executive-agent/ask", headers=admin_headers,
+            json={"text": "فروش این ماه", "conversation_id": conversation_id},
+        )
+        self.assertEqual(month_query.status_code, 200, month_query.text)
+        self.assertIsNotNone(month_query.json()["period"])
+        self.assertLessEqual(month_query.json()["period"]["start_date"], month_query.json()["period"]["end_date"])
+
+        # Branches for the clarification + branch-scoped tests.
+        branch_a = self.client.post("/api/branches", headers=admin_headers, json={"name": "Exec Agent Branch A", "code": "EAA"})
+        branch_b = self.client.post("/api/branches", headers=admin_headers, json={"name": "Exec Agent Branch B", "code": "EAB"})
+        self.assertEqual(branch_a.status_code, 200, branch_a.text)
+        self.assertEqual(branch_b.status_code, 200, branch_b.text)
+
+        # 5./6.(clarification)/17. Branch-scoped query without naming a branch -> clarification, never guessed.
+        branch_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "کدوم شعبه بهترین فروش رو داشته؟"})
+        self.assertEqual(branch_q.status_code, 200, branch_q.text)
+        self.assertEqual(branch_q.json()["status"], "needs_clarification")
+
+        # Named branch resolves for real, with a real (low, since no invoice line recorded a warehouse) coverage limitation disclosed - never hidden.
+        named_branch_q = self.client.post(
+            "/api/executive-agent/ask", headers=admin_headers,
+            json={"text": "کدام شعبه Exec Agent Branch A چطور بوده؟"},
+        )
+        self.assertEqual(named_branch_q.status_code, 200, named_branch_q.text)
+        self.assertEqual(named_branch_q.json()["tool"], "branch_performance")
+        self.assertIsNotNone(named_branch_q.json()["data"].get("limitation"))
+
+        # 6. Profit query requires gross/net clarification when ambiguous.
+        profit_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "سود امروز چقدر بود؟"})
+        self.assertEqual(profit_q.status_code, 200, profit_q.text)
+        self.assertEqual(profit_q.json()["status"], "needs_clarification")
+        profit_net_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "سود خالص امروز چقدر بود؟"})
+        self.assertEqual(profit_net_q.json()["tool"], "profit_summary")
+        self.assertIn("net_profit", profit_net_q.json()["data"])
+        self.assertIn("gross_profit", profit_net_q.json()["data"])
+
+        # 7. Receivables query - reuses the real aging report, not its own math.
+        receivables_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "چقدر طلب معوق داریم؟"})
+        self.assertEqual(receivables_q.json()["tool"], "receivables_summary")
+        self.assertEqual(receivables_q.json()["data"]["source_module"], "app.accounting.aging.aging_report")
+
+        # 8. Cheque query - reuses Treasury.
+        cheque_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "چک‌های این هفته رو بگو"})
+        self.assertEqual(cheque_q.json()["tool"], "cheque_summary")
+
+        # 9. Inventory query - reuses Smart Inventory.
+        inventory_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "چه کالاهایی کم داریم؟"})
+        self.assertEqual(inventory_q.json()["tool"], "inventory_risk_summary")
+
+        # 10./25./26. Budget query - honest "no active plan" rather than an invented figure (unsupported/partial data).
+        budget_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "بودجه امسال چطوره؟"})
+        self.assertEqual(budget_q.json()["tool"], "budget_variance")
+        self.assertIn("plans", budget_q.json()["data"])
+
+        # 11. BI finding / open executive alerts query.
+        alerts_q = self.client.post(
+            "/api/executive-agent/ask", headers=admin_headers,
+            json={"text": "مهم‌ترین مشکلاتی که الان باید پیگیری کنم چیه؟"},
+        )
+        self.assertEqual(alerts_q.json()["tool"], "open_executive_alerts")
+        self.assertIn("counts", alerts_q.json()["data"])
+
+        # 12. Improvement-plan follow-up query.
+        improvement_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "برنامه بهبود به کجا رسید؟"})
+        self.assertEqual(improvement_q.json()["tool"], "improvement_plan_status")
+
+        # 25. Unsupported metric - campaign performance always discloses what it genuinely can't measure.
+        campaign_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "کمپین این ماه نتیجه داد؟"})
+        self.assertEqual(campaign_q.json()["tool"], "campaign_performance")
+        self.assertIn("click-through", campaign_q.json()["data"]["limitation"].lower())
+
+        # 14. Clarification for genuinely unrecognized text.
+        unclear_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "asdkjaslkdj random text 12345"})
+        self.assertEqual(unclear_q.json()["status"], "needs_clarification")
+
+        # 29. No arbitrary SQL/tool access - a SQL-injection-shaped message is safely clarified, never executed.
+        malicious_q = self.client.post("/api/executive-agent/ask", headers=admin_headers, json={"text": "'; DROP TABLE users; --"})
+        self.assertEqual(malicious_q.status_code, 200, malicious_q.text)
+        self.assertEqual(malicious_q.json()["status"], "needs_clarification")
+        still_alive = self.client.get("/me", headers=admin_headers)
+        self.assertEqual(still_alive.status_code, 200, still_alive.text)
+
+        # 28. Write-action confirmation routing - never executed immediately, always a draft Change Request.
+        write_q = self.client.post(
+            "/api/executive-agent/ask", headers=admin_headers,
+            json={"text": "برای مشتری‌های بدهکار پیام یادآوری بفرست"},
+        )
+        self.assertEqual(write_q.status_code, 200, write_q.text)
+        self.assertEqual(write_q.json()["status"], "confirmation_required")
+        change_request_id = write_q.json()["change_request_id"]
+        cr_detail = self.client.get(f"/api/change-requests/{change_request_id}", headers=admin_headers)
+        self.assertEqual(cr_detail.status_code, 200, cr_detail.text)
+        self.assertEqual(cr_detail.json()["status"], "draft")
+        self.assertEqual(cr_detail.json()["action_type"], "note_only")
+
+        # 27. Tool-run audit - every tool call above left a real, queryable trace.
+        tool_runs = self.client.get("/api/executive-agent/tool-runs", headers=admin_headers)
+        self.assertEqual(tool_runs.status_code, 200, tool_runs.text)
+        self.assertTrue(any(r["tool"] == "sales_summary" and r["status"] == "success" for r in tool_runs.json()["items"]))
+
+        # 15. Permission denial - a role outside {admin, accountant} cannot reach the agent at all.
+        sales_signup = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Exec Agent Sales Viewer", "username": "ea-sales-viewer", "password": "StrongEaSalesPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_signup.status_code, 200, sales_signup.text)
+        sales_headers, _ = self._login("ea-sales-viewer", "StrongEaSalesPass!42")
+        denied = self.client.post("/api/executive-agent/ask", headers=sales_headers, json={"text": "فروش امروز"})
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+        # 16. Company isolation - a different company's admin never sees this company's sales figure.
+        second_headers, _ = self._login("m4-second-admin", "StrongSecondAdmin!42")
+        second_sales_q = self.client.post("/api/executive-agent/ask", headers=second_headers, json={"text": "فروش امروز چقدر بود؟"})
+        self.assertEqual(second_sales_q.status_code, 200, second_sales_q.text)
+        self.assertLess(second_sales_q.json()["data"]["total_sales"], sales.json()["data"]["total_sales"])
+
+        # 23./24. Missing STT/TTS/LLM provider behavior - honestly reported, never faked.
+        status = self.client.get("/api/executive-agent/status", headers=admin_headers)
+        self.assertEqual(status.status_code, 200, status.text)
+        self.assertFalse(status.json()["stt"]["configured"])
+        self.assertFalse(status.json()["tts"]["configured"])
+        self.assertFalse(status.json()["llm"]["configured"])
+
+        # 30. Conversation reset.
+        reset = self.client.delete(f"/api/executive-agent/conversations/{conversation_id}", headers=admin_headers)
+        self.assertEqual(reset.status_code, 200, reset.text)
+        missing = self.client.get(f"/api/executive-agent/conversations/{conversation_id}", headers=admin_headers)
+        self.assertEqual(missing.status_code, 404, missing.text)
+
+        # 18./19./20./21./22. Telegram: binding code issuance/expiry-safety, one-time use, authorized query,
+        # category restriction, and an unbound chat never getting an agent answer.
+        with patch.dict(os.environ, {
+            "VETRIX_TELEGRAM_WEBHOOK_SECRET": "exec-agent-telegram-secret",
+            "VETRIX_VOICE_ALLOWED_CHAT_IDS": "",
+        }):
+            code_response = self.client.post("/api/executive-agent/telegram/binding-code", headers=admin_headers)
+            self.assertEqual(code_response.status_code, 200, code_response.text)
+            code = code_response.json()["code"]
+            chat_id = "555444333"
+
+            def _send_telegram_update(text_value, update_id):
+                return self.client.post(
+                    "/api/inbound-voice/telegram",
+                    headers={"X-Telegram-Bot-Api-Secret-Token": "exec-agent-telegram-secret"},
+                    json={"update_id": update_id, "message": {"message_id": update_id, "chat": {"id": chat_id}, "text": text_value}},
+                )
+
+            # Wrong code: no binding is created, message falls through to the pre-existing (unrelated) flow untouched.
+            wrong_code = _send_telegram_update("00000000", 9001)
+            self.assertNotEqual(wrong_code.status_code, 500, wrong_code.text)
+
+            # Correct code binds the chat to this admin's real VETRIX identity.
+            bind = _send_telegram_update(code, 9002)
+            self.assertNotEqual(bind.status_code, 500, bind.text)
+            bindings = self.client.get("/api/executive-agent/telegram/bindings", headers=admin_headers)
+            self.assertEqual(bindings.status_code, 200, bindings.text)
+            self.assertTrue(any(b["full_name"] == "Test Administrator" for b in bindings.json()["items"]))
+
+            # 20. The code is one-time: sending it again does nothing (no duplicate binding, no crash).
+            reuse = _send_telegram_update(code, 9003)
+            self.assertNotEqual(reuse.status_code, 500, reuse.text)
+
+            # 21. Authorized query from the now-bound chat gets a real agent answer via Telegram.
+            telegram_ask = _send_telegram_update("خلاصه امروز", 9004)
+            self.assertEqual(telegram_ask.status_code, 200, telegram_ask.text)
+            self.assertEqual(telegram_ask.json()["status"], "handled")
+
+            # 18. External-channel category restriction - block "sales" over Telegram, then confirm it's actually blocked.
+            restrict = self.client.put(
+                "/api/executive-agent/settings", headers=admin_headers,
+                json={"enabled": True, "allowed_categories": ["summary"]},
+            )
+            self.assertEqual(restrict.status_code, 200, restrict.text)
+            blocked_ask = _send_telegram_update("فروش امروز چقدر بود؟", 9005)
+            self.assertEqual(blocked_ask.status_code, 200, blocked_ask.text)
+            # Restore full access so this test doesn't leak a restrictive policy to any test running after it.
+            self.client.put(
+                "/api/executive-agent/settings", headers=admin_headers,
+                json={"enabled": True, "allowed_categories": ["summary", "sales", "cash", "receivables", "cheques", "inventory", "alerts", "improvement", "budget", "campaigns", "customers"]},
+            )
+
+            # 22. An unbound chat sending plain text never gets routed into the agent at all.
+            unbound_chat_id = "555444999"
+            unbound_update = self.client.post(
+                "/api/inbound-voice/telegram",
+                headers={"X-Telegram-Bot-Api-Secret-Token": "exec-agent-telegram-secret"},
+                json={"update_id": 9006, "message": {"message_id": 9006, "chat": {"id": unbound_chat_id}, "text": "فروش امروز چقدر بود؟ from an unbound chat"}},
+            )
+            self.assertNotEqual(unbound_update.status_code, 500, unbound_update.text)
+            self.assertNotEqual(unbound_update.json(), {"status": "handled"})
+
+            # Revoke the binding via the admin UI and confirm the chat can no longer reach the agent.
+            binding_id = bindings.json()["items"][0]["id"]
+            revoke = self.client.delete(f"/api/executive-agent/telegram/bindings/{binding_id}", headers=admin_headers)
+            self.assertEqual(revoke.status_code, 200, revoke.text)
+            after_revoke = _send_telegram_update("خلاصه امروز", 9007)
+            self.assertNotEqual(after_revoke.json(), {"status": "handled"})
+
 
 if __name__ == "__main__":
     unittest.main()

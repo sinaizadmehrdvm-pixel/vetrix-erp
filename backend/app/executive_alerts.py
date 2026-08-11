@@ -202,11 +202,12 @@ def _budget_alerts(company_id: int, settings: dict) -> list:
     a usage_percent past the configurable threshold becomes a real alert,
     not a decorative one, since it's the exact same numbers the Budget page
     itself shows."""
-    from app.accounting.budget_plans import plan_summary
+    from app.accounting.budget_plans import plan_summary, _ensure_schema as _ensure_budget_plans_schema
 
     threshold = settings["budget_usage_alert_percent"]
     alerts = []
     with engine.begin() as conn:
+        _ensure_budget_plans_schema(conn)
         plans = conn.execute(text("""
             SELECT id, name FROM budget_plans WHERE company_id=:company_id AND status='active'
         """), {"company_id": company_id}).mappings().all()

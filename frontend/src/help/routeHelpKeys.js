@@ -30,6 +30,7 @@ const ROUTE_KEYS = [
   ["/company-management", "companyManagement"],
   ["/hr/employees", "employees"],
   ["/company-profile", "companyProfile"],
+  ["/executive-agent", "executiveAgent"],
   ["/backup-recovery", "backupRecovery"],
   ["/system-health", "systemHealth"],
   ["/financial-statements", "financialStatements"],
