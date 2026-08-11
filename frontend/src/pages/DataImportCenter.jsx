@@ -15,6 +15,7 @@ const REQUIRED_FIELD_LABEL = {
   customers: "name",
   gl_trial_balance: "account_code",
   invoices: "date",
+  employees: "first_name",
 };
 
 export default function DataImportCenter() {
@@ -49,6 +50,7 @@ export default function DataImportCenter() {
     products: tr("کالاها", "المنتجات", "Ürünler", "Products"),
     gl_trial_balance: tr("سند افتتاحیه کلی (تراز آزمایشی)", "ميزان المراجعة الافتتاحي", "Açılış mizanı", "Opening trial balance"),
     invoices: tr("فاکتورهای تاریخی (فروش)", "فواتير المبيعات السابقة", "Geçmiş satış faturaları", "Historical sales invoices"),
+    employees: tr("پرسنل", "الموظفون", "Personel", "Employees"),
     openingDateLabel: tr("تاریخ سند افتتاحیه", "تاريخ الافتتاح", "Açılış tarihi", "Opening date"),
     template: tr("دانلود الگوی Excel", "تنزيل قالب Excel", "Excel şablonunu indir", "Download Excel template"),
     choose: tr("انتخاب فایل Excel", "اختر ملف Excel", "Excel dosyası seçin", "Choose Excel file"),
@@ -188,6 +190,7 @@ export default function DataImportCenter() {
           <option value="products">{t.products}</option>
           <option value="gl_trial_balance">{t.gl_trial_balance}</option>
           <option value="invoices">{t.invoices}</option>
+          <option value="employees">{t.employees}</option>
         </select>
       </div>
       <p style={{ color: "var(--erp-muted)", fontSize: 13, marginBottom: 0 }}>{t.order}</p>
@@ -202,7 +205,7 @@ export default function DataImportCenter() {
         <section style={{ ...card, padding: 18, marginBottom: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10 }}>
             <button onClick={() => downloadImportTemplate(entity, language)} style={{ padding: 12, borderRadius: 13, fontWeight: 900, background: "#164e63", color: "#cffafe", border: 0 }}><Download size={17} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.template}</button>
-            <label style={{ padding: 12, borderRadius: 13, border: "1px dashed var(--erp-accent)", cursor: "pointer" }}><Upload size={17} style={{ display: "inline", marginInlineEnd: 7 }}/>{file?.name || t.choose}<input hidden type="file" accept=".xlsx" onChange={e => onFileChosen(e.target.files?.[0] || null)}/></label>
+            <label style={{ padding: 12, borderRadius: 13, border: "1px dashed var(--erp-accent)", cursor: "pointer" }}><Upload size={17} style={{ display: "inline", marginInlineEnd: 7 }}/>{file?.name || t.choose}<input hidden type="file" accept=".xlsx,.csv" onChange={e => onFileChosen(e.target.files?.[0] || null)}/></label>
             {entity === "gl_trial_balance" && (
               <label style={{ padding: 12, borderRadius: 13, border: "1px solid var(--erp-border)", display: "flex", alignItems: "center", gap: 8 }}>
                 {t.openingDateLabel}
@@ -235,12 +238,15 @@ export default function DataImportCenter() {
                   <tr style={{ textAlign: "start" }}>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("فیلد Vetrix", "حقل Vetrix", "Vetrix alanı", "Vetrix field")}</th>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{t.yourColumn}</th>
+                    <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("اطمینان", "الثقة", "Güven", "Confidence")}</th>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{t.sample}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inspectData.entity_fields.map((field) => {
                     const header = headerForField(field);
+                    const confidence = inspectData.mapping_confidence?.[field]?.confidence;
+                    const confidenceColor = confidence >= 90 ? "#4ade80" : confidence >= 60 ? "#fbbf24" : "var(--erp-muted)";
                     return (
                       <tr key={field} style={{ borderTop: "1px solid var(--erp-border)" }}>
                         <td style={{ padding: 8, fontWeight: 700 }}>
@@ -255,6 +261,9 @@ export default function DataImportCenter() {
                             <option value="">{t.unmapped}</option>
                             {inspectData.headers.map((h, idx) => <option key={`${h}-${idx}`} value={h}>{h}</option>)}
                           </select>
+                        </td>
+                        <td style={{ padding: 8, fontSize: 12, fontWeight: 800, color: confidenceColor }}>
+                          {confidence !== undefined && confidence !== null ? `${confidence}%` : "—"}
                         </td>
                         <td style={{ padding: 8, color: "var(--erp-muted)", fontSize: 13 }}>{String(sampleForField(field) ?? "")}</td>
                       </tr>

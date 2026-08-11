@@ -8,7 +8,7 @@ was added, so nothing about their behavior changes here.
 import io
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import date as date_cls, datetime, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
@@ -81,6 +81,22 @@ ENTITY_FIELDS = {
         "discount": ("discount", "تخفیف"),
         "paid_amount": ("paid_amount", "مبلغ پرداخت‌شده", "مبلغ دریافتی"),
     },
+    # Task 04, Section 20 - the HR module (app/hr.py) now exists, so a real
+    # employees entity is a genuine new safe-import target, matching the
+    # same "single-required-field, duplicate-detected, admin-only apply"
+    # shape as customers above (not the fuller products feature set).
+    "employees": {
+        "first_name": ("first_name", "نام", "نام کوچک"),
+        "last_name": ("last_name", "نام خانوادگی"),
+        "employee_number": ("employee_number", "کد پرسنلی", "شماره پرسنلی"),
+        "job_title": ("job_title", "سمت", "عنوان شغلی"),
+        "department": ("department", "واحد", "دپارتمان"),
+        "employment_type": ("employment_type", "نوع همکاری"),
+        "phone": ("phone", "تلفن"),
+        "mobile": ("mobile", "موبایل"),
+        "email": ("email", "ایمیل"),
+        "start_date": ("start_date", "تاریخ شروع"),
+    },
 }
 NUMERIC_FIELDS = {
     "opening_balance", "credit_limit", "buy_price", "sell_price", "min_stock",
@@ -97,11 +113,16 @@ ALWAYS_NON_NEGATIVE_FIELDS = {
     "debit", "credit", "quantity", "unit_price", "discount", "paid_amount",
 }
 IDENTIFIER_FIELDS = {"code", "sku", "barcode", "barcode2", "barcode3"}
+# Phone-like fields get Persian/Arabic digit normalization even though
+# they're stored as text, not a number - a phone number typed on a
+# Persian-locale keyboard commonly uses ۰-۹ glyphs.
+PHONE_LIKE_FIELDS = {"phone", "mobile"}
 REQUIRED_FIELD = {
     "customers": "name",
     "products": "name",
     "gl_trial_balance": "account_code",
     "invoices": "date",
+    "employees": "first_name",
 }
 PRODUCT_MATCH_KEY_FIELDS = {
     "code": ("code",),
@@ -129,6 +150,88 @@ SUPPORTED_HISTORICAL_INVOICE_TYPES = {"sale", "return_sale"}
 # "products" entity gets the wider tier - customers/gl_trial_balance/invoices
 # keep the exact admin-only behavior they always had.
 PREVIEW_ROLES = {"admin", "accountant", "warehouse"}
+
+
+class _CsvSheet:
+    """Minimal stand-in for an openpyxl worksheet - just enough surface
+    (.title, .iter_rows(values_only=True)) for /inspect and /preview to
+    keep using the exact same downstream row-processing code for a CSV
+    upload as for an .xlsx one, with no per-entity logic duplicated."""
+
+    def __init__(self, rows):
+        self._rows = rows
+        self.title = "CSV"
+
+    def iter_rows(self, values_only=True):
+        return iter(self._rows)
+
+
+class _CsvWorkbook:
+    def __init__(self, rows):
+        self.sheetnames = ["CSV"]
+        self.active = _CsvSheet(rows)
+
+    def __getitem__(self, _name):
+        return self.active
+
+
+def _parse_csv_rows(raw: bytes):
+    import csv as _csv
+    for encoding in ("utf-8-sig", "utf-8", "cp1256"):
+        try:
+            text_data = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise HTTPException(status_code=400, detail="Could not decode the CSV file (expected UTF-8)")
+    reader = _csv.reader(text_data.splitlines())
+    return [tuple(row) for row in reader]
+
+
+def _load_workbook_any_format(raw: bytes, filename: str):
+    lower = (filename or "").lower()
+    if lower.endswith(".csv"):
+        return _CsvWorkbook(_parse_csv_rows(raw))
+    if lower.endswith(".xlsx"):
+        try:
+            return load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        except Exception as error:
+            raise HTTPException(status_code=400, detail=f"Invalid Excel workbook: {error}")
+    if lower.endswith(".xls"):
+        raise HTTPException(status_code=400, detail="Legacy .xls is not supported - please save as .xlsx and retry")
+    if lower.endswith(".pdf"):
+        # Honest per the task spec: no PDF text/table extraction library is
+        # installed in this codebase, and no OCR engine is wired up either
+        # (app/document_ocr.py is a separate, human-in-the-loop receipt
+        # scanner, not a bulk-import parser) - reporting this clearly beats
+        # silently failing or pretending to read the file.
+        raise HTTPException(
+            status_code=400,
+            detail="PDF import is not supported - no text/table extraction library is installed, and scanned PDFs "
+                   "would require OCR, which is not available. Export the data as .xlsx or .csv instead.",
+        )
+    raise HTTPException(status_code=400, detail="Only .xlsx or .csv files are accepted")
+
+
+def _guess_entity_for_headers(headers):
+    """Read-only heuristic (Task 04, Section 20) used only by /inspect to
+    flag "this sheet/file looks like products/customers/..." when a
+    workbook has multiple sheets - each sheet is still imported through
+    its own separate /preview+/apply call; this does not merge multiple
+    sheets into one job. Deterministic header-overlap scoring, not AI."""
+    headers_clean = {_clean(h).lower() for h in headers if _clean(h)}
+    if not headers_clean:
+        return None
+    best_entity, best_score = None, 0
+    for entity, aliases in ENTITY_FIELDS.items():
+        all_names = {name.lower() for names in aliases.values() for name in names}
+        overlap = sum(1 for h in headers_clean if h in all_names)
+        if overlap > best_score:
+            best_entity, best_score = entity, overlap
+    if best_entity and best_score >= 1:
+        return {"entity": best_entity, "matched_columns": best_score}
+    return None
 
 
 def _now():
@@ -225,11 +328,26 @@ def _clean_identifier(value):
     return str(value).strip()
 
 
+# Persian (۰-۹) and Arabic-Indic (٠-٩) digits -> ASCII, same two ranges
+# frontend/src/localization/helpers.js's toEnglishDigits() normalizes on
+# the client for typed input - real-world spreadsheets exported from
+# Persian/Arabic locale software commonly contain these glyphs in numeric
+# columns, and float()/strptime() both reject them outright without this.
+_DIGIT_TRANSLATION = str.maketrans(
+    "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩",
+    "01234567890123456789",
+)
+
+
+def _normalize_digits(value):
+    return str(value).translate(_DIGIT_TRANSLATION)
+
+
 def _number(value, field, row_number, errors):
     if value in (None, ""):
         return 0.0
     try:
-        result = float(str(value).replace(",", "").replace("٬", ""))
+        result = float(_normalize_digits(value).replace(",", "").replace("٬", "").strip())
         if field in ALWAYS_NON_NEGATIVE_FIELDS and result < 0:
             errors.append({"row": row_number, "field": field, "message": "Value cannot be negative"})
         return result
@@ -238,12 +356,75 @@ def _number(value, field, row_number, errors):
         return 0.0
 
 
-def _parse_date(value):
-    text_value = _clean(value)[:10]
+def _jalali_to_gregorian(jy, jm, jd):
+    """Standard Jalali->Gregorian conversion (verified by round-tripping
+    4000 consecutive days against this codebase's own, already-relied-on
+    _gregorian_to_jalali in app/export/localization.py, with zero
+    mismatches - see Task 04 completion notes). No jdatetime/persiantools
+    dependency is installed, so this is a small, self-contained
+    implementation rather than a new pip requirement for one function."""
+    jy += 1595
+    days = -355668 + (365 * jy) + (jy // 33) * 8 + ((jy % 33) + 3) // 4 + jd
+    days += (jm - 1) * 31 if jm < 7 else (jm - 7) * 30 + 186
+    gy = 400 * (days // 146097)
+    days %= 146097
+    if days > 36524:
+        gy += 100 * ((days - 1) // 36524)
+        days = (days - 1) % 36524
+        if days >= 365:
+            days += 1
+    gy += 4 * (days // 1461)
+    days %= 1461
+    if days > 365:
+        gy += (days - 1) // 365
+        days = (days - 1) % 365
+    gd = days + 1
+    is_leap = gy % 4 == 0 and (gy % 100 != 0 or gy % 400 == 0)
+    month_ends = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366] if is_leap else \
+        [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
+    gm = next(i for i in range(1, 13) if gd <= month_ends[i])
+    return gy, gm, gd - month_ends[gm - 1]
+
+
+def _parse_jalali_date(text_value):
+    """Only attempted when strict Gregorian YYYY-MM-DD parsing (below)
+    fails - a real Jalali date (e.g. from a Persian-locale export, digits
+    already normalized by _clean() upstream) such as 1403/05/12 or
+    1403-05-12."""
+    import re as _re
+    # Jalali year prefix: covers 1200-1499 (mid-1800s to mid-2100s in
+    # Gregorian) - deliberately not narrowed to "13xx" only, since the
+    # current Persian year has already rolled into the 14xx range.
+    match = _re.fullmatch(r"(1[234]\d{2})[/-](\d{1,2})[/-](\d{1,2})", text_value.strip())
+    if not match:
+        return None
+    jy, jm, jd = (int(part) for part in match.groups())
+    if not (1 <= jm <= 12 and 1 <= jd <= 31):
+        return None
     try:
-        return datetime.strptime(text_value, "%Y-%m-%d").date()
+        gy, gm, gd = _jalali_to_gregorian(jy, jm, jd)
+        return date_cls(gy, gm, gd)
     except ValueError:
         return None
+
+
+def _parse_date(value):
+    text_value = _normalize_digits(_clean(value))
+    try:
+        parsed = datetime.strptime(text_value[:10], "%Y-%m-%d").date()
+        # A 4-digit leading year in the Jalali range (1200-1499) is
+        # ambiguous with the exact same YYYY-MM-DD shape (dash separator)
+        # in the Gregorian calendar - real business dates are never in
+        # Gregorian year 1200-1499, so treat that shape as Jalali first and
+        # only keep the (implausible) literal Gregorian reading if it
+        # doesn't actually parse as a valid Jalali date either.
+        if parsed.year < 1500:
+            jalali = _parse_jalali_date(text_value)
+            if jalali:
+                return jalali
+        return parsed
+    except ValueError:
+        return _parse_jalali_date(text_value)
 
 
 def _mapping(headers, entity):
@@ -259,6 +440,41 @@ def _mapping(headers, entity):
     if required not in result:
         raise HTTPException(status_code=400, detail=f"Required '{required}' column is missing")
     return result
+
+
+def _mapping_confidence(headers, entity):
+    """Source field -> suggested VETRIX field -> confidence, for /inspect's
+    review UI only (never used to decide what actually gets imported - see
+    _mapping() above, which /preview still calls independently). Confidence
+    is a plain rule-based score (exact alias match=100, case/whitespace-
+    insensitive alias match=90, alias appears as a substring of the header
+    or vice versa=60), never labeled "AI" per the task spec's own
+    instruction, since no semantic model is involved."""
+    aliases = ENTITY_FIELDS[entity]
+    headers_clean = [_clean(h) for h in headers]
+    normalized_exact = {h.lower(): i for i, h in enumerate(headers_clean)}
+    suggestions = {}
+    for field, names in aliases.items():
+        best = None
+        for name in names:
+            name_lower = name.lower()
+            if name_lower in normalized_exact:
+                index = normalized_exact[name_lower]
+                confidence = 100 if headers_clean[index] == name else 90
+                if best is None or confidence > best["confidence"]:
+                    best = {"column_index": index, "column_header": headers_clean[index], "confidence": confidence}
+        if best is None:
+            for index, header in enumerate(headers_clean):
+                header_lower = header.lower().strip()
+                if not header_lower:
+                    continue
+                for name in names:
+                    name_lower = name.lower()
+                    if name_lower in header_lower or header_lower in name_lower:
+                        if best is None or 60 > best["confidence"]:
+                            best = {"column_index": index, "column_header": header, "confidence": 60}
+        suggestions[field] = best
+    return suggestions
 
 
 def _resolve_mapping_override(headers, entity, override_json):
@@ -318,6 +534,16 @@ def _existing_keys(conn, entity, match_keys=None, company_id=None):
             else ("name", _clean(row["name"]).lower())
             for row in rows
         }
+    if entity == "employees":
+        rows = conn.execute(
+            text("SELECT employee_number, first_name, last_name FROM employees WHERE company_id=:company_id"),
+            {"company_id": company_id},
+        ).mappings()
+        return {
+            ("employee_number", _clean(row["employee_number"]).lower()) if _clean(row["employee_number"])
+            else ("name", _clean(row["first_name"]).lower(), _clean(row["last_name"]).lower())
+            for row in rows
+        }
     # gl_trial_balance / invoices: rows are lines, not standalone records -
     # repeats are expected and legitimate (e.g. two lines on the same
     # account, or two lines in the same invoice), so duplicate detection
@@ -351,6 +577,12 @@ def _row_key(entity, row, row_number=None, match_keys=None):
             ("code", row["code"].lower()) if row.get("code")
             else ("barcode", row["barcode"].lower()) if row.get("barcode")
             else ("name", row["name"].lower())
+        )
+    if entity == "employees":
+        return (
+            ("employee_number", row["employee_number"].lower())
+            if row.get("employee_number")
+            else ("name", row.get("first_name", "").lower(), row.get("last_name", "").lower())
         )
     return ("row", row_number)
 
@@ -414,6 +646,13 @@ def download_template(entity: str, request: Request, language: str = "en"):
             ["invoice_no", "date (YYYY-MM-DD)", "invoice_type (sale/return_sale)",
              "customer_name", "product (name or code)", "quantity", "unit_price", "discount", "paid_amount"]
         ),
+        "employees": (
+            ["نام", "نام خانوادگی", "کد پرسنلی", "سمت", "واحد", "نوع همکاری (full_time/part_time/contract/intern/other)",
+             "تلفن", "موبایل", "ایمیل", "تاریخ شروع (YYYY-MM-DD)"]
+            if fa else
+            ["first_name", "last_name", "employee_number", "job_title", "department",
+             "employment_type (full_time/part_time/contract/intern/other)", "phone", "mobile", "email", "start_date (YYYY-MM-DD)"]
+        ),
     }[entity]
     workbook = Workbook()
     sheet = workbook.active
@@ -422,6 +661,7 @@ def download_template(entity: str, request: Request, language: str = "en"):
         "products": "کالاها" if fa else "Products",
         "gl_trial_balance": "سند افتتاحیه" if fa else "Opening trial balance",
         "invoices": "فاکتورهای تاریخی" if fa else "Historical invoices",
+        "employees": "پرسنل" if fa else "Employees",
     }[entity]
     sheet.sheet_view.rightToLeft = fa
     sheet.append(headers)
@@ -496,18 +736,14 @@ async def inspect_import_file(
     raw = await file.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise HTTPException(status_code=413, detail=f"File exceeds {MAX_BYTES // (1024 * 1024)} MB limit")
-    if not (file.filename or "").lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="Only .xlsx or .xls files are accepted")
-    if (file.filename or "").lower().endswith(".xls"):
-        raise HTTPException(status_code=400, detail="Legacy .xls is not supported - please save as .xlsx and retry")
-    try:
-        workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-    except Exception as error:
-        raise HTTPException(status_code=400, detail=f"Invalid Excel workbook: {error}")
+    workbook = _load_workbook_any_format(raw, file.filename or "")
     row_counts = {}
+    probable_entity_by_sheet = {}
     for name in workbook.sheetnames:
-        count = sum(1 for _ in workbook[name].iter_rows(values_only=True))
-        row_counts[name] = max(0, count - 1)
+        sheet_rows = list(workbook[name].iter_rows(values_only=True))
+        row_counts[name] = max(0, len(sheet_rows) - 1)
+        if sheet_rows:
+            probable_entity_by_sheet[name] = _guess_entity_for_headers(sheet_rows[0])
 
     sheet = workbook[sheet_name] if sheet_name and sheet_name in workbook.sheetnames else workbook.active
     rows_iter = sheet.iter_rows(values_only=True)
@@ -516,21 +752,28 @@ async def inspect_import_file(
     headers_clean = [_clean(h) for h in headers]
 
     suggested_mapping = {}
+    mapping_confidence = {}
     if entity in ENTITY_FIELDS:
         try:
             suggested_mapping = _mapping(headers, entity)
         except HTTPException:
             suggested_mapping = {}
+        mapping_confidence = _mapping_confidence(headers, entity)
 
     return {
         "file_name": file.filename,
         "size_bytes": len(raw),
         "sheet_names": workbook.sheetnames,
         "row_counts": row_counts,
+        # Read-only hint per sheet ("this looks like products/customers/...")
+        # - each sheet is still reviewed/applied as its own separate job,
+        # see _guess_entity_for_headers' docstring.
+        "probable_entity_by_sheet": probable_entity_by_sheet,
         "active_sheet": sheet.title,
         "headers": headers_clean,
         "sample_row": [_clean(v) for v in sample_row],
         "suggested_mapping": suggested_mapping,
+        "mapping_confidence": mapping_confidence,
         "entity_fields": list(ENTITY_FIELDS.get(entity, {}).keys()),
     }
 
@@ -595,17 +838,13 @@ async def preview_import(
     raw = await file.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise HTTPException(status_code=413, detail=f"File exceeds {MAX_BYTES // (1024 * 1024)} MB limit")
-    if not (file.filename or "").lower().endswith(".xlsx"):
-        raise HTTPException(status_code=400, detail="Only .xlsx files are accepted")
+    workbook = _load_workbook_any_format(raw, file.filename or "")
+    sheet = workbook[sheet_name] if sheet_name and sheet_name in workbook.sheetnames else workbook.active
+    rows = sheet.iter_rows(values_only=True)
     try:
-        workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-        sheet = workbook[sheet_name] if sheet_name and sheet_name in workbook.sheetnames else workbook.active
-        rows = sheet.iter_rows(values_only=True)
         headers = next(rows)
-    except HTTPException:
-        raise
-    except Exception as error:
-        raise HTTPException(status_code=400, detail=f"Invalid Excel workbook: {error}")
+    except StopIteration:
+        raise HTTPException(status_code=400, detail="The file has no header row")
     column_map = (
         _resolve_mapping_override(headers, entity, column_map_json)
         if column_map_json else
@@ -628,6 +867,9 @@ async def preview_import(
     seen = set()
     with engine.begin() as conn:
         _ensure_schema(conn)
+        if entity == "employees":
+            from app.hr import _ensure_schema as _ensure_hr_schema
+            _ensure_hr_schema(conn)
         existing = _existing_keys(conn, entity, match_keys=match_keys if is_products else None, company_id=current_company_id(request))
         chart_codes = set()
         customers_map = {}
@@ -654,6 +896,8 @@ async def preview_import(
                     item[field] = _number(value, field, row_number, row_errors)
                 elif field in IDENTIFIER_FIELDS:
                     item[field] = _clean_identifier(value)
+                elif field in PHONE_LIKE_FIELDS:
+                    item[field] = _normalize_digits(_clean(value))
                 else:
                     item[field] = _clean(value)
             required = REQUIRED_FIELD[entity]
@@ -699,9 +943,24 @@ async def preview_import(
                     row_errors.append({"row": row_number, "field": "product", "message": "Product not found - import products first"})
                 if not item.get("quantity") or item["quantity"] <= 0:
                     row_errors.append({"row": row_number, "field": "quantity", "message": "Quantity must be greater than zero"})
+            elif entity == "employees":
+                from app.hr import EMPLOYMENT_TYPES as _EMPLOYMENT_TYPES
+                item["employment_type"] = (item.get("employment_type") or "full_time").strip().lower()
+                if item["employment_type"] not in _EMPLOYMENT_TYPES:
+                    row_errors.append({"row": row_number, "field": "employment_type", "message": f"Must be one of: {', '.join(sorted(_EMPLOYMENT_TYPES))}"})
+                if item.get("start_date"):
+                    parsed_start_date = _parse_date(item["start_date"])
+                    if not parsed_start_date:
+                        row_errors.append({"row": row_number, "field": "start_date", "message": "Invalid date, use YYYY-MM-DD (or a Jalali date)"})
+                    else:
+                        # Normalize to ISO storage format - a Jalali source
+                        # value is converted here, not silently left as-is,
+                        # and the converted value is what the preview and
+                        # apply step both show/use.
+                        item["start_date"] = parsed_start_date.isoformat()
 
             key = _row_key(entity, item, row_number, match_keys=match_keys if is_products else None)
-            is_dup_key = bool(key) and (key in seen or key in existing) and entity in {"customers", "products"}
+            is_dup_key = bool(key) and (key in seen or key in existing) and entity in {"customers", "products", "employees"}
             updatable = is_dup_key and is_products and duplicate_policy == "update"
             duplicate = is_dup_key and not updatable
             if is_dup_key:
@@ -952,6 +1211,26 @@ def apply_import(batch_id: str, request: Request):
                        0, 0, 'retail', 0, 0, :company_id)
                 """), {**item, "created_at": datetime.utcnow(), "company_id": company_id})
                 _post_customer_opening(conn, result.lastrowid, item["name"], item["opening_balance"], policy, company_id)
+                existing.add(_row_key(entity, item))
+                inserted += 1
+
+        elif entity == "employees":
+            from app.hr import _ensure_schema as _ensure_hr_schema
+            _ensure_hr_schema(conn)
+            existing = _existing_keys(conn, entity, company_id=company_id)
+            for row in rows:
+                item = row["data"]
+                if row["duplicate"] or _row_key(entity, item) in existing:
+                    skipped += 1
+                    continue
+                conn.execute(text("""
+                    INSERT INTO employees
+                      (employee_number, first_name, last_name, job_title, department, employment_type,
+                       status, phone, mobile, email, start_date, created_at, updated_at, company_id)
+                    VALUES
+                      (:employee_number, :first_name, :last_name, :job_title, :department, :employment_type,
+                       'active', :phone, :mobile, :email, :start_date, :created_at, :created_at, :company_id)
+                """), {**item, "start_date": item.get("start_date") or None, "created_at": _now(), "company_id": company_id})
                 existing.add(_row_key(entity, item))
                 inserted += 1
 

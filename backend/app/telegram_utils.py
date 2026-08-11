@@ -49,6 +49,30 @@ def send_telegram_message(company_id: int | None, chat_id: str, text: str, timeo
     return {"status": "sent", "provider": "telegram"}
 
 
+def send_telegram_document(company_id: int | None, chat_id: str, filename: str, content: bytes, caption: str = "", timeout: int = 60) -> dict:
+    """Real Telegram Bot API sendDocument call (Task 04, Section 19) - a
+    genuine extension of the already-real send_telegram_message above, not
+    a new fabricated capability. Telegram's own file-size ceiling for
+    bot-uploaded documents is 50MB; a larger backup will be rejected by
+    Telegram itself with a clear error, not silently truncated."""
+    token = telegram_bot_token(company_id)
+    if not token:
+        raise ValueError("Telegram bot is not configured (Settings > Telegram bot token)")
+    if not chat_id:
+        raise ValueError("No Telegram chat is linked for this recipient")
+
+    response = httpx.post(
+        TELEGRAM_API_URL.format(token=token, method="sendDocument"),
+        data={"chat_id": chat_id, "caption": caption[:1024]},
+        files={"document": (filename, content, "application/octet-stream")},
+        timeout=timeout,
+    )
+    data = response.json()
+    if not data.get("ok"):
+        raise ValueError(data.get("description") or "Telegram rejected the document")
+    return {"status": "sent", "provider": "telegram"}
+
+
 def resolve_chat_id_from_update(update: dict) -> tuple[str, str]:
     """Pulls (chat_id, text) out of a Telegram webhook update payload, for
     the /api/telegram/webhook receiver that links a customer's chat once

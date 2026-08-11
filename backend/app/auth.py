@@ -258,6 +258,39 @@ def decode_catalog_token(token: str) -> dict:
     )
 
 
+BACKUP_DOWNLOAD_AUDIENCE = "vetrix-erp-backup-download"
+BACKUP_DOWNLOAD_HOURS = 48
+
+
+def create_backup_download_token(filename: str) -> str:
+    """Short-lived, audience-scoped link (Task 04, Section 19) so a backup
+    recipient without an interactive login can retrieve the file during an
+    emergency - same shape as create_catalog_token above, deliberately not
+    revoke-by-generation (deleting the backup file itself already
+    invalidates any token referencing it)."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "filename": filename,
+        "iat": now,
+        "nbf": now,
+        "exp": now + timedelta(hours=BACKUP_DOWNLOAD_HOURS),
+        "iss": TOKEN_ISSUER,
+        "aud": BACKUP_DOWNLOAD_AUDIENCE,
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+
+def decode_backup_download_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        _jwt_secret(),
+        algorithms=[TOKEN_ALGORITHM],
+        issuer=TOKEN_ISSUER,
+        audience=BACKUP_DOWNLOAD_AUDIENCE,
+        options={"require": ["exp", "iat", "filename", "iss", "aud"]},
+    )
+
+
 PUBLIC_PATHS = {
     "/",
     "/health",
@@ -274,6 +307,8 @@ PUBLIC_PATHS = {
     "/api/campaign-delivery/claim",
     "/api/campaign-delivery/complete",
     "/api/campaign-delivery/fail",
+    "/api/backup-delivery/trigger-due",
+    "/api/backup-delivery/secure-download",
     "/api/customer-portal/me",
     "/api/customer-portal/invoices",
     "/api/customer-portal/ledger",

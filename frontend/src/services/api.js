@@ -305,6 +305,76 @@ export async function updateExecutiveAlertSettings(data) {
   return await request("/api/executive-alerts/settings", { method: "PUT", body: JSON.stringify(data) });
 }
 
+// BI Improvement Action Plan & Follow-up Engine
+export async function recalculateBiFindings() { return await request("/api/bi-improvement/recalculate", { method: "POST" }); }
+export async function getBiFindings(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "")).toString();
+  return await request(`/api/bi-improvement/findings${query ? `?${query}` : ""}`);
+}
+export async function getBiFinding(id) { return await request(`/api/bi-improvement/findings/${id}`); }
+export async function acknowledgeBiFinding(id) { return await request(`/api/bi-improvement/findings/${id}/acknowledge`, { method: "PUT" }); }
+export async function dismissBiFinding(id, reason) { return await request(`/api/bi-improvement/findings/${id}/dismiss`, { method: "PUT", body: JSON.stringify({ reason }) }); }
+export async function reopenBiFinding(id, reason = "") { return await request(`/api/bi-improvement/findings/${id}/reopen`, { method: "PUT", body: JSON.stringify({ reason }) }); }
+export async function resolveBiFinding(id, data = {}) { return await request(`/api/bi-improvement/findings/${id}/resolve`, { method: "POST", body: JSON.stringify(data) }); }
+export async function createBiActionPlan(findingId, data) { return await request(`/api/bi-improvement/findings/${findingId}/plans`, { method: "POST", body: JSON.stringify(data) }); }
+export async function updateBiActionPlan(planId, data) { return await request(`/api/bi-improvement/plans/${planId}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function submitBiActionPlan(planId) { return await request(`/api/bi-improvement/plans/${planId}/submit`, { method: "POST" }); }
+export async function startBiActionPlan(planId) { return await request(`/api/bi-improvement/plans/${planId}/start`, { method: "POST" }); }
+export async function completeBiActionPlan(planId, outcome = "") { return await request(`/api/bi-improvement/plans/${planId}/complete`, { method: "POST", body: JSON.stringify({ outcome }) }); }
+export async function cancelBiActionPlan(planId) { return await request(`/api/bi-improvement/plans/${planId}/cancel`, { method: "POST" }); }
+export async function createBiActionTask(planId, data) { return await request(`/api/bi-improvement/plans/${planId}/tasks`, { method: "POST", body: JSON.stringify(data) }); }
+export async function updateBiActionTask(taskId, data) { return await request(`/api/bi-improvement/tasks/${taskId}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function getBiImprovementDashboard() { return await request("/api/bi-improvement/dashboard"); }
+
+// Company Profile (Task 04, Section 17)
+export async function getCompanyProfile() { return await request("/api/company-profile"); }
+export async function updateCompanyProfile(data) { return await request("/api/company-profile", { method: "PUT", body: JSON.stringify(data) }); }
+export async function getCompanyGoals(status = "") { return await request(`/api/company-profile/goals${status ? `?status=${status}` : ""}`); }
+export async function createCompanyGoal(data) { return await request("/api/company-profile/goals", { method: "POST", body: JSON.stringify(data) }); }
+export async function updateCompanyGoal(id, data) { return await request(`/api/company-profile/goals/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function deleteCompanyGoal(id) { return await request(`/api/company-profile/goals/${id}`, { method: "DELETE" }); }
+export async function getCompanyDocuments() { return await request("/api/company-profile/documents"); }
+export async function uploadCompanyDocument(formData) {
+  const response = await fetch(`${API_URL}/api/company-profile/documents`, { method: "POST", headers: getAuthHeaders({}, false), body: formData });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  return data;
+}
+export async function deleteCompanyDocument(id) { return await request(`/api/company-profile/documents/${id}`, { method: "DELETE" }); }
+
+// Personnel / HR (Task 04, Section 18)
+export async function getEmployees(params = {}) {
+  const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "")).toString();
+  return await request(`/api/hr${query ? `?${query}` : ""}`);
+}
+export async function createEmployee(data) { return await request("/api/hr", { method: "POST", body: JSON.stringify(data) }); }
+export async function getEmployee(id) { return await request(`/api/hr/${id}`); }
+export async function updateEmployee(id, data) { return await request(`/api/hr/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function getEmployeeHistory(id) { return await request(`/api/hr/${id}/history`); }
+export async function getEmployeeSummary(id) { return await request(`/api/hr/${id}/summary`); }
+export async function getEmployeeCompensation(id) { return await request(`/api/hr/${id}/compensation`); }
+export async function createEmployeeCompensation(id, data) { return await request(`/api/hr/${id}/compensation`, { method: "POST", body: JSON.stringify(data) }); }
+export async function getEmployeeLeaveBalances(id) { return await request(`/api/hr/${id}/leave/balances`); }
+export async function setEmployeeLeaveBalance(id, data) { return await request(`/api/hr/${id}/leave/balances`, { method: "PUT", body: JSON.stringify(data) }); }
+export async function getEmployeeLeaveRequests(id) { return await request(`/api/hr/${id}/leave/requests`); }
+export async function createEmployeeLeaveRequest(id, data) { return await request(`/api/hr/${id}/leave/requests`, { method: "POST", body: JSON.stringify(data) }); }
+export async function cancelEmployeeLeaveRequest(requestId) { return await request(`/api/hr/leave/requests/${requestId}/cancel`, { method: "POST" }); }
+export async function getEmployeeAttendance(id, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return await request(`/api/hr/${id}/attendance${query ? `?${query}` : ""}`);
+}
+export async function recordEmployeeAttendance(id, data) { return await request(`/api/hr/${id}/attendance`, { method: "POST", body: JSON.stringify(data) }); }
+export async function getEmployeeDocuments(id) { return await request(`/api/hr/${id}/documents`); }
+export async function uploadEmployeeDocument(id, formData) {
+  const response = await fetch(`${API_URL}/api/hr/${id}/documents`, { method: "POST", headers: getAuthHeaders({}, false), body: formData });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.detail || data?.message || `API error ${response.status}`);
+  return data;
+}
+export async function deleteEmployeeDocument(employeeId, documentId) { return await request(`/api/hr/${employeeId}/documents/${documentId}`, { method: "DELETE" }); }
+export async function getEmployeePerformanceReviews(id) { return await request(`/api/hr/${id}/performance`); }
+export async function createEmployeePerformanceReview(id, data) { return await request(`/api/hr/${id}/performance`, { method: "POST", body: JSON.stringify(data) }); }
+
 // Vetrix AI Business Intelligence API
 export async function getAiBiSummary() { return await request(`/api/ai-bi/summary`); }
 export async function getAiBiAlerts() { return await request(`/api/ai-bi/alerts`); }

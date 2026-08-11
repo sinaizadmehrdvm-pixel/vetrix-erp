@@ -7,8 +7,11 @@ import {
   Download,
   FileCheck2,
   HardDrive,
+  Mail,
+  Plus,
   RefreshCw,
   RotateCcw,
+  Send,
   ShieldAlert,
   TestTube2,
   Trash2,
@@ -19,10 +22,15 @@ import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import {
   createBackup,
+  createBackupDeliveryPolicy,
   deleteBackup,
+  deleteBackupDeliveryPolicy,
   downloadBackup,
+  getBackupDeliveryLog,
+  getBackupDeliveryPolicies,
   getBackups,
   restoreBackup,
+  runBackupDeliveryPolicyNow,
   testRestoreBackup,
   verifyBackup,
 } from "../services/backupApi";
@@ -341,7 +349,186 @@ export default function BackupRecovery() {
           </table>
         </div>
       </section>
+
+      <DeliveryPolicies card={card} language={language} dir={dir} n={n} date={date} />
     </div>
+  );
+}
+
+function DeliveryPolicies({ card, language, dir, n, date }) {
+  const tr = (fa_, ar_, tr_, en_) => (language === "fa" ? fa_ : language === "ar" ? ar_ : language === "tr" ? tr_ : en_);
+
+  const [policies, setPolicies] = useState([]);
+  const [log, setLog] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [draft, setDraft] = useState({ name: "", frequency: "daily", channel: "download", target: "" });
+  const [scheduleNote, setScheduleNote] = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [policyData, logData] = await Promise.all([getBackupDeliveryPolicies(), getBackupDeliveryLog()]);
+      setPolicies(policyData.items || []);
+      setScheduleNote(policyData.scheduler_note || "");
+      setLog(logData.items || []);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  async function createPolicy(event) {
+    event.preventDefault();
+    if (!draft.name.trim()) return;
+    try {
+      const recipients = draft.channel === "download" ? [{ channel: "download", target: "" }] : [{ channel: draft.channel, target: draft.target }];
+      await createBackupDeliveryPolicy({ name: draft.name, frequency: draft.frequency, recipients });
+      setDraft({ name: "", frequency: "daily", channel: "download", target: "" });
+      setFormOpen(false);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
+  async function runNow(policy) {
+    setBusy(policy.id);
+    try {
+      const result = await runBackupDeliveryPolicyNow(policy.id);
+      toast.success(`${tr("وضعیت تحویل", "حالة التسليم", "Teslimat durumu", "Delivery status")}: ${result.status}`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function remove(policy) {
+    setBusy(policy.id);
+    try {
+      await deleteBackupDeliveryPolicy(policy.id);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <section style={{ ...card, padding: 20, marginTop: 22 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+        <h2 style={{ margin: 0, color: "var(--erp-accent)", fontSize: 20, display: "flex", alignItems: "center", gap: 8 }}>
+          <Send size={20} />
+          {tr("سیاست‌های تحویل خودکار بکاپ", "سياسات التسليم التلقائي للنسخ الاحتياطية", "Otomatik yedek teslim politikaları", "Automated Backup Delivery Policies")}
+        </h2>
+        <button onClick={() => setFormOpen((v) => !v)} style={{ display: "flex", gap: 6, alignItems: "center", border: 0, borderRadius: 12, padding: "9px 13px", background: "var(--erp-panel-solid)", color: "var(--erp-text)", fontWeight: 800, cursor: "pointer" }}>
+          <Plus size={16} /> {tr("سیاست جدید", "سياسة جديدة", "Yeni politika", "New policy")}
+        </button>
+      </div>
+
+      {scheduleNote && (
+        <div className="text-amber-200" style={{ ...card, padding: 12, marginBottom: 14, fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+          {scheduleNote}
+        </div>
+      )}
+
+      {formOpen && (
+        <form onSubmit={createPolicy} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          <input required placeholder={tr("نام سیاست", "اسم السياسة", "Politika adı", "Policy name")} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }} />
+          <select value={draft.frequency} onChange={(e) => setDraft({ ...draft, frequency: e.target.value })}
+            style={{ padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }}>
+            <option value="daily">{tr("روزانه", "يومي", "Günlük", "Daily")}</option>
+            <option value="weekly">{tr("هفتگی", "أسبوعي", "Haftalık", "Weekly")}</option>
+            <option value="manual">{tr("دستی", "يدوي", "Manuel", "Manual")}</option>
+          </select>
+          <select value={draft.channel} onChange={(e) => setDraft({ ...draft, channel: e.target.value })}
+            style={{ padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }}>
+            <option value="download">{tr("لینک امن دانلود", "رابط تنزيل آمن", "Güvenli indirme linki", "Secure download link")}</option>
+            <option value="email">{tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")}</option>
+            <option value="telegram">Telegram</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+          {draft.channel !== "download" && (
+            <input placeholder={tr("مقصد (ایمیل/چت‌آیدی/شماره)", "الهدف (بريد/معرف/رقم)", "Hedef (e-posta/sohbet id/numara)", "Target (email/chat id/number)")} value={draft.target}
+              onChange={(e) => setDraft({ ...draft, target: e.target.value })}
+              style={{ flex: "1 1 200px", padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }} />
+          )}
+          <button type="submit" style={{ border: 0, borderRadius: 10, padding: "10px 16px", background: "linear-gradient(135deg,var(--erp-accent),var(--erp-accent-2))", color: "#03131d", fontWeight: 900, cursor: "pointer" }}>
+            {tr("ذخیره", "حفظ", "Kaydet", "Save")}
+          </button>
+        </form>
+      )}
+
+      {!loading && policies.length === 0 && (
+        <p style={{ color: "var(--erp-muted)" }}>{tr("سیاستی تعریف نشده.", "لا توجد سياسات.", "Politika tanımlanmadı.", "No policies defined yet.")}</p>
+      )}
+
+      {policies.length > 0 && (
+        <div style={{ overflowX: "auto", marginBottom: 18 }}>
+          <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
+                {["#", tr("نام", "الاسم", "Ad", "Name"), tr("دوره", "التكرار", "Sıklık", "Frequency"), tr("گیرندگان", "المستلمون", "Alıcılar", "Recipients"), tr("آخرین اجرا", "آخر تشغيل", "Son çalıştırma", "Last run"), tr("عملیات", "الإجراءات", "İşlemler", "Actions")]
+                  .map((h) => <th key={h} style={{ padding: 11, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {policies.map((p, i) => (
+                <tr key={p.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                  <td style={{ padding: 11, color: "var(--erp-muted)", fontWeight: 700 }}>{n(i + 1)}</td>
+                  <td style={{ padding: 11, fontWeight: 700 }}>{p.name}{!p.enabled ? ` (${tr("غیرفعال", "معطل", "devre dışı", "disabled")})` : ""}</td>
+                  <td style={{ padding: 11 }}>{p.frequency}</td>
+                  <td style={{ padding: 11 }}>{(p.recipients || []).map((r) => r.channel).join(", ") || "—"}</td>
+                  <td style={{ padding: 11 }}>{p.last_run_at ? date(p.last_run_at) : "—"}</td>
+                  <td style={{ padding: 11 }}>
+                    <div style={{ display: "flex", gap: 7 }}>
+                      <ActionButton title={tr("اجرای فوری", "تشغيل الآن", "Şimdi çalıştır", "Run now")} onClick={() => runNow(p)} disabled={busy === p.id}><Mail size={16} /></ActionButton>
+                      <ActionButton title={tr("حذف", "حذف", "Sil", "Delete")} onClick={() => remove(p)} disabled={busy === p.id} danger><Trash2 size={16} /></ActionButton>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {log.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <h3 style={{ color: "var(--erp-muted)", fontSize: 14, marginBottom: 8 }}>{tr("تاریخچه تحویل", "سجل التسليم", "Teslimat geçmişi", "Delivery history")}</h3>
+          <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}>
+                {["#", tr("فایل", "الملف", "Dosya", "File"), tr("وضعیت", "الحالة", "Durum", "Status"), tr("زمان", "الوقت", "Zaman", "Time")]
+                  .map((h) => <th key={h} style={{ padding: 11, textAlign: dir === "rtl" ? "right" : "left", fontSize: 12 }}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {log.slice(0, 10).map((item, i) => (
+                <tr key={item.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                  <td style={{ padding: 11, color: "var(--erp-muted)", fontWeight: 700 }}>{n(i + 1)}</td>
+                  <td style={{ padding: 11, direction: "ltr", textAlign: "left", fontSize: 12 }}>{item.backup_filename || "—"}</td>
+                  <td style={{ padding: 11 }}>{item.status}</td>
+                  <td style={{ padding: 11 }}>{date(item.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

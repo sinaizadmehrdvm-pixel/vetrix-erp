@@ -41,3 +41,15 @@ export const downloadBackup = (filename) =>
     `/api/backups/${encodeURIComponent(filename)}/download`,
     filename,
   );
+
+// Automated Backup Delivery (Task 04, Section 19)
+export const getBackupDeliveryPolicies = () => request("/api/backup-delivery/policies");
+export const createBackupDeliveryPolicy = (data) =>
+  request("/api/backup-delivery/policies", { method: "POST", body: JSON.stringify(data) });
+export const updateBackupDeliveryPolicy = (id, data) =>
+  request(`/api/backup-delivery/policies/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteBackupDeliveryPolicy = (id) =>
+  request(`/api/backup-delivery/policies/${id}`, { method: "DELETE" });
+export const runBackupDeliveryPolicyNow = (id) =>
+  request(`/api/backup-delivery/policies/${id}/run-now`, { method: "POST" });
+export const getBackupDeliveryLog = () => request("/api/backup-delivery/log");

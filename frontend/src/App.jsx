@@ -32,12 +32,16 @@ const SmartInventory = lazy(() => import("./pages/SmartInventory"));
 const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
 const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
 const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
+const ImprovementCenter = lazy(() => import("./pages/ImprovementCenter"));
 const AccountingCore = lazy(() => import("./pages/AccountingCore"));
 const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
 const FiscalPeriods = lazy(() => import("./pages/FiscalPeriods"));
 const AuditTrail = lazy(() => import("./pages/AuditTrail"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const CompanyManagement = lazy(() => import("./pages/CompanyManagement"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const Employees = lazy(() => import("./pages/Employees"));
+const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
 const BackupRecovery = lazy(() => import("./pages/BackupRecovery"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const FinancialStatements = lazy(() => import("./pages/FinancialStatements"));
@@ -218,6 +222,7 @@ function AppContent() {
           <Route path="expenses" element={<Expenses />} />
           <Route path="reports" element={<Reports />} />
           <Route path="ai-bi" element={<AiBusinessIntelligence />} />
+          <Route path="improvement-center" element={<ImprovementCenter />} />
           <Route path="finance" element={<Navigate to="/transactions" replace />} />
           <Route path="accounting" element={<AccountingCore />} />
           <Route path="accounting-entries" element={<AccountingEntries />} />
@@ -225,6 +230,9 @@ function AppContent() {
           <Route path="audit-trail" element={<AuditTrail />} />
           <Route path="user-management" element={<UserManagement />} />
           <Route path="company-management" element={<CompanyManagement />} />
+          <Route path="company-profile" element={<CompanyProfile />} />
+          <Route path="hr/employees" element={<Employees />} />
+          <Route path="hr/employees/:id" element={<EmployeeProfile />} />
           <Route path="backup-recovery" element={<BackupRecovery />} />
           <Route path="system-health" element={<SystemHealth />} />
           <Route path="financial-statements" element={<FinancialStatements />} />

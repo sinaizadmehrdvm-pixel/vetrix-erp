@@ -21,6 +21,7 @@ import httpx
 from app.database import SessionLocal
 
 WHATSAPP_API_URL = "https://graph.facebook.com/v20.0/{phone_number_id}/messages"
+WHATSAPP_MEDIA_UPLOAD_URL = "https://graph.facebook.com/v20.0/{phone_number_id}/media"
 
 
 def whatsapp_credentials(company_id: int | None) -> dict:
@@ -63,4 +64,45 @@ def send_whatsapp_message(company_id: int | None, to_number: str, text: str, tim
     data = response.json()
     if "error" in data:
         raise ValueError((data["error"] or {}).get("message") or "WhatsApp rejected the request")
+    return {"status": "sent", "provider": "whatsapp"}
+
+
+def send_whatsapp_document(company_id: int | None, to_number: str, filename: str, content: bytes, caption: str = "", timeout: int = 60) -> dict:
+    """Real two-step WhatsApp Cloud API document delivery (Task 04, Section
+    19): upload the file to get a media_id, then reference it in a
+    type=document message. Same "follows the published REST contract, not
+    smoke-tested against a live account in this environment" caveat as
+    send_whatsapp_message above - the caller must treat failures as real
+    and never claim delivery succeeded without a successful response from
+    both steps."""
+    creds = whatsapp_credentials(company_id)
+    if not creds["phone_number_id"] or not creds["access_token"]:
+        raise ValueError("WhatsApp is not configured (Settings > WhatsApp)")
+    if not to_number:
+        raise ValueError("No WhatsApp number is available for this recipient")
+
+    upload = httpx.post(
+        WHATSAPP_MEDIA_UPLOAD_URL.format(phone_number_id=creds["phone_number_id"]),
+        headers={"Authorization": f"Bearer {creds['access_token']}"},
+        data={"messaging_product": "whatsapp"},
+        files={"file": (filename, content, "application/octet-stream")},
+        timeout=timeout,
+    )
+    upload_data = upload.json()
+    media_id = upload_data.get("id")
+    if not media_id:
+        raise ValueError((upload_data.get("error") or {}).get("message") or "WhatsApp rejected the file upload")
+
+    response = httpx.post(
+        WHATSAPP_API_URL.format(phone_number_id=creds["phone_number_id"]),
+        headers={"Authorization": f"Bearer {creds['access_token']}"},
+        json={
+            "messaging_product": "whatsapp", "to": to_number, "type": "document",
+            "document": {"id": media_id, "filename": filename, "caption": caption[:1024]},
+        },
+        timeout=timeout,
+    )
+    data = response.json()
+    if "error" in data:
+        raise ValueError((data["error"] or {}).get("message") or "WhatsApp rejected the document message")
     return {"status": "sent", "provider": "whatsapp"}

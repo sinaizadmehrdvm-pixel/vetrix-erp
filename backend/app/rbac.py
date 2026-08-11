@@ -176,6 +176,17 @@ READ_RULES = (
     # summary - same admin/accountant scoping as the underlying sources
     # (aging.py, treasury.py) it reads from.
     ("/api/executive-alerts", {"admin", "accountant"}),
+    # Findings/plans reuse existing BI-adjacent read data; same admin/
+    # accountant scoping as ai-bi and executive-alerts above.
+    ("/api/bi-improvement", {"admin", "accountant"}),
+    # A single company's own extended profile/documents/goals - admin-only,
+    # same scoping as /settings (not the super-admin-gated /api/companies).
+    ("/api/company-profile", {"admin"}),
+    # Coarse gate only admits any authenticated role (self-service employees
+    # can be any role); real access control is row-level inside app/hr.py
+    # (admin/manager-of-direct-reports/self/accountant-for-compensation).
+    ("/api/hr", ALL_ROLES),
+    ("/api/backup-delivery", {"admin"}),
 )
 
 MUTATION_RULES = (
@@ -242,6 +253,10 @@ MUTATION_RULES = (
     ("/api/invoice-payments", {"admin", "accountant"}),
     ("/api/approvals", {"admin", "accountant"}),
     ("/api/executive-alerts", {"admin", "accountant"}),
+    ("/api/bi-improvement", {"admin", "accountant"}),
+    ("/api/company-profile", {"admin"}),
+    ("/api/hr", ALL_ROLES),
+    ("/api/backup-delivery", {"admin"}),
 )
 
 

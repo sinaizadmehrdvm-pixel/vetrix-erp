@@ -5547,6 +5547,597 @@ class ApiAccessControlTests(unittest.TestCase):
         reset = self.client.delete("/api/payment-providers/sandbox", headers=admin_headers)
         self.assertEqual(reset.status_code, 200, reset.text)
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_bi_improvement_finding_lifecycle(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+        second_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "BI Plan Approver", "username": "ci-admin-bi", "password": "StrongBiPass!42", "role": "admin"},
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        second_headers, _ = self._login("ci-admin-bi", "StrongBiPass!42")
+
+        # Self-contained period/plan so this finding is deterministic
+        # regardless of whatever real state other tests left behind in the
+        # same shared company (recalculate scans ALL company data, so other
+        # detector categories may also fire - this test only asserts on the
+        # budget_variance finding tied to ITS OWN plan_id).
+        new_period = self.client.post(
+            "/api/accounting/periods", headers=admin_headers,
+            json={"name": "CI BI Improvement Period", "start_date": "2032-01-01", "end_date": "2032-01-31"},
+        )
+        self.assertEqual(new_period.status_code, 200, new_period.text)
+        period_id = new_period.json()["id"]
+        accounts = self.client.get("/api/accounting/entries/chart", headers=admin_headers).json()
+        expense = next(item for item in accounts if item["code"] == "5102")
+        cash = next(item for item in accounts if item["code"] == "1101")
+
+        plan = self.client.post(
+            "/api/accounting/budget-plans", headers=admin_headers,
+            json={"name": "CI BI Overrun Plan", "budget_type": "expense", "scenario": "base", "fiscal_period_id": period_id},
+        )
+        self.assertEqual(plan.status_code, 200, plan.text)
+        plan_id = plan.json()["id"]
+        expense_line = self.client.post(
+            "/api/accounting/budgets/lines", headers=admin_headers,
+            json={"fiscal_period_id": period_id, "account_id": expense["id"], "amount": 100, "budget_plan_id": plan_id},
+        )
+        self.assertEqual(expense_line.status_code, 200, expense_line.text)
+
+        submit = self.client.post(f"/api/accounting/budget-plans/{plan_id}/submit", headers=admin_headers)
+        self.assertEqual(submit.status_code, 200, submit.text)
+        approve = self.client.post(f"/api/approvals/{submit.json()['approval_request_id']}/approve", headers=second_headers, json={"note": "ok"})
+        self.assertEqual(approve.status_code, 200, approve.text)
+        activate = self.client.post(f"/api/accounting/budget-plans/{plan_id}/activate", headers=admin_headers)
+        self.assertEqual(activate.status_code, 200, activate.text)
+
+        # Actual expense (250) is 150% over the planned 100 -> a clear,
+        # deterministic budget_variance finding (critical, >=25% over).
+        voucher = self.client.post(
+            "/api/accounting/entries", headers=admin_headers,
+            json={
+                "voucher_date": "2032-01-05", "description": "CI BI overrun actual", "status": "posted",
+                "lines": [
+                    {"account_id": expense["id"], "debit": 250, "credit": 0},
+                    {"account_id": cash["id"], "debit": 0, "credit": 250},
+                ],
+            },
+        )
+        self.assertEqual(voucher.status_code, 200, voucher.text)
+
+        recalc = self.client.post("/api/bi-improvement/recalculate", headers=admin_headers)
+        self.assertEqual(recalc.status_code, 200, recalc.text)
+        self.assertIsInstance(recalc.json()["created"], list)
+
+        findings = self.client.get("/api/bi-improvement/findings?category=budget_variance", headers=admin_headers)
+        self.assertEqual(findings.status_code, 200, findings.text)
+        matches = [f for f in findings.json()["items"] if f["related_entity_id"] == plan_id]
+        self.assertTrue(matches, findings.json()["items"])
+        finding = matches[0]
+        finding_id = finding["id"]
+        self.assertEqual(finding["severity"], "critical")
+        self.assertEqual(finding["status"], "new")
+        self.assertEqual(finding["evidence_source"], "app.accounting.budget_plans.plan_summary")
+        self.assertIn("top_over_budget_categories", finding["evidence"])
+        self.assertIn("Review the over-budget expense categories", finding["recommended_actions"])
+
+        # A brand-new critical finding surfaces in Executive Alerts (the 5th source).
+        alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        finding_alerts = [a for a in alerts.json()["items"] if a["category"] == "bi_finding" and a["related_id"] == finding_id]
+        self.assertTrue(finding_alerts, alerts.json()["items"])
+        self.assertEqual(finding_alerts[0]["severity"], "critical")
+
+        # Dismiss requires a non-empty reason.
+        blank_dismiss = self.client.put(f"/api/bi-improvement/findings/{finding_id}/dismiss", headers=admin_headers, json={"reason": "  "})
+        self.assertEqual(blank_dismiss.status_code, 400, blank_dismiss.text)
+
+        acknowledge = self.client.put(f"/api/bi-improvement/findings/{finding_id}/acknowledge", headers=admin_headers)
+        self.assertEqual(acknowledge.status_code, 200, acknowledge.text)
+
+        create_plan = self.client.post(
+            f"/api/bi-improvement/findings/{finding_id}/plans", headers=admin_headers,
+            json={
+                "objective": "Bring expense back within the approved budget", "selected_action": "Review the over-budget expense categories",
+                "priority": "high", "target_kpi": "budget_over_ratio_percent", "baseline_kpi": finding["current_metric"], "target_value": 0,
+            },
+        )
+        self.assertEqual(create_plan.status_code, 200, create_plan.text)
+        action_plan_id = create_plan.json()["id"]
+
+        after_plan = self.client.get(f"/api/bi-improvement/findings/{finding_id}", headers=admin_headers).json()
+        self.assertEqual(after_plan["status"], "action_planned")
+        self.assertEqual(len(after_plan["plans"]), 1)
+        self.assertTrue(any(h["event_type"] == "plan_created" for h in after_plan["history"]))
+
+        start_plan = self.client.post(f"/api/bi-improvement/plans/{action_plan_id}/start", headers=admin_headers)
+        self.assertEqual(start_plan.status_code, 200, start_plan.text)
+        in_progress = self.client.get(f"/api/bi-improvement/findings/{finding_id}", headers=admin_headers).json()
+        self.assertEqual(in_progress["status"], "in_progress")
+
+        yesterday = "2020-01-01"
+        task = self.client.post(
+            f"/api/bi-improvement/plans/{action_plan_id}/tasks", headers=admin_headers,
+            json={"title": "Review overspend with department head", "deadline": yesterday},
+        )
+        self.assertEqual(task.status_code, 200, task.text)
+        task_id = task.json()["id"]
+
+        overdue_alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        task_alert = [a for a in overdue_alerts.json()["items"] if a["category"] == "bi_action_task" and a["related_id"] == finding_id]
+        self.assertTrue(task_alert, overdue_alerts.json()["items"])
+        self.assertEqual(task_alert[0]["severity"], "critical")  # far more than 7 days overdue
+
+        update_task = self.client.put(f"/api/bi-improvement/tasks/{task_id}", headers=admin_headers, json={"status": "done", "progress_percent": 100})
+        self.assertEqual(update_task.status_code, 200, update_task.text)
+
+        # Resolution is target-driven, not "tasks completed" - target (0% over) not met yet.
+        resolve_blocked = self.client.post(f"/api/bi-improvement/findings/{finding_id}/resolve", headers=admin_headers, json={})
+        self.assertEqual(resolve_blocked.status_code, 409, resolve_blocked.text)
+
+        resolve_no_reason = self.client.post(
+            f"/api/bi-improvement/findings/{finding_id}/resolve", headers=admin_headers, json={"override": True},
+        )
+        self.assertEqual(resolve_no_reason.status_code, 400, resolve_no_reason.text)
+
+        resolve_override = self.client.post(
+            f"/api/bi-improvement/findings/{finding_id}/resolve", headers=admin_headers,
+            json={"override": True, "reason": "Department head approved the one-time overrun"},
+        )
+        self.assertEqual(resolve_override.status_code, 200, resolve_override.text)
+        self.assertIn("Manager override", resolve_override.json()["note"])
+
+        reopen = self.client.put(f"/api/bi-improvement/findings/{finding_id}/reopen", headers=admin_headers, json={"reason": "Recheck needed"})
+        self.assertEqual(reopen.status_code, 200, reopen.text)
+        self.assertEqual(reopen.json()["status"], "reopened")
+
+        dismiss = self.client.put(
+            f"/api/bi-improvement/findings/{finding_id}/dismiss", headers=admin_headers, json={"reason": "Superseded by a policy change"},
+        )
+        self.assertEqual(dismiss.status_code, 200, dismiss.text)
+
+        final_detail = self.client.get(f"/api/bi-improvement/findings/{finding_id}", headers=admin_headers).json()
+        self.assertEqual(final_detail["status"], "dismissed")
+        self.assertEqual(final_detail["dismissed_reason"], "Superseded by a policy change")
+        event_types = [h["event_type"] for h in final_detail["history"]]
+        self.assertEqual(event_types, ["new", "acknowledged", "plan_created", "status_changed", "resolved", "reopened", "dismissed"])
+
+        dashboard = self.client.get("/api/bi-improvement/dashboard", headers=admin_headers)
+        self.assertEqual(dashboard.status_code, 200, dashboard.text)
+        self.assertIsInstance(dashboard.json()["open_findings"], int)
+        self.assertIsInstance(dashboard.json()["recently_resolved"], list)
+
+        # RBAC: a non-admin/accountant role cannot reach this module at all.
+        sales_signup = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "BI Sales Viewer", "username": "ci-sales-bi", "password": "StrongSalesPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_signup.status_code, 200, sales_signup.text)
+        sales_headers, _ = self._login("ci-sales-bi", "StrongSalesPass!42")
+        denied = self.client.get("/api/bi-improvement/findings", headers=sales_headers)
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_company_profile_goals_documents_and_alerts(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        profile = self.client.get("/api/company-profile", headers=admin_headers)
+        self.assertEqual(profile.status_code, 200, profile.text)
+        self.assertIn("trading_name", profile.json())
+        self.assertIn("relationships", profile.json())
+
+        invalid_update = self.client.put(
+            "/api/company-profile", headers=admin_headers, json={"company_type": "not-a-real-type"},
+        )
+        self.assertEqual(invalid_update.status_code, 400, invalid_update.text)
+
+        update = self.client.put(
+            "/api/company-profile", headers=admin_headers,
+            json={
+                "legal_name": "CI Vetrix Legal Entity Ltd", "company_type": "llc", "registration_number": "REG-991",
+                "mission": "Serve customers honestly.", "province": "Tehran", "bank_iban": "IR000000000000000000000001",
+            },
+        )
+        self.assertEqual(update.status_code, 200, update.text)
+        after_update = self.client.get("/api/company-profile", headers=admin_headers).json()
+        self.assertEqual(after_update["legal_name"], "CI Vetrix Legal Entity Ltd")
+        self.assertEqual(after_update["company_type"], "llc")
+        self.assertEqual(after_update["province"], "Tehran")
+        # AppSettings-owned fields are reused by reference, not duplicated.
+        self.assertIn("trading_name", after_update)
+        self.assertNotIn("company_name", after_update)
+
+        # Strategic goals - simple lifecycle, distinct from the BI action-plan engine.
+        goal = self.client.post(
+            "/api/company-profile/goals", headers=admin_headers,
+            json={"title": "Expand to two new provinces", "measurable_target": "2 new branches"},
+        )
+        self.assertEqual(goal.status_code, 200, goal.text)
+        goal_id = goal.json()["id"]
+        bad_status = self.client.put(f"/api/company-profile/goals/{goal_id}", headers=admin_headers, json={"status": "not-a-status"})
+        self.assertEqual(bad_status.status_code, 400, bad_status.text)
+        good_status = self.client.put(f"/api/company-profile/goals/{goal_id}", headers=admin_headers, json={"status": "in_progress", "progress_percent": 40})
+        self.assertEqual(good_status.status_code, 200, good_status.text)
+        goals_list = self.client.get("/api/company-profile/goals", headers=admin_headers).json()
+        self.assertTrue(any(g["id"] == goal_id and g["progress_percent"] == 40 for g in goals_list["items"]))
+        delete_goal = self.client.delete(f"/api/company-profile/goals/{goal_id}", headers=admin_headers)
+        self.assertEqual(delete_goal.status_code, 200, delete_goal.text)
+
+        # Company documents - upload, list (scoped), download, expiry alert, delete.
+        past_expiry = "2020-01-01"
+        upload = self.client.post(
+            "/api/company-profile/documents", headers=admin_headers,
+            data={"document_type": "license", "title": "CI Business License", "expiry_date": past_expiry},
+            files={"file": ("license.pdf", b"not-a-real-pdf", "application/pdf")},
+        )
+        self.assertEqual(upload.status_code, 200, upload.text)
+        document_id = upload.json()["id"]
+
+        doc_list = self.client.get("/api/company-profile/documents", headers=admin_headers)
+        self.assertEqual(doc_list.status_code, 200, doc_list.text)
+        self.assertTrue(any(d["id"] == document_id for d in doc_list.json()["items"]))
+
+        download = self.client.get(f"/api/company-profile/documents/{document_id}/download", headers=admin_headers)
+        self.assertEqual(download.status_code, 200, download.text)
+        self.assertEqual(download.content, b"not-a-real-pdf")
+
+        # A past-expiry document surfaces as a real, critical Executive Alert (6th source).
+        alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        doc_alerts = [a for a in alerts.json()["items"] if a["category"] == "company_document" and a["related_id"] == document_id]
+        self.assertTrue(doc_alerts, alerts.json()["items"])
+        self.assertEqual(doc_alerts[0]["severity"], "critical")
+
+        # Cross-company isolation: a different company's admin cannot see or
+        # download this document, even by guessing its id.
+        second_headers, _ = self._login("m4-second-admin", "StrongSecondAdmin!42")
+        cross_list = self.client.get("/api/company-profile/documents", headers=second_headers).json()
+        self.assertFalse(any(d["id"] == document_id for d in cross_list["items"]))
+        cross_download = self.client.get(f"/api/company-profile/documents/{document_id}/download", headers=second_headers)
+        self.assertEqual(cross_download.status_code, 404, cross_download.text)
+        cross_delete = self.client.delete(f"/api/company-profile/documents/{document_id}", headers=second_headers)
+        self.assertEqual(cross_delete.status_code, 404, cross_delete.text)
+
+        delete_doc = self.client.delete(f"/api/company-profile/documents/{document_id}", headers=admin_headers)
+        self.assertEqual(delete_doc.status_code, 200, delete_doc.text)
+
+        # RBAC: only admin (not accountant/sales/etc.) may reach this module.
+        sales_headers, _ = self._login("ci-sales-bi", "StrongSalesPass!42")
+        denied = self.client.get("/api/company-profile", headers=sales_headers)
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_hr_employee_lifecycle_and_permission_boundaries(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        jane_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Jane Manager Login", "username": "hr-jane", "password": "StrongJanePass!42", "role": "sales"},
+        )
+        self.assertEqual(jane_user.status_code, 200, jane_user.text)
+        jane_user_id = jane_user.json()["id"]
+
+        bob_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Bob Report Login", "username": "hr-bob", "password": "StrongBobPass!42", "role": "viewer"},
+        )
+        self.assertEqual(bob_user.status_code, 200, bob_user.text)
+        bob_user_id = bob_user.json()["id"]
+
+        outsider_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Outsider Login", "username": "hr-outsider", "password": "StrongOutsiderPass!42", "role": "warehouse"},
+        )
+        self.assertEqual(outsider_user.status_code, 200, outsider_user.text)
+
+        accountant_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "HR Accountant", "username": "hr-accountant", "password": "StrongAccountantPass!42", "role": "accountant"},
+        )
+        self.assertEqual(accountant_user.status_code, 200, accountant_user.text)
+
+        jane = self.client.post(
+            "/api/hr", headers=admin_headers,
+            json={"first_name": "Jane", "last_name": "Manager", "job_title": "Regional Manager", "linked_user_id": jane_user_id},
+        )
+        self.assertEqual(jane.status_code, 200, jane.text)
+        jane_id = jane.json()["id"]
+
+        bob = self.client.post(
+            "/api/hr", headers=admin_headers,
+            json={"first_name": "Bob", "last_name": "Report", "job_title": "Field Rep", "manager_employee_id": jane_id, "linked_user_id": bob_user_id},
+        )
+        self.assertEqual(bob.status_code, 200, bob.text)
+        bob_id = bob.json()["id"]
+
+        # Employment history: a tracked field change is appended, not overwritten.
+        promote = self.client.put(f"/api/hr/{bob_id}", headers=admin_headers, json={"job_title": "Senior Field Rep"})
+        self.assertEqual(promote.status_code, 200, promote.text)
+        history = self.client.get(f"/api/hr/{bob_id}/history", headers=admin_headers)
+        self.assertEqual(history.status_code, 200, history.text)
+        self.assertTrue(any(h["event_type"] == "position_change" and h["old_value"] == "Field Rep" and h["new_value"] == "Senior Field Rep" for h in history.json()["items"]))
+
+        jane_headers, _ = self._login("hr-jane", "StrongJanePass!42")
+        bob_headers, _ = self._login("hr-bob", "StrongBobPass!42")
+        outsider_headers, _ = self._login("hr-outsider", "StrongOutsiderPass!42")
+        accountant_headers, _ = self._login("hr-accountant", "StrongAccountantPass!42")
+
+        # Manager sees her direct report but cannot edit or see compensation.
+        manager_view = self.client.get(f"/api/hr/{bob_id}", headers=jane_headers)
+        self.assertEqual(manager_view.status_code, 200, manager_view.text)
+        manager_edit_blocked = self.client.put(f"/api/hr/{bob_id}", headers=jane_headers, json={"job_title": "Should Not Apply"})
+        self.assertEqual(manager_edit_blocked.status_code, 403, manager_edit_blocked.text)
+        manager_comp_blocked = self.client.get(f"/api/hr/{bob_id}/compensation", headers=jane_headers)
+        self.assertEqual(manager_comp_blocked.status_code, 403, manager_comp_blocked.text)
+
+        # An unrelated user with no linked employee has no access at all.
+        outsider_blocked = self.client.get(f"/api/hr/{bob_id}", headers=outsider_headers)
+        self.assertEqual(outsider_blocked.status_code, 403, outsider_blocked.text)
+
+        # Self-service: Bob may edit only the allowed contact fields, never job_title/status.
+        self_ok = self.client.put(f"/api/hr/{bob_id}", headers=bob_headers, json={"mobile": "0912-000-0000"})
+        self.assertEqual(self_ok.status_code, 200, self_ok.text)
+        self_blocked = self.client.put(f"/api/hr/{bob_id}", headers=bob_headers, json={"job_title": "Self Promoted"})
+        self.assertEqual(self_blocked.status_code, 403, self_blocked.text)
+
+        # Compensation ledger - explicitly not statutory payroll; admin/accountant/self only.
+        comp = self.client.post(
+            f"/api/hr/{bob_id}/compensation", headers=admin_headers,
+            json={"entry_type": "base_salary", "amount": 50000000, "effective_date": "2026-01-01", "note": "Base salary"},
+        )
+        self.assertEqual(comp.status_code, 200, comp.text)
+        self_comp = self.client.get(f"/api/hr/{bob_id}/compensation", headers=bob_headers)
+        self.assertEqual(self_comp.status_code, 200, self_comp.text)
+        self.assertEqual(len(self_comp.json()["items"]), 1)
+        accountant_comp = self.client.get(f"/api/hr/{bob_id}/compensation", headers=accountant_headers)
+        self.assertEqual(accountant_comp.status_code, 200, accountant_comp.text)
+
+        # Leave: entitlement, request, and real approval-engine-backed approval.
+        set_balance = self.client.put(f"/api/hr/{bob_id}/leave/balances", headers=admin_headers, json={"leave_type": "annual", "entitlement": 10})
+        self.assertEqual(set_balance.status_code, 200, set_balance.text)
+        leave_request = self.client.post(
+            f"/api/hr/{bob_id}/leave/requests", headers=bob_headers,
+            json={"leave_type": "annual", "start_date": "2026-03-01", "end_date": "2026-03-05", "reason": "Family trip"},
+        )
+        self.assertEqual(leave_request.status_code, 200, leave_request.text)
+        self.assertEqual(leave_request.json()["status"], "pending_approval")
+        self.assertEqual(self.client.get(f"/api/hr/{bob_id}/leave/requests", headers=bob_headers).json()["items"][0]["days"], 5)
+
+        approve_leave = self.client.post(
+            f"/api/approvals/{leave_request.json()['approval_request_id']}/approve", headers=admin_headers, json={"note": "approved"},
+        )
+        self.assertEqual(approve_leave.status_code, 200, approve_leave.text)
+        balances_after = self.client.get(f"/api/hr/{bob_id}/leave/balances", headers=admin_headers).json()["items"]
+        annual = next(b for b in balances_after if b["leave_type"] == "annual")
+        self.assertEqual(annual["used"], 5)
+        self.assertEqual(annual["remaining"], 5)
+
+        # Attendance - manual entry only.
+        attendance = self.client.post(
+            f"/api/hr/{bob_id}/attendance", headers=admin_headers,
+            json={"work_date": "2026-02-10", "status": "present", "hours": 8},
+        )
+        self.assertEqual(attendance.status_code, 200, attendance.text)
+
+        # Performance review - Bob's own manager (Jane) may create one; an outsider may not.
+        outsider_review_blocked = self.client.post(f"/api/hr/{bob_id}/performance", headers=outsider_headers, json={"review_period": "2026-Q1", "rating": 4})
+        self.assertEqual(outsider_review_blocked.status_code, 403, outsider_review_blocked.text)
+        review = self.client.post(
+            f"/api/hr/{bob_id}/performance", headers=jane_headers,
+            json={"review_period": "2026-Q1", "kpi": "Visits per week", "target": "20", "actual": "22", "rating": 4, "strengths": "Reliable"},
+        )
+        self.assertEqual(review.status_code, 200, review.text)
+
+        # Documents - past-expiry document becomes a real Executive Alert (7th source), and is isolated per-employee/company.
+        past_expiry = "2020-01-01"
+        upload = self.client.post(
+            f"/api/hr/{bob_id}/documents", headers=admin_headers,
+            data={"document_type": "contract", "title": "Bob Employment Contract", "expiry_date": past_expiry},
+            files={"file": ("contract.pdf", b"not-a-real-pdf", "application/pdf")},
+        )
+        self.assertEqual(upload.status_code, 200, upload.text)
+        document_id = upload.json()["id"]
+
+        self_download = self.client.get(f"/api/hr/{bob_id}/documents/{document_id}/download", headers=bob_headers)
+        self.assertEqual(self_download.status_code, 200, self_download.text)
+        outsider_download_blocked = self.client.get(f"/api/hr/{bob_id}/documents/{document_id}/download", headers=outsider_headers)
+        self.assertEqual(outsider_download_blocked.status_code, 403, outsider_download_blocked.text)
+
+        alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        doc_alerts = [a for a in alerts.json()["items"] if a["category"] == "employee_document" and a["related_id"] == bob_id]
+        self.assertTrue(doc_alerts, alerts.json()["items"])
+        self.assertEqual(doc_alerts[0]["severity"], "critical")
+
+        # Employee 360 summary - compensation section hidden from a manager, visible to admin.
+        manager_summary = self.client.get(f"/api/hr/{bob_id}/summary", headers=jane_headers)
+        self.assertEqual(manager_summary.status_code, 200, manager_summary.text)
+        self.assertFalse(manager_summary.json()["compensation_visible"])
+        admin_summary = self.client.get(f"/api/hr/{bob_id}/summary", headers=admin_headers)
+        self.assertTrue(admin_summary.json()["compensation_visible"])
+        self.assertEqual(admin_summary.json()["pending_leave_requests"], 0)
+        # >=1 rather than an exact count - the JSON-index document store is
+        # real disk state, not reset between local re-runs of this test the
+        # way the ephemeral per-run sqlite DB is (see module docstring in
+        # app/hr.py); membership was already proven above via self_download.
+        self.assertGreaterEqual(admin_summary.json()["document_count"], 1)
+
+        # List scoping: the manager's list includes herself and her report, never an unrelated employee she has no relation to.
+        jane_list = self.client.get("/api/hr", headers=jane_headers).json()["items"]
+        jane_list_ids = {e["id"] for e in jane_list}
+        self.assertIn(jane_id, jane_list_ids)
+        self.assertIn(bob_id, jane_list_ids)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_backup_delivery_policy_and_real_delivery_attempts(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        invalid_frequency = self.client.post(
+            "/api/backup-delivery/policies", headers=admin_headers,
+            json={"name": "Bad Policy", "frequency": "hourly"},
+        )
+        self.assertEqual(invalid_frequency.status_code, 400, invalid_frequency.text)
+
+        unsupported_channel = self.client.post(
+            "/api/backup-delivery/policies", headers=admin_headers,
+            json={"name": "Bad Channel Policy", "recipients": [{"channel": "sms", "target": "0912"}]},
+        )
+        self.assertEqual(unsupported_channel.status_code, 400, unsupported_channel.text)
+        self.assertIn("does not currently support backup-file delivery", unsupported_channel.json()["detail"])
+
+        create = self.client.post(
+            "/api/backup-delivery/policies", headers=admin_headers,
+            json={
+                "name": "CI Nightly Backup", "frequency": "daily", "time_of_day": "02:00",
+                "recipients": [
+                    {"channel": "download", "target": "", "label": "Emergency link"},
+                    {"channel": "email", "target": "owner@example.com", "label": "Owner"},
+                ],
+            },
+        )
+        self.assertEqual(create.status_code, 200, create.text)
+        policy_id = create.json()["id"]
+
+        listed = self.client.get("/api/backup-delivery/policies", headers=admin_headers)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertIn("scheduler_note", listed.json())
+        self.assertTrue(any(p["id"] == policy_id for p in listed.json()["items"]))
+
+        # run-now creates a REAL backup and attempts REAL delivery per recipient -
+        # download always succeeds (a link, no network call); email fails honestly
+        # since SMTP is not configured in this test environment (never faked as delivered).
+        run = self.client.post(f"/api/backup-delivery/policies/{policy_id}/run-now", headers=admin_headers)
+        self.assertEqual(run.status_code, 200, run.text)
+        payload = run.json()
+        self.assertEqual(payload["status"], "partially_delivered", payload)
+        attempts_by_channel = {a["channel"]: a for a in payload["attempts"]}
+        self.assertEqual(attempts_by_channel["download"]["status"], "delivered")
+        self.assertIn("download_token", attempts_by_channel["download"])
+        self.assertEqual(attempts_by_channel["email"]["status"], "failed")
+        self.assertIn("SMTP is not configured", attempts_by_channel["email"]["error"])
+
+        log = self.client.get("/api/backup-delivery/log", headers=admin_headers)
+        self.assertEqual(log.status_code, 200, log.text)
+        self.assertTrue(any(item["policy_id"] == policy_id and item["status"] == "partially_delivered" for item in log.json()["items"]))
+
+        # The secure, tokenized download link genuinely serves the backup file with no login.
+        download_token = attempts_by_channel["download"]["download_token"]
+        secure_download = self.client.get(f"/api/backup-delivery/secure-download?token={download_token}")
+        self.assertEqual(secure_download.status_code, 200, secure_download.text)
+        self.assertGreater(len(secure_download.content), 0)
+
+        bad_token_download = self.client.get("/api/backup-delivery/secure-download?token=not-a-real-token")
+        self.assertEqual(bad_token_download.status_code, 401, bad_token_download.text)
+
+        update = self.client.put(
+            f"/api/backup-delivery/policies/{policy_id}", headers=admin_headers,
+            json={"name": "CI Nightly Backup", "frequency": "weekly", "recipients": []},
+        )
+        self.assertEqual(update.status_code, 200, update.text)
+
+        # trigger-due is a public path authenticated by HMAC signature, not a session token - for an external scheduler.
+        no_signature = self.client.post("/api/backup-delivery/trigger-due")
+        self.assertEqual(no_signature.status_code, 401, no_signature.text)
+
+        with patch.dict(os.environ, {"VETRIX_BACKUP_TRIGGER_SECRET": "ci-test-backup-trigger-secret-value"}):
+            import hashlib
+            import hmac as hmac_module
+            import time as time_module
+
+            body = b""
+            timestamp = str(int(time_module.time()))
+            body_hash = hashlib.sha256(body).hexdigest()
+            canonical = f"{timestamp}\nPOST\n/api/backup-delivery/trigger-due\n{body_hash}".encode("utf-8")
+            signature = hmac_module.new(b"ci-test-backup-trigger-secret-value", canonical, hashlib.sha256).hexdigest()
+            triggered = self.client.post(
+                "/api/backup-delivery/trigger-due",
+                headers={"X-Vetrix-Timestamp": timestamp, "X-Vetrix-Signature": signature},
+            )
+            self.assertEqual(triggered.status_code, 200, triggered.text)
+
+        delete = self.client.delete(f"/api/backup-delivery/policies/{policy_id}", headers=admin_headers)
+        self.assertEqual(delete.status_code, 200, delete.text)
+
+        # RBAC: only admin may reach this module.
+        sales_signup = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Backup Delivery Sales Viewer", "username": "ci-sales-backup", "password": "StrongSalesBackupPass!42", "role": "sales"},
+        )
+        self.assertEqual(sales_signup.status_code, 200, sales_signup.text)
+        sales_headers, _ = self._login("ci-sales-backup", "StrongSalesBackupPass!42")
+        denied = self.client.get("/api/backup-delivery/policies", headers=sales_headers)
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_smart_import_csv_employees_and_confidence_mapping(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        csv_content = (
+            "first_name,last_name,employee_number,job_title,phone\n"
+            "Sara,Karimi,E-501,Warehouse Clerk,0912۱۲۳۴۵۶۷\n"
+        ).encode("utf-8-sig")
+
+        inspect = self.client.post(
+            "/api/data-import/inspect", headers=admin_headers,
+            data={"entity": "employees"},
+            files={"file": ("employees.csv", csv_content, "text/csv")},
+        )
+        self.assertEqual(inspect.status_code, 200, inspect.text)
+        inspected = inspect.json()
+        self.assertEqual(inspected["headers"][:3], ["first_name", "last_name", "employee_number"])
+        self.assertIn("mapping_confidence", inspected)
+        self.assertEqual(inspected["mapping_confidence"]["first_name"]["confidence"], 100)
+        self.assertIn("probable_entity_by_sheet", inspected)
+        self.assertEqual(inspected["probable_entity_by_sheet"]["CSV"]["entity"], "employees")
+
+        preview = self.client.post(
+            "/api/data-import/preview/employees", headers=admin_headers,
+            files={"file": ("employees.csv", csv_content, "text/csv")},
+        )
+        self.assertEqual(preview.status_code, 200, preview.text)
+        preview_payload = preview.json()
+        self.assertEqual(preview_payload["valid_rows"], 1)
+        self.assertEqual(preview_payload["errors"], [])
+        self.assertTrue(preview_payload["can_apply"])
+        batch_id = preview_payload["batch_id"]
+
+        apply = self.client.post(f"/api/data-import/apply/{batch_id}", headers=admin_headers)
+        self.assertEqual(apply.status_code, 200, apply.text)
+        self.assertEqual(apply.json()["inserted"], 1)
+
+        employees = self.client.get("/api/hr?search=Sara", headers=admin_headers)
+        self.assertEqual(employees.status_code, 200, employees.text)
+        matches = [e for e in employees.json()["items"] if e["employee_number"] == "E-501"]
+        self.assertTrue(matches, employees.json()["items"])
+        self.assertEqual(matches[0]["first_name"], "Sara")
+        # Real digit normalization applied during import, not left as Persian glyphs.
+        self.assertEqual(matches[0]["phone"], "09121234567")
+
+        # Re-importing the same CSV is a genuine, detected duplicate - skipped, not re-created.
+        reimport_preview = self.client.post(
+            "/api/data-import/preview/employees", headers=admin_headers,
+            files={"file": ("employees.csv", csv_content, "text/csv")},
+        )
+        self.assertEqual(reimport_preview.json()["duplicate_rows"], 1)
+        reimport_batch_id = reimport_preview.json()["batch_id"]
+        reimport_apply = self.client.post(f"/api/data-import/apply/{reimport_batch_id}", headers=admin_headers)
+        self.assertEqual(reimport_apply.status_code, 200, reimport_apply.text)
+        self.assertEqual(reimport_apply.json()["skipped"], 1)
+        self.assertEqual(reimport_apply.json()["inserted"], 0)
+
+        # A genuinely unsupported employment_type is rejected, not silently coerced.
+        bad_type_csv = "first_name,last_name,employment_type\nBad,Type,not_a_real_type\n".encode("utf-8")
+        bad_preview = self.client.post(
+            "/api/data-import/preview/employees", headers=admin_headers,
+            files={"file": ("bad.csv", bad_type_csv, "text/csv")},
+        )
+        self.assertEqual(bad_preview.status_code, 200, bad_preview.text)
+        self.assertTrue(any(e["field"] == "employment_type" for e in bad_preview.json()["errors"]))
+
+        # PDF import is honestly rejected, never silently accepted or faked as parsed.
+        pdf_reject = self.client.post(
+            "/api/data-import/inspect", headers=admin_headers,
+            data={"entity": "employees"},
+            files={"file": ("scan.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+        self.assertEqual(pdf_reject.status_code, 400, pdf_reject.text)
+        self.assertIn("OCR", pdf_reject.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()

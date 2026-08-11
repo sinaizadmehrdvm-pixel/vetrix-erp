@@ -42,6 +42,7 @@ from app.backup.auto_backup import (
     maybe_create_automatic_backup,
 )
 from app.backup.router import router as backup_router
+from app.backup.delivery import router as backup_delivery_router, trigger_due_deliveries
 from app.designer.routes import router as designer_router
 from app.ai_bi.router import router as ai_bi_router
 from app.crm.router import router as crm_router
@@ -59,6 +60,9 @@ from app.accounting.attachments import router as accounting_attachments_router
 from app.accounting.fixed_assets import router as fixed_assets_router
 from app.accounting.budgets import router as budgets_router
 from app.accounting.budget_plans import router as budget_plans_router
+from app.bi_improvement import router as bi_improvement_router
+from app.company_profile import router as company_profile_router
+from app.hr import router as hr_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
 from app.accounting.treasury import router as treasury_router
@@ -404,6 +408,11 @@ COMPANY_SCOPED_TABLES = [
     "executive_alert_settings",
     "budget_plans",
     "budget_goods_lines",
+    "bi_findings", "bi_action_plans", "bi_action_tasks", "bi_finding_history", "bi_metric_snapshots",
+    "company_profile", "company_goals",
+    "employees", "employee_history", "employee_compensation", "employee_leave_balances",
+    "employee_leave_requests", "employee_attendance", "employee_performance_reviews",
+    "backup_delivery_policies", "backup_delivery_log",
 ]
 
 
@@ -456,6 +465,9 @@ app.include_router(accounting_attachments_router)
 app.include_router(fixed_assets_router)
 app.include_router(budgets_router)
 app.include_router(budget_plans_router)
+app.include_router(bi_improvement_router)
+app.include_router(company_profile_router)
+app.include_router(hr_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
 app.include_router(treasury_router)
@@ -468,6 +480,7 @@ app.include_router(release_preflight_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
+app.include_router(backup_delivery_router)
 app.include_router(system_health_router)
 app.include_router(online_commerce_router)
 app.include_router(change_requests_router)
@@ -530,6 +543,7 @@ async def require_authenticated_api(request: Request, call_next):
                     await run_in_threadpool(maybe_generate_due_recurring_invoices)
                     await run_in_threadpool(maybe_send_due_reminders)
                     await run_in_threadpool(maybe_send_scheduled_reports)
+                    await run_in_threadpool(trigger_due_deliveries)
             except Exception:
                 # Audit storage must never turn a completed business operation
                 # into a client-visible failure.

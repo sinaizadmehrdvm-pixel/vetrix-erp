@@ -236,6 +236,29 @@ def _budget_alerts(company_id: int, settings: dict) -> list:
     return alerts
 
 
+def _bi_improvement_alerts(company_id: int, settings: dict) -> list:
+    """5th alert source (Task 04, Section 16) - critical open BI findings
+    and overdue improvement-plan tasks, computed by bi_improvement.py and
+    wrapped here unchanged, same reuse-not-duplicate pattern as the other
+    four sources above."""
+    from app.bi_improvement import bi_action_plan_alerts
+    return bi_action_plan_alerts(company_id, settings["alert_days_before_due"])
+
+
+def _company_document_alerts(company_id: int, settings: dict) -> list:
+    """6th alert source (Task 04, Section 17) - company documents (tax,
+    license, registration...) nearing or past their real expiry_date."""
+    from app.company_profile import company_document_alerts
+    return company_document_alerts(company_id, settings["alert_days_before_due"])
+
+
+def _employee_document_alerts(company_id: int, settings: dict) -> list:
+    """7th alert source (Task 04, Section 18) - HR documents (contracts,
+    licenses, certifications...) nearing or past their real expiry_date."""
+    from app.hr import employee_document_alerts
+    return employee_document_alerts(company_id, settings["alert_days_before_due"])
+
+
 @router.get("/summary")
 def executive_alerts_summary(request: Request):
     company_id = current_company_id(request)
@@ -245,8 +268,11 @@ def executive_alerts_summary(request: Request):
     cheques = _cheque_alerts(company_id, settings)
     low_stock = _low_stock_alerts(company_id)
     budget = _budget_alerts(company_id, settings)
+    improvement = _bi_improvement_alerts(company_id, settings)
+    documents = _company_document_alerts(company_id, settings)
+    employee_documents = _employee_document_alerts(company_id, settings)
 
-    all_alerts = receivable_payable + cheques + low_stock + budget
+    all_alerts = receivable_payable + cheques + low_stock + budget + improvement + documents + employee_documents
     severity_rank = {"critical": 0, "warning": 1, "info": 2}
     all_alerts.sort(key=lambda a: (severity_rank.get(a["severity"], 3), -(a.get("amount") or 0)))
 

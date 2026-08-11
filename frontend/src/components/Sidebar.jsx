@@ -6,6 +6,7 @@ import {
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
   BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
+  TrendingUp, Users,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -64,6 +65,7 @@ const groups = [
       { key: "agingReport", icon: CalendarRange, path: "/aging-report", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "budgetControl", icon: Target, path: "/budget-control", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "aiBusiness", icon: BrainCircuit, path: "/ai-bi", roles: ["admin", "accountant", "viewer", "user"] },
+      { key: "improvementCenter", icon: TrendingUp, path: "/improvement-center", roles: ["admin", "accountant"] },
     ],
   },
   {
@@ -78,7 +80,9 @@ const groups = [
     items: [
       { key: "auditTrail", icon: History, path: "/audit-trail", roles: ["admin"] },
       { key: "userManagement", icon: UserCog, path: "/user-management", roles: ["admin"] },
+      { key: "employees", icon: Users, path: "/hr/employees" },
       { key: "companyManagement", icon: Building2, path: "/company-management", roles: ["admin"], superAdminOnly: true },
+      { key: "companyProfile", icon: Building2, path: "/company-profile", roles: ["admin"] },
       { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
       { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
