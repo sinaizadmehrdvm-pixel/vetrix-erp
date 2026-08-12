@@ -9,7 +9,21 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import hashlib
 import json
+import logging
 import os
+
+# Task 08 Section 13: no logging configuration existed anywhere in the
+# backend before this - every module either used print() or relied on
+# Python's unconfigured "handler of last resort" (app/auth.py's warnings).
+# This only sets format/level for whatever already gets logged; it doesn't
+# add new logging calls or a file/rotation handler - an operator redirects
+# stdout/stderr to a file themselves (see WINDOWS_INSTALL.md), same as any
+# other process run under a supervisor. Default INFO, never DEBUG, to avoid
+# noisy production output; override with VETRIX_LOG_LEVEL if needed.
+logging.basicConfig(
+    level=os.getenv("VETRIX_LOG_LEVEL", "INFO").strip().upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 from app.database import SessionLocal, engine, Base
 from app.models.user import User
@@ -453,8 +467,22 @@ ensure_company_scoping_columns()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="1.3.0"
+    version="1.4.0"
 )
+
+_logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(Exception)
+async def _log_unhandled_exception(request: Request, exc: Exception):
+    """Task 08 Section 13: an uncaught exception during request handling
+    previously became a generic 500 with zero server-side trace - the
+    client got a plain error and the operator had nothing to diagnose from.
+    Logs the real exception (never the request body, which could carry a
+    password/token) before returning the same generic response FastAPI's
+    default handler would have."""
+    _logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
@@ -646,14 +674,22 @@ async def require_authenticated_api(request: Request, call_next):
     return await call_and_audit()
 
 
-app.add_middleware(
-    CORSMiddleware,
+_cors_kwargs = dict(
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if os.getenv("VETRIX_ENV", "development").strip().lower() != "production":
+    # Dev convenience only (Vite may pick an arbitrary port beyond the
+    # 5173/5174 defaults) - Task 08 Section 18: this previously applied
+    # unconditionally, meaning any browser tab presenting an
+    # "Origin: http://localhost:<any port>" header got a credentialed CORS
+    # pass in production too, regardless of VETRIX_ALLOWED_ORIGINS. A real
+    # deployment must list its exact origin(s) via VETRIX_ALLOWED_ORIGINS
+    # instead of relying on this pattern.
+    _cors_kwargs["allow_origin_regex"] = r"^http://(localhost|127\.0\.0\.1):\d+$"
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 
@@ -1071,7 +1107,33 @@ def publish_low_stock_if_needed(product: Product):
 
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "1.3.0", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": "1.4.0", "status": "online"}
+
+
+@app.get("/health")
+def health():
+    """Minimal, unauthenticated liveness/readiness probe for a load balancer,
+    uptime monitor, or container orchestrator (Task 08 Section 14) - already
+    listed in app/auth.py's PUBLIC_PATHS, but no route ever implemented it
+    until now. Deliberately thin: unlike /api/system/health (admin-only,
+    detailed diagnostics), this never returns secrets, filesystem paths,
+    database contents, or provider credentials - just liveness + DB
+    reachability + version, safe to expose without a login."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        database_status = "reachable"
+    except Exception:
+        database_status = "unreachable"
+    return JSONResponse(
+        status_code=200 if database_status == "reachable" else 503,
+        content={
+            "status": "ok" if database_status == "reachable" else "unhealthy",
+            "database": database_status,
+            "version": "1.4.0",
+            "pilot_release_id": "v1.4.0-pilot.1",
+        },
+    )
 
 
 

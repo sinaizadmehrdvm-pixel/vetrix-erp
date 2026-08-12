@@ -77,7 +77,7 @@ def setup_status():
             "initialized": user_count > 0,
             "requires_admin": user_count == 0,
             "user_count": user_count,
-            "version": "1.3.0",
+            "version": "1.4.0",
         }
     finally:
         db.close()

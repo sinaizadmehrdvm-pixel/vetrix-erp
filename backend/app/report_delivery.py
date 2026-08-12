@@ -15,6 +15,7 @@ the outcome is still returned honestly rather than pretending success.
 """
 import csv
 import io
+import logging
 import os
 import tempfile
 from datetime import datetime, timedelta
@@ -36,6 +37,7 @@ from app.company_scope import current_company_id
 FORMATS = {"pdf", "csv"}
 FREQUENCIES = {"daily", "weekly", "monthly"}
 router = APIRouter(prefix="/api/report-delivery", tags=["Scheduled Report Delivery"])
+_logger = logging.getLogger(__name__)
 
 
 def _load_sales(main, company_id):
@@ -337,7 +339,9 @@ def maybe_send_scheduled_reports():
         # Scheduled delivery must never turn a completed business operation
         # into a client-visible failure - same discipline as the reminder
         # sweep and auto-backup hooks it shares this middleware pass with.
-        pass
+        # Still logged (Task 08 Section 13): an exception mid-loop otherwise
+        # silently stops every remaining due schedule for this pass with no trace.
+        _logger.exception("Scheduled report delivery sweep failed")
 
 
 @router.get("/schedules")

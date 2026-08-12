@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import re
 import shutil
@@ -13,6 +14,8 @@ from pathlib import Path
 from sqlalchemy import text
 
 from app.database import engine, SessionLocal
+
+_logger = logging.getLogger(__name__)
 
 BACKUP_NAME = re.compile(
     r"^vetrix_(manual|auto|pre_restore)_\d{8}T\d{6}_\d{6}Z\.db$"
@@ -351,5 +354,7 @@ def _maybe_email_latest_backup(backup_item):
     except Exception:
         # Backup-email delivery must never turn a successful local backup
         # into a client-visible failure - the file is already safely on
-        # disk regardless of whether this best-effort email goes out.
-        pass
+        # disk regardless of whether this best-effort email goes out. Still
+        # logged (Task 08 Section 13) so a pilot operator can see why an
+        # expected backup email never arrived.
+        _logger.exception("Automatic backup-email delivery failed")

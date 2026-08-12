@@ -289,8 +289,15 @@ def get_inventory_risk_summary(company_id, branch_id=None, start_date=None, end_
     returning company-wide numbers with a disclaimer."""
     from app.smart_inventory.routes import smart_inventory_overview
     overview = smart_inventory_overview(_shim_request(company_id), branch_id=branch_id)
+    # overview["low_stock"]/["dead_stock"] are display-capped at 30 items each
+    # (see smart_inventory/routes.py) - len() of those would silently undercount
+    # a company with more than 30 low/dead-stock products in scope. The true,
+    # untruncated counts live in overview["summary"], computed before that cap
+    # is applied - use those so this tool's numbers never disagree with what
+    # Smart Inventory's own summary card shows (Task 08 Section 8/G finding).
     low_stock = overview.get("low_stock", [])
     dead_stock = overview.get("dead_stock", [])
+    summary = overview.get("summary", {})
     branch_name = None
     if branch_id is not None:
         db = SessionLocal()
@@ -300,8 +307,8 @@ def get_inventory_risk_summary(company_id, branch_id=None, start_date=None, end_
         finally:
             db.close()
     return {
-        "low_stock_count": len(low_stock),
-        "dead_stock_count": len(dead_stock),
+        "low_stock_count": summary.get("low_stock_count", len(low_stock)),
+        "dead_stock_count": summary.get("dead_stock_count", len(dead_stock)),
         "low_stock_sample": [p.get("name") for p in low_stock[:5]],
         "dead_stock_sample": [p.get("name") for p in dead_stock[:5]],
         "source_module": "app.smart_inventory.routes.smart_inventory_overview",

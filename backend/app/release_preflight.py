@@ -10,7 +10,13 @@ from app.database import engine
 from app.system_health import build_system_health
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
+# Task 08: the pilot candidate built from this exact commit range (Tasks
+# 01-07). Follows the repository's existing v{major}.{minor}.{patch} git-tag
+# convention (see CHANGELOG.md) with a -pilot.N suffix, rather than a
+# separate parallel identifier - bump the trailing counter if a second pilot
+# candidate is cut from the same 1.4.0 baseline.
+PILOT_RELEASE_ID = "v1.4.0-pilot.1"
 
 RELEASE_TABLES = {
     "accounting_approval_requests",
@@ -179,5 +185,6 @@ def version():
     return {
         "name": "Vetrix ERP",
         "version": APP_VERSION,
+        "pilot_release_id": PILOT_RELEASE_ID,
         "environment": os.getenv("VETRIX_ENV", "development"),
     }

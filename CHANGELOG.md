@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.0 — 2026-08-12
+
+### Added
+
+- Branch/warehouse-aware purchase order receiving: real destination-warehouse
+  selection, genuine partial receiving with an append-only receipt history,
+  idempotent and concurrency-safe against double-counting
+- Branch-aware Smart Inventory, Executive Alerts, and Executive Agent
+  inventory answers, using the existing product/warehouse stock model
+- Marketing-consent enforcement with per-customer consent state, an
+  append-only consent-history audit trail, and honest campaign-audience
+  estimates (potential segment, reachable-with-consent, excluded-due-to-consent)
+- CRM health-scoring dashboard and unified reporting header/footer/table
+  conventions linked into navigation
+
+### Improved
+
+- Executive Alerts, BI improvement findings, and the Executive Agent's budget
+  tool now read the same line-level budget data BudgetControl.jsx shows,
+  instead of a budget-planning layer with no reachable page
+- Backup delivery frequency/channel labels and Change Request action labels
+  localized; responsive fixes for narrow-viewport accounting layouts
+
+### Security and validation
+
+- Closed a cross-tenant data leak in the Smart Inventory overview endpoint
+  (previously unscoped by company)
+- JWT signing secret now fails closed on a missing, placeholder, or
+  under-length value in a production-capable deployment, with an isolated
+  random fallback for local development only
+- Backup emergency download links shortened from 48 hours to a 15-60 minute
+  window, made genuinely single-use, and no longer persisted into the
+  delivery log
+- A money-precision rounding bug in customer running-balance calculation
+  fixed; full backend regression suite and frontend build verified green
+
 ## 1.3.0 — 2026-07-14
 
 ### Added

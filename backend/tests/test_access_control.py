@@ -47,7 +47,7 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(first_run.status_code, 200, first_run.text)
         self.assertTrue(first_run.json()["requires_admin"])
         self.assertFalse(first_run.json()["initialized"])
-        self.assertEqual(first_run.json()["version"], "1.3.0")
+        self.assertEqual(first_run.json()["version"], "1.4.0")
 
         weak_bootstrap = self.client.post(
             "/users",
@@ -2634,7 +2634,7 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(preflight.status_code, 200, preflight.text)
         payload = preflight.json()
-        self.assertEqual(payload["version"], "1.3.0")
+        self.assertEqual(payload["version"], "1.4.0")
         self.assertTrue(payload["release_ready"], payload)
         self.assertEqual(payload["api_contract"]["missing_routes"], [])
         self.assertGreaterEqual(payload["database"]["administrators"], 1)
@@ -2646,7 +2646,7 @@ class ApiAccessControlTests(unittest.TestCase):
             headers=admin_headers,
         )
         self.assertEqual(version.status_code, 200, version.text)
-        self.assertEqual(version.json()["version"], "1.3.0")
+        self.assertEqual(version.json()["version"], "1.4.0")
 
         viewer_login = self.client.post(
             "/login",
@@ -6806,6 +6806,196 @@ class ApiAccessControlTests(unittest.TestCase):
         foreign_alerts = self.client.get("/api/executive-alerts/summary", headers=second_headers)
         self.assertEqual(foreign_alerts.status_code, 200, foreign_alerts.text)
         self.assertFalse(any(a.get("related_id") == product_id for a in foreign_alerts.json()["items"]))
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_branch_low_stock_agreement_across_inventory_surfaces(self):
+        """Task 08 Section 8/G: branch A sufficient stock, branch B low/zero -
+        Smart Inventory, Executive Alerts, and the Executive Agent's own
+        inventory tool (called directly, bypassing NLP routing - that layer
+        is already covered by test_..._executive_agent_conversational_intelligence)
+        must all agree on the same branch-scoped low-stock picture."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        branch_a = self.client.post("/api/branches", headers=admin_headers, json={"name": "CI Low Stock Branch A", "code": "CI-LOW-BR-A"})
+        branch_b = self.client.post("/api/branches", headers=admin_headers, json={"name": "CI Low Stock Branch B", "code": "CI-LOW-BR-B"})
+        self.assertEqual(branch_a.status_code, 200, branch_a.text)
+        self.assertEqual(branch_b.status_code, 200, branch_b.text)
+        branch_a_id, branch_b_id = branch_a.json()["id"], branch_b.json()["id"]
+
+        warehouse_a = self.client.post("/api/warehouses", headers=admin_headers, json={"name": "CI Low Stock WH A", "code": "CI-LOW-WH-A", "branch_id": branch_a_id})
+        warehouse_b = self.client.post("/api/warehouses", headers=admin_headers, json={"name": "CI Low Stock WH B", "code": "CI-LOW-WH-B", "branch_id": branch_b_id})
+        self.assertEqual(warehouse_a.status_code, 200, warehouse_a.text)
+        self.assertEqual(warehouse_b.status_code, 200, warehouse_b.text)
+        warehouse_a_id = warehouse_a.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "CI Low Stock Cross-Check Widget", "sell_price": 50, "stock": 50, "min_stock": 10},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        default_warehouse = next(w for w in self.client.get("/api/warehouses", headers=admin_headers).json()["items"] if w["is_default"])
+        # Move nearly all stock into branch A's warehouse; branch B's own
+        # warehouse keeps its default 0, well below min_stock=10.
+        transfer = self.client.post(
+            "/api/warehouses/transfer", headers=admin_headers,
+            json={"product_id": product_id, "from_warehouse_id": default_warehouse["id"], "to_warehouse_id": warehouse_a_id, "quantity": 45},
+        )
+        self.assertEqual(transfer.status_code, 200, transfer.text)
+
+        # 1. Smart Inventory: branch A not low, branch B low.
+        overview_a = self.client.get(f"/api/smart-inventory/overview?branch_id={branch_a_id}", headers=admin_headers)
+        overview_b = self.client.get(f"/api/smart-inventory/overview?branch_id={branch_b_id}", headers=admin_headers)
+        self.assertEqual(overview_a.status_code, 200, overview_a.text)
+        self.assertEqual(overview_b.status_code, 200, overview_b.text)
+        self.assertFalse(any(item["id"] == product_id for item in overview_a.json()["low_stock"]))
+        low_stock_b = next(item for item in overview_b.json()["low_stock"] if item["id"] == product_id)
+        self.assertEqual(low_stock_b["stock"], 0)
+
+        # 2. Executive Alerts: a branch-B-scoped low_stock alert for this exact product exists,
+        # and no equivalent alert exists for branch A. Note: any OTHER pre-existing branch in
+        # this shared-state test suite that was never stocked with this brand-new product also
+        # legitimately shows 0 < min_stock for it - that's correct alerting, not noise to filter
+        # out - so this only asserts branch B is AMONG the matches and branch A is never among them.
+        alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+        self.assertEqual(alerts.status_code, 200, alerts.text)
+        matching_alerts = [a for a in alerts.json()["items"] if a["category"] == "low_stock" and a["related_id"] == product_id]
+        self.assertTrue(matching_alerts, alerts.json()["items"])
+        self.assertIn(branch_b_id, [a["branch_id"] for a in matching_alerts])
+        self.assertFalse(any(a["branch_id"] == branch_a_id for a in matching_alerts))
+
+        # 3. Executive Agent's inventory tool (called directly - same underlying
+        # smart_inventory_overview call the two surfaces above use) reports the same
+        # totals. low_stock_sample is only the tool's own top-5 summary (this shared-state
+        # suite's branch B accumulates many legitimately-low-stock products from earlier
+        # tests that never stocked it either), so agreement is checked via the count
+        # matching step 1's real overview_b low_stock_count, not sample membership.
+        from app.executive_agent.tools import get_inventory_risk_summary
+        agent_result_b = get_inventory_risk_summary(company_id=self._company_id_for(admin_headers), branch_id=branch_b_id)
+        self.assertEqual(agent_result_b["branch_name"], "CI Low Stock Branch B")
+        self.assertEqual(agent_result_b["low_stock_count"], overview_b.json()["summary"]["low_stock_count"])
+        agent_result_a = get_inventory_risk_summary(company_id=self._company_id_for(admin_headers), branch_id=branch_a_id)
+        self.assertNotIn("CI Low Stock Cross-Check Widget", agent_result_a["low_stock_sample"])
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_marketing_consent_history_endpoint(self):
+        """Task 08 Section 8/K: the dedicated consent-history audit-trail
+        endpoint (app/marketing_consent.py, built in Task 07) was never
+        exercised by any existing test - verify it directly."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        customer = self.client.post("/customers", headers=admin_headers, json={
+            "name": "CI Consent History Customer", "marketing_consent": True,
+        })
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json().get("customer", customer.json()).get("id") or customer.json().get("id")
+
+        history_after_create = self.client.get(f"/api/customers/{customer_id}/consent-history", headers=admin_headers)
+        self.assertEqual(history_after_create.status_code, 200, history_after_create.text)
+        items = history_after_create.json()["items"]
+        self.assertEqual(len(items), 1)
+        self.assertIsNone(items[0]["old_value"])
+        self.assertEqual(bool(items[0]["new_value"]), True)
+        self.assertEqual(items[0]["source"], "explicit")
+
+        get_customer = self.client.get(f"/customers/{customer_id}", headers=admin_headers).json()
+        current = get_customer.get("customer", get_customer)
+        payload = {k: current.get(k) for k in [
+            "name", "phone", "mobile", "email", "address", "city", "national_id", "economic_code",
+            "contact_person", "customer_type", "opening_balance", "credit_limit", "notes", "pricing_group",
+        ]}
+        payload["marketing_consent"] = False
+        update = self.client.put(f"/customers/{customer_id}", headers=admin_headers, json=payload)
+        self.assertEqual(update.status_code, 200, update.text)
+
+        history_after_update = self.client.get(f"/api/customers/{customer_id}/consent-history", headers=admin_headers).json()["items"]
+        self.assertEqual(len(history_after_update), 2)
+        latest = history_after_update[0]
+        self.assertEqual(bool(latest["old_value"]), True)
+        self.assertEqual(bool(latest["new_value"]), False)
+
+        # RBAC + tenant isolation: another company's admin cannot read this customer's consent history.
+        other_login = self.client.post("/login", json={"username": "ci-po-isolation-admin", "password": "StrongPoIsolation!42"})
+        if other_login.status_code == 200:
+            other_headers = {"Authorization": f"Bearer {other_login.json()['access_token']}"}
+            foreign = self.client.get(f"/api/customers/{customer_id}/consent-history", headers=other_headers)
+            self.assertEqual(foreign.status_code, 404, foreign.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_branch_scoped_catalog_stock(self):
+        """Task 08 Section 8/L: a catalog's branch_id (app/catalog.py's
+        _branch_stock_map, built in Task 07) was never exercised by any
+        existing test - verify catalog stock reflects the associated
+        branch's own warehouse, not the company-wide total."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        branch = self.client.post("/api/branches", headers=admin_headers, json={"name": "CI Catalog Branch", "code": "CI-CAT-BR"})
+        self.assertEqual(branch.status_code, 200, branch.text)
+        branch_id = branch.json()["id"]
+        warehouse = self.client.post("/api/warehouses", headers=admin_headers, json={"name": "CI Catalog Branch WH", "code": "CI-CAT-WH", "branch_id": branch_id})
+        self.assertEqual(warehouse.status_code, 200, warehouse.text)
+
+        product = self.client.post("/products", headers=admin_headers, json={
+            "name": "CI Catalog Branch Widget", "sell_price": 75, "stock": 40,
+        })
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        # Deliberately leave the branch's own warehouse at 0 while the
+        # company-wide total (40) stays positive - this makes "in_stock"
+        # meaningfully prove branch-scoping: if the catalog ignored
+        # catalog.branch_id and fell back to the company-wide total, this
+        # would incorrectly show in_stock=true.
+        catalog = self.client.post("/api/catalog/links", headers=admin_headers, json={
+            "title": "CI Branch-Scoped Catalog", "branch_id": branch_id, "product_ids": [product_id],
+            "in_stock_only": False,  # keep the product listed even while out of stock in this branch, so both states below are observable
+        })
+        self.assertEqual(catalog.status_code, 200, catalog.text)
+        token = catalog.json()["token"]
+
+        view = self.client.get("/api/catalog/view", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(view.status_code, 200, view.text)
+        viewed_product = next(p for p in view.json()["items"] if p["id"] == product_id)
+        self.assertFalse(viewed_product["in_stock"], viewed_product)
+
+        # Move stock into the branch's own warehouse - the same catalog
+        # (unchanged) must now report in_stock=true.
+        default_warehouse = next(w for w in self.client.get("/api/warehouses", headers=admin_headers).json()["items"] if w["is_default"])
+        self.client.post("/api/warehouses/transfer", headers=admin_headers, json={
+            "product_id": product_id, "from_warehouse_id": default_warehouse["id"],
+            "to_warehouse_id": warehouse.json()["id"], "quantity": 12,
+        })
+        view_after_transfer = self.client.get("/api/catalog/view", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(view_after_transfer.status_code, 200, view_after_transfer.text)
+        viewed_product_after = next(p for p in view_after_transfer.json()["items"] if p["id"] == product_id)
+        self.assertTrue(viewed_product_after["in_stock"], viewed_product_after)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_backup_download_token_actual_expiry(self):
+        """Task 08 Section 8/O: prior coverage only exercised replay-after-use
+        rejection; this verifies a token that expired WITHOUT ever being used
+        is also rejected (genuine time-based expiry, not just one-time-use)."""
+        import jwt as pyjwt
+        from datetime import datetime, timedelta, timezone
+        from app.auth import _jwt_secret, TOKEN_ISSUER, BACKUP_DOWNLOAD_AUDIENCE, TOKEN_ALGORITHM
+        import secrets as secrets_module
+
+        now = datetime.now(timezone.utc)
+        already_expired_token = pyjwt.encode({
+            "filename": "vetrix_manual_20260101T000000_000000Z.db",
+            "jti": secrets_module.token_urlsafe(16),
+            "iat": now - timedelta(hours=1),
+            "nbf": now - timedelta(hours=1),
+            "exp": now - timedelta(minutes=1),  # already expired, never used
+            "iss": TOKEN_ISSUER,
+            "aud": BACKUP_DOWNLOAD_AUDIENCE,
+        }, _jwt_secret(), algorithm=TOKEN_ALGORITHM)
+
+        response = self.client.get(f"/api/backup-delivery/secure-download?token={already_expired_token}")
+        self.assertEqual(response.status_code, 401, response.text)
+        self.assertIn("expired", response.json()["detail"].lower())
+
+    def _company_id_for(self, admin_headers):
+        me = self.client.get("/me", headers=admin_headers)
+        self.assertEqual(me.status_code, 200, me.text)
+        return me.json()["user"]["company_id"]
 
 
 if __name__ == "__main__":
