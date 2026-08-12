@@ -6,7 +6,7 @@ import {
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
   BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
-  TrendingUp, Users, MessagesSquare,
+  TrendingUp, Users, MessagesSquare, ListTree,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -46,6 +46,7 @@ const groups = [
     id: "accounting", labelKey: "groupAccounting",
     items: [
       { key: "executiveAlerts", icon: ShieldAlert, path: "/executive-alerts", roles: ["admin", "accountant"] },
+      { key: "chartOfAccounts", icon: ListTree, path: "/accounting", roles: ["admin", "accountant"] },
       { key: "accountingEntries", icon: BookOpenCheck, path: "/accounting-entries", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "fiscalPeriods", icon: CalendarClock, path: "/fiscal-periods", roles: ["admin", "accountant", "viewer", "user"] },
       { key: "taxAccounting", icon: BadgePercent, path: "/tax-accounting", roles: ["admin", "accountant", "viewer", "user"] },
@@ -84,7 +85,7 @@ const groups = [
       { key: "companyManagement", icon: Building2, path: "/company-management", roles: ["admin"], superAdminOnly: true },
       { key: "companyProfile", icon: Building2, path: "/company-profile", roles: ["admin"] },
       { key: "executiveAgent", icon: MessagesSquare, path: "/executive-agent", roles: ["admin", "accountant"] },
-      { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"] },
+      { key: "backupRecovery", icon: DatabaseBackup, path: "/backup-recovery", roles: ["admin"], superAdminOnly: true },
       { key: "dataImport", icon: FileSpreadsheet, path: "/data-import", roles: ["admin"] },
       { key: "systemHealth", icon: HeartPulse, path: "/system-health", roles: ["admin"] },
       { key: "financialPolicy", icon: Scale, path: "/financial-policy", roles: ["admin"] },

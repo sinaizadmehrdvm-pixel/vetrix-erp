@@ -317,6 +317,32 @@ def _validate_employee(data: EmployeeCreate):
         raise HTTPException(status_code=400, detail="First and last name are required")
 
 
+def _validate_cross_company_refs(conn, company_id, branch_id=None, manager_employee_id=None):
+    """branch_id/manager_employee_id are client-supplied ids into tables
+    whose only isolation is a company_id column (ids are globally
+    autoincrement, not per-company) - without this check, an admin
+    setting either to another company's real id would let get_employee's
+    manager-name lookup / list_employees' branch join leak that other
+    company's employee name / branch name into this company's HR
+    responses."""
+    if branch_id is not None:
+        from app.branches import _ensure_schema as _ensure_branches_schema
+        _ensure_branches_schema(conn)
+        row = conn.execute(
+            text("SELECT id FROM branches WHERE id=:id AND company_id=:company_id"),
+            {"id": branch_id, "company_id": company_id},
+        ).first()
+        if not row:
+            raise HTTPException(status_code=400, detail="branch_id does not belong to this company")
+    if manager_employee_id is not None:
+        row = conn.execute(
+            text("SELECT id FROM employees WHERE id=:id AND company_id=:company_id"),
+            {"id": manager_employee_id, "company_id": company_id},
+        ).first()
+        if not row:
+            raise HTTPException(status_code=400, detail="manager_employee_id does not belong to this company")
+
+
 @router.get("")
 def list_employees(request: Request, status: str = "", department: str = "", branch_id: int | None = None, search: str = ""):
     from app.branches import _ensure_schema as _ensure_branches_schema
@@ -343,7 +369,7 @@ def list_employees(request: Request, status: str = "", department: str = "", bra
             params["search"] = f"%{search}%"
         rows = conn.execute(text(f"""
             SELECT e.*, b.name AS branch_name
-            FROM employees e LEFT JOIN branches b ON b.id=e.branch_id
+            FROM employees e LEFT JOIN branches b ON b.id=e.branch_id AND b.company_id=e.company_id
             WHERE {' AND '.join(clauses)} ORDER BY e.id DESC
         """), params).mappings().all()
         items = [dict(r) for r in rows if _can_view(role, own_employee_id, dict(r))]
@@ -360,6 +386,7 @@ def create_employee(data: EmployeeCreate, request: Request):
     now = _now()
     with engine.begin() as conn:
         _ensure_schema(conn)
+        _validate_cross_company_refs(conn, company_id, data.branch_id, data.manager_employee_id)
         result = conn.execute(text("""
             INSERT INTO employees
               (employee_number, first_name, last_name, display_name, status, employment_type, job_title, department,
@@ -383,7 +410,10 @@ def get_employee(employee_id: int, request: Request):
         actor, role, own_employee_id, employee = _require_hr_access(conn, request, employee_id, "view", company_id)
         manager = None
         if employee.get("manager_employee_id"):
-            manager = conn.execute(text("SELECT id, first_name, last_name FROM employees WHERE id=:id"), {"id": employee["manager_employee_id"]}).mappings().first()
+            manager = conn.execute(
+                text("SELECT id, first_name, last_name FROM employees WHERE id=:id AND company_id=:company_id"),
+                {"id": employee["manager_employee_id"], "company_id": company_id},
+            ).mappings().first()
         return {**employee, "manager_name": f"{manager['first_name']} {manager['last_name']}" if manager else None}
 
 
@@ -440,6 +470,7 @@ def update_employee(employee_id: int, data: EmployeeUpdate, request: Request):
             raise HTTPException(status_code=400, detail=f"employment_type must be one of: {', '.join(sorted(EMPLOYMENT_TYPES))}")
         if not fields:
             return {"status": "unchanged"}
+        _validate_cross_company_refs(conn, company_id, fields.get("branch_id"), fields.get("manager_employee_id"))
 
         now = _now()
         for field, event_type in HISTORY_TRACKED_FIELDS.items():

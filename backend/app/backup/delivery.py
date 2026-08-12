@@ -56,6 +56,7 @@ from sqlalchemy import text
 
 from app.company_scope import current_company_id, ensure_company_id_column
 from app.database import engine
+from app.super_admin import is_super_admin
 
 router = APIRouter(prefix="/api/backup-delivery", tags=["Backup Delivery"])
 
@@ -112,9 +113,16 @@ def _ensure_schema(conn):
 
 
 def _require_admin(request: Request):
+    """Backups cover the whole shared database file, i.e. every tenant's
+    data at once (see auto_backup.create_database_backup) - a per-company
+    "admin" role must never be sufficient here, or any company could
+    self-provision an admin user and exfiltrate every other company's
+    data through a backup/delivery policy. Only a real super-admin
+    (app/super_admin.py - a flag independent of the per-company role)
+    may create, deliver, or download a backup."""
     auth = getattr(request.state, "auth", {})
-    if str(auth.get("role") or "").lower() != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
+    if not is_super_admin(auth):
+        raise HTTPException(status_code=403, detail="Super-administrator access required")
     try:
         return int(auth["sub"])
     except (KeyError, TypeError, ValueError):

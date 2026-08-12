@@ -228,6 +228,12 @@ MUTATION_RULES = (
     # granted edit access, matching /api/change-requests' own pattern above.
     ("/api/message-templates", {"admin", "accountant", "sales"}),
     ("/api/catalog", {"admin", "accountant", "sales"}),
+    # online_commerce.py's own _require_manager already gates every mutating
+    # route here to admin/accountant - without this entry, the outer prefix
+    # gate had no MUTATION_RULES match at all and denied-by-default, so
+    # accountants (an intended role) got a 403 before ever reaching that
+    # inner check.
+    ("/api/online-commerce", {"admin", "accountant"}),
     ("/api/pricing", {"admin", "accountant", "warehouse"}),
     ("/api/crm", {"admin", "sales"}),
     ("/crm/pipeline", {"admin", "sales"}),

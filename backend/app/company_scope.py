@@ -361,6 +361,44 @@ def migrate_financial_policy_versions_composite_unique(conn):
     ))
 
 
+def migrate_commerce_connections_composite_unique(conn):
+    """commerce_connections was created with a globally-UNIQUE `channel`
+    column (one row per channel like "instagram" for the WHOLE shared
+    database) - this let any company's save_connection() silently
+    overwrite every other company's storefront integration config
+    (base_url/account_label/secret_reference), and the unscoped SELECT in
+    connections() returned every tenant's config to any caller. Same
+    class of bug as chart_accounts/cost_centers above, fixed the same
+    way."""
+    rebuild_table_with_composite_unique(
+        conn, "commerce_connections",
+        """
+        CREATE TABLE commerce_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel VARCHAR NOT NULL,
+            enabled BOOLEAN NOT NULL DEFAULT 0,
+            base_url TEXT DEFAULT '',
+            account_label VARCHAR DEFAULT '',
+            secret_reference VARCHAR DEFAULT '',
+            last_test_status VARCHAR DEFAULT 'not_tested',
+            last_tested_at VARCHAR,
+            updated_by INTEGER NOT NULL,
+            updated_at VARCHAR NOT NULL,
+            company_id INTEGER,
+            UNIQUE(company_id, channel),
+            FOREIGN KEY(updated_by) REFERENCES users(id)
+        )
+        """,
+        "id, channel, enabled, base_url, account_label, secret_reference, "
+        "last_test_status, last_tested_at, updated_by, updated_at, company_id",
+        "ux_commerce_connections_company_channel",
+    )
+    conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_commerce_connections_company_channel "
+        "ON commerce_connections(company_id, channel)"
+    ))
+
+
 def company_id_from_auth(auth: dict | None) -> int:
     """Every authenticated request has `company_id` in its JWT (Milestone 1).
     Falls back to the default company only for the rare pre-Milestone-1

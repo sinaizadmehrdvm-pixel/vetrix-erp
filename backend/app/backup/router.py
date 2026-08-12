@@ -11,6 +11,7 @@ from app.backup.auto_backup import (
     test_restore_database_backup,
     verify_database_backup,
 )
+from app.super_admin import is_super_admin
 
 router = APIRouter(prefix="/api/backups", tags=["Backup & Recovery"])
 
@@ -20,9 +21,13 @@ class RestoreConfirmation(BaseModel):
 
 
 def _require_admin(request: Request):
+    """Backups cover the whole shared database file (every tenant's data
+    at once) - see the identical docstring/reasoning in
+    app/backup/delivery.py._require_admin. A per-company "admin" role is
+    not sufficient; this requires a real super-admin."""
     auth = getattr(request.state, "auth", {})
-    if auth.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Administrator access required")
+    if not is_super_admin(auth):
+        raise HTTPException(status_code=403, detail="Super-administrator access required")
 
 
 @router.get("")

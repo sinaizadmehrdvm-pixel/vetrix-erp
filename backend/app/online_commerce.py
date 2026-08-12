@@ -96,10 +96,11 @@ def _ensure_schema(conn):
             FOREIGN KEY(updated_by) REFERENCES users(id)
         )
     """))
-    from app.company_scope import ensure_company_id_column
+    from app.company_scope import ensure_company_id_column, migrate_commerce_connections_composite_unique
     ensure_company_id_column(conn, "online_product_settings")
     ensure_company_id_column(conn, "social_campaigns")
     ensure_company_id_column(conn, "commerce_connections")
+    migrate_commerce_connections_composite_unique(conn)
     _ensure_campaign_targeting_columns(conn)
 
 
@@ -177,12 +178,9 @@ def summary(request: Request):
                    SUM(CASE WHEN status='published' THEN 1 ELSE 0 END) published
             FROM social_campaigns WHERE company_id=:company_id
         """), {"company_id": company_id}).mappings().first()
-        # commerce_connections stays global for now: `channel` is UNIQUE across
-        # the whole table (one row per channel like "instagram"), the same
-        # shared-natural-key pattern flagged for the accounting/GL subsystem -
-        # scoping it needs a composite UNIQUE(company_id, channel) migration,
-        # not just a WHERE filter.
-        connections = conn.execute(text("SELECT COUNT(*) FROM commerce_connections WHERE enabled=1")).scalar() or 0
+        connections = conn.execute(text(
+            "SELECT COUNT(*) FROM commerce_connections WHERE enabled=1 AND company_id=:company_id"
+        ), {"company_id": company_id}).scalar() or 0
         return {
             "products": {key: int(value or 0) for key, value in dict(products).items()},
             "campaigns": {key: int(value or 0) for key, value in dict(campaigns).items()},
@@ -417,13 +415,14 @@ def reject_campaign(campaign_id: int, payload: DecisionPayload, request: Request
 @router.get("/connections")
 def connections(request: Request):
     _require_manager(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
             SELECT channel, enabled, base_url, account_label, secret_reference,
                    last_test_status, last_tested_at, updated_at
-            FROM commerce_connections ORDER BY channel
-        """)).mappings().all()
+            FROM commerce_connections WHERE company_id=:company_id ORDER BY channel
+        """), {"company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
@@ -488,6 +487,7 @@ def sales_opportunities(request: Request):
 @router.put("/connections/{channel}")
 def save_connection(channel: str, payload: ConnectionPayload, request: Request):
     actor = _require_manager(request)
+    company_id = current_company_id(request)
     if channel not in CHANNELS or payload.channel != channel:
         raise HTTPException(status_code=400, detail="Invalid channel")
     if payload.secret_reference and any(mark in payload.secret_reference.lower() for mark in ("bearer ", "token=", "api_key=")):
@@ -496,12 +496,12 @@ def save_connection(channel: str, payload: ConnectionPayload, request: Request):
         _ensure_schema(conn)
         conn.execute(text("""
             INSERT INTO commerce_connections
-              (channel, enabled, base_url, account_label, secret_reference, updated_by, updated_at)
-            VALUES (:channel, :enabled, :base_url, :account_label, :secret_reference, :actor, :now)
-            ON CONFLICT(channel) DO UPDATE SET
+              (channel, enabled, base_url, account_label, secret_reference, updated_by, updated_at, company_id)
+            VALUES (:channel, :enabled, :base_url, :account_label, :secret_reference, :actor, :now, :company_id)
+            ON CONFLICT(company_id, channel) DO UPDATE SET
               enabled=excluded.enabled, base_url=excluded.base_url,
               account_label=excluded.account_label,
               secret_reference=excluded.secret_reference,
               updated_by=excluded.updated_by, updated_at=excluded.updated_at
-        """), {**payload.dict(), "actor": actor, "now": _now()})
+        """), {**payload.dict(), "actor": actor, "now": _now(), "company_id": company_id})
         return {"status": "saved", "channel": channel}

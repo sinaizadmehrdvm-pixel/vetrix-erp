@@ -135,6 +135,27 @@ def _event(conn, request_id, event_type, actor, detail=""):
     """), {"request_id": request_id, "event_type": event_type, "actor": actor, "detail": detail, "created_at": _now()})
 
 
+def _submission_actor(conn, request_id):
+    """Who effectively authored/submitted this request for approval. For a
+    direct human-submitted request this is the same person as
+    `requested_by` - but a voice-intake request (app/inbound_voice.py)
+    always has `requested_by` fixed to a non-admin service account
+    (_service_user explicitly rejects an admin role), and
+    review_transcript() lets an admin freely rewrite the
+    action_type/target/proposed_changes and submit it for approval. The
+    maker-checker guard in approve_request must block THAT admin from
+    also approving their own review, not just the nominal `requested_by`
+    - otherwise one admin could single-handedly author, submit, and
+    approve/execute any voice-derived request (see review_transcript's
+    'submitted'/'transcript_reviewed' events)."""
+    row = conn.execute(text("""
+        SELECT actor_user_id FROM managed_change_events
+        WHERE request_id=:id AND event_type IN ('submitted', 'transcript_reviewed')
+        ORDER BY id DESC LIMIT 1
+    """), {"id": request_id}).first()
+    return row[0] if row else None
+
+
 def _row(conn, request_id, company_id=None):
     query = """
         SELECT r.*, requester.full_name requested_by_name,
@@ -888,7 +909,7 @@ def approve_request(request_id: int, payload: DecisionPayload, request: Request)
         item = _row(conn, request_id, current_company_id(request))
         if item["status"] not in ("pending_approval", "pending_second_approval"):
             raise HTTPException(status_code=409, detail="Request is not pending approval")
-        if item["requested_by"] == actor:
+        if item["requested_by"] == actor or _submission_actor(conn, request_id) == actor:
             raise HTTPException(status_code=409, detail="Maker-checker violation: requester cannot approve")
 
         # High-risk actions need two different admins, not one - the first
@@ -896,14 +917,29 @@ def approve_request(request_id: int, payload: DecisionPayload, request: Request)
         # pending_second_approval; nothing executes until a second, distinct
         # admin approves again. See HIGH_RISK_ACTIONS' docstring.
         if item["status"] == "pending_approval" and item["action_type"] in HIGH_RISK_ACTIONS:
-            conn.execute(text("""
-                UPDATE managed_change_requests SET status='pending_second_approval', first_approved_by=:actor WHERE id=:id
+            claimed = conn.execute(text("""
+                UPDATE managed_change_requests SET status='pending_second_approval', first_approved_by=:actor
+                WHERE id=:id AND status='pending_approval'
             """), {"actor": actor, "id": request_id})
+            if claimed.rowcount == 0:
+                raise HTTPException(status_code=409, detail="Request was already acted on by another approval")
             _event(conn, request_id, "first_approval_recorded", actor, payload.note.strip())
             return {"status": "pending_second_approval", "request_id": request_id}
 
         if item["status"] == "pending_second_approval" and item["first_approved_by"] == actor:
             raise HTTPException(status_code=409, detail="A different administrator must provide the second approval")
+
+        # Atomically claim the row before running _apply() (which has real
+        # side effects - posting ledger entries, sending messages, etc.) so
+        # two near-simultaneous approve calls (double-click, retry, two
+        # admin tabs) can't both pass the status check above and both
+        # execute _apply(); whichever call's UPDATE loses the race gets
+        # rowcount=0 and a 409, never a second real execution.
+        claimed = conn.execute(text("""
+            UPDATE managed_change_requests SET status='executing' WHERE id=:id AND status=:expected_status
+        """), {"id": request_id, "expected_status": item["status"]})
+        if claimed.rowcount == 0:
+            raise HTTPException(status_code=409, detail="Request was already acted on by another approval")
 
         try:
             result = _apply(conn, item, actor)
