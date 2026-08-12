@@ -54,7 +54,6 @@ const BudgetControl = lazy(() => import("./pages/BudgetControl"));
 const CurrencyManagement = lazy(() => import("./pages/CurrencyManagement"));
 const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
 const TreasuryCheques = lazy(() => import("./pages/TreasuryCheques"));
-const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 const OnlineCommerce = lazy(() => import("./pages/OnlineCommerce"));
 const ChangeRequestCenter = lazy(() => import("./pages/ChangeRequestCenter"));
 const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
@@ -248,7 +247,11 @@ function AppContent() {
           <Route path="treasury-cheques" element={<TreasuryCheques />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
-          <Route path="business-intelligence" element={<BusinessIntelligence />} />
+          {/* Task 07 Section 4/F: BusinessIntelligence.jsx duplicated AiBusinessIntelligence.jsx's
+              KPIs with a weaker client-side-only forecast/scoring, while /ai-bi has the real
+              backend-computed anomaly detection and cashflow forecast - redirected, not removed,
+              so old bookmarks/links still land somewhere useful. */}
+          <Route path="business-intelligence" element={<Navigate to="/ai-bi" replace />} />
           <Route path="online-commerce" element={<OnlineCommerce />} />
           <Route path="change-requests" element={<ChangeRequestCenter />} />
           <Route path="financial-policy" element={<FinancialPolicy />} />

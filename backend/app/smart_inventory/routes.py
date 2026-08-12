@@ -1,8 +1,11 @@
-from fastapi import APIRouter
+from typing import Optional
+
+from fastapi import APIRouter, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from app.database import SessionLocal, engine
+from app.company_scope import current_company_id
 from app.models.product import Product
 from app.models.invoice import Invoice, InvoiceItem
 
@@ -16,10 +19,16 @@ def _safe_float(value):
         return 0.0
 
 
-def _product_dict(product):
+def _product_dict(product, scoped_stock=None):
+    """scoped_stock, when given, overrides the company-wide Product.stock
+    with a branch/warehouse-aggregated quantity (see _scoped_stock_map) -
+    stock_value_buy/sell and every downstream risk computation then reflect
+    that narrower scope, while company_stock always keeps the true
+    company-wide total visible for comparison."""
     buy_price = _safe_float(getattr(product, "buy_price", 0))
     sell_price = _safe_float(getattr(product, "sell_price", None) or getattr(product, "price", 0))
-    stock = _safe_float(getattr(product, "stock", 0))
+    company_stock = _safe_float(getattr(product, "stock", 0))
+    stock = company_stock if scoped_stock is None else _safe_float(scoped_stock)
     min_stock = _safe_float(getattr(product, "min_stock", 0))
     return {
         "id": product.id,
@@ -35,6 +44,7 @@ def _product_dict(product):
         "sell_price": sell_price,
         "price": _safe_float(getattr(product, "price", sell_price)),
         "stock": stock,
+        "company_stock": company_stock,
         "min_stock": min_stock,
         "stock_value_buy": stock * buy_price,
         "stock_value_sell": stock * sell_price,
@@ -42,6 +52,30 @@ def _product_dict(product):
         "preferred_supplier_id": getattr(product, "preferred_supplier_id", None),
         "lead_time_days": int(getattr(product, "lead_time_days", 0) or 0),
     }
+
+
+def _scoped_stock_map(db: Session, company_id: int, product_ids: list, branch_id: Optional[int], warehouse_id: Optional[int]) -> dict:
+    """{product_id: quantity} aggregated to the requested scope, using the
+    REAL Product x Warehouse breakdown (app.warehouses.stock_breakdown) -
+    never a new branch_id-on-Product shortcut. warehouse_id wins if both
+    are given; branch_id aggregates every warehouse belonging to that
+    branch. Returns {} (meaning "use company-wide Product.stock instead")
+    when neither scope is requested."""
+    if branch_id is None and warehouse_id is None:
+        return {}
+    from app.warehouses import Warehouse, stock_breakdown
+
+    if warehouse_id is not None:
+        target_warehouse_ids = {warehouse_id}
+    else:
+        target_warehouse_ids = {
+            w.id for w in db.query(Warehouse.id).filter(Warehouse.company_id == company_id, Warehouse.branch_id == branch_id).all()
+        }
+    result = {}
+    for product_id in product_ids:
+        breakdown = stock_breakdown(db, product_id, company_id)
+        result[product_id] = sum(qty for wid, qty in breakdown.items() if wid in target_warehouse_ids)
+    return result
 
 
 def _sales_metrics(db: Session, product_id: int, days: int = 90):
@@ -157,13 +191,29 @@ def _abc_classification(items):
 
 
 @router.get("/overview")
-def smart_inventory_overview(days: int = 90, lead_time_days: int = 7):
+def smart_inventory_overview(
+    request: Request,
+    days: int = 90,
+    lead_time_days: int = 7,
+    branch_id: Optional[int] = None,
+    warehouse_id: Optional[int] = None,
+):
+    """Company-scoped (fixing a real cross-tenant leak: this endpoint
+    previously queried every Product with no company_id filter at all -
+    every caller downstream had to defensively re-filter by their own
+    product ids, which only protected THEIR OWN response, not this HTTP
+    endpoint itself). branch_id/warehouse_id additionally narrow `stock`
+    to that scope using the real Product x Warehouse breakdown (see
+    _scoped_stock_map) - company-wide totals stay available via
+    company_stock on every item."""
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        products = db.query(Product).order_by(Product.id.desc()).all()
+        products = db.query(Product).filter(Product.company_id == company_id).order_by(Product.id.desc()).all()
+        scoped_stock = _scoped_stock_map(db, company_id, [p.id for p in products], branch_id, warehouse_id)
         items = []
         for product in products:
-            base = _product_dict(product)
+            base = _product_dict(product, scoped_stock.get(product.id) if scoped_stock else None)
             metrics = _sales_metrics(db, product.id, days=days)
             risk = _risk_for_product(base, metrics, lead_time_days=lead_time_days)
             items.append({**base, **metrics, **risk})
@@ -229,6 +279,15 @@ def smart_inventory_overview(days: int = 90, lead_time_days: int = 7):
                 "C": [x for x in items if x.get("abc_class") == "C"][:30],
             },
             "insights": insights,
+            "scope": {
+                "branch_id": branch_id,
+                "warehouse_id": warehouse_id,
+                "note": (
+                    "Stock figures are scoped to this branch/warehouse; sales-velocity and reorder-quantity math still use company-wide sales history (no per-branch sales attribution is available for this computation)."
+                    if scoped_stock else
+                    "Company-wide stock (no branch/warehouse scope requested)."
+                ),
+            },
         }
         db.close()
         return result
@@ -238,22 +297,24 @@ def smart_inventory_overview(days: int = 90, lead_time_days: int = 7):
 
 
 @router.get("/reorder-plan")
-def reorder_plan(days: int = 90, lead_time_days: int = 7):
-    data = smart_inventory_overview(days=days, lead_time_days=lead_time_days)
+def reorder_plan(request: Request, days: int = 90, lead_time_days: int = 7, branch_id: Optional[int] = None, warehouse_id: Optional[int] = None):
+    data = smart_inventory_overview(request, days=days, lead_time_days=lead_time_days, branch_id=branch_id, warehouse_id=warehouse_id)
     if isinstance(data, dict) and data.get("status") == "error":
         return data
-    return {"items": data.get("reorder_plan", []), "summary": data.get("summary", {})}
+    return {"items": data.get("reorder_plan", []), "summary": data.get("summary", {}), "scope": data.get("scope")}
 
 
 @router.get("/product/{product_id}/insight")
-def product_inventory_insight(product_id: int, days: int = 90, lead_time_days: int = 7):
+def product_inventory_insight(product_id: int, request: Request, days: int = 90, lead_time_days: int = 7, branch_id: Optional[int] = None, warehouse_id: Optional[int] = None):
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = db.query(Product).filter(Product.id == product_id, Product.company_id == company_id).first()
         if not product:
             db.close()
             return {"status": "error", "message": "Product not found"}
-        base = _product_dict(product)
+        scoped_stock = _scoped_stock_map(db, company_id, [product.id], branch_id, warehouse_id)
+        base = _product_dict(product, scoped_stock.get(product.id) if scoped_stock else None)
         metrics = _sales_metrics(db, product.id, days=days)
         risk = _risk_for_product(base, metrics, lead_time_days=lead_time_days)
         db.close()

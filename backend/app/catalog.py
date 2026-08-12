@@ -142,6 +142,25 @@ class CatalogOrderCreate(BaseModel):
     items: List[CatalogOrderItem]
 
 
+def _branch_stock_map(db: Session, company_id: int, branch_id: int, product_ids) -> dict:
+    """Real per-branch stock for a catalog explicitly tied to one branch
+    (CatalogLink.branch_id - already a real, existing field used for
+    pricing via resolve_price(), just not for stock visibility until now)
+    - aggregates that branch's actual warehouses through the existing
+    Product x Warehouse breakdown (app.warehouses.stock_breakdown), the
+    same pattern app.smart_inventory.routes uses. Never a new
+    branch_id-on-Product shortcut."""
+    from app.warehouses import Warehouse, stock_breakdown
+    target_warehouse_ids = {
+        w.id for w in db.query(Warehouse.id).filter(Warehouse.company_id == company_id, Warehouse.branch_id == branch_id).all()
+    }
+    result = {}
+    for product_id in product_ids:
+        breakdown = stock_breakdown(db, product_id, company_id)
+        result[product_id] = sum(qty for wid, qty in breakdown.items() if wid in target_warehouse_ids)
+    return result
+
+
 def _resolve_products(db: Session, catalog: CatalogLink):
     query = db.query(Product).filter(Product.company_id == catalog.company_id)
     if catalog.product_ids:
@@ -154,7 +173,11 @@ def _resolve_products(db: Session, catalog: CatalogLink):
         query = query.filter(Product.main_category == catalog.main_category)
     products = query.order_by(Product.name.asc()).all()
     if catalog.in_stock_only:
-        products = [p for p in products if float(p.stock or 0) > 0]
+        if catalog.branch_id is not None:
+            stock_map = _branch_stock_map(db, catalog.company_id, catalog.branch_id, [p.id for p in products])
+            products = [p for p in products if stock_map.get(p.id, 0) > 0]
+        else:
+            products = [p for p in products if float(p.stock or 0) > 0]
     return products
 
 
@@ -220,7 +243,10 @@ def _catalog_base_price(db: Session, product: Product, catalog: CatalogLink) -> 
     return float(quote["unit_price"])
 
 
-def _product_public_dict(product: Product, base_price: float, discount=None, show_stock_status: bool = True):
+def _product_public_dict(product: Product, base_price: float, discount=None, show_stock_status: bool = True, branch_stock: Optional[float] = None):
+    """branch_stock, when given (the catalog is tied to a specific branch -
+    see _branch_stock_map), overrides product.stock so a customer sees
+    that branch's real availability rather than the company-wide total."""
     base_price = float(discount["online_price"]) if discount and discount.get("online_price") is not None else base_price
     discount_percent = float(discount["discount_percent"]) if discount else 0
     final_price = round(base_price * (1 - discount_percent / 100), 0) if discount_percent else base_price
@@ -235,7 +261,7 @@ def _product_public_dict(product: Product, base_price: float, discount=None, sho
         "image": getattr(product, "image", "") or "",
     }
     if show_stock_status:
-        result["in_stock"] = float(product.stock or 0) > 0
+        result["in_stock"] = (float(branch_stock or 0) > 0) if branch_stock is not None else (float(product.stock or 0) > 0)
     return result
 
 
@@ -318,13 +344,17 @@ def _build_catalog_pdf(db: Session, catalog: CatalogLink, products, language: st
     story = [_p(catalog.title, title_style, language), Spacer(1, 10 * mm)]
 
     show_stock = catalog.show_stock_status
+    branch_stock_map = (
+        _branch_stock_map(db, catalog.company_id, catalog.branch_id, [p.id for p in products])
+        if catalog.branch_id is not None else {}
+    )
     header_labels_fa = ["#", "کد", "نام کالا", "قیمت"] + (["وضعیت موجودی"] if show_stock else [])
     header_labels_en = ["#", "Code", "Product", "Price"] + (["Availability"] if show_stock else [])
     header_labels = header_labels_fa if fa else header_labels_en
     rows = [[_p(label, header_style, language) for label in header_labels]]
     for index, product in enumerate(products):
         base_price = _catalog_base_price(db, product, catalog)
-        item = _product_public_dict(product, base_price, discounts.get(product.id), show_stock)
+        item = _product_public_dict(product, base_price, discounts.get(product.id), show_stock, branch_stock_map.get(product.id))
         if item["discount_percent"]:
             was_label = "بود" if fa else "was"
             price_text = f"{item['final_price']:,.0f} ({was_label} {item['price']:,.0f}, -{item['discount_percent']:.0f}%)"
@@ -629,6 +659,10 @@ def view_catalog(request: Request):
         catalog = _authenticated_catalog(request, db)
         products = _resolve_products(db, catalog)
         discounts = _active_discounts(db, [p.id for p in products])
+        branch_stock_map = (
+            _branch_stock_map(db, catalog.company_id, catalog.branch_id, [p.id for p in products])
+            if catalog.branch_id is not None else {}
+        )
         # Real view counter (Section 12's "Views" analytics) - a plain
         # increment on every successful public load, not a fabricated
         # metric; click/product-open tracking isn't implemented (see
@@ -638,7 +672,10 @@ def view_catalog(request: Request):
         return {
             "title": catalog.title,
             "currency": catalog.currency,
-            "items": [_product_public_dict(p, _catalog_base_price(db, p, catalog), discounts.get(p.id), catalog.show_stock_status) for p in products],
+            "items": [
+                _product_public_dict(p, _catalog_base_price(db, p, catalog), discounts.get(p.id), catalog.show_stock_status, branch_stock_map.get(p.id))
+                for p in products
+            ],
         }
     finally:
         db.close()

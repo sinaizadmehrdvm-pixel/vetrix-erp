@@ -367,14 +367,21 @@ def _compose_response(tool_name, result, language, period_label):
         if result["overdue_count"]:
             lines.append(_tr({"fa": f"{result['overdue_count']} چک سررسید گذشته.", "ar": f"{result['overdue_count']} شيك متأخر.", "tr": f"{result['overdue_count']} vadesi geçmiş çek.", "en": f"{result['overdue_count']} cheque(s) overdue."}, language))
     elif tool_name == "inventory_risk_summary":
-        lines.append(_tr({
-            "fa": f"{result['low_stock_count']} کالا کمبود موجودی و {result['dead_stock_count']} کالا راکد دارند.",
-            "ar": f"{result['low_stock_count']} منتج بمخزون منخفض و{result['dead_stock_count']} منتج راكد.",
-            "tr": f"{result['low_stock_count']} üründe düşük stok, {result['dead_stock_count']} üründe durgun stok var.",
-            "en": f"{result['low_stock_count']} products are low on stock and {result['dead_stock_count']} are dead stock.",
-        }, language))
-        if result.get("limitation"):
-            lines.append(result["limitation"])
+        branch_name = result.get("branch_name")
+        if branch_name:
+            lines.append(_tr({
+                "fa": f"شعبه {branch_name}: {result['low_stock_count']} کالا کمبود موجودی و {result['dead_stock_count']} کالا راکد دارند.",
+                "ar": f"فرع {branch_name}: {result['low_stock_count']} منتج بمخزون منخفض و{result['dead_stock_count']} منتج راكد.",
+                "tr": f"{branch_name} şubesi: {result['low_stock_count']} üründe düşük stok, {result['dead_stock_count']} üründe durgun stok var.",
+                "en": f"{branch_name} branch: {result['low_stock_count']} products are low on stock and {result['dead_stock_count']} are dead stock.",
+            }, language))
+        else:
+            lines.append(_tr({
+                "fa": f"{result['low_stock_count']} کالا کمبود موجودی و {result['dead_stock_count']} کالا راکد دارند.",
+                "ar": f"{result['low_stock_count']} منتج بمخزون منخفض و{result['dead_stock_count']} منتج راكد.",
+                "tr": f"{result['low_stock_count']} üründe düşük stok, {result['dead_stock_count']} üründe durgun stok var.",
+                "en": f"{result['low_stock_count']} products are low on stock and {result['dead_stock_count']} are dead stock.",
+            }, language))
     elif tool_name == "branch_performance":
         if not result["branches"]:
             lines.append(result.get("limitation") or _tr(_UNAVAILABLE, language))

@@ -16,7 +16,7 @@ import {
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
-import { getSmartInventoryOverview, createPurchaseOrder, getExpiringBatches } from "../services/api";
+import { getSmartInventoryOverview, createPurchaseOrder, getExpiringBatches, getBranches } from "../services/api";
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -71,17 +71,20 @@ export default function SmartInventory() {
 
   const [data, setData] = useState(null);
   const [expiringBatches, setExpiringBatches] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [creatingPo, setCreatingPo] = useState(false);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("reorder");
 
-  async function load() {
+  async function load(currentBranchId) {
     try {
       setLoading(true);
       setError("");
-      const res = await getSmartInventoryOverview();
+      const params = currentBranchId ? { branch_id: currentBranchId } : {};
+      const res = await getSmartInventoryOverview(params);
       if (res?.status === "error") throw new Error(res.message);
       setData(res);
     } catch (err) {
@@ -96,13 +99,24 @@ export default function SmartInventory() {
     } catch {
       setExpiringBatches([]);
     }
+    try {
+      const b = await getBranches();
+      setBranches(Array.isArray(b?.items) ? b.items.filter((x) => x.active) : []);
+    } catch {
+      setBranches([]);
+    }
   }
 
   useEffect(() => {
-    const initialTimer = setTimeout(() => { void load(); }, 0);
+    const initialTimer = setTimeout(() => { void load(branchId); }, 0);
     return () => clearTimeout(initialTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
+
+  function changeBranch(value) {
+    setBranchId(value);
+    void load(value);
+  }
 
   async function createOrdersFromReorderPlan() {
     const plan = safeArray(data?.reorder_plan).filter((item) => (item.suggested_reorder_qty || 0) > 0);
@@ -176,16 +190,33 @@ export default function SmartInventory() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
-        >
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={branchId}
+            onChange={(e) => changeBranch(e.target.value)}
+            className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 outline-none text-[var(--erp-text)]"
+          >
+            <option value="">{language === "fa" ? "کل شرکت (همه شعب)" : language === "ar" ? "الشركة بأكملها (كل الفروع)" : language === "tr" ? "Tüm şirket (tüm şubeler)" : "Whole company (all branches)"}</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <button
+            type="button"
+            onClick={() => load(branchId)}
+            disabled={loading}
+            className="px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
+          >
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            {language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      {data?.scope?.branch_id && (
+        <div className="mb-5 rounded-2xl p-4 bg-[var(--erp-glow)] border border-[var(--erp-border)] text-[var(--erp-accent)] text-sm flex items-center gap-2">
+          <Warehouse size={16} />
+          {data.scope.note}
+        </div>
+      )}
 
       {error && (
         <div className="mb-5 rounded-2xl p-4 bg-rose-500/10 border border-rose-400/20 text-rose-200 flex items-center gap-2">
@@ -297,7 +328,14 @@ export default function SmartInventory() {
                       <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
                       <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
                     </td>
-                    <td className="p-3 text-center font-bold">{n(item.stock || 0)} {item.unit || ""}</td>
+                    <td className="p-3 text-center font-bold">
+                      {n(item.stock || 0)} {item.unit || ""}
+                      {branchId && (
+                        <div className="text-xs text-[var(--erp-muted)] font-normal mt-0.5">
+                          {language === "fa" ? "کل شرکت" : language === "ar" ? "إجمالي الشركة" : language === "tr" ? "Şirket toplamı" : "Company total"}: {n(item.company_stock || 0)}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3 text-center">{n(item.net_qty_90d || 0)}</td>
                     <td className="p-3 text-center">{item.days_left == null ? "-" : `${n(item.days_left)} ${language === "fa" ? "روز" : language === "ar" ? "يومًا" : language === "tr" ? "gün" : "days"}`}</td>
                     <td className="p-3 text-center font-black text-amber-300">{n(item.suggested_reorder_qty || 0)}</td>

@@ -6,7 +6,7 @@ import {
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
   BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
-  TrendingUp, Users, MessagesSquare, ListTree,
+  TrendingUp, Users, MessagesSquare, ListTree, Brain, HeartHandshake,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -21,6 +21,7 @@ const groups = [
     items: [
       { key: "dashboard", icon: LayoutDashboard, path: "/" },
       { key: "parties", fallbackKey: "customers", icon: UsersRound, path: "/customers" },
+      { key: "crmDashboard", icon: HeartHandshake, path: "/crm", roles: ["admin", "sales", "accountant"] },
       { key: "salesPipeline", icon: BriefcaseBusiness, path: "/sales-pipeline", roles: ["admin", "sales"] },
       { key: "visitorModule", icon: Smartphone, path: "/visitor", roles: ["admin", "sales"] },
       { key: "products", icon: Package, path: "/products" },
@@ -38,6 +39,7 @@ const groups = [
       { key: "branches", icon: Building2, path: "/branches", roles: ["admin", "warehouse"] },
       { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
       { key: "multiWarehouse", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
+      { key: "smartInventory", icon: Brain, path: "/smart-inventory", roles: ["admin", "warehouse", "accountant"] },
       { key: "purchaseOrders", icon: Factory, path: "/purchase-orders", roles: ["admin", "warehouse", "accountant"] },
       { key: "pricingTiers", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },
     ],

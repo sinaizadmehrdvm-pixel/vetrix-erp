@@ -2186,6 +2186,14 @@ class ApiAccessControlTests(unittest.TestCase):
             json={"fiscal_period_id": period["id"], "account_id": expense["id"], "amount": 999},
         )
         self.assertEqual(unrelated_line.status_code, 200, unrelated_line.text)
+        # Coexistence proven above (the actual point of unrelated_line) -
+        # remove it now so it doesn't inflate this period's total planned
+        # expense for the executive-alerts usage_percent assertion below,
+        # which (Task 07 Section 4/H) now reads the whole period's real
+        # budgets.py lines, same as BudgetControl.jsx itself, not just this
+        # one plan's lines.
+        remove_unrelated = self.client.delete(f"/api/accounting/budgets/lines/{unrelated_line.json()['id']}", headers=admin_headers)
+        self.assertEqual(remove_unrelated.status_code, 200, remove_unrelated.text)
 
         # Submit for approval - draft -> pending (via the generic approval engine).
         submit = self.client.post(f"/api/accounting/budget-plans/{plan_id}/submit", headers=admin_headers)
@@ -2258,7 +2266,11 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(len(cloned_detail["goods_lines"]), 1)
         self.assertEqual(cloned_detail["parent_plan_id"], plan_id)
 
-        # Executive alerts surfaces this over-threshold active plan as a real, computed alert.
+        # Executive alerts surfaces this over-threshold period as a real,
+        # computed alert - reading app/accounting/budgets.py's own line-level
+        # data (Task 07 Section 4/H), the same numbers BudgetControl.jsx
+        # itself shows for this fiscal period, not the budget_plans layer
+        # (which has no frontend anywhere in the app).
         threshold = self.client.put(
             "/api/executive-alerts/settings", headers=admin_headers,
             json={"alert_days_before_due": 3, "minimum_receivable_amount": 0, "budget_usage_alert_percent": 80},
@@ -2266,7 +2278,7 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertEqual(threshold.status_code, 200, threshold.text)
         alerts = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
         self.assertEqual(alerts.status_code, 200, alerts.text)
-        budget_alerts = [a for a in alerts.json()["items"] if a["category"] == "budget" and a["related_id"] == plan_id]
+        budget_alerts = [a for a in alerts.json()["items"] if a["category"] == "budget" and a["related_id"] == period["id"]]
         self.assertTrue(budget_alerts, alerts.json()["items"])
         self.assertEqual(budget_alerts[0]["usage_percent"], 90.0)
 
@@ -5610,14 +5622,18 @@ class ApiAccessControlTests(unittest.TestCase):
 
         findings = self.client.get("/api/bi-improvement/findings?category=budget_variance", headers=admin_headers)
         self.assertEqual(findings.status_code, 200, findings.text)
-        matches = [f for f in findings.json()["items"] if f["related_entity_id"] == plan_id]
+        # Task 07 Section 4/H: the detector reads app/accounting/budgets.py's
+        # own period-level data (the same numbers BudgetControl.jsx shows),
+        # not budget_plans (which has no frontend anywhere in the app) - so
+        # the finding is keyed to the fiscal period, not the plan.
+        matches = [f for f in findings.json()["items"] if f["related_entity_id"] == period_id]
         self.assertTrue(matches, findings.json()["items"])
         finding = matches[0]
         finding_id = finding["id"]
         self.assertEqual(finding["severity"], "critical")
         self.assertEqual(finding["status"], "new")
-        self.assertEqual(finding["evidence_source"], "app.accounting.budget_plans.plan_summary")
-        self.assertIn("top_over_budget_categories", finding["evidence"])
+        self.assertEqual(finding["evidence_source"], "app.accounting.budgets.compute_budget_variance")
+        self.assertIn("top_over_budget_lines", finding["evidence"])
         self.assertIn("Review the over-budget expense categories", finding["recommended_actions"])
 
         # A brand-new critical finding surfaces in Executive Alerts (the 5th source).
@@ -6014,13 +6030,22 @@ class ApiAccessControlTests(unittest.TestCase):
 
         log = self.client.get("/api/backup-delivery/log", headers=admin_headers)
         self.assertEqual(log.status_code, 200, log.text)
-        self.assertTrue(any(item["policy_id"] == policy_id and item["status"] == "partially_delivered" for item in log.json()["items"]))
+        log_entry = next(item for item in log.json()["items"] if item["policy_id"] == policy_id and item["status"] == "partially_delivered")
+        # Task 07 Section 4/G: the live download_token is a bearer credential
+        # for the backup file - it must never be persisted into the
+        # long-lived delivery log, only returned once in the live response above.
+        self.assertNotIn("download_token", str(log_entry["delivery_attempts"]))
 
         # The secure, tokenized download link genuinely serves the backup file with no login.
         download_token = attempts_by_channel["download"]["download_token"]
         secure_download = self.client.get(f"/api/backup-delivery/secure-download?token={download_token}")
         self.assertEqual(secure_download.status_code, 200, secure_download.text)
         self.assertGreater(len(secure_download.content), 0)
+
+        # One-time use: the SAME token can never be replayed (Task 07 Section 4/G).
+        replayed_download = self.client.get(f"/api/backup-delivery/secure-download?token={download_token}")
+        self.assertEqual(replayed_download.status_code, 401, replayed_download.text)
+        self.assertIn("already been used", replayed_download.json()["detail"])
 
         bad_token_download = self.client.get("/api/backup-delivery/secure-download?token=not-a-real-token")
         self.assertEqual(bad_token_download.status_code, 401, bad_token_download.text)
@@ -6592,6 +6617,195 @@ class ApiAccessControlTests(unittest.TestCase):
             f"/api/change-requests/{voice_request_id}/approve", headers=second_reviewer_headers, json={"note": "reviewed independently"},
         )
         self.assertEqual(independent_approve.status_code, 200, independent_approve.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_purchase_order_receiving_lifecycle(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "CI PO Receiving Widget", "sell_price": 500, "buy_price": 300, "stock": 0},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        warehouse = self.client.post("/api/warehouses", headers=admin_headers, json={"name": "CI PO Receiving Warehouse", "code": "CI-PO-WH"})
+        self.assertEqual(warehouse.status_code, 200, warehouse.text)
+        warehouse_id = warehouse.json()["id"]
+
+        # An unknown/foreign warehouse_id is rejected server-side at creation time.
+        bad_warehouse_po = self.client.post(
+            "/api/purchase-orders", headers=admin_headers,
+            json={"supplier_name": "CI Supplier", "items": [{"product_id": product_id, "quantity": 10, "unit_price": 300}], "default_warehouse_id": 999999},
+        )
+        self.assertEqual(bad_warehouse_po.status_code, 404, bad_warehouse_po.text)
+
+        create = self.client.post(
+            "/api/purchase-orders", headers=admin_headers,
+            json={"supplier_name": "CI Supplier", "items": [{"product_id": product_id, "quantity": 10, "unit_price": 300}], "default_warehouse_id": warehouse_id},
+        )
+        self.assertEqual(create.status_code, 200, create.text)
+        po_id = create.json()["id"]
+
+        # Receiving is blocked before dispatch (status check short-circuits
+        # before any item lookup, so the placeholder po_item_id below is
+        # never actually resolved).
+        receive_before_dispatch = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers=admin_headers,
+            json={"items": [{"po_item_id": 1, "quantity": 1}]},
+        )
+        self.assertEqual(receive_before_dispatch.status_code, 400, receive_before_dispatch.text)
+
+        dispatch = self.client.post(f"/api/purchase-orders/{po_id}/dispatch", headers=admin_headers, json={"method": "manual", "note": "handed to courier"})
+        self.assertEqual(dispatch.status_code, 200, dispatch.text)
+
+        detail = self.client.get(f"/api/purchase-orders/{po_id}", headers=admin_headers)
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()["status"], "sent")
+        po_item_id = detail.json()["items"][0]["id"]
+
+        # Partial receive of 4 of 10, into the PO's own default warehouse.
+        idem_key = "ci-po-receive-partial-key-1"
+        partial = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers={**admin_headers, "Idempotency-Key": idem_key},
+            json={"items": [{"po_item_id": po_item_id, "quantity": 4}], "note": "first truck"},
+        )
+        self.assertEqual(partial.status_code, 200, partial.text)
+
+        after_partial = self.client.get(f"/api/purchase-orders/{po_id}", headers=admin_headers).json()
+        self.assertEqual(after_partial["status"], "partially_received")
+        self.assertEqual(after_partial["items"][0]["received_quantity"], 4)
+        self.assertEqual(after_partial["items"][0]["remaining_quantity"], 6)
+
+        # Product.stock (company-wide aggregate) and the specific warehouse's own bucket both moved by 4.
+        def _stock_of(pid):
+            return next(p["stock"] for p in self.client.get("/products", headers=admin_headers).json() if p["id"] == pid)
+
+        self.assertEqual(_stock_of(product_id), 4)
+        breakdown = self.client.get(f"/api/warehouses/stock?product_id={product_id}", headers=admin_headers)
+        self.assertEqual(breakdown.status_code, 200, breakdown.text)
+        warehouse_row = next(row for row in breakdown.json()["by_warehouse"] if row["warehouse_id"] == warehouse_id)
+        self.assertEqual(warehouse_row["quantity"], 4)
+
+        # Idempotent retry with the SAME key + SAME body replays the cached response, never double-counts stock.
+        replay = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers={**admin_headers, "Idempotency-Key": idem_key},
+            json={"items": [{"po_item_id": po_item_id, "quantity": 4}], "note": "first truck"},
+        )
+        self.assertEqual(replay.status_code, 200, replay.text)
+        self.assertEqual(_stock_of(product_id), 4)
+
+        # Cannot receive more than the remaining 6 (never a silent over-receipt).
+        over_receive = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers=admin_headers,
+            json={"items": [{"po_item_id": po_item_id, "quantity": 999}]},
+        )
+        self.assertEqual(over_receive.status_code, 400, over_receive.text)
+        self.assertIn("remaining", over_receive.json()["detail"])
+
+        # A partially-received PO can no longer be cancelled.
+        cancel_blocked = self.client.post(f"/api/purchase-orders/{po_id}/cancel", headers=admin_headers)
+        self.assertEqual(cancel_blocked.status_code, 400, cancel_blocked.text)
+
+        # Receive the remaining 6 -> fully received.
+        final_receive = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers=admin_headers,
+            json={"items": [{"po_item_id": po_item_id, "quantity": 6}], "note": "second truck"},
+        )
+        self.assertEqual(final_receive.status_code, 200, final_receive.text)
+        after_final = self.client.get(f"/api/purchase-orders/{po_id}", headers=admin_headers).json()
+        self.assertEqual(after_final["status"], "received")
+        self.assertEqual(after_final["items"][0]["remaining_quantity"], 0)
+
+        # A fully-received PO cannot be received again.
+        receive_after_done = self.client.post(
+            f"/api/purchase-orders/{po_id}/receive", headers=admin_headers,
+            json={"items": [{"po_item_id": po_item_id, "quantity": 1}]},
+        )
+        self.assertEqual(receive_after_done.status_code, 400, receive_after_done.text)
+
+        # Append-only receipt history: two receipts, correct who/when/qty/warehouse.
+        receipts = self.client.get(f"/api/purchase-orders/{po_id}/receipts", headers=admin_headers)
+        self.assertEqual(receipts.status_code, 200, receipts.text)
+        receipt_items = receipts.json()["items"]
+        self.assertEqual(len(receipt_items), 2)
+        total_received_in_history = sum(
+            line["quantity"] for receipt in receipt_items for line in receipt["items"]
+        )
+        self.assertEqual(total_received_in_history, 10)
+
+        # RBAC + tenant isolation: a second company can never see or receive against this PO.
+        second_company = self.client.post("/api/companies", headers=admin_headers, json={"name": "CI PO Isolation Co"})
+        self.assertEqual(second_company.status_code, 200, second_company.text)
+        second_company_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "PO Isolation Admin", "username": "ci-po-isolation-admin", "password": "StrongPoIsolation!42", "role": "admin", "company_id": second_company.json()["id"]},
+        )
+        self.assertEqual(second_company_admin.status_code, 200, second_company_admin.text)
+        second_headers, _ = self._login("ci-po-isolation-admin", "StrongPoIsolation!42")
+        foreign_get = self.client.get(f"/api/purchase-orders/{po_id}", headers=second_headers)
+        self.assertEqual(foreign_get.status_code, 404, foreign_get.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_branch_aware_smart_inventory_and_tenant_isolation(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        branch = self.client.post("/api/branches", headers=admin_headers, json={"name": "CI Inventory Branch", "code": "CI-INV-BR"})
+        self.assertEqual(branch.status_code, 200, branch.text)
+        branch_id = branch.json()["id"]
+
+        branch_warehouse = self.client.post(
+            "/api/warehouses", headers=admin_headers,
+            json={"name": "CI Inventory Branch Warehouse", "code": "CI-INV-WH", "branch_id": branch_id},
+        )
+        self.assertEqual(branch_warehouse.status_code, 200, branch_warehouse.text)
+        branch_warehouse_id = branch_warehouse.json()["id"]
+
+        product = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "CI Branch Inventory Widget", "sell_price": 100, "stock": 50, "min_stock": 5},
+        )
+        self.assertEqual(product.status_code, 200, product.text)
+        product_id = product.json()["id"]
+
+        default_warehouse = next(w for w in self.client.get("/api/warehouses", headers=admin_headers).json()["items"] if w["is_default"])
+        transfer = self.client.post(
+            "/api/warehouses/transfer", headers=admin_headers,
+            json={"product_id": product_id, "from_warehouse_id": default_warehouse["id"], "to_warehouse_id": branch_warehouse_id, "quantity": 20},
+        )
+        self.assertEqual(transfer.status_code, 200, transfer.text)
+
+        # Branch-scoped Smart Inventory reflects only that branch's warehouse (20), while
+        # company_stock always shows the true company-wide total (50) alongside it.
+        branch_overview = self.client.get(f"/api/smart-inventory/overview?branch_id={branch_id}", headers=admin_headers)
+        self.assertEqual(branch_overview.status_code, 200, branch_overview.text)
+        branch_product = next(p for p in branch_overview.json()["items"] if p["id"] == product_id)
+        self.assertEqual(branch_product["stock"], 20)
+        self.assertEqual(branch_product["company_stock"], 50)
+
+        company_overview = self.client.get("/api/smart-inventory/overview", headers=admin_headers)
+        self.assertEqual(company_overview.status_code, 200, company_overview.text)
+        company_product = next(p for p in company_overview.json()["items"] if p["id"] == product_id)
+        self.assertEqual(company_product["stock"], 50)
+
+        # Task 07 Section 4/B regression: smart_inventory_overview must be
+        # strictly company-scoped - a second company must never see the
+        # first company's products, low-stock items, or alerts.
+        second_company = self.client.post("/api/companies", headers=admin_headers, json={"name": "CI Inventory Isolation Co"})
+        self.assertEqual(second_company.status_code, 200, second_company.text)
+        second_company_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Inventory Isolation Admin", "username": "ci-inventory-isolation-admin", "password": "StrongInventoryIsolation!42", "role": "admin", "company_id": second_company.json()["id"]},
+        )
+        self.assertEqual(second_company_admin.status_code, 200, second_company_admin.text)
+        second_headers, _ = self._login("ci-inventory-isolation-admin", "StrongInventoryIsolation!42")
+        foreign_overview = self.client.get("/api/smart-inventory/overview", headers=second_headers)
+        self.assertEqual(foreign_overview.status_code, 200, foreign_overview.text)
+        self.assertFalse(any(p["id"] == product_id for p in foreign_overview.json()["items"]))
+
+        # Executive Alerts' low-stock alert generation must not crash and must not
+        # leak this company's low-stock items into an unrelated company's alert feed.
+        foreign_alerts = self.client.get("/api/executive-alerts/summary", headers=second_headers)
+        self.assertEqual(foreign_alerts.status_code, 200, foreign_alerts.text)
+        self.assertFalse(any(a.get("related_id") == product_id for a in foreign_alerts.json()["items"]))
 
 
 if __name__ == "__main__":

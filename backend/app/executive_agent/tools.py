@@ -278,23 +278,36 @@ def get_cheque_summary(company_id, branch_id=None, start_date=None, end_date=Non
 
 
 def get_inventory_risk_summary(company_id, branch_id=None, start_date=None, end_date=None, **_):
+    """smart_inventory_overview() is company-scoped at the source (a real
+    cross-tenant leak in that module was fixed - see its own docstring),
+    so this no longer needs to defensively re-filter by its own product
+    ids. When branch_id is resolved (e.g. "which products is the Istanbul
+    branch low on?"), it's passed straight through to
+    smart_inventory_overview's own branch_id param, which aggregates that
+    branch's real warehouses (app.warehouses.stock_breakdown) - this
+    genuinely answers the branch-scoped question now, rather than
+    returning company-wide numbers with a disclaimer."""
     from app.smart_inventory.routes import smart_inventory_overview
-    db = SessionLocal()
-    try:
-        from app.models.product import Product
-        own_ids = {row[0] for row in db.query(Product.id).filter(Product.company_id == company_id).all()}
-    finally:
-        db.close()
-    overview = smart_inventory_overview()
-    low_stock = [p for p in overview.get("low_stock", []) if p["id"] in own_ids]
-    dead_stock = [p for p in overview.get("dead_stock", []) if p["id"] in own_ids]
+    overview = smart_inventory_overview(_shim_request(company_id), branch_id=branch_id)
+    low_stock = overview.get("low_stock", [])
+    dead_stock = overview.get("dead_stock", [])
+    branch_name = None
+    if branch_id is not None:
+        db = SessionLocal()
+        try:
+            row = db.execute(text("SELECT name FROM branches WHERE id=:id AND company_id=:company_id"), {"id": branch_id, "company_id": company_id}).first()
+            branch_name = row[0] if row else None
+        finally:
+            db.close()
     return {
         "low_stock_count": len(low_stock),
         "dead_stock_count": len(dead_stock),
         "low_stock_sample": [p.get("name") for p in low_stock[:5]],
         "dead_stock_sample": [p.get("name") for p in dead_stock[:5]],
         "source_module": "app.smart_inventory.routes.smart_inventory_overview",
-        "limitation": "Not branch-scoped - stock levels are tracked per product company-wide, not per branch/warehouse in this view." if branch_id is not None else None,
+        "scope": overview.get("scope"),
+        "branch_id": branch_id,
+        "branch_name": branch_name,
     }
 
 
@@ -326,28 +339,46 @@ def get_branch_performance(company_id, branch_id=None, start_date=None, end_date
 
 
 def get_budget_variance(company_id, branch_id=None, start_date=None, end_date=None, **_):
-    from app.accounting.budget_plans import _ensure_schema as _ensure_budget_plans_schema
+    """Reads app/accounting/budgets.py's line-level budgets (Task 07 Section
+    4/H) - the same data BudgetControl.jsx shows - not app/accounting/
+    budget_plans.py, which has no frontend anywhere in the app: no user could
+    ever create a budget_plans row, so this tool used to always answer "no
+    active budget plan found" regardless of how real a user's actual budget
+    (set via BudgetControl.jsx) was. budgets.py has no branch dimension, so
+    branch_id is accepted for interface compatibility but not filtered on."""
+    from app.accounting.budgets import compute_budget_variance, _ensure_schema as _ensure_budgets_schema
     with engine.begin() as conn:
-        _ensure_budget_plans_schema(conn)
-        clauses = ["company_id=:company_id", "status='active'"]
-        params = {"company_id": company_id}
-        if branch_id is not None:
-            clauses.append("branch_id=:branch_id")
-            params["branch_id"] = branch_id
-        plans = conn.execute(text(f"SELECT id, name FROM budget_plans WHERE {' AND '.join(clauses)}"), params).mappings().all()
-    if not plans:
-        return {"plans": [], "limitation": "No active budget plan found for this scope.", "source_module": "app.accounting.budget_plans.plan_summary"}
-    from app.accounting.budget_plans import plan_summary
+        _ensure_budgets_schema(conn)
+        periods = conn.execute(text("""
+            SELECT DISTINCT fp.id, fp.name FROM fiscal_periods fp
+            JOIN accounting_budgets b ON b.fiscal_period_id = fp.id AND b.company_id = fp.company_id
+            WHERE fp.company_id=:company_id AND fp.status='open'
+        """), {"company_id": company_id}).mappings().all()
+        summaries = [
+            (period, compute_budget_variance(conn, company_id, period["id"]))
+            for period in periods
+        ]
     results = []
-    for plan in plans:
-        summary = plan_summary(plan["id"], _shim_request(company_id))
+    for period, summary in summaries:
+        if not summary or not summary["items"]:
+            continue
+        planned_expense = sum(i["budget_amount"] for i in summary["items"] if i["account_type"] == "expense")
+        actual_expense = sum(i["actual_amount"] for i in summary["items"] if i["account_type"] == "expense")
+        planned_revenue = sum(i["budget_amount"] for i in summary["items"] if i["account_type"] != "expense")
+        actual_revenue = sum(i["actual_amount"] for i in summary["items"] if i["account_type"] != "expense")
+        over_lines = sorted(
+            (i for i in summary["items"] if i["account_type"] == "expense" and i["over_budget"]),
+            key=lambda i: i["variance"],
+        )[:5]
         results.append({
-            "plan_id": plan["id"], "plan_name": plan["name"],
-            "planned_expense": summary["total_planned_expense"], "actual_expense": summary["actual_expense"],
-            "planned_revenue": summary["total_planned_revenue"], "actual_revenue": summary["actual_revenue"],
-            "top_over_budget_categories": summary["top_over_budget_categories"],
+            "plan_id": period["id"], "plan_name": period["name"],
+            "planned_expense": round(planned_expense, 2), "actual_expense": round(actual_expense, 2),
+            "planned_revenue": round(planned_revenue, 2), "actual_revenue": round(actual_revenue, 2),
+            "top_over_budget_categories": over_lines,
         })
-    return {"plans": results, "source_module": "app.accounting.budget_plans.plan_summary"}
+    if not results:
+        return {"plans": [], "limitation": "No budget lines are set for any open fiscal period.", "source_module": "app.accounting.budgets.compute_budget_variance"}
+    return {"plans": results, "source_module": "app.accounting.budgets.compute_budget_variance"}
 
 
 def get_campaign_performance(company_id, branch_id=None, start_date=None, end_date=None, **_):

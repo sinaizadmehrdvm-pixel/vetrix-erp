@@ -115,6 +115,7 @@ export async function createCustomer(data) { return await request("/customers", 
 export async function getCustomerLoyalty(customerId) { return await request(`/customers/${customerId}/loyalty`); }
 export async function updateCustomer(id, data) { return await request(`/customers/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteCustomer(id) { return await request(`/customers/${id}`, { method: "DELETE" }); }
+export async function getCustomerConsentHistory(id) { return await request(`/api/customers/${id}/consent-history`); }
 
 async function requestBlob(path, options = {}) {
   const { headers, ...requestOptions } = options;
@@ -562,7 +563,14 @@ export async function dispatchPurchaseOrder(id, data) {
 }
 export async function getPurchaseOrderDispatchLog(id) { return await request(`/api/purchase-orders/${id}/dispatch-log`); }
 export async function cancelPurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/cancel`, { method: "POST" }); }
-export async function receivePurchaseOrder(id) { return await request(`/api/purchase-orders/${id}/receive`, { method: "POST" }); }
+export async function receivePurchaseOrder(id, data, idempotencyKey) {
+  return await request(`/api/purchase-orders/${id}/receive`, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+  });
+}
+export async function getPurchaseOrderReceipts(id) { return await request(`/api/purchase-orders/${id}/receipts`); }
 
 // Sales pipeline
 export async function getPipelineDeals() { return await request("/crm/pipeline/deals"); }
