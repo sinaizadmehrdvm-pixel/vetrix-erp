@@ -6377,6 +6377,222 @@ class ApiAccessControlTests(unittest.TestCase):
             after_revoke = _send_telegram_update("خلاصه امروز", 9007)
             self.assertNotEqual(after_revoke.json(), {"status": "handled"})
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_task06_p0_security_and_accounting_fixes(self):
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        # --- 1. Backups cover the WHOLE shared database (every tenant), so a
+        # per-company "admin" role must not be enough - only a real
+        # super-admin may reach them. ci-admin is the bootstrap super-admin;
+        # a freshly created "admin" is not.
+        regular_admin_signup = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "T06 Regular Admin", "username": "t06-regular-admin", "password": "StrongT06Admin!42", "role": "admin"},
+        )
+        self.assertEqual(regular_admin_signup.status_code, 200, regular_admin_signup.text)
+        regular_admin_headers, _ = self._login("t06-regular-admin", "StrongT06Admin!42")
+        backups_denied = self.client.get("/api/backups", headers=regular_admin_headers)
+        self.assertEqual(backups_denied.status_code, 403, backups_denied.text)
+        backups_allowed = self.client.get("/api/backups", headers=admin_headers)
+        self.assertEqual(backups_allowed.status_code, 200, backups_allowed.text)
+
+        # --- 2. commerce_connections must be per-company, not a single
+        # globally-shared row keyed only by channel.
+        second_company = self.client.post("/api/companies", headers=admin_headers, json={"name": "T06 Second Co"})
+        self.assertEqual(second_company.status_code, 200, second_company.text)
+        second_company_id = second_company.json()["id"]
+        second_co_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "T06 Second Co Admin", "username": "t06-second-admin", "password": "StrongT06Second!42", "role": "admin", "company_id": second_company_id},
+        )
+        self.assertEqual(second_co_admin.status_code, 200, second_co_admin.text)
+        second_co_headers, _ = self._login("t06-second-admin", "StrongT06Second!42")
+
+        save_first = self.client.put(
+            "/api/online-commerce/connections/website", headers=admin_headers,
+            json={"channel": "website", "enabled": True, "base_url": "https://company-a.example", "account_label": "Company A Store", "secret_reference": "env:A_TOKEN"},
+        )
+        self.assertEqual(save_first.status_code, 200, save_first.text)
+        save_second = self.client.put(
+            "/api/online-commerce/connections/website", headers=second_co_headers,
+            json={"channel": "website", "enabled": True, "base_url": "https://company-b.example", "account_label": "Company B Store", "secret_reference": "env:B_TOKEN"},
+        )
+        self.assertEqual(save_second.status_code, 200, save_second.text)
+        first_view = self.client.get("/api/online-commerce/connections", headers=admin_headers)
+        self.assertEqual(first_view.status_code, 200, first_view.text)
+        self.assertEqual([c["base_url"] for c in first_view.json() if c["channel"] == "website"], ["https://company-a.example"])
+        second_view = self.client.get("/api/online-commerce/connections", headers=second_co_headers)
+        self.assertEqual(second_view.status_code, 200, second_view.text)
+        self.assertEqual([c["base_url"] for c in second_view.json() if c["channel"] == "website"], ["https://company-b.example"])
+
+        # An accountant (not just admin) must be able to reach this mutating
+        # route at all - the outer RBAC prefix rule used to have no
+        # MUTATION_RULES entry and denied every accountant with a 403
+        # before online_commerce.py's own role check ever ran.
+        accountant_signup = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "T06 Commerce Accountant", "username": "t06-commerce-accountant", "password": "StrongT06Accountant!42", "role": "accountant"},
+        )
+        self.assertEqual(accountant_signup.status_code, 200, accountant_signup.text)
+        accountant_headers, _ = self._login("t06-commerce-accountant", "StrongT06Accountant!42")
+        accountant_save = self.client.put(
+            "/api/online-commerce/connections/instagram", headers=accountant_headers,
+            json={"channel": "instagram", "enabled": False, "base_url": "", "account_label": "", "secret_reference": ""},
+        )
+        self.assertEqual(accountant_save.status_code, 200, accountant_save.text)
+
+        # --- 3./4. Invoice refunds must actually execute (apply_settlement
+        # used to reject the opposite-direction leg a refund posts), and the
+        # aging report must reflect a voided/refunded settlement instead of
+        # still showing the invoice as fully settled.
+        admin_headers2, customer_id, product_id = self._payment_workflow_fixture("t06-refund")
+        refund_approver = self.client.post(
+            "/users", headers=admin_headers2,
+            json={"full_name": "T06 Refund Approver", "username": "t06-refund-approver", "password": "StrongT06Refund!42", "role": "accountant"},
+        )
+        self.assertEqual(refund_approver.status_code, 200, refund_approver.text)
+        refund_approver_headers, _ = self._login("t06-refund-approver", "StrongT06Refund!42")
+
+        refund_invoice = self.client.post("/invoices", headers=admin_headers2, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 2, "unit_price": 1000}],
+            "payments": [{"method": "cash", "amount": 2000}],
+        })
+        self.assertEqual(refund_invoice.status_code, 200, refund_invoice.text)
+        refund_invoice_id = refund_invoice.json()["invoice_id"]
+        self.assertEqual(refund_invoice.json()["payment_status"], "paid")
+        refund_detail = self.client.get(f"/invoices/{refund_invoice_id}", headers=admin_headers2)
+        refund_allocation_id = refund_detail.json()["payments"][0]["id"]
+
+        refund_request = self.client.post(
+            f"/api/invoice-payments/{refund_allocation_id}/refund", headers=admin_headers2,
+            json={"reason": "customer returned goods", "amount": 2000, "method": "cash"},
+        )
+        self.assertEqual(refund_request.status_code, 200, refund_request.text)
+        refund_approval_id = refund_request.json()["id"]
+
+        refund_approve = self.client.post(
+            f"/api/approvals/{refund_approval_id}/approve", headers=refund_approver_headers, json={"note": "confirmed return"},
+        )
+        # Before the apply_settlement fix, this executor raised ValueError
+        # ("sale invoices require a receipt transaction") for the refund's
+        # deliberately-opposite 'payment' leg, and the approval was left
+        # stuck - never a clean 200.
+        self.assertEqual(refund_approve.status_code, 200, refund_approve.text)
+        self.assertEqual(refund_approve.json()["result"]["payment_status"], "refunded")
+
+        after_refund = self.client.get(f"/invoices/{refund_invoice_id}", headers=admin_headers2)
+        self.assertEqual(after_refund.json()["payment_status"], "refunded")
+        self.assertEqual(after_refund.json()["amount_paid"], 0)
+
+        # --- 4. A voided settlement must show back up as outstanding on the
+        # aging report, not stay reported as fully settled (the report's own
+        # SQL used to sum only one side per source_type, so a same-type
+        # reversal row was invisible to it).
+        void_invoice = self.client.post("/invoices", headers=admin_headers2, json={
+            "invoice_type": "sale", "customer_id": customer_id,
+            "items": [{"product_id": product_id, "quantity": 1, "unit_price": 1500}],
+            "payments": [{"method": "cash", "amount": 1500}],
+        })
+        self.assertEqual(void_invoice.status_code, 200, void_invoice.text)
+        void_invoice_id = void_invoice.json()["invoice_id"]
+        void_detail = self.client.get(f"/invoices/{void_invoice_id}", headers=admin_headers2)
+        void_allocation_id = void_detail.json()["payments"][0]["id"]
+        void_request = self.client.post(
+            f"/api/invoice-payments/{void_allocation_id}/void", headers=admin_headers2, json={"reason": "duplicate entry"},
+        )
+        self.assertEqual(void_request.status_code, 200, void_request.text)
+        void_approve = self.client.post(
+            f"/api/approvals/{void_request.json()['id']}/approve", headers=refund_approver_headers, json={"note": "confirmed duplicate"},
+        )
+        self.assertEqual(void_approve.status_code, 200, void_approve.text)
+
+        aging = self.client.get("/api/accounting/aging", headers=admin_headers2)
+        self.assertEqual(aging.status_code, 200, aging.text)
+        aging_row = next(r for r in aging.json()["items"] if r["invoice_id"] == void_invoice_id)
+        self.assertEqual(aging_row["settled_amount"], 0)
+        self.assertEqual(aging_row["outstanding_amount"], 1500)
+
+        # --- 5. POST /transactions must support the same Idempotency-Key
+        # retry-safety /invoices already had - a lost-response retry must
+        # not post a second, independent settlement entry.
+        before_balance = self.client.get(f"/customers/{customer_id}", headers=admin_headers2)
+        idem_key = "t06-idempotency-key-001"
+        first_txn = self.client.post(
+            "/transactions", headers={**admin_headers2, "Idempotency-Key": idem_key},
+            json={"customer_id": customer_id, "amount": 500, "transaction_type": "receipt", "method": "cash", "note": "idempotency check"},
+        )
+        self.assertEqual(first_txn.status_code, 200, first_txn.text)
+        second_txn = self.client.post(
+            "/transactions", headers={**admin_headers2, "Idempotency-Key": idem_key},
+            json={"customer_id": customer_id, "amount": 500, "transaction_type": "receipt", "method": "cash", "note": "idempotency check"},
+        )
+        self.assertEqual(second_txn.status_code, 200, second_txn.text)
+        self.assertEqual(first_txn.json(), second_txn.json())
+        after_balance = self.client.get(f"/customers/{customer_id}", headers=admin_headers2)
+        # A receipt reduces the customer's owed balance - exactly one 500
+        # reduction should have been applied, not two.
+        self.assertEqual(before_balance.json()["customer"]["balance"] - after_balance.json()["customer"]["balance"], 500)
+
+        # --- 6. HR: manager_employee_id/branch_id must be validated against
+        # the caller's own company - previously accepted at face value and
+        # could leak another company's employee/branch name into a lookup.
+        foreign_employee_signup = self.client.post(
+            "/api/hr", headers=second_co_headers, json={"first_name": "Foreign", "last_name": "Manager"},
+        )
+        self.assertEqual(foreign_employee_signup.status_code, 200, foreign_employee_signup.text)
+        foreign_employee_id = foreign_employee_signup.json()["id"]
+        cross_company_employee = self.client.post(
+            "/api/hr", headers=admin_headers2, json={"first_name": "Local", "last_name": "Employee", "manager_employee_id": foreign_employee_id},
+        )
+        self.assertEqual(cross_company_employee.status_code, 400, cross_company_employee.text)
+
+        # --- 7. Change Request maker-checker: the admin who reviews and
+        # submits a voice-intake transcript (review-transcript) must not
+        # also be able to approve it, even though the request's own
+        # requested_by stays a fixed non-admin service account.
+        service_user_signup = self.client.post(
+            "/users", headers=admin_headers2,
+            json={"full_name": "T06 Voice Service User", "username": "t06-voice-service", "password": "StrongT06Voice!42", "role": "sales"},
+        )
+        self.assertEqual(service_user_signup.status_code, 200, service_user_signup.text)
+        service_user_id = service_user_signup.json()["id"]
+        second_reviewer = self.client.post(
+            "/users", headers=admin_headers2,
+            json={"full_name": "T06 Second Reviewer", "username": "t06-second-reviewer", "password": "StrongT06Reviewer!42", "role": "admin"},
+        )
+        self.assertEqual(second_reviewer.status_code, 200, second_reviewer.text)
+        second_reviewer_headers, _ = self._login("t06-second-reviewer", "StrongT06Reviewer!42")
+
+        with patch.dict(os.environ, {
+            "VETRIX_TELEGRAM_WEBHOOK_SECRET": "t06-voice-secret",
+            "VETRIX_VOICE_ALLOWED_CHAT_IDS": "778899",
+            "VETRIX_VOICE_SERVICE_USER_ID": str(service_user_id),
+        }):
+            voice_update = self.client.post(
+                "/api/inbound-voice/telegram",
+                headers={"X-Telegram-Bot-Api-Secret-Token": "t06-voice-secret"},
+                json={"update_id": 42001, "message": {"message_id": 1, "chat": {"id": "778899"}, "voice": {"file_id": "abc"}, "text": "please review this"}},
+            )
+        self.assertEqual(voice_update.status_code, 200, voice_update.text)
+        self.assertEqual(voice_update.json()["status"], "needs_transcript_review")
+        voice_request_id = voice_update.json()["request_id"]
+
+        review = self.client.post(
+            f"/api/change-requests/{voice_request_id}/review-transcript", headers=admin_headers2,
+            json={"transcript": "reviewed and submitted for approval", "action_type": "note_only", "target_id": None, "proposed_changes": {}},
+        )
+        self.assertEqual(review.status_code, 200, review.text)
+
+        self_approve_bypass = self.client.post(
+            f"/api/change-requests/{voice_request_id}/approve", headers=admin_headers2, json={"note": "self"},
+        )
+        self.assertEqual(self_approve_bypass.status_code, 409, self_approve_bypass.text)
+
+        independent_approve = self.client.post(
+            f"/api/change-requests/{voice_request_id}/approve", headers=second_reviewer_headers, json={"note": "reviewed independently"},
+        )
+        self.assertEqual(independent_approve.status_code, 200, independent_approve.text)
+
 
 if __name__ == "__main__":
     unittest.main()
