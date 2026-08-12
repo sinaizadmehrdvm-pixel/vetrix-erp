@@ -23,6 +23,7 @@ const ROUTE_KEYS = [
   ["/ai-bi", "aiBusiness"],
   ["/improvement-center", "improvementCenter"],
   ["/business-intelligence", "aiBusiness"],
+  ["/accounting", "chartOfAccounts"],
   ["/accounting-entries", "accountingEntries"],
   ["/fiscal-periods", "fiscalPeriods"],
   ["/audit-trail", "auditTrail"],

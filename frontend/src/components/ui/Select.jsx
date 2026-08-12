@@ -81,7 +81,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
           background: "var(--erp-panel-solid)",
           color: "var(--erp-text)",
           border: "1px solid var(--erp-border)",
-          borderRadius: "var(--erp-radius-md, 14px)",
+          borderRadius: "var(--erp-radius-md)",
           padding: "10px 12px",
           opacity: disabled ? 0.5 : 1,
           cursor: disabled ? "not-allowed" : "pointer",
@@ -104,7 +104,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
             overflowY: "auto",
             background: "var(--erp-panel-solid)",
             border: "1px solid var(--erp-border)",
-            borderRadius: "var(--erp-radius-md, 14px)",
+            borderRadius: "var(--erp-radius-md)",
             boxShadow: "var(--erp-shadow)",
             padding: 6,
             margin: 0,
@@ -123,7 +123,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
                 className="flex items-center justify-between gap-2 cursor-pointer"
                 style={{
                   padding: "9px 10px",
-                  borderRadius: "var(--erp-radius-sm, 10px)",
+                  borderRadius: "var(--erp-radius-sm)",
                   background: index === activeIndex ? "var(--erp-glow)" : "transparent",
                   color: isSelected ? "var(--erp-accent)" : "var(--erp-text)",
                   fontWeight: isSelected ? 800 : 500,

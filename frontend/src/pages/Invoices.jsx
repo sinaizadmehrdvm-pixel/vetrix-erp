@@ -1084,7 +1084,13 @@ export default function Invoices() {
     : label.dueDate;
 
   return (
-    <div dir={dir} className="space-y-6" style={{ direction: dir }}>
+    <>
+    {/* The whole authoring/list UI is no-print - only <InvoicePrint> below
+        (rendered outside this wrapper) should ever reach a printed page.
+        Without this, clicking InvoicePrint's own Print button printed this
+        entire page - form, summary, and the full invoices table - as extra
+        pages around the actual invoice preview. */}
+    <div dir={dir} className="space-y-6 no-print" style={{ direction: dir }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">{label.invoiceSystem}</h1>
@@ -1525,8 +1531,6 @@ export default function Invoices() {
         />
       </div>
 
-      <InvoicePrint invoice={createdInvoice} />
-
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
         <h2 className="text-2xl font-black text-[var(--erp-accent)] mb-4">{label.invoicesList}</h2>
 
@@ -1669,5 +1673,7 @@ export default function Invoices() {
         />
       )}
     </div>
+    <InvoicePrint invoice={createdInvoice} />
+    </>
   );
 }

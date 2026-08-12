@@ -88,7 +88,7 @@ export default function DesignStudio() {
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(tr("این قالب حذف شود؟", "هل تريد حذف هذا القالب؟", "Bu şablon silinsin mi؟", "Delete this template?"))) return;
+    if (!window.confirm(tr("این قالب حذف شود؟", "هل تريد حذف هذا القالب؟", "Bu şablon silinsin mi?", "Delete this template?"))) return;
     setBusyId(item.id);
     try {
       await deletePdfTemplate(item.id);

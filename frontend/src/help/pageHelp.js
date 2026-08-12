@@ -455,6 +455,33 @@ export const pageHelp = {
     mainActions: { fa: ["ثبت حرکت موجودی جدید"], ar: ["تسجيل حركة مخزون جديدة"], tr: ["Yeni stok hareketi kaydet"], en: ["Record a new stock movement"] },
     keyFields: { fa: [], ar: [], tr: [], en: [] }, warnings: { fa: [], ar: [], tr: [], en: [] },
   }),
+  chartOfAccounts: entry({
+    title: { fa: "کدینگ حساب‌ها", ar: "دليل الحسابات", tr: "Hesap Planı", en: "Chart of Accounts" },
+    purpose: {
+      fa: "ساختار درختی حساب‌های حسابداری (دارایی، بدهی، سرمایه، درآمد، هزینه) که همه اسناد و بودجه‌ها به آن‌ها ارجاع می‌دهند.",
+      ar: "الهيكل الشجري لحسابات المحاسبة (الأصول، الالتزامات، حقوق الملكية، الإيرادات، المصروفات) التي تُشير إليها جميع القيود والميزانيات.",
+      tr: "Tüm fişlerin ve bütçelerin referans aldığı hesap ağacı (varlık, yükümlülük, özkaynak, gelir, gider).",
+      en: "The tree of accounting accounts (asset, liability, equity, revenue, expense) that every voucher and budget references.",
+    },
+    mainActions: {
+      fa: ["افزودن حساب جدید", "ویرایش حساب", "غیرفعال‌سازی حساب", "بارگذاری کدینگ پیش‌فرض"],
+      ar: ["إضافة حساب جديد", "تعديل حساب", "تعطيل حساب", "تحميل الدليل الافتراضي"],
+      tr: ["Yeni hesap ekle", "Hesabı düzenle", "Hesabı devre dışı bırak", "Varsayılan planı yükle"],
+      en: ["Add a new account", "Edit an account", "Deactivate an account", "Seed the default chart"],
+    },
+    keyFields: {
+      fa: ["کد و سطح حساب (گروه/کل/معین/تفصیلی)", "نوع حساب و ماهیت بدهکار/بستانکار"],
+      ar: ["رمز الحساب ومستواه", "نوع الحساب وطبيعته المدين/الدائن"],
+      tr: ["Hesap kodu ve seviyesi", "Hesap türü ve borç/alacak niteliği"],
+      en: ["Account code and level (group/ledger/subsidiary/detail)", "Account type and normal debit/credit balance"],
+    },
+    warnings: {
+      fa: ["حذف یا تغییر حساب‌های دارای سابقه حسابداری می‌تواند بر گزارش‌های مالی اثر بگذارد."],
+      ar: ["حذف أو تغيير الحسابات ذات السجل المحاسبي قد يؤثر على التقارير المالية."],
+      tr: ["Muhasebe geçmişi olan hesapları silmek veya değiştirmek mali raporları etkileyebilir."],
+      en: ["Deleting or changing accounts with existing accounting history can affect financial reports."],
+    },
+  }),
   accountingEntries: entry({
     title: { fa: "اسناد حسابداری", ar: "القيود المحاسبية", tr: "Muhasebe Fişleri", en: "Accounting Vouchers" },
     purpose: { fa: "ثبت و پیگیری اسناد حسابداری دستی و ثبت‌شده خودکار.", ar: "تسجيل ومتابعة القيود اليدوية والتلقائية.", tr: "Manuel ve otomatik oluşturulan muhasebe fişlerini kaydedin ve takip edin.", en: "Record and track manual and auto-generated accounting vouchers." },
