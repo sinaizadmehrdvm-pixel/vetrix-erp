@@ -340,16 +340,22 @@ def campaign_audience_estimate(request: Request, segment_type: str = "", segment
     company_id = current_company_id(request)
     with engine.begin() as conn:
         segment_ids = _segment_customer_ids(conn, company_id, segment_type, segment_value)
+        if segment_ids is None:
+            all_rows = conn.execute(text("SELECT id FROM customers WHERE company_id=:cid"), {"cid": company_id}).all()
+            segment_ids = {row[0] for row in all_rows}
         consenting_rows = conn.execute(text(
             "SELECT id FROM customers WHERE company_id=:cid AND marketing_consent=1"
         ), {"cid": company_id}).all()
         consenting_ids = {row[0] for row in consenting_rows}
-        reachable = consenting_ids if segment_ids is None else (segment_ids & consenting_ids)
-        total_in_segment = len(consenting_ids) if segment_ids is None else len(segment_ids)
+        reachable = segment_ids & consenting_ids
+        excluded = segment_ids - consenting_ids
         return {
             "segment_type": segment_type,
-            "segment_size": total_in_segment,
+            # True potential audience for this segment, regardless of consent -
+            # never inflated/faked, always the real segment membership count.
+            "segment_size": len(segment_ids),
             "reachable_with_consent": len(reachable),
+            "excluded_due_to_consent": len(excluded),
         }
 
 
@@ -459,7 +465,7 @@ def sales_opportunities(request: Request):
         if c["id"] in own_customer_ids
     ]
 
-    inventory = smart_inventory_overview()
+    inventory = smart_inventory_overview(_opportunity_shim_request(company_id))
     slow_moving = [
         {"type": "slow_moving_stock", "product_id": item["id"], "product_name": item.get("name", ""), "stock": item.get("stock"), "risk_level": item.get("risk_level")}
         for item in inventory.get("dead_stock", [])

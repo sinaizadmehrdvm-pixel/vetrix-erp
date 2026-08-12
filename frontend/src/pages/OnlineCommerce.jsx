@@ -333,12 +333,25 @@ export default function OnlineCommerce() {
             {audienceEstimate && (
               <div className="rounded-xl p-3 flex items-center gap-2 text-sm" style={{ background: "var(--erp-glow)" }}>
                 <Users size={16} className="erp-accent" />
-                {tr(
-                  `تخمین مخاطب: ${audienceEstimate.reachable_with_consent} نفر (از ${audienceEstimate.segment_size} مشتری در این بخش)`,
-                  `تقدير الجمهور: ${audienceEstimate.reachable_with_consent} (من أصل ${audienceEstimate.segment_size} في هذه الفئة)`,
-                  `Tahmini kitle: ${audienceEstimate.reachable_with_consent} kişi (bu segmentteki ${audienceEstimate.segment_size} müşteriden)`,
-                  `Estimated reach: ${audienceEstimate.reachable_with_consent} (of ${audienceEstimate.segment_size} customers in this segment)`
-                )}
+                <span>
+                  {tr(
+                    `تخمین مخاطب: ${audienceEstimate.reachable_with_consent} نفر (از ${audienceEstimate.segment_size} مشتری در این بخش)`,
+                    `تقدير الجمهور: ${audienceEstimate.reachable_with_consent} (من أصل ${audienceEstimate.segment_size} في هذه الفئة)`,
+                    `Tahmini kitle: ${audienceEstimate.reachable_with_consent} kişi (bu segmentteki ${audienceEstimate.segment_size} müşteriden)`,
+                    `Estimated reach: ${audienceEstimate.reachable_with_consent} (of ${audienceEstimate.segment_size} customers in this segment)`
+                  )}
+                  {audienceEstimate.excluded_due_to_consent > 0 && (
+                    <span className="opacity-70">
+                      {" — "}
+                      {tr(
+                        `${audienceEstimate.excluded_due_to_consent} نفر به دلیل عدم رضایت بازاریابی مستثنی شدند`,
+                        `تم استبعاد ${audienceEstimate.excluded_due_to_consent} بسبب عدم موافقة التسويق`,
+                        `${audienceEstimate.excluded_due_to_consent} kişi pazarlama izni olmadığı için hariç tutuldu`,
+                        `${audienceEstimate.excluded_due_to_consent} excluded due to lack of marketing consent`
+                      )}
+                    </span>
+                  )}
+                </span>
               </div>
             )}
 

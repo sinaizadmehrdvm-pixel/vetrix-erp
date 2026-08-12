@@ -312,6 +312,80 @@ def delete_budget_line(line_id: int, request: Request):
         return {"status": "deleted", "id": line_id}
 
 
+def compute_budget_variance(conn, company_id, fiscal_period_id, cost_center_id=None, project_id=None):
+    """Pure DB read, no Request needed - the actual variance computation
+    behind the /variance endpoint below, extracted so real callers (Task 07
+    Section 4/H: bi_improvement.py's finding detector, executive_alerts.py's
+    budget alert, and the Executive Agent's budget_variance tool) can read
+    the SAME line-level budgets a user actually sets in BudgetControl.jsx,
+    instead of the separate, currently UI-less app/accounting/budget_plans.py
+    model those three used to read from (see that module's own docstring for
+    why: no page in this app has ever created a budget_plans row, so any
+    alert/finding/agent-answer sourced from it was silently always empty)."""
+    period = conn.execute(
+        text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
+        {"id": fiscal_period_id, "company_id": company_id},
+    ).mappings().first()
+    if not period:
+        return None
+    rows = conn.execute(text("""
+        SELECT b.id AS budget_id, b.amount AS budget_amount, b.note,
+               a.id AS account_id, a.code AS account_code,
+               a.name AS account_name, a.account_type,
+               cc.id AS cost_center_id, cc.code AS cost_center_code,
+               cc.name AS cost_center_name,
+               p.id AS project_id, p.code AS project_code,
+               p.name AS project_name,
+               COALESCE(SUM(CASE
+                 WHEN a.account_type='expense' THEN l.debit-l.credit
+                 ELSE l.credit-l.debit END),0) AS actual_amount
+        FROM accounting_budgets b
+        JOIN chart_accounts a ON a.id=b.account_id
+        LEFT JOIN cost_centers cc ON cc.id=b.cost_center_id
+        LEFT JOIN accounting_projects p ON p.id=b.project_id
+        LEFT JOIN accounting_vouchers v
+          ON v.fiscal_period_id=b.fiscal_period_id AND v.status='posted' AND v.company_id=b.company_id
+        LEFT JOIN accounting_voucher_lines l
+          ON l.voucher_id=v.id AND l.account_id=b.account_id
+         AND (b.cost_center_id IS NULL OR l.cost_center_id=b.cost_center_id)
+         AND (b.project_id IS NULL OR l.project_id=b.project_id)
+        WHERE b.fiscal_period_id=:period_id AND b.company_id=:company_id
+          AND (:cost_center_id IS NULL OR b.cost_center_id=:cost_center_id)
+          AND (:project_id IS NULL OR b.project_id=:project_id)
+        GROUP BY b.id, a.id, cc.id, p.id
+        ORDER BY a.code, cc.code, p.code
+    """), {
+        "period_id": fiscal_period_id,
+        "company_id": company_id,
+        "cost_center_id": cost_center_id,
+        "project_id": project_id,
+    }).mappings().all()
+    items = []
+    for row in rows:
+        budget = _money(row["budget_amount"])
+        actual = _money(row["actual_amount"])
+        variance = _money(budget - actual)
+        usage = round((actual / budget * 100), 2) if budget else (100.0 if actual else 0.0)
+        items.append({
+            **dict(row), "budget_amount": budget, "actual_amount": actual,
+            "variance": variance, "usage_percent": usage,
+            "over_budget": actual > budget,
+        })
+    total_budget = _money(sum(item["budget_amount"] for item in items))
+    total_actual = _money(sum(item["actual_amount"] for item in items))
+    return {
+        "period": dict(period),
+        "filters": {"cost_center_id": cost_center_id, "project_id": project_id},
+        "summary": {
+            "budget": total_budget, "actual": total_actual,
+            "variance": _money(total_budget-total_actual),
+            "usage_percent": round(total_actual/total_budget*100,2) if total_budget else 0,
+            "over_budget_count": len([item for item in items if item["over_budget"]]),
+        },
+        "items": items,
+    }
+
+
 @router.get("/variance")
 def budget_variance(
     request: Request,
@@ -322,65 +396,7 @@ def budget_variance(
     company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        period = conn.execute(
-            text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
-            {"id": fiscal_period_id, "company_id": company_id},
-        ).mappings().first()
-        if not period:
+        result = compute_budget_variance(conn, company_id, fiscal_period_id, cost_center_id, project_id)
+        if result is None:
             raise HTTPException(status_code=404, detail="Fiscal period not found")
-        rows = conn.execute(text("""
-            SELECT b.id AS budget_id, b.amount AS budget_amount, b.note,
-                   a.id AS account_id, a.code AS account_code,
-                   a.name AS account_name, a.account_type,
-                   cc.id AS cost_center_id, cc.code AS cost_center_code,
-                   cc.name AS cost_center_name,
-                   p.id AS project_id, p.code AS project_code,
-                   p.name AS project_name,
-                   COALESCE(SUM(CASE
-                     WHEN a.account_type='expense' THEN l.debit-l.credit
-                     ELSE l.credit-l.debit END),0) AS actual_amount
-            FROM accounting_budgets b
-            JOIN chart_accounts a ON a.id=b.account_id
-            LEFT JOIN cost_centers cc ON cc.id=b.cost_center_id
-            LEFT JOIN accounting_projects p ON p.id=b.project_id
-            LEFT JOIN accounting_vouchers v
-              ON v.fiscal_period_id=b.fiscal_period_id AND v.status='posted' AND v.company_id=b.company_id
-            LEFT JOIN accounting_voucher_lines l
-              ON l.voucher_id=v.id AND l.account_id=b.account_id
-             AND (b.cost_center_id IS NULL OR l.cost_center_id=b.cost_center_id)
-             AND (b.project_id IS NULL OR l.project_id=b.project_id)
-            WHERE b.fiscal_period_id=:period_id AND b.company_id=:company_id
-              AND (:cost_center_id IS NULL OR b.cost_center_id=:cost_center_id)
-              AND (:project_id IS NULL OR b.project_id=:project_id)
-            GROUP BY b.id, a.id, cc.id, p.id
-            ORDER BY a.code, cc.code, p.code
-        """), {
-            "period_id": fiscal_period_id,
-            "company_id": company_id,
-            "cost_center_id": cost_center_id,
-            "project_id": project_id,
-        }).mappings().all()
-        items = []
-        for row in rows:
-            budget = _money(row["budget_amount"])
-            actual = _money(row["actual_amount"])
-            variance = _money(budget - actual)
-            usage = round((actual / budget * 100), 2) if budget else (100.0 if actual else 0.0)
-            items.append({
-                **dict(row), "budget_amount": budget, "actual_amount": actual,
-                "variance": variance, "usage_percent": usage,
-                "over_budget": actual > budget,
-            })
-        total_budget = _money(sum(item["budget_amount"] for item in items))
-        total_actual = _money(sum(item["actual_amount"] for item in items))
-        return {
-            "period": dict(period),
-            "filters": {"cost_center_id": cost_center_id, "project_id": project_id},
-            "summary": {
-                "budget": total_budget, "actual": total_actual,
-                "variance": _money(total_budget-total_actual),
-                "usage_percent": round(total_actual/total_budget*100,2) if total_budget else 0,
-                "over_budget_count": len([item for item in items if item["over_budget"]]),
-            },
-            "items": items,
-        }
+        return result

@@ -40,6 +40,7 @@ import {
   exportCustomersListPdf,
   exportCustomersListExcel,
   isNetworkError,
+  getCustomerConsentHistory,
 } from "../services/api";
 import { translateApiError } from "../localization/apiErrors";
 import { useAuth } from "../auth/AuthContext";
@@ -53,6 +54,7 @@ import Notice from "../components/ui/Notice";
 import MoneyDisplay from "../components/ui/MoneyDisplay";
 import { Input, Select } from "../components/ui/Field";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
+import Modal from "../components/ui/Modal";
 
 const CUSTOMERS_CACHE_KEY = "customers";
 const PAGE_SIZES = [25, 50, 100];
@@ -254,6 +256,9 @@ export default function Customers() {
   const [parties, setParties] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [consentHistoryOpen, setConsentHistoryOpen] = useState(false);
+  const [consentHistory, setConsentHistory] = useState([]);
+  const [consentHistoryLoading, setConsentHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [offlineMode, setOfflineMode] = useState(false);
@@ -662,6 +667,8 @@ export default function Customers() {
       notes: item.notes || "",
       pricing_group: item.pricing_group || "retail",
       marketing_consent: item.marketing_consent !== false,
+      marketing_consent_source: item.marketing_consent_source || "default",
+      marketing_consent_recorded_at: item.marketing_consent_recorded_at || null,
     };
   }
 
@@ -1104,14 +1111,43 @@ export default function Customers() {
             ))}
           </Select>
 
-          <label className="flex items-center gap-2 font-bold self-center">
-            <input
-              type="checkbox"
-              checked={form.marketing_consent !== false}
-              onChange={(e) => setForm({ ...form, marketing_consent: e.target.checked })}
-            />
-            {fa ? "رضایت به دریافت پیام‌های تبلیغاتی" : language === "ar" ? "الموافقة على تلقي الرسائل الترويجية" : language === "tr" ? "Tanıtım mesajlarını almayı kabul ediyorum" : "Consents to marketing messages"}
-          </label>
+          <div className="flex flex-col gap-1 self-center">
+            <label className="flex items-center gap-2 font-bold">
+              <input
+                type="checkbox"
+                checked={form.marketing_consent !== false}
+                onChange={(e) => setForm({ ...form, marketing_consent: e.target.checked })}
+              />
+              {fa ? "رضایت به دریافت پیام‌های تبلیغاتی" : language === "ar" ? "الموافقة على تلقي الرسائل الترويجية" : language === "tr" ? "Tanıtım mesajlarını almayı kabul ediyorum" : "Consents to marketing messages"}
+            </label>
+            {editingId && (
+              <div className="flex items-center gap-2 text-xs opacity-70">
+                <span>
+                  {form.marketing_consent_source === "explicit"
+                    ? (fa ? `ثبت‌شده صریح${form.marketing_consent_recorded_at ? " — " + String(form.marketing_consent_recorded_at).slice(0, 10) : ""}` : ar ? `مسجّل صراحةً${form.marketing_consent_recorded_at ? " — " + String(form.marketing_consent_recorded_at).slice(0, 10) : ""}` : tr ? `Açıkça kaydedildi${form.marketing_consent_recorded_at ? " — " + String(form.marketing_consent_recorded_at).slice(0, 10) : ""}` : `Explicitly recorded${form.marketing_consent_recorded_at ? " — " + String(form.marketing_consent_recorded_at).slice(0, 10) : ""}`)
+                    : (fa ? "وضعیت پیش‌فرض — هرگز صراحتاً ثبت نشده" : ar ? "الحالة الافتراضية — لم يتم تسجيلها صراحةً أبدًا" : tr ? "Varsayılan durum — hiç açıkça kaydedilmedi" : "Default status — never explicitly recorded")}
+                </span>
+                <button
+                  type="button"
+                  className="underline erp-accent"
+                  onClick={async () => {
+                    setConsentHistoryOpen(true);
+                    setConsentHistoryLoading(true);
+                    try {
+                      const res = await getCustomerConsentHistory(editingId);
+                      setConsentHistory(res.items || []);
+                    } catch {
+                      setConsentHistory([]);
+                    } finally {
+                      setConsentHistoryLoading(false);
+                    }
+                  }}
+                >
+                  {fa ? "تاریخچه" : ar ? "السجل" : tr ? "Geçmiş" : "History"}
+                </button>
+              </div>
+            )}
+          </div>
 
           <Input
             placeholder={t("phone")}
@@ -1632,6 +1668,49 @@ export default function Customers() {
           </div>
         )}
       </div>
+
+      <Modal open={consentHistoryOpen} onClose={() => setConsentHistoryOpen(false)} maxWidthClassName="max-w-md">
+        <div className="p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold">
+              {fa ? "تاریخچه رضایت بازاریابی" : ar ? "سجل موافقة التسويق" : tr ? "Pazarlama izni geçmişi" : "Marketing consent history"}
+            </h3>
+            <button type="button" onClick={() => setConsentHistoryOpen(false)} className="erp-focus" aria-label={fa ? "بستن" : "Close"}>
+              <X size={18} />
+            </button>
+          </div>
+          {consentHistoryLoading ? (
+            <div className="text-sm text-[var(--erp-muted)]">{fa ? "در حال بارگذاری..." : "Loading..."}</div>
+          ) : consentHistory.length === 0 ? (
+            <div className="text-sm text-[var(--erp-muted)]">
+              {fa ? "هیچ تغییری صراحتاً ثبت نشده است." : ar ? "لم يتم تسجيل أي تغيير صراحةً." : tr ? "Açıkça kaydedilmiş bir değişiklik yok." : "No explicit change has been recorded."}
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+              {consentHistory.map((h) => (
+                <li key={h.id} className="text-sm border-b border-[var(--erp-border)] pb-2">
+                  <div className="flex items-center gap-2">
+                    <Badge tone={h.new_value ? "success" : "neutral"}>
+                      {h.new_value
+                        ? (fa ? "موافقت" : ar ? "موافقة" : tr ? "İzin verildi" : "Opted in")
+                        : (fa ? "عدم موافقت" : ar ? "رفض" : tr ? "İzin verilmedi" : "Opted out")}
+                    </Badge>
+                    <span className="opacity-70">
+                      {h.old_value === null || h.old_value === undefined
+                        ? (fa ? "(اولین ثبت)" : ar ? "(أول تسجيل)" : tr ? "(ilk kayıt)" : "(first record)")
+                        : (h.old_value ? (fa ? "از: موافقت" : "from: opted-in") : (fa ? "از: عدم موافقت" : "from: opted-out"))}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[var(--erp-muted)] mt-1">
+                    {h.changed_at ? String(h.changed_at).slice(0, 19).replace("T", " ") : "-"}
+                    {h.changed_by_name ? ` — ${h.changed_by_name}` : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

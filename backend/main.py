@@ -102,6 +102,7 @@ from app.branches import router as branches_router
 from app.executive_alerts import router as executive_alerts_router
 from app.purchase_orders import router as purchase_orders_router
 from app.customers_export import router as customers_export_router
+from app.marketing_consent import router as marketing_consent_router
 from app.import_report_export import router as import_report_export_router
 from app.companies import router as companies_router
 from app.product_batches import router as product_batches_router
@@ -189,6 +190,12 @@ def ensure_database_schema():
         # behavior. Unrelated to transactional sends (payment reminders,
         # invoice links) which never checked this and still don't.
         "marketing_consent": "marketing_consent BOOLEAN DEFAULT 1 NOT NULL",
+        # Consent provenance (Task 07 Section 4/C) - see app/marketing_consent.py.
+        # Declared on the Customer ORM model, so must exist before any ORM
+        # query touches the customers table, not just lazily on write.
+        "marketing_consent_source": "marketing_consent_source VARCHAR DEFAULT 'default'",
+        "marketing_consent_recorded_at": "marketing_consent_recorded_at VARCHAR",
+        "marketing_consent_recorded_by": "marketing_consent_recorded_by INTEGER",
     }
 
     invoice_columns = {
@@ -511,6 +518,7 @@ app.include_router(branches_router)
 app.include_router(executive_alerts_router)
 app.include_router(purchase_orders_router)
 app.include_router(customers_export_router)
+app.include_router(marketing_consent_router)
 app.include_router(import_report_export_router)
 app.include_router(companies_router)
 app.include_router(product_batches_router)
@@ -804,7 +812,16 @@ def customer_balance(db: Session, customer_id: int) -> float:
         .order_by(AccountingEntry.created_at.asc(), AccountingEntry.id.asc())
         .all()
     )
-    return sum((e.debit or 0) - (e.credit or 0) for e in entries)
+    # Plain float accumulation over a customer's entire lifetime of ledger
+    # entries drifts off an exact cent value the longer the history gets
+    # (e.g. a real 400-entry history reproduces as 22276.830000000038) - this
+    # is then returned as-is as "balance"/"debit"/"credit" in customer_to_dict,
+    # so the noise was visible in the raw API response. Quantize through the
+    # same Decimal/ROUND_HALF_UP money() helper (imported above as
+    # accounting_money) already used for every other money figure in this
+    # file, rather than leaving the sum as a raw float.
+    raw_balance = sum((e.debit or 0) - (e.credit or 0) for e in entries)
+    return float(accounting_money(raw_balance))
 
 def rebuild_customer_balances(db: Session, customer_id: int):
     entries = (
@@ -817,8 +834,12 @@ def rebuild_customer_balances(db: Session, customer_id: int):
     balance = 0
 
     for entry in entries:
-        balance += float(entry.debit or 0)
-        balance -= float(entry.credit or 0)
+        # Re-quantize after every entry (not just once at the end) so the
+        # per-row balance_after stored to the ledger - shown on printed
+        # statements (main.py's _fmt_money(entry.balance_after, ...)) and
+        # returned raw by /customers/{id} transaction lists - never
+        # accumulates the same float drift customer_balance() above had.
+        balance = float(accounting_money(balance + float(entry.debit or 0) - float(entry.credit or 0)))
 
         entry.balance_after = balance
 
@@ -985,6 +1006,8 @@ def customer_to_dict(db: Session, c: Customer):
         "latitude": getattr(c, "latitude", None),
         "longitude": getattr(c, "longitude", None),
         "marketing_consent": bool(getattr(c, "marketing_consent", True)),
+        "marketing_consent_source": getattr(c, "marketing_consent_source", None) or "default",
+        "marketing_consent_recorded_at": getattr(c, "marketing_consent_recorded_at", None),
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -1099,6 +1122,11 @@ def create_customer(data: CustomerCreate, request: Request):
         return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
+        company_id = current_company_id(request)
+        try:
+            actor_id = int(getattr(request.state, "auth", {}).get("sub"))
+        except (TypeError, ValueError):
+            actor_id = None
         customer = Customer(
             name=data.name,
             phone=data.phone,
@@ -1119,10 +1147,20 @@ def create_customer(data: CustomerCreate, request: Request):
             latitude=data.latitude,
             longitude=data.longitude,
             marketing_consent=data.marketing_consent,
-            company_id=current_company_id(request),
+            company_id=company_id,
         )
         db.add(customer)
         db.flush()
+
+        # The creation form shows the consent checkbox explicitly (see
+        # Customers.jsx) - unlike a pre-existing row whose true original
+        # intent is unknown, a newly-created customer's consent value IS
+        # a real, explicit choice the operator just made, so it's recorded
+        # as such from the start (app/marketing_consent.py).
+        from app.marketing_consent import _ensure_schema as _ensure_consent_schema, record_consent_change
+        conn = db.connection()
+        _ensure_consent_schema(conn)
+        record_consent_change(conn, customer.id, None, data.marketing_consent, actor_id, company_id, source="explicit")
 
         if data.opening_balance > 0:
             add_customer_entry(
@@ -1211,12 +1249,14 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
+        company_id = current_company_id(request)
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
         if not customer:
             db.close()
             return {"status": "error", "message": "Customer not found"}
 
         old_opening = float(getattr(customer, "opening_balance", 0) or 0)
+        old_consent = bool(getattr(customer, "marketing_consent", True))
 
         customer.name = data.name
         customer.phone = data.phone
@@ -1237,6 +1277,16 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         customer.latitude = data.latitude
         customer.longitude = data.longitude
         customer.marketing_consent = data.marketing_consent
+
+        if bool(data.marketing_consent) != old_consent:
+            from app.marketing_consent import _ensure_schema as _ensure_consent_schema, record_consent_change
+            try:
+                actor_id = int(getattr(request.state, "auth", {}).get("sub"))
+            except (TypeError, ValueError):
+                actor_id = None
+            conn = db.connection()
+            _ensure_consent_schema(conn)
+            record_consent_change(conn, customer_id, old_consent, bool(data.marketing_consent), actor_id, company_id, source="explicit")
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (

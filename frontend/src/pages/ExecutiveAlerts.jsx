@@ -71,6 +71,8 @@ export default function ExecutiveAlerts() {
         return "/warehouse";
       case "create_purchase_order":
         return "/purchase-orders";
+      case "view_budget_control":
+        return "/budget-control";
       default:
         return null;
     }
@@ -82,6 +84,7 @@ export default function ExecutiveAlerts() {
     open_cheque: tr("مشاهده چک", "عرض الشيك", "Çeki görüntüle", "View cheque"),
     view_stock: tr("مشاهده موجودی", "عرض المخزون", "Stoku görüntüle", "View stock"),
     create_purchase_order: tr("سفارش خرید", "أمر شراء", "Satın alma siparişi", "Purchase order"),
+    view_budget_control: tr("مشاهده بودجه", "عرض الموازنة", "Bütçeyi görüntüle", "View budget"),
   }[item.quick_action] || tr("مشاهده", "عرض", "Görüntüle", "View"));
 
   const filteredItems = (summary?.items || []).filter((item) => {

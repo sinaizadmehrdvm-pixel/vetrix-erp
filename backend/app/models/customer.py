@@ -48,5 +48,13 @@ class Customer(Base):
     # opt-in (see main.py's ensure_database_schema for the reasoning);
     # unrelated to transactional sends like payment reminders.
     marketing_consent = Column(Boolean, default=True, nullable=False)
+    # Consent provenance (Task 07 Section 4/C) - "default" means the row's
+    # consent value has never been explicitly set/changed through this app
+    # (its true original intent is unknown and must not be invented);
+    # "explicit" means a user set it via the create/edit form. Columns are
+    # added at runtime by app/marketing_consent.py's _ensure_schema().
+    marketing_consent_source = Column(String, default="default", nullable=True)
+    marketing_consent_recorded_at = Column(String, nullable=True)
+    marketing_consent_recorded_by = Column(Integer, nullable=True)
     # Multi-company data isolation (Milestone 2) - see app/company_scope.py.
     company_id = Column(Integer, nullable=True)

@@ -334,38 +334,51 @@ def _detect_customer_risk(company_id):
 
 
 def _detect_budget_variance(company_id):
-    from app.accounting.budget_plans import plan_summary, _ensure_schema as _ensure_budget_plans_schema
+    """Reads the SAME line-level budgets BudgetControl.jsx actually writes
+    (app/accounting/budgets.py's accounting_budgets, via compute_budget_variance)
+    - not app/accounting/budget_plans.py, which this used to read from despite
+    no page in the app ever creating a budget_plans row, so this detector was
+    silently a permanent no-op for every real user (Task 07 Section 4/H)."""
+    from app.accounting.budgets import compute_budget_variance, _ensure_schema as _ensure_budgets_schema
     with engine.begin() as conn:
         _ensure_schema(conn)
-        _ensure_budget_plans_schema(conn)
-        plans = conn.execute(text("""
-            SELECT id, name, branch_id FROM budget_plans WHERE company_id=:company_id AND status='active'
+        _ensure_budgets_schema(conn)
+        periods = conn.execute(text("""
+            SELECT DISTINCT fp.id, fp.name FROM fiscal_periods fp
+            JOIN accounting_budgets b ON b.fiscal_period_id = fp.id AND b.company_id = fp.company_id
+            WHERE fp.company_id=:company_id AND fp.status='open'
         """), {"company_id": company_id}).mappings().all()
+        summaries = [
+            (period, compute_budget_variance(conn, company_id, period["id"]))
+            for period in periods
+        ]
     candidates = []
-    for plan in plans:
-        try:
-            summary = plan_summary(plan["id"], _shim_request(company_id))
-        except HTTPException:
+    for period, summary in summaries:
+        if not summary or not summary["items"]:
             continue
-        planned_expense = summary["total_planned_expense"]
-        actual_expense = summary["actual_expense"]
+        planned_expense = sum(i["budget_amount"] for i in summary["items"] if i["account_type"] == "expense")
+        actual_expense = sum(i["actual_amount"] for i in summary["items"] if i["account_type"] == "expense")
         if planned_expense <= 0:
             continue
         over_ratio = round((actual_expense - planned_expense) / planned_expense * 100, 1)
         if over_ratio < 10:
             candidates.append({"category": "budget_variance", "current_metric": over_ratio, "clear": True,
-                                "related_entity_id": plan["id"]})
+                                "related_entity_id": period["id"]})
             continue
         severity = "critical" if over_ratio >= 25 else "warning"
+        over_lines = sorted(
+            (i for i in summary["items"] if i["account_type"] == "expense" and i["over_budget"]),
+            key=lambda i: i["variance"],
+        )[:5]
         candidates.append({
             "category": "budget_variance", "severity": severity,
-            "title": f"Budget plan '{plan['name']}' is over expense budget",
+            "title": f"Budget for period '{period['name']}' is over expense budget",
             "description": f"Actual expense is {actual_expense:,.0f} vs a planned {planned_expense:,.0f} ({over_ratio}% over).",
-            "evidence": {"summary": summary, "top_over_budget_categories": summary["top_over_budget_categories"]},
-            "evidence_source": "app.accounting.budget_plans.plan_summary",
+            "evidence": {"summary": summary["summary"], "top_over_budget_lines": over_lines},
+            "evidence_source": "app.accounting.budgets.compute_budget_variance",
             "current_metric": over_ratio, "baseline_metric": 0.0, "variance_percent": over_ratio,
-            "related_entity_type": "budget_plan", "related_entity_id": plan["id"], "source_module": "accounting.budget_plans",
-            "branch_id": plan["branch_id"],
+            "related_entity_type": "fiscal_period", "related_entity_id": period["id"], "source_module": "accounting.budgets",
+            "branch_id": None,
         })
     return candidates
 

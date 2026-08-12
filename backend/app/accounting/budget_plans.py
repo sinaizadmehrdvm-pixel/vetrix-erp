@@ -17,6 +17,24 @@ approval workflow (the codebase already has app/accounting/approvals.py
 for vouchers and app/change_requests.py for voice/text changes; this is
 the third+ case the engine's own docstring says to register against
 instead of building yet another one).
+
+ARCHITECTURE STATUS (Task 07 Section 4/H, verified against the actual
+frontend, not assumed): as of this note, no page anywhere in
+frontend/src/pages links to any /api/accounting/budget-plans endpoint or
+renders a BudgetPlan/budget_goods_lines row - `BudgetControl.jsx` (the only
+reachable budget UI, wired into Sidebar.jsx) reads and writes exclusively
+through app/accounting/budgets.py's accounting_budgets/`/variance`. This
+module's endpoints are real, tested, and untouched here - not deprecated -
+but they are currently backend-only capability with no way for a real user
+to create a row through the app. bi_improvement.py's budget-variance
+finding, executive_alerts.py's budget alert, and the Executive Agent's
+budget_variance tool all used to read from budget_plans (via plan_summary)
+and were consequently silent permanent no-ops for every real deployment;
+they were repointed at app/accounting/budgets.py's compute_budget_variance
+so those features actually reflect what BudgetControl.jsx shows. If a
+dedicated budget-plans UI (versioning/approval/scenario comparison) is
+built in the future, revisit those three call sites deliberately rather
+than assuming they should switch back.
 """
 import json
 from datetime import datetime, timezone
