@@ -168,6 +168,21 @@ def _active_discounts(db: Session, product_ids):
     everywhere a product is offered to a customer, catalogs included."""
     if not product_ids:
         return {}
+    # online_product_settings is owned by app.online_commerce, whose
+    # _ensure_schema() this module never calls - on a company that has
+    # never touched Online Commerce, that table would not exist yet, and
+    # this function is reachable from the PUBLIC, unauthenticated
+    # /api/catalog/view endpoint real customers open, so this must fail
+    # into "no discounts" rather than a raw 500. Checking existence first
+    # (rather than a nested write via _ensure_schema, or a try/except that
+    # would poison this read-only session's transaction) matches the same
+    # defensive pattern already used in invoice_payments.py/main.py for
+    # the identical reason.
+    table_exists = db.execute(text(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='online_product_settings'"
+    )).scalar()
+    if not table_exists:
+        return {}
     today = datetime.utcnow().date().isoformat()
     rows = db.execute(text("""
         SELECT product_id, online_price, discount_percent, sale_start, sale_end

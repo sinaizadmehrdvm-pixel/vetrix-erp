@@ -59,7 +59,22 @@ def build_cashflow_forecast(db: Session, company_id: int, horizon_days: int = FO
 
     trend_projected_net_cash = current_net_cash + daily_average_net * horizon_days
 
-    cheque_rows = db.execute(
+    # treasury_cheques is owned by app.accounting.treasury, whose
+    # _ensure_schema() was never called by this module - on a fresh
+    # company/DB where Treasury/Cheques has never been touched (e.g. the
+    # first accounting action is BI recalculation, which reaches this via
+    # bi_improvement.py's _detect_cashflow_pressure), the query below would
+    # raise "no such table: treasury_cheques". Checking existence first
+    # (rather than calling treasury.py's own _ensure_schema, which also
+    # runs an invasive composite-unique table rebuild not needed just to
+    # read pending cheques, and would fight any caller's own minimal/
+    # isolated treasury_cheques table) matches the same defensive
+    # sqlite_master pattern already used in invoice_payments.py/catalog.py
+    # for the identical reason.
+    table_exists = db.execute(text(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='treasury_cheques'"
+    )).scalar()
+    cheque_rows = [] if not table_exists else db.execute(
         text(
             """
             SELECT direction, amount, due_date, cheque_number

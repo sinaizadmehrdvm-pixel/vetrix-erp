@@ -334,9 +334,10 @@ def _detect_customer_risk(company_id):
 
 
 def _detect_budget_variance(company_id):
-    from app.accounting.budget_plans import plan_summary
+    from app.accounting.budget_plans import plan_summary, _ensure_schema as _ensure_budget_plans_schema
     with engine.begin() as conn:
         _ensure_schema(conn)
+        _ensure_budget_plans_schema(conn)
         plans = conn.execute(text("""
             SELECT id, name, branch_id FROM budget_plans WHERE company_id=:company_id AND status='active'
         """), {"company_id": company_id}).mappings().all()
