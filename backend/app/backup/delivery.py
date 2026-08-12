@@ -53,6 +53,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.company_scope import current_company_id, ensure_company_id_column
 from app.database import engine
@@ -106,6 +107,13 @@ def _ensure_schema(conn):
             delivery_attempts_json TEXT NOT NULL DEFAULT '[]',
             created_at VARCHAR NOT NULL,
             company_id INTEGER
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS backup_download_tokens_used (
+            jti VARCHAR PRIMARY KEY,
+            filename VARCHAR NOT NULL,
+            used_at VARCHAR NOT NULL
         )
     """))
     ensure_company_id_column(conn, "backup_delivery_policies")
@@ -313,12 +321,20 @@ def _run_policy(conn, policy_id, company_id):
     else:
         overall = "failed"
 
+    # The live download_token is a bearer credential for the backup file -
+    # return it once in this response (the caller just triggered delivery
+    # and is the intended recipient), but never persist it: a delivery-log
+    # row is long-lived and readable later, which would let anyone with log
+    # access replay a still-valid download link.
+    attempts_for_log = [
+        {k: v for k, v in a.items() if k != "download_token"} for a in attempts
+    ]
     conn.execute(text("""
         UPDATE backup_delivery_log SET backup_filename=:filename, size_bytes=:size, sha256=:sha256,
           status=:status, delivery_attempts_json=:attempts WHERE id=:id
     """), {
         "filename": backup["filename"], "size": backup["size_bytes"], "sha256": backup["sha256"],
-        "status": overall, "attempts": json.dumps(attempts), "id": log_id,
+        "status": overall, "attempts": json.dumps(attempts_for_log), "id": log_id,
     })
     conn.execute(text("UPDATE backup_delivery_policies SET last_run_at=:now WHERE id=:id"), {"now": _now(), "id": policy_id})
     return {"status": overall, "backup_filename": backup["filename"], "attempts": attempts}
@@ -421,6 +437,22 @@ def secure_download(token: str):
     filename = claims["filename"]
     if not BACKUP_NAME.fullmatch(str(filename)):
         raise HTTPException(status_code=400, detail="Invalid backup filename")
+
+    # One-time use: the jti's PRIMARY KEY constraint makes the claim atomic
+    # under SQLite's write lock, so two near-simultaneous requests for the
+    # same link can never both succeed (real concurrency, not a check-then-act
+    # race). A stateless JWT can't be revoked, so this is the only way to
+    # make "used once" genuinely enforced rather than merely intended.
+    with engine.begin() as conn:
+        _ensure_schema(conn)
+        try:
+            conn.execute(
+                text("INSERT INTO backup_download_tokens_used (jti, filename, used_at) VALUES (:jti, :filename, :used_at)"),
+                {"jti": claims["jti"], "filename": filename, "used_at": _now()},
+            )
+        except IntegrityError:
+            raise HTTPException(status_code=401, detail="This download link has already been used")
+
     path = (backup_directory() / filename).resolve()
     if path.parent != backup_directory() or not path.exists():
         raise HTTPException(status_code=404, detail="Backup no longer available")

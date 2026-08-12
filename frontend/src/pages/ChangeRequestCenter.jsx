@@ -576,10 +576,49 @@ function RequestCard({ item, language, products, customers, reminderChannels, ca
     },
   };
   const status = (statusMaps[language] || statusMaps.en)[item.status] || item.status;
+  const actionTypeMaps = {
+    fa: {
+      online_product_update: "به‌روزرسانی محصول آنلاین",
+      campaign_draft: "پیش‌نویس کمپین",
+      note_only: "فقط یادداشت",
+      sale_invoice_draft: "پیش‌نویس فاکتور فروش",
+      report_delivery: "ارسال گزارش",
+      reminder_channel_manage: "مدیریت کانال یادآوری",
+      pricing_rule_draft: "پیش‌نویس قانون قیمت‌گذاری",
+    },
+    ar: {
+      online_product_update: "تحديث منتج عبر الإنترنت",
+      campaign_draft: "مسودة حملة",
+      note_only: "ملاحظة فقط",
+      sale_invoice_draft: "مسودة فاتورة بيع",
+      report_delivery: "إرسال تقرير",
+      reminder_channel_manage: "إدارة قناة التذكير",
+      pricing_rule_draft: "مسودة قاعدة تسعير",
+    },
+    tr: {
+      online_product_update: "Çevrimiçi ürün güncellemesi",
+      campaign_draft: "Kampanya taslağı",
+      note_only: "Sadece not",
+      sale_invoice_draft: "Satış faturası taslağı",
+      report_delivery: "Rapor gönderimi",
+      reminder_channel_manage: "Hatırlatma kanalı yönetimi",
+      pricing_rule_draft: "Fiyatlandırma kuralı taslağı",
+    },
+    en: {
+      online_product_update: "Online product update",
+      campaign_draft: "Campaign draft",
+      note_only: "Note only",
+      sale_invoice_draft: "Sale invoice draft",
+      report_delivery: "Report delivery",
+      reminder_channel_manage: "Reminder channel management",
+      pricing_rule_draft: "Pricing rule draft",
+    },
+  };
+  const actionType = (actionTypeMaps[language] || actionTypeMaps.en)[item.action_type] || item.action_type;
   return <article className="erp-surface rounded-2xl p-5">
     <div className="flex justify-between gap-3">
       <div><strong>#{item.id} · {status}</strong><p className="text-xs mt-1" style={{ color: "var(--erp-muted)" }}>{item.source} · {item.requested_by_name || item.requested_by}</p></div>
-      <span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{item.action_type}</span>
+      <span className="rounded-full px-3 py-1 text-sm h-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{actionType}</span>
     </div>
     <p className="mt-4 whitespace-pre-wrap">{item.transcript}</p>
     {item.audio_reference && <button type="button" onClick={onAudio} className="mt-3 rounded-xl px-3 py-2 font-bold flex items-center gap-2 erp-surface erp-accent"><FileAudio size={17} />{tr("دریافت فایل صوتی امن", "تنزيل الملف الصوتي الآمن", "Güvenli ses dosyasını indir", "Download secured audio")}</button>}

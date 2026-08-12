@@ -358,6 +358,23 @@ export default function BackupRecovery() {
 function DeliveryPolicies({ card, language, dir, n, date }) {
   const tr = (fa_, ar_, tr_, en_) => (language === "fa" ? fa_ : language === "ar" ? ar_ : language === "tr" ? tr_ : en_);
 
+  function frequencyLabel(value) {
+    return {
+      daily: tr("روزانه", "يومي", "Günlük", "Daily"),
+      weekly: tr("هفتگی", "أسبوعي", "Haftalık", "Weekly"),
+      manual: tr("دستی", "يدوي", "Manuel", "Manual"),
+    }[value] || value;
+  }
+
+  function channelLabel(value) {
+    return {
+      download: tr("لینک دانلود", "رابط تنزيل", "İndirme linki", "Download link"),
+      email: tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email"),
+      telegram: "Telegram",
+      whatsapp: "WhatsApp",
+    }[value] || value;
+  }
+
   const [policies, setPolicies] = useState([]);
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -489,8 +506,8 @@ function DeliveryPolicies({ card, language, dir, n, date }) {
                 <tr key={p.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
                   <td style={{ padding: 11, color: "var(--erp-muted)", fontWeight: 700 }}>{n(i + 1)}</td>
                   <td style={{ padding: 11, fontWeight: 700 }}>{p.name}{!p.enabled ? ` (${tr("غیرفعال", "معطل", "devre dışı", "disabled")})` : ""}</td>
-                  <td style={{ padding: 11 }}>{p.frequency}</td>
-                  <td style={{ padding: 11 }}>{(p.recipients || []).map((r) => r.channel).join(", ") || "—"}</td>
+                  <td style={{ padding: 11 }}>{frequencyLabel(p.frequency)}</td>
+                  <td style={{ padding: 11 }}>{(p.recipients || []).map((r) => channelLabel(r.channel)).join(", ") || "—"}</td>
                   <td style={{ padding: 11 }}>{p.last_run_at ? date(p.last_run_at) : "—"}</td>
                   <td style={{ padding: 11 }}>
                     <div style={{ display: "flex", gap: 7 }}>

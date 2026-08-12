@@ -20,8 +20,6 @@ import {
   Boxes,
   Banknote,
   Activity,
-  ArrowUpRight,
-  ArrowDownRight,
   CalendarClock,
 } from "lucide-react";
 
@@ -46,6 +44,9 @@ import moment from "moment-jalaali";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, paymentStatusLabel } from "../localization/helpers";
 import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
+import ReportHeader from "../components/reports/ReportHeader";
+import ReportFooter from "../components/reports/ReportFooter";
+import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
 
 import {
   downloadAuthenticatedFile,
@@ -82,6 +83,16 @@ const SOURCE_TYPE_LABELS = {
 function sourceTypeLabel(value, language) {
   const map = SOURCE_TYPE_LABELS[language] || SOURCE_TYPE_LABELS.en;
   return map[value] || value || "-";
+}
+
+function inventoryStatus(status, tr) {
+  if (status === "critical") {
+    return { label: tr("بحرانی", "حرج", "Kritik", "Critical"), className: "text-red-300 bg-red-500/10" };
+  }
+  if (status === "warning") {
+    return { label: tr("هشدار", "تحذير", "Uyarı", "Warning"), className: "text-amber-300 bg-amber-500/10" };
+  }
+  return { label: tr("نرمال", "طبيعي", "Normal", "Normal"), className: "text-green-300 bg-green-500/10" };
 }
 
 const JALALI_MONTHS_FA = [
@@ -492,6 +503,14 @@ export default function Reports() {
     ["transactions", tr("تراکنش‌ها", "المعاملات", "İşlemler", "Transactions")],
   ];
 
+  const activeTabLabel = tabs.find(([key]) => key === active)?.[1] || "";
+  const pageSubtitle = tr(
+    "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی",
+    "تقارير متكاملة: الأرباح والخسائر، ميزان المراجعة، المستحقات، الديون، التدفق النقدي، ربح المنتج والمخزون",
+    "Eksiksiz ERP raporları: kâr/zarar, mizan, alacaklar, borçlar, nakit akışı, ürün kârı ve envanter",
+    "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"
+  );
+
   function exportCurrentCsv() {
     if (active === "inventory") {
       downloadCsv("inventory-report.csv", [
@@ -568,14 +587,7 @@ export default function Reports() {
           <h1 className="text-4xl font-black text-[var(--erp-accent)]">
             {tr("گزارش‌های حرفه‌ای مدیریتی و حسابداری", "تقارير إدارية ومحاسبية احترافية", "Profesyonel yönetim ve muhasebe raporları", "Professional Management & Accounting Reports")}
           </h1>
-          <p className="text-[var(--erp-muted)] mt-2">
-            {tr(
-              "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی",
-              "تقارير متكاملة: الأرباح والخسائر، ميزان المراجعة، المستحقات، الديون، التدفق النقدي، ربح المنتج والمخزون",
-              "Eksiksiz ERP raporları: kâr/zarar, mizan, alacaklar, borçlar, nakit akışı, ürün kârı ve envanter",
-              "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"
-            )}
-          </p>
+          <p className="text-[var(--erp-muted)] mt-2">{pageSubtitle}</p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
@@ -609,6 +621,12 @@ export default function Reports() {
           {error}
         </div>
       )}
+
+      <ReportHeader
+        title={activeTabLabel}
+        subtitle={pageSubtitle}
+        filterSummary={query.trim() ? `${tr("جستجو", "بحث", "Arama", "Search")}: ${query}` : undefined}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <ReportCard icon={<TrendingUp />} title={tr("فروش خالص", "صافي المبيعات", "Net satış", "Net sales")} value={money(profit.net_sales ?? stats?.total_revenue ?? 0)} color="text-green-300" />
@@ -782,12 +800,54 @@ export default function Reports() {
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Panel title={tr("مطالبات از مشتریان", "المستحقات من العملاء", "Müşterilerden alacaklar", "Receivables from customers")}>
-            {topDebtors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} date={date} tr={tr} language={language} type="debtor" />)}
-            {topDebtors.length === 0 && <Empty tr={tr} />}
+            <Table className="erp-report-table">
+              <Thead>
+                <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+                <Th>{tr("نام", "الاسم", "Ad", "Name")}</Th>
+                <Th>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
+                <Th align="end">{tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")}</Th>
+                <Th>{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last transaction")}</Th>
+                <Th align="end">{tr("مانده بدهکار", "الرصيد المدين", "Borç bakiyesi", "Debit balance")}</Th>
+              </Thead>
+              <Tbody>
+                {topDebtors.map((c, index) => (
+                  <Tr key={c.id}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="font-black">{c.name || "-"}</Td>
+                    <Td>{c.phone ? (language === "fa" ? toPersianDigits(c.phone) : c.phone) : "-"}</Td>
+                    <Td align="end">{n(c.invoice_count || 0)}</Td>
+                    <Td>{c.last_transaction_date ? date(c.last_transaction_date) : "-"}</Td>
+                    <Td align="end" className="font-black text-red-300">{money(getDebtor(c))}</Td>
+                  </Tr>
+                ))}
+                {topDebtors.length === 0 && <EmptyRow colSpan={6}><Empty tr={tr} /></EmptyRow>}
+              </Tbody>
+            </Table>
           </Panel>
           <Panel title={tr("بدهی به تامین‌کنندگان / بستانکاران", "الديون للموردين / الدائنين", "Tedarikçi borçları / Alacaklılar", "Payables / Creditors")}>
-            {topCreditors.map((c) => <CustomerRow key={c.id} item={c} money={money} n={n} date={date} tr={tr} language={language} type="creditor" />)}
-            {topCreditors.length === 0 && <Empty tr={tr} />}
+            <Table className="erp-report-table">
+              <Thead>
+                <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+                <Th>{tr("نام", "الاسم", "Ad", "Name")}</Th>
+                <Th>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
+                <Th align="end">{tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")}</Th>
+                <Th>{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last transaction")}</Th>
+                <Th align="end">{tr("مانده بستانکار", "الرصيد الدائن", "Alacak bakiyesi", "Credit balance")}</Th>
+              </Thead>
+              <Tbody>
+                {topCreditors.map((c, index) => (
+                  <Tr key={c.id}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="font-black">{c.name || "-"}</Td>
+                    <Td>{c.phone ? (language === "fa" ? toPersianDigits(c.phone) : c.phone) : "-"}</Td>
+                    <Td align="end">{n(c.invoice_count || 0)}</Td>
+                    <Td>{c.last_transaction_date ? date(c.last_transaction_date) : "-"}</Td>
+                    <Td align="end" className="font-black text-green-300">{money(getCreditor(c))}</Td>
+                  </Tr>
+                ))}
+                {topCreditors.length === 0 && <EmptyRow colSpan={6}><Empty tr={tr} /></EmptyRow>}
+              </Tbody>
+            </Table>
           </Panel>
         </div>
       )}
@@ -808,16 +868,64 @@ export default function Reports() {
           </ChartPanel>
 
           <Panel title={tr("گزارش سود هر کالا", "تقرير ربح كل منتج", "Ürün kârı raporu", "Product profit report")}>
-            {productProfitRows.map((p) => <ProductProfitRow key={p.product_id || p.id || p.name} item={p} money={money} n={n} tr={tr} />)}
-            {productProfitRows.length === 0 && <Empty tr={tr} />}
+            <Table className="erp-report-table">
+              <Thead>
+                <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+                <Th>{tr("کالا", "المنتج", "Ürün", "Product")}</Th>
+                <Th>{tr("بارکد", "الباركود", "Barkod", "Barcode")}</Th>
+                <Th>{tr("برند", "العلامة التجارية", "Marka", "Brand")}</Th>
+                <Th align="end">{tr("فروش", "المباع", "Satılan", "Sold")}</Th>
+                <Th align="end">{tr("مرجوعی", "المرتجع", "İade", "Returned")}</Th>
+                <Th align="end">{tr("درآمد", "الإيراد", "Gelir", "Revenue")}</Th>
+                <Th align="end">{tr("هزینه", "التكلفة", "Maliyet", "Cost")}</Th>
+                <Th align="end">{tr("حاشیه", "الهامش", "Marj", "Margin")}</Th>
+                <Th align="end">{tr("سود", "الربح", "Kâr", "Profit")}</Th>
+              </Thead>
+              <Tbody>
+                {productProfitRows.map((p, index) => (
+                  <Tr key={p.product_id || p.id || p.name}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="font-black">{p.name || "-"}</Td>
+                    <Td>{p.barcode || "-"}</Td>
+                    <Td>{p.brand || "-"}</Td>
+                    <Td align="end">{n(p.sold_qty || 0)}</Td>
+                    <Td align="end">{n(p.returned_qty || 0)}</Td>
+                    <Td align="end">{money(p.revenue || 0)}</Td>
+                    <Td align="end">{money(p.cost || 0)}</Td>
+                    <Td align="end">{n(Number(p.margin_percent || 0).toFixed(1))}%</Td>
+                    <Td align="end" className={`font-black ${toNumber(p.profit) >= 0 ? "text-[var(--erp-accent)]" : "text-red-300"}`}>{money(p.profit)}</Td>
+                  </Tr>
+                ))}
+                {productProfitRows.length === 0 && <EmptyRow colSpan={10}><Empty tr={tr} /></EmptyRow>}
+              </Tbody>
+            </Table>
           </Panel>
         </div>
       )}
 
       {active === "invoices" && (
         <Panel title={tr("فاکتورهای باز و تسویه نشده", "الفواتير المفتوحة وغير المسواة", "Açık ve ödenmemiş faturalar", "Open and unsettled invoices")}>
-          {openInvoices.map((inv) => <Row key={inv.id} title={`${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(inv.id)}`} subtitle={`${date(inv.created_at)} • ${paymentStatusLabel(inv.settlement_status || inv.payment_status, language)}`} value={money(inv.remaining_amount ?? inv.total_amount ?? 0)} color="text-amber-300" />)}
-          {openInvoices.length === 0 && <Empty tr={tr} />}
+          <Table className="erp-report-table">
+            <Thead>
+              <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+              <Th>{tr("فاکتور", "فاتورة", "Fatura", "Invoice")}</Th>
+              <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+              <Th>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+              <Th align="end">{tr("مبلغ", "المبلغ", "Tutar", "Amount")}</Th>
+            </Thead>
+            <Tbody>
+              {openInvoices.map((inv, index) => (
+                <Tr key={inv.id}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                  <Td className="font-black">#{n(inv.id)}</Td>
+                  <Td>{date(inv.created_at)}</Td>
+                  <Td>{paymentStatusLabel(inv.settlement_status || inv.payment_status, language)}</Td>
+                  <Td align="end" className="font-black text-amber-300">{money(inv.remaining_amount ?? inv.total_amount ?? 0)}</Td>
+                </Tr>
+              ))}
+              {openInvoices.length === 0 && <EmptyRow colSpan={5}><Empty tr={tr} /></EmptyRow>}
+            </Tbody>
+          </Table>
         </Panel>
       )}
 
@@ -834,25 +942,55 @@ export default function Reports() {
           </Panel>
 
           <Panel title={tr("تراکنش‌های اخیر", "المعاملات الأخيرة", "Son işlemler", "Recent transactions")}>
-            {filteredTransactions.slice(0, 12).map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} language={language} />)}
-            {filteredTransactions.length === 0 && <Empty tr={tr} />}
+            <TransactionsTable items={filteredTransactions.slice(0, 12)} money={money} n={n} date={date} tr={tr} language={language} />
           </Panel>
         </div>
       )}
 
       {active === "inventory" && (
         <Panel title={tr("گزارش پیشرفته موجودی کالا", "تقرير مخزون متقدم", "Gelişmiş envanter raporu", "Advanced inventory report")}>
-          {inventoryProducts.map((p) => <InventoryRow key={p.id || p.name} item={p} money={money} n={n} tr={tr} />)}
-          {inventoryProducts.length === 0 && <Empty tr={tr} />}
+          <Table className="erp-report-table">
+            <Thead>
+              <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+              <Th>{tr("کالا", "المنتج", "Ürün", "Product")}</Th>
+              <Th>{tr("بارکد", "الباركود", "Barkod", "Barcode")}</Th>
+              <Th align="end">{tr("موجودی", "المخزون", "Stok", "Stock")}</Th>
+              <Th align="end">{tr("حداقل", "الحد الأدنى", "Min", "Min")}</Th>
+              <Th align="end">{tr("ارزش فروش", "قيمة البيع", "Satış değeri", "Sale value")}</Th>
+              <Th align="end">{tr("ارزش خرید", "قيمة الشراء", "Alış değeri", "Buy value")}</Th>
+              <Th>{tr("واحد", "الوحدة", "Birim", "Unit")}</Th>
+              <Th>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+            </Thead>
+            <Tbody>
+              {inventoryProducts.map((p, index) => {
+                const { label: statusLabel, className: statusClass } = inventoryStatus(p.stock_status, tr);
+                return (
+                  <Tr key={p.id || p.name}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="font-black">{p.name || "-"}</Td>
+                    <Td>{p.barcode || p.code || "-"}</Td>
+                    <Td align="end">{n(p.stock || 0)}</Td>
+                    <Td align="end">{n(p.min_stock || 0)}</Td>
+                    <Td align="end">{money(p.value || 0)}</Td>
+                    <Td align="end">{money(p.buy_value || 0)}</Td>
+                    <Td>{p.unit || "-"}</Td>
+                    <Td><span className={`px-3 py-1 rounded-xl font-black ${statusClass}`}>{statusLabel}</span></Td>
+                  </Tr>
+                );
+              })}
+              {inventoryProducts.length === 0 && <EmptyRow colSpan={9}><Empty tr={tr} /></EmptyRow>}
+            </Tbody>
+          </Table>
         </Panel>
       )}
 
       {active === "transactions" && (
         <Panel title={tr("گزارش کامل تراکنش‌ها", "تقرير كامل بالمعاملات", "Tam işlem raporu", "Full transactions report")}>
-          {filteredTransactions.map((x) => <TransactionRow key={x.id} item={x} money={money} date={date} language={language} />)}
-          {filteredTransactions.length === 0 && <Empty tr={tr} />}
+          <TransactionsTable items={filteredTransactions} money={money} n={n} date={date} tr={tr} language={language} />
         </Panel>
       )}
+
+      <ReportFooter confidential />
 
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-6 no-print">
         <div className="flex items-center gap-3 mb-6">
@@ -1081,100 +1219,39 @@ function ReportLine({ label, value, strong, negative, color }) {
   );
 }
 
-function CustomerRow({ item, money, n, date, tr, language, type }) {
-  const amount = type === "debtor" ? getDebtor(item) : getCreditor(item);
-  const phone = item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : "-";
+// Shared by the "cash" and "transactions" tabs - both list the same
+// transaction shape (date, description, source, debit/credit), so the
+// table markup is centralized here instead of duplicated per tab.
+function TransactionsTable({ items, money, n, date, tr, language }) {
   return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1">{phone}</div>
-        </div>
-        <div className={`font-black ${type === "debtor" ? "text-red-300" : "text-green-300"}`}>{money(amount)}</div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")}: {n(item.invoice_count || 0)}</div>
-        <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">{tr("آخرین تراکنش", "آخر معاملة", "Son işlem", "Last")}: {item.last_transaction_date ? date(item.last_transaction_date) : "-"}</div>
-      </div>
-    </div>
-  );
-}
-
-function ProductProfitRow({ item, money, n, tr }) {
-  const profitPositive = toNumber(item.profit) >= 0;
-  return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.barcode || "-"} • {item.brand || "-"}</div>
-        </div>
-        <div className={`font-black ${profitPositive ? "text-[var(--erp-accent)]" : "text-red-300"}`}>{money(item.profit)}</div>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <MiniStat label={tr("فروش", "المباع", "Satılan", "Sold")} value={n(item.sold_qty || 0)} />
-        <MiniStat label={tr("مرجوعی", "المرتجع", "İade", "Return")} value={n(item.returned_qty || 0)} />
-        <MiniStat label={tr("درآمد", "الإيراد", "Gelir", "Revenue")} value={money(item.revenue || 0)} />
-        <MiniStat label={tr("هزینه", "التكلفة", "Maliyet", "Cost")} value={money(item.cost || 0)} />
-        <MiniStat label={tr("حاشیه", "الهامش", "Marj", "Margin")} value={`${n(Number(item.margin_percent || 0).toFixed(1))}%`} />
-      </div>
-    </div>
-  );
-}
-
-function InventoryRow({ item, money, n, tr }) {
-  const status = item.stock_status || "normal";
-  const statusLabel = status === "critical" ? tr("بحرانی", "حرج", "Kritik", "Critical") : status === "warning" ? tr("هشدار", "تحذير", "Uyarı", "Warning") : tr("نرمال", "طبيعي", "Normal", "Normal");
-  const statusClass = status === "critical" ? "text-red-300 bg-red-500/10" : status === "warning" ? "text-amber-300 bg-amber-500/10" : "text-green-300 bg-green-500/10";
-
-  return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1">{item.barcode || item.code || "-"}</div>
-        </div>
-        <div className={`px-3 py-1 rounded-xl font-black ${statusClass}`}>{statusLabel}</div>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3 text-xs text-[var(--erp-muted)]">
-        <MiniStat label={tr("موجودی", "المخزون", "Stok", "Stock")} value={n(item.stock || 0)} />
-        <MiniStat label={tr("حداقل", "الحد الأدنى", "Min", "Min")} value={n(item.min_stock || 0)} />
-        <MiniStat label={tr("ارزش فروش", "قيمة البيع", "Satış değeri", "Sale value")} value={money(item.value || 0)} />
-        <MiniStat label={tr("ارزش خرید", "قيمة الشراء", "Alış değeri", "Buy value")} value={money(item.buy_value || 0)} />
-        <MiniStat label={tr("واحد", "الوحدة", "Birim", "Unit")} value={item.unit || "-"} />
-      </div>
-    </div>
-  );
-}
-
-function TransactionRow({ item, money, date, language }) {
-  const debit = toNumber(item.debit);
-  const credit = toNumber(item.credit);
-  const isDebit = debit > 0;
-  const typeLabel = sourceTypeLabel(item.source_type, language);
-  return (
-    <div className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isDebit ? "bg-red-500/10 text-red-300" : "bg-green-500/10 text-green-300"}`}>
-          {isDebit ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
-        </div>
-        <div>
-          <div className="font-black text-[var(--erp-text)]">{item.description || typeLabel}</div>
-          <div className="text-xs text-[var(--erp-muted)] mt-1 flex items-center gap-1"><CalendarClock size={13} />{date(item.created_at)} • {typeLabel}</div>
-        </div>
-      </div>
-      <div className={`font-black ${isDebit ? "text-red-300" : "text-green-300"}`}>{money(isDebit ? debit : credit)}</div>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }) {
-  return (
-    <div className="bg-[var(--erp-bg-soft)] rounded-xl p-2">
-      <div className="text-[var(--erp-muted)]">{label}</div>
-      <div className="font-black text-[var(--erp-text)] mt-1">{value}</div>
-    </div>
+    <Table className="erp-report-table">
+      <Thead>
+        <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
+        <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+        <Th>{tr("شرح", "الوصف", "Açıklama", "Description")}</Th>
+        <Th>{tr("نوع", "النوع", "Tür", "Type")}</Th>
+        <Th align="end">{tr("بدهکار", "مدين", "Borç", "Debit")}</Th>
+        <Th align="end">{tr("بستانکار", "دائن", "Alacak", "Credit")}</Th>
+      </Thead>
+      <Tbody>
+        {items.map((x, index) => {
+          const debit = toNumber(x.debit);
+          const credit = toNumber(x.credit);
+          const typeLabel = sourceTypeLabel(x.source_type, language);
+          return (
+            <Tr key={x.id}>
+              <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+              <Td>{date(x.created_at)}</Td>
+              <Td>{x.description || typeLabel}</Td>
+              <Td>{typeLabel}</Td>
+              <Td align="end" className="font-black text-red-300">{debit > 0 ? money(debit) : "-"}</Td>
+              <Td align="end" className="font-black text-green-300">{credit > 0 ? money(credit) : "-"}</Td>
+            </Tr>
+          );
+        })}
+        {items.length === 0 && <EmptyRow colSpan={6}><Empty tr={tr} /></EmptyRow>}
+      </Tbody>
+    </Table>
   );
 }
 

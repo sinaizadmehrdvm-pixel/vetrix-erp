@@ -139,7 +139,7 @@ export default function AccountingEntries() {
   }, label);
 
   function reportFilters() {
-    return h("div", { style: { ...styles.card, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr))", gap: 12 } },
+    return h("div", { style: { ...styles.card, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 } },
       h("select", { style: styles.input, value: filters.status, onChange: e => setFilters({ ...filters, status: e.target.value }) },
         h("option", { value: "posted" }, language === "fa" ? "فقط قطعی" : language === "ar" ? "المرحّل فقط" : language === "tr" ? "Yalnızca Kesinleşmiş" : "Posted only"),
         h("option", { value: "draft" }, language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft"),
@@ -173,7 +173,7 @@ export default function AccountingEntries() {
   }
 
   function vouchersView() {
-    return h("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.25fr) minmax(360px,.75fr)", gap: 20 } },
+    return h("div", { className: "grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,.75fr)]", style: { gap: 20 } },
       h("section", { style: styles.card },
         h("h2", { style: { color: "var(--erp-accent)", fontSize: 24, fontWeight: 900 } }, language === "fa" ? "ثبت سند جدید" : language === "ar" ? "سند جديد" : language === "tr" ? "Yeni Fiş" : "New Voucher"),
         h("div", { style: { display: "grid", gridTemplateColumns: "minmax(220px,auto) 1fr", gap: 12, marginBottom: 16 } },
@@ -226,7 +226,10 @@ export default function AccountingEntries() {
         h("div", { style: { display: "grid", gap: 10, maxHeight: 700, overflow: "auto" } }, vouchers.map(v => h("div", { key: v.id, style: { background: "var(--erp-panel-solid)", borderRadius: 18, padding: 14, border: "1px solid var(--erp-border)" } },
           h("div", { style: { display: "flex", justifyContent: "space-between", gap: 8 } },
             h("b", null, language === "fa" ? `سند ${n(v.voucher_no)}` : language === "ar" ? `سند ${n(v.voucher_no)}` : language === "tr" ? `Fiş ${v.voucher_no}` : `Voucher ${v.voucher_no}`),
-            h("span", { className: v.status === "posted" ? "text-green-300" : v.status === "cancelled" ? "text-red-300" : "text-amber-200" }, v.status)
+            h("span", { className: v.status === "posted" ? "text-green-300" : v.status === "cancelled" ? "text-red-300" : "text-amber-200" },
+              v.status === "posted" ? (language === "fa" ? "قطعی" : language === "ar" ? "مرحّل" : language === "tr" ? "Kesinleşmiş" : "Posted")
+                : v.status === "cancelled" ? (language === "fa" ? "ابطال‌شده" : language === "ar" ? "ملغى" : language === "tr" ? "İptal edildi" : "Cancelled")
+                : (language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft"))
           ),
           h("div", { style: { color: "var(--erp-muted)", marginTop: 6 } }, date(v.voucher_date)),
           h("div", { style: { color: "var(--erp-text)", marginTop: 6 } }, v.description || "-"),

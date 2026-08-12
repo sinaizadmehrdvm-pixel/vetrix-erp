@@ -1,9 +1,11 @@
 import base64
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import jwt
 
@@ -12,6 +14,67 @@ PASSWORD_ITERATIONS = 600_000
 TOKEN_ALGORITHM = "HS256"
 TOKEN_ISSUER = "vetrix-erp"
 TOKEN_AUDIENCE = "vetrix-erp-client"
+
+_logger = logging.getLogger(__name__)
+
+# Values that must never be trusted as a real secret even though they are
+# non-empty: the old hardcoded fallback (kept here only so it's recognized
+# and rejected, not reused) and the .env.example placeholder that ships in
+# every checkout - both are effectively public knowledge, so a deployment
+# that copies .env.example without editing this line is not "configured".
+_KNOWN_INSECURE_JWT_SECRETS = {
+    "vetrix-development-secret-change-before-production",
+    "replace-with-at-least-32-random-characters",
+}
+_MIN_JWT_SECRET_LENGTH = 32
+# Local-only, gitignored file used solely to persist the auto-generated dev
+# secret across restarts (see _dev_jwt_secret below) - never committed, never
+# logged, never sent to a client.
+_DEV_JWT_SECRET_FILE = Path(__file__).resolve().parent.parent / ".vetrix_dev_secret"
+_dev_jwt_secret_cache: str | None = None
+
+
+def _is_properly_configured_secret(secret: str) -> bool:
+    return (
+        bool(secret)
+        and secret.strip().lower() not in _KNOWN_INSECURE_JWT_SECRETS
+        and len(secret) >= _MIN_JWT_SECRET_LENGTH
+    )
+
+
+def _dev_jwt_secret() -> str:
+    """The explicit, clearly-isolated dev/test fallback (Task 07 Section 4/D):
+    a real random secret, generated once and persisted locally, never a known
+    string. Only ever called from _jwt_secret() below when VETRIX_ENV is not
+    "production" - production always fails closed instead."""
+    global _dev_jwt_secret_cache
+    if _dev_jwt_secret_cache:
+        return _dev_jwt_secret_cache
+
+    try:
+        if _DEV_JWT_SECRET_FILE.exists():
+            existing = _DEV_JWT_SECRET_FILE.read_text(encoding="utf-8").strip()
+            if _is_properly_configured_secret(existing):
+                _dev_jwt_secret_cache = existing
+                return existing
+    except OSError:
+        pass
+
+    generated = secrets.token_urlsafe(48)
+    try:
+        _DEV_JWT_SECRET_FILE.write_text(generated, encoding="utf-8")
+    except OSError:
+        pass  # Read-only filesystem: still random, just won't survive a restart.
+
+    _logger.warning(
+        "VETRIX_JWT_SECRET is not set to a real secret (missing, the .env.example "
+        "placeholder, or under %d characters). Generated a local development-only "
+        "secret at %s. Set a real VETRIX_JWT_SECRET before any shared or "
+        "production deployment.",
+        _MIN_JWT_SECRET_LENGTH, _DEV_JWT_SECRET_FILE,
+    )
+    _dev_jwt_secret_cache = generated
+    return generated
 
 
 def _b64encode(value: bytes) -> str:
@@ -80,11 +143,17 @@ def _jwt_secret() -> str:
     secret = os.getenv("VETRIX_JWT_SECRET", "").strip()
     environment = os.getenv("VETRIX_ENV", "development").strip().lower()
 
-    if secret:
+    if _is_properly_configured_secret(secret):
         return secret
     if environment == "production":
-        raise RuntimeError("VETRIX_JWT_SECRET is required in production")
-    return "vetrix-development-secret-change-before-production"
+        # Fail closed and loud - never silently sign tokens with a known,
+        # empty, or too-short secret in a production-capable deployment.
+        raise RuntimeError(
+            "VETRIX_JWT_SECRET is required in production and must be a real "
+            f"secret of at least {_MIN_JWT_SECRET_LENGTH} characters "
+            "(not empty and not the .env.example placeholder)"
+        )
+    return _dev_jwt_secret()
 
 
 def create_access_token(
@@ -259,21 +328,29 @@ def decode_catalog_token(token: str) -> dict:
 
 
 BACKUP_DOWNLOAD_AUDIENCE = "vetrix-erp-backup-download"
-BACKUP_DOWNLOAD_HOURS = 48
+# 48h was excessive for a link that can fetch the whole shared database file
+# (Task 07 Section 4/G) - default to 30 minutes, configurable within a safe
+# 15-60 minute band so a slow-to-open email/Telegram client still has a
+# realistic window without leaving a long-lived bearer credential around.
+BACKUP_DOWNLOAD_MINUTES = min(60, max(15, int(os.getenv("VETRIX_BACKUP_DOWNLOAD_MINUTES", "30"))))
 
 
 def create_backup_download_token(filename: str) -> str:
-    """Short-lived, audience-scoped link (Task 04, Section 19) so a backup
-    recipient without an interactive login can retrieve the file during an
-    emergency - same shape as create_catalog_token above, deliberately not
-    revoke-by-generation (deleting the backup file itself already
-    invalidates any token referencing it)."""
+    """Short-lived, audience-scoped, single-use link (Task 04 Section 19;
+    tightened in Task 07 Section 4/G) so a backup recipient without an
+    interactive login can retrieve the file during an emergency - same shape
+    as create_catalog_token above, deliberately not revoke-by-generation
+    (deleting the backup file itself already invalidates any token
+    referencing it). The `jti` lets app/backup/delivery.py's secure_download
+    endpoint enforce one-time use even though the token itself stays valid
+    (stateless JWTs can't be revoked) until it expires."""
     now = datetime.now(timezone.utc)
     payload = {
         "filename": filename,
+        "jti": secrets.token_urlsafe(16),
         "iat": now,
         "nbf": now,
-        "exp": now + timedelta(hours=BACKUP_DOWNLOAD_HOURS),
+        "exp": now + timedelta(minutes=BACKUP_DOWNLOAD_MINUTES),
         "iss": TOKEN_ISSUER,
         "aud": BACKUP_DOWNLOAD_AUDIENCE,
     }
@@ -287,7 +364,7 @@ def decode_backup_download_token(token: str) -> dict:
         algorithms=[TOKEN_ALGORITHM],
         issuer=TOKEN_ISSUER,
         audience=BACKUP_DOWNLOAD_AUDIENCE,
-        options={"require": ["exp", "iat", "filename", "iss", "aud"]},
+        options={"require": ["exp", "iat", "filename", "jti", "iss", "aud"]},
     )
 
 

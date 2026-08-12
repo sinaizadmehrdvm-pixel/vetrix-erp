@@ -297,8 +297,10 @@ def build_system_health(language="en"):
             str(error),
         )
 
+    from app.auth import _is_properly_configured_secret
+
     environment = os.getenv("VETRIX_ENV", "development").strip().lower()
-    jwt_configured = bool(os.getenv("VETRIX_JWT_SECRET", "").strip())
+    jwt_configured = _is_properly_configured_secret(os.getenv("VETRIX_JWT_SECRET", "").strip())
     if environment == "production" and not jwt_configured:
         security_status = "fail"
         security_message = t("Production JWT secret is not configured", "کلید محرمانه JWT محیط تولید تنظیم نشده است", "لم يتم تكوين سر JWT للإنتاج", "Üretim JWT gizli anahtarı yapılandırılmamış")

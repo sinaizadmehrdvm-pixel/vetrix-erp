@@ -71,9 +71,11 @@ def build_release_preflight(app=None):
         )
     if environment != "production":
         warnings.append("VETRIX_ENV is not set to production")
+    from app.auth import _is_properly_configured_secret
+
     secret = os.getenv("VETRIX_JWT_SECRET", "").strip()
-    if environment == "production" and len(secret) < 32:
-        blockers.append("Production JWT secret must contain at least 32 characters")
+    if environment == "production" and not _is_properly_configured_secret(secret):
+        blockers.append("Production JWT secret must be a real secret of at least 32 characters, not empty or the .env.example placeholder")
     origins = [
         item.strip()
         for item in os.getenv("VETRIX_ALLOWED_ORIGINS", "").split(",")
