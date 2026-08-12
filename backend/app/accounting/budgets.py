@@ -42,6 +42,17 @@ def _ensure_column(conn, table, column, definition):
 
 
 def _ensure_schema(conn):
+    # This module queries chart_accounts/accounting_vouchers (owned by
+    # app.accounting.posting) and fiscal_periods (owned by
+    # app.accounting.periods, also ensured transitively by posting's own
+    # _ensure_schema) in upsert_budget_line/budget_variance/_delete_dimension
+    # below - on a database where budgets are the first accounting action
+    # ever taken, those tables would not exist yet without this. Same bug
+    # class as every other cross-module lazy-schema-ensure gap in this
+    # codebase - see entries_router.py's identical ensure_fiscal_schema(conn)
+    # call for the established precedent.
+    from app.accounting.posting import _ensure_schema as _ensure_posting_schema
+    _ensure_posting_schema(conn)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS cost_centers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -232,10 +243,18 @@ def upsert_budget_line(data: BudgetLineCreate, request: Request):
             _dimension(conn, "accounting_projects", data.project_id, "Project", company_id)
         if data.budget_plan_id:
             plan = conn.execute(text(
-                "SELECT id FROM budget_plans WHERE id=:id AND company_id=:company_id"
-            ), {"id": data.budget_plan_id, "company_id": company_id}).first()
+                "SELECT id, status FROM budget_plans WHERE id=:id AND company_id=:company_id"
+            ), {"id": data.budget_plan_id, "company_id": company_id}).mappings().first()
             if not plan:
                 raise HTTPException(status_code=404, detail="Budget plan not found")
+            # budget_plans.py's own update_plan()/upsert_goods_line() only
+            # allow editing a 'draft' plan - this endpoint posts to the same
+            # accounting_budgets rows that plan's own approved/active
+            # figures are read from, so it must enforce the identical rule,
+            # or an approved plan's numbers could be silently changed here
+            # with no error and no audit trail.
+            if plan["status"] != "draft":
+                raise HTTPException(status_code=409, detail="Only a draft budget plan's lines can be edited")
         existing = conn.execute(text("""
             SELECT id FROM accounting_budgets
             WHERE fiscal_period_id=:period_id AND account_id=:account_id AND company_id=:company_id
@@ -269,6 +288,21 @@ def delete_budget_line(line_id: int, request: Request):
     company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
+        line = conn.execute(
+            text("SELECT budget_plan_id FROM accounting_budgets WHERE id=:id AND company_id=:company_id"),
+            {"id": line_id, "company_id": company_id},
+        ).mappings().first()
+        if not line:
+            raise HTTPException(status_code=404, detail="Budget line not found")
+        if line["budget_plan_id"]:
+            # Same rule as upsert_budget_line above - a line tied to an
+            # approved/active budget plan cannot be silently removed either.
+            plan_status = conn.execute(
+                text("SELECT status FROM budget_plans WHERE id=:id AND company_id=:company_id"),
+                {"id": line["budget_plan_id"], "company_id": company_id},
+            ).scalar()
+            if plan_status is not None and plan_status != "draft":
+                raise HTTPException(status_code=409, detail="Only a draft budget plan's lines can be deleted")
         result = conn.execute(
             text("DELETE FROM accounting_budgets WHERE id=:id AND company_id=:company_id"),
             {"id": line_id, "company_id": company_id},

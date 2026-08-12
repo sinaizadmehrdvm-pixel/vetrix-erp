@@ -343,11 +343,16 @@ export default function Transactions() {
     }
 
     const payload = buildPayload();
+    // Generated once per submit attempt so a lost-response retry (network
+    // blip, double-click) reuses the same key instead of posting a second,
+    // independent settlement entry - same reasoning as Invoices.jsx's own
+    // idempotencyKey for invoice creation.
+    const idempotencyKey = editingId ? null : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
       const result = editingId
         ? await updateTransaction(editingId, payload)
-        : await createTransaction(payload);
+        : await createTransaction(payload, idempotencyKey);
 
       if (result?.status === "error") {
         throw new Error(result.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Transaction error"));

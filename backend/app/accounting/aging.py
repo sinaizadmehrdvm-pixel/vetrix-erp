@@ -46,15 +46,30 @@ def aging_report(
     company_id = current_company_id(request)
     report_date = _parse_as_of(as_of)
     with engine.begin() as conn:
+        # settled_amount must NET both sides of each settlement type (not
+        # just sum one column), and must SUBTRACT the opposite type as a
+        # refund - this mirrors main.py's invoice_settled_amount() exactly
+        # (the canonical settlement calculation used for payment_status/
+        # amount_paid everywhere else), so this report can never disagree
+        # with an invoice's own status. Without netting, a void's reversal
+        # entry (same source_type, debit/credit swapped) was invisible to
+        # a plain SUM(credit)/SUM(debit); without the opposite-type
+        # subtraction, a refund (app/invoice_payments.py's _execute_refund,
+        # which deliberately posts the OPPOSITE settlement type) was
+        # invisible too - both previously left this report showing a
+        # voided/refunded invoice as still fully settled.
         rows = conn.execute(text("""
             SELECT i.id AS invoice_id, i.invoice_type, i.total_amount,
                    i.payment_status, i.created_at, i.due_date AS invoice_due_date,
                    c.id AS customer_id,
                    c.name AS customer_name, c.customer_type, c.credit_limit,
-                   COALESCE(SUM(CASE
-                     WHEN e.source_type='receipt' THEN e.credit
-                     WHEN e.source_type='payment' THEN e.debit
-                     ELSE 0 END), 0) AS settled_amount
+                   CASE WHEN i.invoice_type IN ('sale', 'return_buy') THEN
+                     COALESCE(SUM(CASE WHEN e.source_type='receipt' THEN e.credit-e.debit ELSE 0 END), 0)
+                     - COALESCE(SUM(CASE WHEN e.source_type='payment' THEN e.debit-e.credit ELSE 0 END), 0)
+                   ELSE
+                     COALESCE(SUM(CASE WHEN e.source_type='payment' THEN e.debit-e.credit ELSE 0 END), 0)
+                     - COALESCE(SUM(CASE WHEN e.source_type='receipt' THEN e.credit-e.debit ELSE 0 END), 0)
+                   END AS settled_amount
             FROM invoices i
             JOIN customers c ON c.id=i.customer_id
             LEFT JOIN accounting_entries e

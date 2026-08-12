@@ -224,7 +224,13 @@ export async function convertProformaToInvoice(invoiceId) {
 }
 
 export async function getTransactions() { return await request("/transactions"); }
-export async function createTransaction(data) { return await request("/transactions", { method: "POST", body: JSON.stringify(data) }); }
+export async function createTransaction(data, idempotencyKey) {
+  return await request("/transactions", {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+  });
+}
 export async function updateTransaction(id, data) { return await request(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
 export async function deleteTransaction(id) { return await request(`/transactions/${id}`, { method: "DELETE" }); }
 export async function getTransactionPrint(id) { return await request(`/print/transaction/${id}`); }

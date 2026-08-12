@@ -125,6 +125,7 @@ from app.accounting.integrity import (
     aggregate_item_quantities,
     calculate_invoice_totals,
     calculate_payment_status,
+    display_payment_status,
     expected_settlement_type,
     money as accounting_money,
 )
@@ -1573,6 +1574,24 @@ def invoice_settled_amount(db: Session, invoice: Invoice, policy=None) -> float:
         if settlement_type == "receipt"
         else sum(float(entry.debit or 0) - float(entry.credit or 0) for entry in entries)
     )
+    # Refunds (app/invoice_payments.py's _execute_refund) deliberately post
+    # the OPPOSITE settlement type from this invoice's normal one - e.g. a
+    # sale invoice's receipts are refunded via a 'payment' leg, not a
+    # same-type reversal the way a void is. apply_settlement only ever
+    # allows that opposite type to post against an invoice as a refund
+    # (is_refund=True), so any opposite-type entry found here is a real
+    # refund and must reduce the settled amount, the same way a void's
+    # same-type reversal already does above.
+    opposite_type = "payment" if settlement_type == "receipt" else "receipt"
+    refund_entries = db.query(AccountingEntry).filter(
+        AccountingEntry.source_id == invoice.id,
+        AccountingEntry.source_type == opposite_type,
+    ).all()
+    raw_total -= (
+        sum(float(entry.credit or 0) - float(entry.debit or 0) for entry in refund_entries)
+        if opposite_type == "receipt"
+        else sum(float(entry.debit or 0) - float(entry.credit or 0) for entry in refund_entries)
+    )
     # Cleared cheques linked to this invoice also count as confirmed
     # settlement (app/accounting/treasury.py). A cheque's own
     # accounting_entries row uses source_type="cheque_received"/
@@ -2200,7 +2219,7 @@ def list_invoices(request: Request):
             # version of the same computation that a void wouldn't affect.
             settled_amount = invoice_settled_amount(db, inv, policy)
             remaining_amount = max(total_amount - settled_amount, 0)
-            settlement_status = calculate_payment_status(total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
+            settlement_status = display_payment_status(inv.payment_status, total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
             breakdown = invoice_settlement_breakdown(db, inv, policy)
 
             result.append({
@@ -2258,7 +2277,7 @@ def get_invoice(invoice_id: int, request: Request):
         received_amount = settled_amount if inv.invoice_type in ("sale", "return_buy") else 0
         paid_amount = settled_amount if inv.invoice_type in ("buy", "return_sale") else 0
         remaining_amount = max(total_amount - settled_amount, 0)
-        settlement_status = calculate_payment_status(total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
+        settlement_status = display_payment_status(inv.payment_status, total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
         breakdown = invoice_settlement_breakdown(db, inv, policy)
         ensure_invoice_payments_schema(db.connection())
         allocations = db.connection().execute(text("""
@@ -2323,7 +2342,13 @@ def get_invoice(invoice_id: int, request: Request):
 
 @app.post("/transactions")
 def create_payment_or_receipt(data: PaymentCreate, request: Request):
-    return _create_payment_or_receipt_impl(data, current_company_id(request))
+    key = request.headers.get("Idempotency-Key")
+    request_hash = hashlib.sha256(data.json().encode("utf-8")).hexdigest()
+    company_id = current_company_id(request)
+    return run_idempotent(
+        key, "POST /transactions", company_id, request_hash,
+        lambda: _create_payment_or_receipt_impl(data, company_id),
+    )
 
 
 def _create_payment_or_receipt_impl(data: PaymentCreate, company_id: int):
@@ -3075,7 +3100,7 @@ def _invoice_settlement(db: Session, invoice):
     received_amount = settled_amount if invoice.invoice_type in ("sale", "return_buy") else 0
     paid_amount = settled_amount if invoice.invoice_type in ("buy", "return_sale") else 0
     remaining_amount = max(total_amount - settled_amount, 0)
-    settlement_status = calculate_payment_status(total_amount, settled_amount)
+    settlement_status = display_payment_status(getattr(invoice, "payment_status", None), total_amount, settled_amount)
 
     return {
         "received_amount": received_amount,

@@ -115,3 +115,18 @@ def calculate_payment_status(total_amount, settled_amount, decimal_places=2, rou
     if settled == total:
         return "paid"
     return "overpaid"
+
+
+TERMINAL_PAYMENT_STATUSES = {"refunded", "cancelled"}
+
+
+def display_payment_status(stored_status, total_amount, settled_amount, decimal_places=2, rounding_mode="half_up"):
+    """Every invoice-reading endpoint needs the same rule
+    calculate_payment_status()'s own comment above documents but doesn't
+    enforce itself: "refunded"/"cancelled" are explicitly set by the void/
+    refund endpoints and are never re-derivable from settled-vs-total, so
+    a read path must preserve them rather than silently recomputing a
+    generic status on every request."""
+    if stored_status in TERMINAL_PAYMENT_STATUSES:
+        return stored_status
+    return calculate_payment_status(total_amount, settled_amount, decimal_places, rounding_mode)

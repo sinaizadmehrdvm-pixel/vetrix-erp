@@ -79,12 +79,25 @@ def _ensure_schema(conn):
 
 # --- Invoice-creation-time settlement (ORM path, shares the caller's Session) ---
 
-def apply_settlement(db: Session, policy, customer, invoice, transaction_type, amount, method, note, allow_overpayment=False):
+_OPPOSITE_SETTLEMENT_TYPE = {"receipt": "payment", "payment": "receipt"}
+
+
+def apply_settlement(db: Session, policy, customer, invoice, transaction_type, amount, method, note, allow_overpayment=False, is_refund=False):
     """The one place 'money settled against an invoice' becomes ledger rows.
     Used by main.py's /transactions endpoint (via _create_payment_or_receipt_impl,
-    now a thin wrapper) and by the atomic invoice+payment flow in
-    _create_invoice_impl. Raises ValueError on any rule violation; the
-    caller owns the db session/commit/rollback."""
+    now a thin wrapper), by the atomic invoice+payment flow in
+    _create_invoice_impl, and by _execute_refund below (with is_refund=True).
+    Raises ValueError on any rule violation; the caller owns the db
+    session/commit/rollback.
+
+    A refund posts the OPPOSITE settlement type from the invoice's normal
+    one (e.g. a sale invoice normally takes a 'receipt', so refunding money
+    already collected on it is a 'payment' leg) - is_refund=True is what
+    tells this function to expect that opposite type instead of rejecting
+    it, and to skip the "must not exceed remaining balance" check (a
+    refund is bounded by what was already collected, not by what's still
+    owed - the caller is responsible for validating the refund amount
+    against the original allocation before calling this)."""
     import main
     amount = float(main.accounting_money(amount, policy["decimal_places"], policy["rounding_mode"]))
     if amount <= 0:
@@ -95,14 +108,17 @@ def apply_settlement(db: Session, policy, customer, invoice, transaction_type, a
         expected_type = expected_settlement_type(invoice.invoice_type)
         if not expected_type:
             raise ValueError("Proforma invoices cannot receive settlement transactions")
-        if transaction_type != expected_type:
-            raise ValueError(f"{invoice.invoice_type} invoices require a {expected_type} transaction")
-        remaining_before = float(main.accounting_money(
-            invoice.total_amount - main.invoice_settled_amount(db, invoice, policy),
-            policy["decimal_places"], policy["rounding_mode"],
-        ))
-        if amount > remaining_before and not allow_overpayment:
-            raise ValueError(f"Transaction exceeds invoice remaining amount: {remaining_before}")
+        required_type = _OPPOSITE_SETTLEMENT_TYPE[expected_type] if is_refund else expected_type
+        if transaction_type != required_type:
+            kind = "refund" if is_refund else "transaction"
+            raise ValueError(f"{invoice.invoice_type} invoices require a {required_type} {kind}")
+        if not is_refund:
+            remaining_before = float(main.accounting_money(
+                invoice.total_amount - main.invoice_settled_amount(db, invoice, policy),
+                policy["decimal_places"], policy["rounding_mode"],
+            ))
+            if amount > remaining_before and not allow_overpayment:
+                raise ValueError(f"Transaction exceeds invoice remaining amount: {remaining_before}")
     description = "دریافت از طرف حساب" if transaction_type == "receipt" else "پرداخت به طرف حساب"
     if invoice is not None:
         description += f" - فاکتور شماره {invoice.id}"
@@ -369,7 +385,7 @@ def _execute_refund(allocation_id: int, decided_by: int, company_id: int) -> dic
         opposite_type = "payment" if allocation["transaction_type"] == "receipt" else "receipt"
         entry = apply_settlement(
             db, policy, customer, invoice, opposite_type, refund_amount, refund_method,
-            f"استرداد فاکتور شماره {invoice.id}", allow_overpayment=True,
+            f"استرداد فاکتور شماره {invoice.id}", allow_overpayment=True, is_refund=True,
         )
         db.flush()
 
