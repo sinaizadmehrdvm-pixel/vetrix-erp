@@ -55,7 +55,11 @@ export default function BrandLogo({ variant = "full", animated = true, size, cla
 
   if (!isCompact) {
     return (
-      <span className={`brand-logo-hover ${className}`.trim()} style={{ display: "inline-block", width: size }}>
+      <span className={`brand-logo-hover ${className}`.trim()} style={{ display: "inline-block", position: "relative", width: size }}>
+        {/* Idle ambient aura - full variant only (Login hero). Restrained
+            enough at icon/compact sizes to skip; a blurred aura behind a
+            40px sidebar mark would read as noise, not "alive". */}
+        {!isIconOnly && animated && <span aria-hidden="true" className="brand-logo-ambient" />}
         {imageBox}
       </span>
     );

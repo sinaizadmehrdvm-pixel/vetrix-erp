@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 // Shared floating-dialog shell: token-driven radius/border/shadow (matches
 // Card/`.erp-surface`), Escape-to-close, backdrop-click-to-close, and a
@@ -16,6 +17,7 @@ export default function Modal({
   labelledBy,
 }) {
   const panelRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -32,32 +34,42 @@ export default function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (closeOnBackdrop && event.target === event.currentTarget) onClose?.();
-      }}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        tabIndex={-1}
-        className={["w-full overflow-y-auto erp-focus", maxWidthClassName, className].join(" ")}
-        style={{
-          background: "var(--erp-panel-solid)",
-          border: "1px solid var(--erp-border)",
-          borderRadius: "var(--erp-radius-lg)",
-          boxShadow: "var(--erp-shadow)",
-          maxHeight: "90vh",
-        }}
-      >
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
+          onMouseDown={(event) => {
+            if (closeOnBackdrop && event.target === event.currentTarget) onClose?.();
+          }}
+        >
+          <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={labelledBy}
+            tabIndex={-1}
+            className={["w-full overflow-y-auto erp-focus", maxWidthClassName, className].join(" ")}
+            style={{
+              background: "var(--erp-panel-solid)",
+              border: "1px solid var(--erp-border)",
+              borderRadius: "var(--erp-radius-lg)",
+              boxShadow: "var(--erp-elevation-3)",
+              maxHeight: "90vh",
+            }}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

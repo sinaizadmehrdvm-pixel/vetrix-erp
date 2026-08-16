@@ -4,6 +4,7 @@
 // empty-state slot are handled once here instead of per page.
 import { Children, cloneElement } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import Skeleton from "./Skeleton";
 export function Table({ className = "", children, ...rest }) {
   return (
     <div className="overflow-x-auto" style={{ borderRadius: "var(--erp-radius-lg)" }}>
@@ -149,6 +150,23 @@ export function Td({ align = "start", className = "", style, children, ...rest }
 // <Td className="text-[var(--erp-muted)] font-bold">, where startIndex is
 // 0 for an unpaginated table or (page-1)*pageSize for a paginated one -
 // see Customers.jsx/Products.jsx for existing call sites.
+
+// Drop-in replacement for the "Loading..." text row a page's Tbody
+// otherwise renders while data is in flight - same cell chrome as a real
+// row, so the table doesn't jump size once data arrives.
+export function SkeletonRows({ colSpan, rows = 4 }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <tr key={index}>
+          <td colSpan={colSpan} style={{ padding: "10px 14px" }}>
+            <Skeleton height={16} width={index % 2 ? "70%" : "92%"} />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
 
 export function EmptyRow({ colSpan, children }) {
   return (

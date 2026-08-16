@@ -15,6 +15,7 @@ import { useTheme } from "../theme/useTheme";
 import CompanySwitcher from "./CompanySwitcher";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 import BrandLogo from "./brand/BrandLogo";
+import Tooltip from "./ui/Tooltip";
 
 const groups = [
   {
@@ -180,14 +181,15 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         transition: "width .24s ease, min-width .24s ease",
       }}
     >
-      <div className={compact ? "flex flex-col items-center gap-3 mb-4" : "flex items-center justify-between gap-2 mb-4"}>
+      <div
+        className={compact ? "flex flex-col items-center gap-3 mb-4" : "flex items-center justify-between gap-2 mb-4"}
+        style={{ paddingBottom: 14, borderBottom: "1px solid var(--erp-border)" }}
+      >
         {compact ? <BrandLogo variant="icon" size={40} /> : <BrandLogo variant="compact" size={190} />}
         <div className={compact ? "flex flex-col items-center gap-2" : "flex items-center gap-2"}>
-          <button
-            type="button"
-            onClick={() => setTheme(isLight ? "midnight" : "light")}
-            className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
-            title={
+          <Tooltip
+            side="end"
+            label={
               fa
                 ? (isLight ? "حالت شب" : "حالت روز")
                 : language === "ar"
@@ -196,32 +198,27 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                 ? (isLight ? "Karanlık moda geç" : "Aydınlık moda geç")
                 : (isLight ? "Switch to dark mode" : "Switch to light mode")
             }
-            aria-label={
-              fa
-                ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز")
-                : language === "ar"
-                ? (isLight ? "التبديل إلى الوضع الداكن" : "التبديل إلى الوضع الفاتح")
-                : language === "tr"
-                ? (isLight ? "Karanlık moda geç" : "Aydınlık moda geç")
-                : (isLight ? "Switch to dark mode" : "Switch to light mode")
-            }
           >
-            {isLight ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCompact((value) => !value)}
-            className="erp-surface erp-accent rounded-xl p-2 cursor-pointer"
-            title={
-              fa
-                ? "جمع‌کردن منو"
-                : language === "ar"
-                ? "تبديل القائمة المدمجة"
-                : language === "tr"
-                ? "Kompakt menüyü aç/kapat"
-                : "Toggle compact menu"
-            }
-            aria-label={
+            <button
+              type="button"
+              onClick={() => setTheme(isLight ? "midnight" : "light")}
+              className="erp-surface erp-accent rounded-xl p-2 cursor-pointer vitalix-toolbar-btn"
+              aria-label={
+                fa
+                  ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز")
+                  : language === "ar"
+                  ? (isLight ? "التبديل إلى الوضع الداكن" : "التبديل إلى الوضع الفاتح")
+                  : language === "tr"
+                  ? (isLight ? "Karanlık moda geç" : "Aydınlık moda geç")
+                  : (isLight ? "Switch to dark mode" : "Switch to light mode")
+              }
+            >
+              {isLight ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
+          </Tooltip>
+          <Tooltip
+            side="end"
+            label={
               fa
                 ? "جمع‌کردن منو"
                 : language === "ar"
@@ -231,8 +228,23 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                 : "Toggle compact menu"
             }
           >
-            {compact ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setCompact((value) => !value)}
+              className="erp-surface erp-accent rounded-xl p-2 cursor-pointer vitalix-toolbar-btn"
+              aria-label={
+                fa
+                  ? "جمع‌کردن منو"
+                  : language === "ar"
+                  ? "تبديل القائمة المدمجة"
+                  : language === "tr"
+                  ? "Kompakt menüyü aç/kapat"
+                  : "Toggle compact menu"
+              }
+            >
+              {compact ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -312,34 +324,43 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.path === "/"}
-                      title={compact ? label(item) : undefined}
-                      onClick={onNavigate}
-                      className="sidebar-menu-item"
-                      style={({ isActive }) => ({
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 11,
-                        padding: compact ? "12px 0" : "11px 13px",
-                        borderRadius: 14,
-                        textDecoration: "none",
-                        color: isActive ? "#071028" : "var(--erp-text)",
-                        background: isActive
-                          ? "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))"
-                          : "var(--erp-panel-solid)",
-                        fontWeight: 800,
-                        justifyContent: compact ? "center" : (dir === "rtl" ? "flex-end" : "flex-start"),
-                        flexDirection: dir === "rtl" && !compact ? "row-reverse" : "row",
-                        boxShadow: isActive ? "0 10px 24px var(--erp-glow)" : "none",
-                        whiteSpace: "nowrap",
-                      })}
-                    >
-                      <Icon size={19} />
-                      {!compact && <span>{label(item)}</span>}
-                    </NavLink>
+                    <Tooltip key={item.path} side="end" label={compact ? label(item) : null}>
+                      <NavLink
+                        to={item.path}
+                        end={item.path === "/"}
+                        onClick={onNavigate}
+                        className={({ isActive }) => `sidebar-menu-item${isActive ? " is-active" : ""}`}
+                        style={({ isActive }) => ({
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 11,
+                          padding: compact ? "12px 0" : "11px 13px",
+                          borderRadius: 14,
+                          textDecoration: "none",
+                          color: isActive ? "var(--erp-accent)" : "var(--erp-text)",
+                          background: isActive ? "var(--erp-glow)" : "var(--erp-panel-solid)",
+                          borderInlineStart: isActive ? "3px solid var(--erp-accent)" : "3px solid transparent",
+                          fontWeight: 800,
+                          justifyContent: compact ? "center" : (dir === "rtl" ? "flex-end" : "flex-start"),
+                          flexDirection: dir === "rtl" && !compact ? "row-reverse" : "row",
+                          boxShadow: isActive ? "0 8px 20px var(--erp-glow)" : "none",
+                          whiteSpace: "nowrap",
+                          width: "100%",
+                        })}
+                      >
+                        <Icon size={19} />
+                        <span
+                          style={{
+                            opacity: compact ? 0 : 1,
+                            maxWidth: compact ? 0 : 200,
+                            overflow: "hidden",
+                            transition: `opacity var(--erp-duration-base) var(--erp-ease), max-width var(--erp-duration-base) var(--erp-ease)`,
+                          }}
+                        >
+                          {label(item)}
+                        </span>
+                      </NavLink>
+                    </Tooltip>
                   );
                 })}
               </div>

@@ -364,12 +364,14 @@ export default function Dashboard() {
 
   return (
     <div
+      className="vitalix-ambient-bg"
       style={{
         padding: "clamp(8px, 1.4vw, 20px)",
         minHeight: "100vh",
         direction: dir,
         background:
           "radial-gradient(circle at top left, var(--erp-glow), transparent 36%), radial-gradient(circle at top right, var(--erp-glow), transparent 34%), var(--erp-bg)",
+        backgroundSize: "160% 160%, 160% 160%, 100% 100%",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap mb-7">

@@ -43,6 +43,29 @@
   --erp-warning-soft: rgba(245, 158, 11, 0.14);
   --erp-danger: #fca5a5;
   --erp-danger-soft: rgba(239, 68, 68, 0.14);
+
+  /* Elevation tiers - --erp-shadow (above) stays the resting-card depth
+     everything already used; these two add a raised/hover step and a
+     floating/modal step on top of it, so "premium" surfaces (Modal, a
+     hovered Card, the Sidebar edge) read as one consistent depth system
+     instead of each place inventing its own shadow. */
+  --erp-elevation-1: var(--erp-shadow);
+  --erp-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.08), 0 16px 40px rgba(0, 0, 0, 0.16);
+  --erp-elevation-3: 0 4px 8px rgba(0, 0, 0, 0.10), 0 28px 70px rgba(0, 0, 0, 0.24);
+
+  /* Glow tiers - --erp-glow (above) is the existing "resting" tint used
+     for focus rings/hover fills; -soft/-strong give hover/idle-ambient
+     and active/emphasis states a matching intensity without each
+     component picking its own opacity. */
+  --erp-glow-soft: color-mix(in srgb, var(--erp-accent) 10%, transparent);
+  --erp-glow-strong: color-mix(in srgb, var(--erp-accent) 32%, transparent);
+
+  /* Motion - shared timing so hover/press/open transitions feel like one
+     system rather than each component picking its own duration/easing. */
+  --erp-duration-fast: 150ms;
+  --erp-duration-base: 220ms;
+  --erp-duration-slow: 320ms;
+  --erp-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :root[data-theme="ocean"] { --erp-bg:#061827; --erp-bg-soft:#082f49; --erp-panel:#0c3048e6; --erp-panel-solid:#0e3a55; --erp-accent:#38bdf8; --erp-accent-2:#2dd4bf; --erp-border:#38bdf833; --erp-glow:#38bdf838; }
@@ -63,6 +86,9 @@
   --erp-warning:#b45309; --erp-warning-soft: rgba(180, 83, 9, 0.10);
   --erp-danger:#b91c1c; --erp-danger-soft: rgba(185, 28, 28, 0.10);
   --erp-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --erp-elevation-1: var(--erp-shadow);
+  --erp-elevation-2: 0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 36px rgba(15, 23, 42, 0.09);
+  --erp-elevation-3: 0 4px 8px rgba(15, 23, 42, 0.06), 0 26px 60px rgba(15, 23, 42, 0.14);
 }
 
 /* Status pills/badges across the app pair a light pastel Tailwind text
@@ -94,12 +120,24 @@
 :root[data-theme="light"] :is(.text-fuchsia-50, .text-fuchsia-100, .text-fuchsia-200, .text-fuchsia-300) { color: #a21caf; }
 
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--erp-accent) transparent; }
+/* Premium scrollbar for Chromium/WebKit (Firefox already gets the thin
+   accent-on-transparent look via scrollbar-color above). Track/thumb only
+   - no display:none tricks, so keyboard/wheel scrolling stays native. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--erp-border); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--erp-accent); background-clip: padding-box; }
 body { margin:0; padding:0; background:var(--erp-bg); color:var(--erp-text); font-family:Arial, Helvetica, sans-serif; transition:background .25s ease,color .25s ease; }
 button, a, input, select, textarea { transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease; }
 button:hover, a:hover { transform:translateY(-1px); }
 .erp-layout, .erp-main { background:var(--erp-bg) !important; color:var(--erp-text) !important; }
 .erp-sidebar { background:var(--erp-bg-soft) !important; border-color:var(--erp-border) !important; }
 .erp-surface { background:var(--erp-panel); border:1px solid var(--erp-border); box-shadow:0 18px 50px rgba(0,0,0,.16); backdrop-filter:blur(16px); }
+.erp-surface-hover { transition: transform var(--erp-duration-base) var(--erp-ease), box-shadow var(--erp-duration-base) var(--erp-ease), border-color var(--erp-duration-base) var(--erp-ease); }
+.erp-surface-hover:hover { transform: translateY(-2px); box-shadow: var(--erp-elevation-2); border-color: var(--erp-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .erp-surface-hover:hover { transform: none; }
+}
 .erp-accent { color:var(--erp-accent) !important; }
 .erp-focus:focus { outline:none; box-shadow:0 0 0 3px var(--erp-glow); }
 .erp-table-row { transition: background-color 120ms ease; }
@@ -143,6 +181,24 @@ button:hover, a:hover { transform:translateY(-1px); }
 }
 .brand-logo-reveal { animation: brand-logo-reveal-anim .7s cubic-bezier(.16,1,.3,1) both; }
 .brand-logo-hover { transition: transform .25s ease, filter .25s ease; }
+
+/* Primary/accent button hover sweep - a light band crosses the button on
+   hover only (not continuously), transform-only. */
+.vitalix-btn-sweep::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -40%;
+  width: 35%;
+  background: linear-gradient(115deg, transparent 10%, rgba(255, 255, 255, .55) 50%, transparent 90%);
+  transform: translateX(-40%) skewX(-16deg);
+  transition: transform .55s var(--erp-ease);
+  pointer-events: none;
+}
+.vitalix-btn-sweep:hover::after { transform: translateX(340%) skewX(-16deg); }
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-btn-sweep::after { display: none; }
+}
 @media (hover: hover) and (pointer: fine) {
   .brand-logo-hover:hover { transform: scale(1.015); filter: drop-shadow(0 0 18px var(--erp-glow)); }
 }
@@ -151,6 +207,110 @@ button:hover, a:hover { transform:translateY(-1px); }
   .brand-logo-reveal { animation: none; opacity: 1; transform: none; }
   .brand-logo-hover:hover { transform: none; }
 }
+
+/* Idle ambient aura behind the full logo - two very-low-opacity radial
+   glows (cyan primary, gold counterpart), opacity/scale pulse only. */
+@keyframes brand-logo-ambient-anim {
+  0%, 100% { opacity: .5; transform: scale(1); }
+  50% { opacity: .85; transform: scale(1.06); }
+}
+.brand-logo-ambient {
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 40%, var(--erp-glow-strong), transparent 60%),
+    radial-gradient(circle at 65% 60%, color-mix(in srgb, var(--erp-accent-2) 22%, transparent), transparent 65%);
+  filter: blur(28px);
+  animation: brand-logo-ambient-anim 9s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-ambient { animation: none; opacity: .6; }
+}
+
+/* VitalixLoader ambient ring - opacity/scale only. */
+@keyframes vitalix-loader-pulse-anim {
+  0%, 100% { opacity: .25; transform: scale(.85); }
+  50% { opacity: .6; transform: scale(1); }
+}
+.vitalix-loader-pulse {
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--erp-glow-strong), transparent 70%);
+  animation: vitalix-loader-pulse-anim 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-loader-pulse { animation: none; opacity: .4; }
+}
+
+/* Skeleton shimmer - background-position only. */
+@keyframes erp-skeleton-sweep {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.erp-skeleton {
+  background: linear-gradient(100deg, var(--erp-panel-solid) 30%, var(--erp-glow) 50%, var(--erp-panel-solid) 70%);
+  background-size: 200% 100%;
+  animation: erp-skeleton-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .erp-skeleton { animation: none; background: var(--erp-panel-solid); }
+}
+
+/* Tooltip - CSS-only, hover/focus-triggered. */
+.vitalix-tooltip { position: relative; display: inline-flex; }
+.vitalix-tooltip-bubble {
+  position: absolute;
+  z-index: 60;
+  pointer-events: none;
+  padding: 6px 10px;
+  border-radius: var(--erp-radius-sm);
+  background: var(--erp-panel-solid);
+  border: 1px solid var(--erp-border);
+  color: var(--erp-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--erp-elevation-2);
+  opacity: 0;
+  transition: opacity var(--erp-duration-fast) var(--erp-ease), transform var(--erp-duration-fast) var(--erp-ease);
+}
+.vitalix-tooltip[data-side="top"] .vitalix-tooltip-bubble { bottom: calc(100% + 8px); inset-inline-start: 50%; transform: translate(-50%, 4px) scale(.96); }
+.vitalix-tooltip[data-side="top"]:hover .vitalix-tooltip-bubble,
+.vitalix-tooltip[data-side="top"]:focus-within .vitalix-tooltip-bubble { transform: translate(-50%, 0) scale(1); opacity: 1; }
+.vitalix-tooltip[data-side="end"] .vitalix-tooltip-bubble { inset-inline-start: calc(100% + 8px); top: 50%; transform: translate(-4px, -50%) scale(.96); }
+.vitalix-tooltip[data-side="end"]:hover .vitalix-tooltip-bubble,
+.vitalix-tooltip[data-side="end"]:focus-within .vitalix-tooltip-bubble { transform: translate(0, -50%) scale(1); opacity: 1; }
+
+/* Sidebar nav item - subtle hover motion (translate toward main content,
+   RTL-aware) + icon/text color shift. Active state is set inline (needs
+   the isActive flag from NavLink); hover is CSS-only so it doesn't fight
+   that inline style. */
+.sidebar-menu-item { transition: transform var(--erp-duration-fast) var(--erp-ease), background-color var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease); }
+.sidebar-menu-item:not(.is-active):hover { background: var(--erp-glow) !important; color: var(--erp-accent) !important; }
+[dir="ltr"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(3px); }
+[dir="rtl"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-menu-item:hover { transform: none; }
+}
+
+/* Dashboard hero ambient drift - background-position only, ~24s loop,
+   low-opacity gradients so it reads as "alive" without being distracting. */
+@keyframes vitalix-ambient-drift {
+  0% { background-position: 0% 0%, 100% 0%, 0 0; }
+  50% { background-position: 15% 10%, 85% 12%, 0 0; }
+  100% { background-position: 0% 0%, 100% 0%, 0 0; }
+}
+.vitalix-ambient-bg { animation: vitalix-ambient-drift 24s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-ambient-bg { animation: none; }
+}
+
+/* Toolbar icon buttons (theme/collapse/etc.) - one shared size/shape. */
+.vitalix-toolbar-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; transition: background-color var(--erp-duration-fast) var(--erp-ease), transform var(--erp-duration-fast) var(--erp-ease); }
+.vitalix-toolbar-btn:hover { background: var(--erp-glow); }
 
 
 /* Responsive and accessible application shell */

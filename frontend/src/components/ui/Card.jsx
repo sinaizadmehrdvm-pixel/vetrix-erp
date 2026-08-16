@@ -7,6 +7,8 @@ export default function Card({
   title,
   action,
   padding = true,
+  hover = false,
+  accent = false,
   className = "",
   children,
   ...rest
@@ -15,10 +17,11 @@ export default function Card({
 
   return (
     <div
-      className={["erp-surface", className].join(" ")}
+      className={["erp-surface", hover ? "erp-surface-hover" : "", className].join(" ").trim()}
       style={{
         borderRadius: "var(--erp-radius-lg)",
-        boxShadow: "var(--erp-shadow)",
+        boxShadow: "var(--erp-elevation-1)",
+        borderImage: accent ? "linear-gradient(120deg, var(--erp-accent), var(--erp-accent-2)) 1" : undefined,
         overflow: "hidden",
       }}
       {...rest}

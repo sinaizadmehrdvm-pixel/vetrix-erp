@@ -10,13 +10,21 @@ import { Loader2 } from "lucide-react";
 // fight that rule, via Tailwind's `!` important modifier.
 const VARIANT_CLASSES = {
   primary:
-    "bg-[var(--erp-accent)] text-[#04121b] hover:brightness-110 active:brightness-95",
+    "vitalix-btn-sweep bg-[var(--erp-accent)] text-[#04121b] hover:brightness-110 active:brightness-95",
   secondary:
     "bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] border border-[var(--erp-border)] hover:bg-[var(--erp-glow)]",
   ghost:
     "bg-transparent text-[var(--erp-text)] hover:bg-[var(--erp-glow)]",
   danger:
     "bg-[var(--erp-danger-soft)] text-[var(--erp-danger)] hover:brightness-110",
+  success:
+    "bg-[var(--erp-success-soft)] text-[var(--erp-success)] hover:brightness-110",
+  accent:
+    "vitalix-btn-sweep text-[#04121b] hover:brightness-110 active:brightness-95",
+};
+
+const VARIANT_STYLE = {
+  accent: { background: "linear-gradient(110deg, var(--erp-accent), var(--erp-accent-2))" },
 };
 
 const SIZE_CLASSES = {
@@ -33,6 +41,7 @@ const Button = forwardRef(function Button(
     icon: Icon,
     iconPosition = "start",
     className = "",
+    style,
     type = "button",
     children,
     ...rest
@@ -53,13 +62,14 @@ const Button = forwardRef(function Button(
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={[
-        "inline-flex items-center justify-center whitespace-nowrap",
+        "relative inline-flex items-center justify-center whitespace-nowrap overflow-hidden",
         "transition-[filter,background-color,opacity] duration-150",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100",
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,
       ].join(" ")}
+      style={{ borderRadius: "var(--erp-radius-md)", minHeight: size === "sm" ? undefined : 44, ...VARIANT_STYLE[variant], ...style }}
       {...rest}
     >
       {iconEl && iconPosition === "start" ? iconEl : null}

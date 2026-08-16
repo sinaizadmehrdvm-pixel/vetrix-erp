@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Sidebar from "../components/Sidebar";
 import OfflineStatusBanner from "../components/OfflineStatusBanner";
 import ContextualHelp from "../components/ContextualHelp";
@@ -8,6 +9,8 @@ import { useLanguage } from "../localization/useLanguage";
 
 export default function MainLayout() {
   const { dir, language } = useLanguage();
+  const location = useLocation();
+  const reduceMotion = useReducedMotion();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const menuButtonRef = useRef(null);
   const menuLabel =
@@ -89,7 +92,17 @@ export default function MainLayout() {
 
       <main id="main-content" className="erp-main" tabIndex={-1}>
         <OfflineStatusBanner />
-        <Outlet />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <ContextualHelp />
     </div>

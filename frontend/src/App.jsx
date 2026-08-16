@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/useLanguage";
 import LocaleSettingsSync from "./localization/LocaleSettingsSync";
+import VitalixLoader from "./components/brand/VitalixLoader";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Customers = lazy(() => import("./pages/Customers"));
@@ -82,11 +83,7 @@ function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
 
   if (!authReady) {
-    return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-        VITALIX...
-      </div>
-    );
+    return <VitalixLoader variant="page" />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
@@ -119,13 +116,7 @@ function AppContent() {
         }}
       />
 
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-            VITALIX...
-          </div>
-        }
-      >
+      <Suspense fallback={<VitalixLoader variant="page" />}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/portal/:token" element={<CustomerPortalView />} />

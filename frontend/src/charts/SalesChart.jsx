@@ -1,7 +1,8 @@
 import moment from "moment-jalaali";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -88,7 +89,7 @@ export default function SalesChart({ data = [] }) {
 
       <div style={{ direction: "ltr", width: "100%", minWidth: 0, height: 280, overflow: "hidden" }}>
         <ResponsiveContainer width="99%" height={280}>
-          <LineChart
+          <AreaChart
             data={chartData}
             margin={{
               top: 10,
@@ -97,11 +98,22 @@ export default function SalesChart({ data = [] }) {
               bottom: 10,
             }}
           >
+            <defs>
+              <linearGradient id="vitalixSalesFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--erp-accent)" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="var(--erp-accent)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid stroke="var(--erp-border)" strokeDasharray="3 6" vertical={false} />
+
             <XAxis
               dataKey="monthLabel"
               stroke="var(--erp-muted)"
               tick={{ fill: "var(--erp-muted)", fontSize: 12 }}
               interval={0}
+              axisLine={{ stroke: "var(--erp-border)" }}
+              tickLine={false}
             />
 
             <YAxis
@@ -110,31 +122,37 @@ export default function SalesChart({ data = [] }) {
               tickFormatter={(value) => n(value)}
               tick={{ fill: "var(--erp-muted)", fontSize: 13 }}
               width={80}
+              axisLine={{ stroke: "var(--erp-border)" }}
+              tickLine={false}
             />
 
             <Tooltip
               formatter={(value) => [money(value), t("sales") || t("revenue")]}
               labelFormatter={(label) => label}
+              cursor={{ stroke: "var(--erp-accent)", strokeWidth: 1, strokeDasharray: "4 4" }}
               contentStyle={{
                 direction: dir,
                 textAlign: dir === "rtl" ? "right" : "left",
-                borderRadius: 12,
-                border: "none",
-                background: "#f8fafc",
-                color: "#0f172a",
+                borderRadius: "var(--erp-radius-md)",
+                border: "1px solid var(--erp-border)",
+                background: "var(--erp-panel-solid)",
+                color: "var(--erp-text)",
+                boxShadow: "var(--erp-elevation-2)",
                 fontWeight: 800,
               }}
+              labelStyle={{ color: "var(--erp-muted)", marginBottom: 4 }}
             />
 
-            <Line
+            <Area
               type="monotone"
               dataKey="sales"
               stroke="var(--erp-accent)"
-              strokeWidth={4}
-              dot={{ r: 5 }}
-              activeDot={{ r: 8 }}
+              strokeWidth={3}
+              fill="url(#vitalixSalesFill)"
+              dot={{ r: 4, fill: "var(--erp-accent)", strokeWidth: 0 }}
+              activeDot={{ r: 7, fill: "var(--erp-accent)", stroke: "var(--erp-bg)", strokeWidth: 2 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
