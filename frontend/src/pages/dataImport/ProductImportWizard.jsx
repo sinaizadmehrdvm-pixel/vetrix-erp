@@ -412,7 +412,7 @@ export default function ProductImportWizard() {
       {step === 1 && inspectData && (
         <div style={card}>
           <p style={{ color: "var(--erp-muted)", marginTop: 0 }}>
-            {tr("ستون‌های فایل شما به فیلدهای Vetrix نگاشت شده‌اند. در صورت نیاز اصلاح کنید.", "تم تخطيط أعمدة ملفك إلى حقول Vetrix. عدّل عند الحاجة.", "Dosyanızın sütunları Vetrix alanlarına eşlendi. Gerekirse düzenleyin.", "Your file's columns have been mapped to Vetrix fields. Adjust if needed.")}
+            {tr("ستون‌های فایل شما به فیلدهای VITALIX نگاشت شده‌اند. در صورت نیاز اصلاح کنید.", "تم تخطيط أعمدة ملفك إلى حقول VITALIX. عدّل عند الحاجة.", "Dosyanızın sütunları VITALIX alanlarına eşlendi. Gerekirse düzenleyin.", "Your file's columns have been mapped to VITALIX fields. Adjust if needed.")}
           </p>
 
           {profiles.length > 0 && (
@@ -434,7 +434,7 @@ export default function ProductImportWizard() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ textAlign: "start" }}>
-                  <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("فیلد Vetrix", "حقل Vetrix", "Vetrix alanı", "Vetrix field")}</th>
+                  <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("فیلد VITALIX", "حقل VITALIX", "VITALIX alanı", "VITALIX field")}</th>
                   <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("ستون فایل شما", "عمود ملفك", "Dosya sütunu", "Your file column")}</th>
                   <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("نمونه مقدار", "قيمة نموذجية", "Örnek değer", "Sample value")}</th>
                   <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("وضعیت", "الحالة", "Durum", "Status")}</th>

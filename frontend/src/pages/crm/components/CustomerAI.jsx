@@ -331,10 +331,10 @@ export default function CustomerAI({
           ? tr("تماس فوری با مشتری", "اتصال عاجل بالعميل", "Müşteriyle acil görüşme", "Urgent customer call")
           : tr("پیگیری فروش مشتری", "متابعة مبيعات العميل", "Müşteri satış takibi", "Sales follow-up"),
       description: tr(
-        `پیشنهاد هوشمند Vetrix: ${actionLabel(analysis.nextAction, lang)}`,
-        `اقتراح Vetrix الذكي: ${actionLabel(analysis.nextAction, lang)}`,
-        `Vetrix akıllı önerisi: ${actionLabel(analysis.nextAction, lang)}`,
-        `Vetrix smart suggestion: ${actionLabel(analysis.nextAction, lang)}`
+        `پیشنهاد هوشمند VITALIX: ${actionLabel(analysis.nextAction, lang)}`,
+        `اقتراح VITALIX الذكي: ${actionLabel(analysis.nextAction, lang)}`,
+        `VITALIX akıllı önerisi: ${actionLabel(analysis.nextAction, lang)}`,
+        `VITALIX smart suggestion: ${actionLabel(analysis.nextAction, lang)}`
       ),
       due_date: "",
       priority: analysis.riskLevel === "critical" || analysis.riskLevel === "high" ? "urgent" : "normal",
@@ -439,7 +439,7 @@ export default function CustomerAI({
           <div className="rounded-[2rem] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
             <h3 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
               <Sparkles />
-              {tr("پیشنهادهای هوشمند Vetrix", "اقتراحات Vetrix الذكية", "Vetrix akıllı önerileri", "Vetrix Smart Suggestions")}
+              {tr("پیشنهادهای هوشمند VITALIX", "اقتراحات VITALIX الذكية", "VITALIX akıllı önerileri", "VITALIX Smart Suggestions")}
             </h3>
             <div className="space-y-3">
               {suggestions.map((item, index) => <SuggestionCard key={index} item={item} />)}

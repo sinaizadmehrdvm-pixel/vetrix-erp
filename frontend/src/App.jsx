@@ -84,7 +84,7 @@ function ProtectedRoute({ children }) {
   if (!authReady) {
     return (
       <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-        Vetrix ERP...
+        VITALIX...
       </div>
     );
   }
@@ -122,7 +122,7 @@ function AppContent() {
       <Suspense
         fallback={
           <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-            Vetrix ERP...
+            VITALIX...
           </div>
         }
       >

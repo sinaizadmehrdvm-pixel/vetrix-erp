@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --erp-bg: #071028;
-  --erp-bg-soft: #0b1736;
-  --erp-panel: rgba(15, 30, 65, 0.86);
-  --erp-panel-solid: #132347;
-  --erp-text: #f8fafc;
-  --erp-muted: #94a3b8;
-  --erp-accent: #22d3ee;
-  --erp-accent-2: #34d399;
-  --erp-border: rgba(34, 211, 238, 0.18);
-  --erp-glow: rgba(34, 211, 238, 0.2);
+  /* VITALIX default identity: near-black/petrol base, electric cyan +
+     metallic copper-gold accent pair (every accent/accent-2 gradient in
+     the app becomes the signature cyan-to-gold sweep from this alone). */
+  --erp-bg: #050a0d;
+  --erp-bg-soft: #08151c;
+  --erp-panel: rgba(16, 56, 67, 0.86);
+  --erp-panel-solid: #103843;
+  --erp-text: #dce5e8;
+  --erp-muted: #86a2ab;
+  --erp-accent: #00d6d0;
+  --erp-accent-2: #e2a45e;
+  --erp-border: rgba(0, 214, 208, 0.18);
+  --erp-glow: rgba(0, 214, 208, 0.2);
 
   /* Radius scale - collapses the ~14 different radius values that had
      accumulated ad hoc across pages (8/10/11/12/13/14/15/16/17/18/20/
@@ -48,9 +51,11 @@
 :root[data-theme="rose"] { --erp-bg:#24101b; --erp-bg-soft:#3a1627; --erp-panel:#4a1c31e6; --erp-panel-solid:#572139; --erp-accent:#fb7185; --erp-accent-2:#f9a8d4; --erp-border:#fb718533; --erp-glow:#fb718538; }
 :root[data-theme="gold"] { --erp-bg:#201706; --erp-bg-soft:#34250a; --erp-panel:#46320de6; --erp-panel-solid:#513b12; --erp-accent:#fbbf24; --erp-accent-2:#fde68a; --erp-border:#fbbf2433; --erp-glow:#fbbf2438; }
 :root[data-theme="light"] {
+  /* VITALIX in light mode: same cyan/copper identity, darkened enough to
+     stay readable on near-white surfaces. */
   --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8;
-  --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669;
-  --erp-border:#0284c733; --erp-glow:#0284c726;
+  --erp-text:#0b2028; --erp-muted:#52657b; --erp-accent:#0891b2; --erp-accent-2:#b8752f;
+  --erp-border:#0891b233; --erp-glow:#0891b226;
   /* Dark, readable tones instead of the pale defaults above - same values
      already proven correct for this theme in the text-color override
      block that follows, so Badge/status text stays consistent with it. */
@@ -105,6 +110,47 @@ button:hover, a:hover { transform:translateY(-1px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .erp-fade-in { animation: erp-fade-in-up .28s ease both; }
+
+/* VITALIX brand logo - traveling light + load-in reveal + hover glow.
+   transform/opacity only (no animated blur/filter) so it stays cheap even
+   on the login screen's already-animated background. */
+@keyframes brand-shimmer-sweep {
+  0% { transform: translateX(0) skewX(-14deg); }
+  45% { transform: translateX(320%) skewX(-14deg); }
+  100% { transform: translateX(320%) skewX(-14deg); }
+}
+.brand-logo-shimmer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -70%;
+  width: 55%;
+  background: linear-gradient(115deg,
+    transparent 8%,
+    rgba(226, 164, 94, .55) 32%,
+    rgba(255, 255, 255, .75) 50%,
+    rgba(0, 214, 208, .55) 68%,
+    transparent 92%);
+  mix-blend-mode: screen;
+  transform: translateX(0) skewX(-14deg);
+  animation-name: brand-shimmer-sweep;
+  animation-timing-function: cubic-bezier(.4, 0, .2, 1);
+  animation-iteration-count: infinite;
+  pointer-events: none;
+}
+@keyframes brand-logo-reveal-anim {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.brand-logo-reveal { animation: brand-logo-reveal-anim .7s cubic-bezier(.16,1,.3,1) both; }
+.brand-logo-hover { transition: transform .25s ease, filter .25s ease; }
+@media (hover: hover) and (pointer: fine) {
+  .brand-logo-hover:hover { transform: scale(1.015); filter: drop-shadow(0 0 18px var(--erp-glow)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-shimmer { animation: none; opacity: .3; transform: translateX(120%) skewX(-14deg); }
+  .brand-logo-reveal { animation: none; opacity: 1; transform: none; }
+  .brand-logo-hover:hover { transform: none; }
+}
 
 
 /* Responsive and accessible application shell */

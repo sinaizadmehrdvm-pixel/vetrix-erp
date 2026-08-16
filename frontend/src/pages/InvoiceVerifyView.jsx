@@ -91,7 +91,7 @@ export default function InvoiceVerifyView() {
           </div>
         )}
 
-        <div style={{ marginTop: 22, textAlign: "center", fontSize: 11, color: "#64748b" }}>Vetrix ERP</div>
+        <div style={{ marginTop: 22, textAlign: "center", fontSize: 11, color: "#64748b" }}>VITALIX</div>
       </div>
     </div>
   );

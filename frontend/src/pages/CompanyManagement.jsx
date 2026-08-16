@@ -27,10 +27,10 @@ export default function CompanyManagement() {
   const t = {
     title: tr("مدیریت شرکت‌ها", "إدارة الشركات", "Şirket Yönetimi", "Company Management"),
     subtitle: tr(
-      "پایه چندشرکتی Vetrix — هر کاربر فعلاً عضو یک شرکت است.",
-      "أساس تعدد الشركات في Vetrix - كل مستخدم حاليًا عضو في شركة واحدة.",
-      "Vetrix'in çok şirketli temeli - her kullanıcı şu anda tek bir şirkete üyedir.",
-      "Foundation of Vetrix's multi-company support — each user currently belongs to one company."
+      "پایه چندشرکتی VITALIX — هر کاربر فعلاً عضو یک شرکت است.",
+      "أساس تعدد الشركات في VITALIX - كل مستخدم حاليًا عضو في شركة واحدة.",
+      "VITALIX'in çok şirketli temeli - her kullanıcı şu anda tek bir şirkete üyedir.",
+      "Foundation of VITALIX's multi-company support — each user currently belongs to one company."
     ),
     denied: tr("این بخش فقط برای مدیر سیستم قابل دسترسی است.", "هذا القسم مقتصر على المسؤولين.", "Bu alan yalnızca yöneticilere açıktır.", "This area is restricted to administrators."),
     name: tr("نام شرکت جدید", "اسم الشركة الجديدة", "Yeni şirket adı", "New company name"),

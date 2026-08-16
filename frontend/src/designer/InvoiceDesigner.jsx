@@ -337,7 +337,7 @@ export default function InvoiceDesigner() {
       return (
         <div className="w-full h-full flex flex-col items-center justify-center">
           <div className="tracking-[4px] text-2xl">|||| ||| || ||||</div>
-          <small>VETRIX</small>
+          <small>VITALIX</small>
         </div>
       );
     }

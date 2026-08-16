@@ -78,7 +78,7 @@ export default function PaymentGatewayView() {
       <div className="max-w-md w-full space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{tr("Vetrix ERP — پرداخت", "Vetrix ERP — الدفع", "Vetrix ERP — Ödeme", "Vetrix ERP — Payment")}</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{tr("VITALIX — پرداخت", "VITALIX — الدفع", "VITALIX — Ödeme", "VITALIX — Payment")}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6 text-center">

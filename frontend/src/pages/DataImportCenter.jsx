@@ -245,7 +245,7 @@ export default function DataImportCenter() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ textAlign: "start" }}>
-                    <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("فیلد Vetrix", "حقل Vetrix", "Vetrix alanı", "Vetrix field")}</th>
+                    <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("فیلد VITALIX", "حقل VITALIX", "VITALIX alanı", "VITALIX field")}</th>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{t.yourColumn}</th>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{tr("اطمینان", "الثقة", "Güven", "Confidence")}</th>
                     <th style={{ padding: 8, color: "var(--erp-muted)", fontSize: 12 }}>{t.sample}</th>

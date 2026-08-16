@@ -15,7 +15,7 @@ export default function ReportFooter({ confidential = false }) {
       className="erp-report-footer"
       style={{ marginTop: 24, paddingTop: 10, borderTop: "1px solid var(--erp-border)", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: 11, color: "var(--erp-muted)" }}
     >
-      <span>Vetrix ERP · {date(new Date())}</span>
+      <span>VITALIX · {date(new Date())}</span>
       {confidential && <span>{tr("محرمانه - فقط برای استفاده داخلی", "سري - للاستخدام الداخلي فقط", "Gizli - yalnızca dahili kullanım için", "Confidential - internal use only")}</span>}
       <span className="erp-report-page-number" />
     </footer>

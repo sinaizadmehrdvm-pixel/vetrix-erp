@@ -1,12 +1,12 @@
 {
-  "name": "Vetrix ERP",
-  "short_name": "Vetrix",
-  "description": "Vetrix ERP - offline-capable business management",
+  "name": "VITALIX Accounting",
+  "short_name": "VITALIX",
+  "description": "VITALIX Accounting - offline-capable business management",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0b0f1a",
-  "theme_color": "#22d3ee",
+  "background_color": "#050a0d",
+  "theme_color": "#00d6d0",
   "icons": [
     {
       "src": "/favicon.svg",

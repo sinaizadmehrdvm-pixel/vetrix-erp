@@ -14,6 +14,7 @@ import { useLanguage } from "../localization/useLanguage";
 import { useTheme } from "../theme/useTheme";
 import CompanySwitcher from "./CompanySwitcher";
 import LanguageSwitcher from "./language/LanguageSwitcher";
+import BrandLogo from "./brand/BrandLogo";
 
 const groups = [
   {
@@ -179,9 +180,9 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         transition: "width .24s ease, min-width .24s ease",
       }}
     >
-      <div className="flex items-center justify-between gap-2 mb-4">
-        {!compact && <h1 className="erp-accent text-2xl font-black whitespace-nowrap">{t("appName")}</h1>}
-        <div className="flex items-center gap-2">
+      <div className={compact ? "flex flex-col items-center gap-3 mb-4" : "flex items-center justify-between gap-2 mb-4"}>
+        {compact ? <BrandLogo variant="icon" size={40} /> : <BrandLogo variant="compact" size={190} />}
+        <div className={compact ? "flex flex-col items-center gap-2" : "flex items-center gap-2"}>
           <button
             type="button"
             onClick={() => setTheme(isLight ? "midnight" : "light")}

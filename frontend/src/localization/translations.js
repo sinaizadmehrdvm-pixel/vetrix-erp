@@ -5,7 +5,7 @@ export const translations = {
     dir: "ltr",
     locale: "en-US",
 
-    appName: "Vetrix ERP",
+    appName: "VITALIX ACCOUNTING",
 
     dashboard: "Dashboard",
     customers: "Customers",
@@ -243,7 +243,7 @@ export const translations = {
     dir: "rtl",
     locale: "fa-IR",
 
-    appName: "وتریکس ERP",
+    appName: "VITALIX ACCOUNTING",
 
     dashboard: "داشبورد",
     customers: "طرف‌حساب‌ها",
@@ -481,7 +481,7 @@ export const translations = {
     dir: "rtl",
     locale: "ar-AE",
 
-    appName: "فيتريكس ERP",
+    appName: "VITALIX ACCOUNTING",
 
     dashboard: "لوحة التحكم",
     customers: "الأطراف",
@@ -719,7 +719,7 @@ export const translations = {
     dir: "ltr",
     locale: "tr-TR",
 
-    appName: "Vetrix ERP",
+    appName: "VITALIX ACCOUNTING",
 
     dashboard: "Panel",
     customers: "Cariler",

@@ -111,7 +111,7 @@ export default function CustomerPortalView() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-[var(--erp-accent)]" size={28} />
-          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{language === "fa" ? "Vetrix ERP — پرتال مشتری" : language === "ar" ? "Vetrix ERP — بوابة العميل" : language === "tr" ? "Vetrix ERP — Müşteri Portalı" : "Vetrix ERP — Customer Portal"}</h1>
+          <h1 className="text-2xl font-black text-[var(--erp-accent)]">{language === "fa" ? "VITALIX — پرتال مشتری" : language === "ar" ? "VITALIX — بوابة العميل" : language === "tr" ? "VITALIX — Müşteri Portalı" : "VITALIX — Customer Portal"}</h1>
         </div>
 
         <section className="rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6">

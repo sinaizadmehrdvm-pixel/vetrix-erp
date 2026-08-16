@@ -1,5 +1,5 @@
 export const THEMES = [
-  { id: "midnight", fa: "نیمه‌شب آبی", ar: "أزرق منتصف الليل", tr: "Gece Mavisi", en: "Midnight Blue", accent: "#22d3ee" },
+  { id: "midnight", fa: "وایتالیکس (پیش‌فرض)", ar: "فيتاليكس (افتراضي)", tr: "Vitalix (Varsayılan)", en: "Vitalix (Default)", accent: "#00d6d0" },
   { id: "ocean", fa: "اقیانوسی", ar: "محيطي", tr: "Okyanus", en: "Ocean", accent: "#38bdf8" },
   { id: "emerald", fa: "زمردی", ar: "زمردي", tr: "Zümrüt", en: "Emerald", accent: "#34d399" },
   { id: "violet", fa: "بنفش", ar: "بنفسجي", tr: "Menekşe", en: "Violet", accent: "#a78bfa" },

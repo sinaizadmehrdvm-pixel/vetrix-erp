@@ -21,6 +21,7 @@ import { API_URL } from "../services/api";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
+import BrandLogo from "../components/brand/BrandLogo";
 
 const FEATURES = [
   {
@@ -101,12 +102,12 @@ export default function Login() {
           setMode("login");
           setError(
             fa
-              ? "ارتباط با سرویس Vetrix برقرار نشد. چند ثانیه بعد دوباره تلاش کنید."
+              ? "ارتباط با سرویس VITALIX برقرار نشد. چند ثانیه بعد دوباره تلاش کنید."
               : language === "ar"
-              ? "تعذّر الاتصال بخدمة Vetrix. يُرجى إعادة المحاولة خلال ثوانٍ قليلة."
+              ? "تعذّر الاتصال بخدمة VITALIX. يُرجى إعادة المحاولة خلال ثوانٍ قليلة."
               : language === "tr"
-              ? "Vetrix hizmetine ulaşılamıyor. Birkaç saniye sonra tekrar deneyin."
-              : "Vetrix service is not reachable. Retry in a few seconds.",
+              ? "VITALIX hizmetine ulaşılamıyor. Birkaç saniye sonra tekrar deneyin."
+              : "VITALIX service is not reachable. Retry in a few seconds.",
           );
         }
       });
@@ -289,14 +290,14 @@ export default function Login() {
     <div dir={dir} className="relative min-h-screen overflow-hidden bg-[var(--erp-bg)] text-[var(--erp-text)] flex items-center justify-center px-4 py-10">
       <AnimatedBackground />
 
-      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.05fr_1fr] gap-10 xl:gap-16 items-center">
+      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.4fr_1fr] gap-10 xl:gap-16 items-center">
         <BrandPanel fa={fa} language={language} />
 
         <motion.section
           initial={{ opacity: 0, y: 28, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.65, ease: EASE }}
-          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
+          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[24px] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
           style={{ boxShadow: "0 30px 90px -25px var(--erp-glow), 0 1px 0 0 var(--erp-border)" }}
         >
           <div
@@ -305,11 +306,8 @@ export default function Login() {
             style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)" }}
           />
 
-          <div className="relative flex items-center gap-3 mb-6 lg:hidden">
-            <LogoMark size={44} />
-            <div className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[var(--erp-accent)] to-[var(--erp-accent-2)]">
-              Vetrix ERP
-            </div>
+          <div className="relative mb-6 lg:hidden">
+            <BrandLogo variant="compact" size={200} />
           </div>
 
           <div className="relative flex items-center justify-between gap-3 mb-2">
@@ -390,12 +388,12 @@ export default function Login() {
               >
                 <Notice tone="success" icon={UserPlus} className="mb-5">
                   {fa
-                    ? "این اولین اجرای Vetrix است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
+                    ? "این اولین اجرای VITALIX است. مدیر اولیه را بسازید؛ این مرحله فقط یک‌بار نمایش داده می‌شود."
                     : language === "ar"
-                    ? "هذا هو أول تشغيل لنظام Vetrix. أنشئ حساب المسؤول الأولي؛ ستظهر هذه الخطوة مرة واحدة فقط."
+                    ? "هذا هو أول تشغيل لنظام VITALIX. أنشئ حساب المسؤول الأولي؛ ستظهر هذه الخطوة مرة واحدة فقط."
                     : language === "tr"
-                    ? "Bu, Vetrix'in ilk çalıştırmasıdır. İlk yöneticiyi oluşturun; bu adım yalnızca bir kez görüntülenir."
-                    : "This is the first Vetrix run. Create the initial administrator; this step appears only once."}
+                    ? "Bu, VITALIX'in ilk çalıştırmasıdır. İlk yöneticiyi oluşturun; bu adım yalnızca bir kez görüntülenir."
+                    : "This is the first VITALIX run. Create the initial administrator; this step appears only once."}
                 </Notice>
                 <label className="block text-sm text-[var(--erp-muted)] mb-2" htmlFor="full-name">
                   {fa
@@ -706,47 +704,26 @@ function SubmitButton({ submitting, from, to, children }) {
   );
 }
 
-function LogoMark({ size = 56 }) {
-  return (
-    <motion.div
-      animate={{ boxShadow: ["0 0 0px var(--erp-glow)", "0 0 28px var(--erp-glow)", "0 0 0px var(--erp-glow)"] }}
-      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-      className="flex items-center justify-center rounded-[var(--erp-radius-lg)] font-black text-black shrink-0"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.5,
-        background: "linear-gradient(135deg, var(--erp-accent), var(--erp-accent-2))",
-      }}
-    >
-      V
-    </motion.div>
-  );
-}
-
 function BrandPanel({ fa, language }) {
+  const tagline = fa
+    ? "اعداد هوشمندتر، تصمیم‌های قوی‌تر"
+    : language === "ar"
+    ? "أرقام أذكى، قرارات أقوى"
+    : language === "tr"
+    ? "Daha akıllı sayılar, daha güçlü kararlar"
+    : "Smarter numbers, stronger decisions";
+
   return (
     <div className="hidden lg:flex flex-col justify-center relative z-10 px-4">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: EASE }}
-        className="flex items-center gap-4 mb-8"
+        className="mb-8 max-w-sm"
       >
-        <LogoMark size={64} />
-        <div>
-          <div className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[var(--erp-accent)] to-[var(--erp-accent-2)]">
-            Vetrix ERP
-          </div>
-          <div className="text-[var(--erp-muted)] text-sm mt-1">
-            {fa
-              ? "پلتفرم یکپارچه مدیریت کسب‌وکار"
-              : language === "ar"
-              ? "منصة إدارة الأعمال الموحّدة"
-              : language === "tr"
-              ? "Birleşik iş yönetimi platformu"
-              : "The unified business management platform"}
-          </div>
+        <BrandLogo variant="full" size={280} />
+        <div className="mt-4 text-[var(--erp-muted)] text-xs font-black tracking-[0.25em] uppercase">
+          {tagline}
         </div>
       </motion.div>
 

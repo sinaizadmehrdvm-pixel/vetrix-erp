@@ -674,7 +674,7 @@ export default function Settings() {
             <Input value={showDigits(settings.low_stock_default, fa)} onChange={(e) => setNumberField("low_stock_default", e.target.value)} />
           </Field>
 
-          <InfoCard title={tr("نام سیستم", "اسم النظام", "Sistem Adı", "System Name")} value={t?.appName || "Vetrix ERP"} />
+          <InfoCard title={tr("نام سیستم", "اسم النظام", "Sistem Adı", "System Name")} value={t?.appName || "VITALIX ACCOUNTING"} />
         </div>
       </Card>
 

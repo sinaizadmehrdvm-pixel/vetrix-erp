@@ -199,7 +199,7 @@ export default function BusinessIntelligence() {
 
   function exportSnapshot() {
     const lines = [
-      tr("گزارش هوش تجاری Vetrix ERP", "تقرير الذكاء التجاري لـ Vetrix ERP", "Vetrix ERP İş Zekâsı Anlık Görüntüsü", "Vetrix ERP BI Snapshot"),
+      tr("گزارش هوش تجاری VITALIX", "تقرير الذكاء التجاري لـ VITALIX", "VITALIX İş Zekâsı Anlık Görüntüsü", "VITALIX BI Snapshot"),
       "--------------------------------",
       `${tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales month")}: ${money(metrics.salesMonth)}`,
       `${tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")}: ${money(metrics.netProfit)}`,

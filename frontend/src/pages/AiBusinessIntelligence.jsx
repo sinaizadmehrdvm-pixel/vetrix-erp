@@ -239,7 +239,7 @@ export default function AiBusinessIntelligence() {
         <div>
           <h1 className="text-4xl font-black text-[var(--erp-accent)] flex items-center gap-3">
             <BrainCircuit size={36} />
-            {tr("هوش تجاری Vetrix", "ذكاء أعمال Vetrix", "Vetrix İş Zekası", "Vetrix AI Business Intelligence")}
+            {tr("هوش تجاری VITALIX", "ذكاء أعمال VITALIX", "VITALIX İş Zekası", "VITALIX AI Business Intelligence")}
           </h1>
           <p className="text-[var(--erp-muted)] mt-2">
             {tr(

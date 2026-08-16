@@ -377,6 +377,11 @@ export default function Dashboard() {
           <h1 className="text-[var(--erp-accent)] text-4xl font-black mb-2 text-right">
             {t("dashboard")}
           </h1>
+          <div
+            aria-hidden="true"
+            className="mb-3"
+            style={{ width: 64, height: 3, borderRadius: 2, background: "linear-gradient(90deg, var(--erp-accent), var(--erp-accent-2))" }}
+          />
           <p className="text-[var(--erp-muted)]">
             {tr(
               "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار",
