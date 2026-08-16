@@ -14,6 +14,7 @@ import {
   UnlockKeyhole,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { confirmAction } from "../components/ui/confirmService";
 
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
@@ -165,7 +166,7 @@ export default function FiscalPeriods() {
           `\n\nNet income/loss: ${money(preview.net_income)}\nAccounts to close: ${n(preview.accounts.length)}`
         );
       }
-      if (!window.confirm(warning)) {
+      if (!(await confirmAction(warning))) {
         setBusyId(null);
         return;
       }
@@ -301,7 +302,7 @@ export default function FiscalPeriods() {
                   <div style={{ marginTop: 9, color: "var(--erp-muted)" }}>{date(period.start_date)} — {date(period.end_date)}</div>
                 </div>
                 {isAdmin && (
-                  <button onClick={() => changeStatus(period, isOpen ? "close" : "reopen")} disabled={busyId === period.id} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", fontWeight: 900, cursor: "pointer", color: isOpen ? "#fee2e2" : "var(--erp-accent)", background: isOpen ? "#7f1d1d" : "var(--erp-panel-solid)" }}>
+                  <button onClick={() => changeStatus(period, isOpen ? "close" : "reopen")} disabled={busyId === period.id} style={{ display: "flex", alignItems: "center", gap: 8, border: 0, borderRadius: 13, padding: "11px 15px", fontWeight: 900, cursor: "pointer", color: isOpen ? "var(--erp-danger-solid-text)" : "var(--erp-accent)", background: isOpen ? "var(--erp-danger-solid)" : "var(--erp-panel-solid)" }}>
                     {isOpen ? <LockKeyhole size={17} /> : <RotateCcw size={17} />}
                     {busyId === period.id ? "..." : isOpen ? copy.close : copy.reopen}
                   </button>

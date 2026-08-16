@@ -15,6 +15,7 @@ import {
 } from "../services/accountingEntriesApi";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
+import { confirmAction } from "../components/ui/confirmService";
 import AttachmentsPanel from "../components/AttachmentsPanel";
 
 const ACCOUNT_TYPE_FA = { asset: "دارایی", liability: "بدهی", equity: "سرمایه", revenue: "درآمد", expense: "هزینه", contra: "کاهنده" };
@@ -122,7 +123,7 @@ export default function AccountingEntries() {
 
   async function post(id) { try { await postAccountingVoucher(id); await load(); } catch (e) { setMessage(e.message); } }
   async function cancel(id) { try { await cancelAccountingVoucher(id); await load(); } catch (e) { setMessage(e.message); } }
-  async function remove(id) { if (!window.confirm(language === "fa" ? "سند حذف شود؟" : language === "ar" ? "هل تريد حذف السند؟" : language === "tr" ? "Fiş silinsin mi?" : "Delete voucher?")) return; try { await deleteAccountingVoucher(id); await load(); } catch (e) { setMessage(e.message); } }
+  async function remove(id) { if (!(await confirmAction(language === "fa" ? "سند حذف شود؟" : language === "ar" ? "هل تريد حذف السند؟" : language === "tr" ? "Fiş silinsin mi?" : "Delete voucher?"))) return; try { await deleteAccountingVoucher(id); await load(); } catch (e) { setMessage(e.message); } }
 
   const styles = {
     root: { direction: dir, minHeight: "100vh", color: "var(--erp-text)", background: "var(--erp-bg)", padding: 20 },
@@ -204,7 +205,7 @@ export default function AccountingEntries() {
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.description, onChange: e => patchLine(index, "description", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "شرح ردیف" : language === "ar" ? "وصف البند" : language === "tr" ? "Satır Açıklaması" : "Line description" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.debit, onChange: e => patchLine(index, "debit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.credit, onChange: e => patchLine(index, "credit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),
-              h("td", { style: { padding: 6, textAlign: "center" } }, h("button", { onClick: () => removeLine(index), style: { ...styles.btn, width: 32, height: 32, padding: 0, background: "#7f1d1d", color: "white" } }, "×"))
+              h("td", { style: { padding: 6, textAlign: "center" } }, h("button", { onClick: () => removeLine(index), style: { ...styles.btn, width: 32, height: 32, padding: 0, background: "var(--erp-danger-solid)", color: "white" } }, "×"))
             )))
           )
         ),
@@ -238,7 +239,7 @@ export default function AccountingEntries() {
           h("div", { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" } },
             v.status !== "posted" && h("button", { onClick: () => post(v.id), style: { ...styles.btn, background: "#16a34a", color: "white" } }, language === "fa" ? "قطعی" : language === "ar" ? "ترحيل" : language === "tr" ? "Kesinleştir" : "Post"),
             v.status !== "cancelled" && h("button", { onClick: () => cancel(v.id), style: { ...styles.btn, background: "#f59e0b", color: "#111827" } }, language === "fa" ? "ابطال" : language === "ar" ? "إلغاء" : language === "tr" ? "İptal" : "Cancel"),
-            v.status !== "posted" && h("button", { onClick: () => remove(v.id), style: { ...styles.btn, background: "#7f1d1d", color: "white" } }, language === "fa" ? "حذف" : language === "ar" ? "حذف" : language === "tr" ? "Sil" : "Delete")
+            v.status !== "posted" && h("button", { onClick: () => remove(v.id), style: { ...styles.btn, background: "var(--erp-danger-solid)", color: "white" } }, language === "fa" ? "حذف" : language === "ar" ? "حذف" : language === "tr" ? "Sil" : "Delete")
           )
         )))
       )

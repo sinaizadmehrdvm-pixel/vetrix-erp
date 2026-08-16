@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component {
           <pre className="text-red-300" style={{ padding: 12, borderRadius: 12, overflow: "auto", background: "#020617", fontSize: 12 }}>{this.state.error?.message || "Unknown error"}</pre>
           <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 18 }}>
             <button onClick={() => window.location.reload()} style={{ border: 0, borderRadius: 12, padding: "11px 15px", background: "#0e7490", color: "white", fontWeight: 900, cursor: "pointer", display: "flex", gap: 7 }}><RefreshCw size={17} />{tr("بارگذاری مجدد", "إعادة التحميل", "Yeniden yükle", "Reload")}</button>
-            <button onClick={() => { window.location.href = "/"; }} style={{ border: 0, borderRadius: 12, padding: "11px 15px", background: "#166534", color: "white", fontWeight: 900, cursor: "pointer", display: "flex", gap: 7 }}><Home size={17} />{tr("داشبورد", "لوحة التحكم", "Panel", "Dashboard")}</button>
+            <button onClick={() => { window.location.href = "/"; }} style={{ border: 0, borderRadius: 12, padding: "11px 15px", background: "var(--erp-success-solid)", color: "white", fontWeight: 900, cursor: "pointer", display: "flex", gap: 7 }}><Home size={17} />{tr("داشبورد", "لوحة التحكم", "Panel", "Dashboard")}</button>
           </div>
         </section>
       </div>

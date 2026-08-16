@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText, RotateCcw, Save, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
+import { confirmAction } from "../components/ui/confirmService";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
@@ -101,7 +102,7 @@ export default function MessageTemplates() {
   }
 
   async function resetToDefault(item) {
-    if (!window.confirm(tr("متن به حالت پیش‌فرض برگردد؟", "إعادة النص إلى الوضع الافتراضي؟", "Metin varsayılana döndürülsün mü?", "Reset text to the default?"))) return;
+    if (!(await confirmAction(tr("متن به حالت پیش‌فرض برگردد؟", "إعادة النص إلى الوضع الافتراضي؟", "Metin varsayılana döndürülsün mü?", "Reset text to the default?")))) return;
     try {
       await resetMessageTemplate(item.key, item.channel, item.language);
       toast.success(tr("بازگردانده شد.", "تمت الإعادة.", "Sıfırlandı.", "Reset."));

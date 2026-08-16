@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LayoutTemplate, IdCard, FileSignature, Image as ImageIcon, Search, Eye, Pencil, Copy, Trash2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { confirmAction } from "../components/ui/confirmService";
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate, renamePdfTemplate, downloadAuthenticatedFile } from "../services/api";
 import { translateApiError } from "../localization/apiErrors";
 import Select from "../components/ui/Select";
@@ -89,7 +90,7 @@ export default function DesignStudio() {
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(tr("این قالب حذف شود؟", "هل تريد حذف هذا القالب؟", "Bu şablon silinsin mi?", "Delete this template?"))) return;
+    if (!(await confirmAction(tr("این قالب حذف شود؟", "هل تريد حذف هذا القالب؟", "Bu şablon silinsin mi?", "Delete this template?"), { danger: true }))) return;
     setBusyId(item.id);
     try {
       await deletePdfTemplate(item.id);

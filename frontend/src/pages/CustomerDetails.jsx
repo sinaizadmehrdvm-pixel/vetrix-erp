@@ -357,7 +357,7 @@ export default function CustomerDetails() {
   function openWhatsApp() {
     const phone = String(party?.mobile || party?.phone || "").replace(/[^0-9]/g, "");
     if (!phone) {
-      alert(tr("شماره موبایل/تلفن ثبت نشده است.", "لم يتم تسجيل رقم الهاتف/الجوال.", "Telefon/cep telefonu numarası kayıtlı değil.", "No phone/mobile number is saved."));
+      toast.error(tr("شماره موبایل/تلفن ثبت نشده است.", "لم يتم تسجيل رقم الهاتف/الجوال.", "Telefon/cep telefonu numarası kayıtlı değil.", "No phone/mobile number is saved."));
       return;
     }
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage())}`, "_blank");

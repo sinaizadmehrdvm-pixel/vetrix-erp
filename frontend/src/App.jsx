@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/useLanguage";
 import LocaleSettingsSync from "./localization/LocaleSettingsSync";
 import VitalixLoader from "./components/brand/VitalixLoader";
+import { ConfirmDialogHost } from "./components/ui/ConfirmDialog";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Customers = lazy(() => import("./pages/Customers"));
@@ -115,6 +116,7 @@ function AppContent() {
           },
         }}
       />
+      <ConfirmDialogHost />
 
       <Suspense fallback={<VitalixLoader variant="page" />}>
         <Routes>

@@ -16,7 +16,9 @@ import {
   ScanBarcode,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { confirmAction } from "../components/ui/confirmService";
 import {
   createProduct,
   getProductCategories,
@@ -429,7 +431,7 @@ export default function Products() {
 
   async function save() {
     if (!form.name.trim()) {
-      alert(label.nameRequired);
+      toast.error(label.nameRequired);
       return;
     }
 
@@ -603,13 +605,14 @@ export default function Products() {
   useOnlineSync(syncPendingProducts);
 
   async function handleDeleteProduct(product) {
-    const ok = window.confirm(
+    const ok = await confirmAction(
       tr(
         `کالای «${product.name || ""}» حذف شود؟`,
         `هل تريد حذف المنتج «${product.name || ""}»؟`,
         `«${product.name || ""}» ürünü silinsin mi?`,
         `Delete "${product.name || ""}"?`
-      )
+      ),
+      { danger: true }
     );
     if (!ok) return;
 

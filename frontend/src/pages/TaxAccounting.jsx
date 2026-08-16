@@ -108,7 +108,7 @@ export default function TaxAccounting() {
             ]}
           />
           <button onClick={() => load()} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
-          <button onClick={downloadCsv} disabled={!data} style={{ ...button, background: "#166534", color: "#dcfce7" }}><Download size={16} />{copy.export}</button>
+          <button onClick={downloadCsv} disabled={!data} style={{ ...button, background: "var(--erp-success-solid)", color: "var(--erp-success-solid-text)" }}><Download size={16} />{copy.export}</button>
           <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)" }}><Printer size={16} />{copy.print}</button>
         </div>
       </header>

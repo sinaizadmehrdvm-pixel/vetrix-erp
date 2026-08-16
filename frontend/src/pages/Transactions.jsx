@@ -20,7 +20,9 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { confirmAction } from "../components/ui/confirmService";
 import {
   getCustomers,
   openAuthenticatedDocument,
@@ -333,14 +335,14 @@ export default function Transactions() {
 
   async function saveTransaction() {
     if (!form.party_id || !form.amount) {
-      alert(tr("طرف‌حساب و مبلغ را وارد کن", "أدخل الطرف والمبلغ", "Cari ve tutarı girin", "Enter party and amount"));
+      toast.error(tr("طرف‌حساب و مبلغ را وارد کن", "أدخل الطرف والمبلغ", "Cari ve tutarı girin", "Enter party and amount"));
       return;
     }
 
     const amount = toNumber(form.amount);
 
     if (amount <= 0) {
-      alert(tr("مبلغ معتبر نیست", "المبلغ غير صالح", "Geçersiz tutar", "Invalid amount"));
+      toast.error(tr("مبلغ معتبر نیست", "المبلغ غير صالح", "Geçersiz tutar", "Invalid amount"));
       return;
     }
 
@@ -364,13 +366,13 @@ export default function Transactions() {
       await load();
     } catch (error) {
       console.error("Save transaction error:", error);
-      alert(error.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Error saving transaction"));
+      toast.error(error.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Error saving transaction"));
     }
   }
 
   function editTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
-      alert(
+      toast.error(
         tr(
           "فقط دریافت و پرداخت دستی قابل ویرایش است. فاکتور یا مانده اول دوره باید از صفحه خودش ویرایش شود.",
           "يمكن تعديل المقبوضات والمدفوعات اليدوية فقط. يجب تعديل الفاتورة أو الرصيد الافتتاحي من صفحته الخاصة.",
@@ -398,7 +400,7 @@ export default function Transactions() {
 
   async function removeTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
-      alert(
+      toast.error(
         tr(
           "این رکورد از فاکتور یا مانده اول دوره ساخته شده و از این صفحه حذف نمی‌شود.",
           "تم إنشاء هذا السجل من فاتورة أو رصيد افتتاحي ولا يمكن حذفه من هذه الصفحة.",
@@ -409,7 +411,7 @@ export default function Transactions() {
       return;
     }
 
-    const ok = window.confirm(tr("آیا از حذف تراکنش مطمئنی؟", "هل أنت متأكد من حذف المعاملة؟", "İşlemi silmek istediğinizden emin misiniz?", "Delete this transaction?"));
+    const ok = await confirmAction(tr("آیا از حذف تراکنش مطمئنی؟", "هل أنت متأكد من حذف المعاملة؟", "İşlemi silmek istediğinizden emin misiniz?", "Delete this transaction?"), { danger: true });
     if (!ok) return;
 
     try {
@@ -422,7 +424,7 @@ export default function Transactions() {
       await load();
     } catch (error) {
       console.error("Delete transaction error:", error);
-      alert(error.message || tr("خطا در حذف تراکنش", "خطأ في حذف المعاملة", "İşlem silinirken hata oluştu", "Error deleting transaction"));
+      toast.error(error.message || tr("خطا در حذف تراکنش", "خطأ في حذف المعاملة", "İşlem silinirken hata oluştu", "Error deleting transaction"));
     }
   }
 
@@ -430,7 +432,7 @@ export default function Transactions() {
     try {
       await openAuthenticatedDocument(`/print/transaction/${item.id}`);
     } catch (error) {
-      alert(error.message || tr("خطا در دریافت رسید", "خطأ في تحميل الإيصال", "Fiş alınırken hata oluştu", "Receipt loading error"));
+      toast.error(error.message || tr("خطا در دریافت رسید", "خطأ في تحميل الإيصال", "Fiş alınırken hata oluştu", "Receipt loading error"));
     }
   }
 

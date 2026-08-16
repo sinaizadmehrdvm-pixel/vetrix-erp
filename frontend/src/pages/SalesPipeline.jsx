@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { BriefcaseBusiness, Plus, RefreshCw, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
+import { confirmAction } from "../components/ui/confirmService";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
@@ -112,7 +113,7 @@ export default function SalesPipeline() {
   }
 
   async function removeDeal(deal) {
-    if (!window.confirm(fa ? `معامله «${deal.title}» حذف شود؟` : `Delete deal "${deal.title}"?`)) return;
+    if (!(await confirmAction(fa ? `معامله «${deal.title}» حذف شود؟` : `Delete deal "${deal.title}"?`, { danger: true }))) return;
     try { await deletePipelineDeal(deal.id); await load(); } catch (err) { toast.error(err.message); }
   }
 

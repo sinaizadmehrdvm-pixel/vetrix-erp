@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { confirmAction, promptAction } from "../components/ui/confirmService";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
@@ -201,7 +202,7 @@ export default function BackupRecovery() {
       return;
     }
     const expected = `RESTORE ${item.filename}`;
-    const entered = window.prompt(
+    const entered = await promptAction(
       `${copy.restoreWarning}\n\n${fa ? "برای تأیید دقیقاً وارد کنید:" : language === "ar" ? "للتأكيد، أدخل بالضبط:" : language === "tr" ? "Onaylamak için tam olarak şunu yazın:" : "Type exactly to confirm:"}\n${expected}`,
     );
     if (entered === null) return;
@@ -231,7 +232,7 @@ export default function BackupRecovery() {
   }
 
   async function remove(item) {
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       fa
         ? `بکاپ «${item.filename}» برای همیشه حذف شود؟`
         : language === "ar"
@@ -239,6 +240,7 @@ export default function BackupRecovery() {
         : language === "tr"
         ? `“${item.filename}” yedeği kalıcı olarak silinsin mi?`
         : `Permanently delete “${item.filename}”?`,
+      { danger: true },
     );
     if (!confirmed) return;
     setBusy(item.filename);
@@ -558,7 +560,7 @@ function DeliveryPolicies({ card, language, dir, n, date }) {
 
 function ActionButton({ title, onClick, disabled, danger, children }) {
   return (
-    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} className={danger ? "text-red-200" : undefined} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "#7f1d1d" : "var(--erp-glow)", ...(danger ? {} : { color: "var(--erp-accent)" }), cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
+    <button title={title} aria-label={title} onClick={onClick} disabled={disabled} className={danger ? "text-red-200" : undefined} style={{ border: 0, borderRadius: 10, width: 36, height: 36, display: "grid", placeItems: "center", background: danger ? "var(--erp-danger-solid)" : "var(--erp-glow)", ...(danger ? {} : { color: "var(--erp-accent)" }), cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
       {children}
     </button>
   );

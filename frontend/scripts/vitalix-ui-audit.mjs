@@ -75,9 +75,13 @@ function report(severity, file, line, message) {
 function auditFile(file, source) {
   const rel = path.normalize(file);
 
-  // BLOCKER - browser dialogs instead of toast/Modal.
-  for (const m of findAll(source, /\b(?:window\.)?(?:alert|confirm|prompt)\s*\(/g)) {
-    report("BLOCKER", rel, lineOf(source, m.index), `Browser dialog ${m.text.trim()} - use toast/Notice or shared Modal instead`);
+  // BLOCKER - browser dialogs instead of toast/Modal. confirmService.js is
+  // the shared replacement's own implementation (window.confirm/prompt as
+  // its last-resort fallback if the host isn't mounted) - not a bypass.
+  if (!rel.endsWith(path.normalize("components/ui/confirmService.js"))) {
+    for (const m of findAll(source, /\b(?:window\.)?(?:alert|confirm|prompt)\s*\(/g)) {
+      report("BLOCKER", rel, lineOf(source, m.index), `Browser dialog ${m.text.trim()} - use toast/Notice or shared Modal instead`);
+    }
   }
 
   // BLOCKER - raw <select>, bypassing the shared Select popup component.

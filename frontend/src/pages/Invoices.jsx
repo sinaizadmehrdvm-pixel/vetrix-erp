@@ -68,6 +68,7 @@ import { getCache, setCache } from "../storage/db";
 import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offlineSync";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { translateApiError } from "../localization/apiErrors";
+import { confirmAction } from "../components/ui/confirmService";
 import Button from "../components/ui/Button";
 import Select from "../components/ui/Select";
 import IconButton from "../components/ui/IconButton";
@@ -766,14 +767,14 @@ export default function Invoices() {
 
   async function createInvoice() {
     if (!form.customer_id) {
-      alert(label.chooseCustomerAlert);
+      toast.error(label.chooseCustomerAlert);
       return;
     }
 
     const cleanItems = buildCleanItems();
 
     if (cleanItems.length === 0) {
-      alert(label.chooseProductAlert);
+      toast.error(label.chooseProductAlert);
       return;
     }
 
@@ -822,7 +823,7 @@ export default function Invoices() {
       setIndustryFieldValues({});
 
       await loadData();
-      alert(editingId ? label.saveInvoice : label.createdAlert);
+      toast.success(editingId ? label.saveInvoice : label.createdAlert);
     } catch (error) {
       console.error("Create/update invoice error:", error);
 
@@ -832,7 +833,7 @@ export default function Invoices() {
       // offline. Surface the real reason immediately instead; the form is
       // left as-is so the user can fix it and resubmit.
       if (!isNetworkError(error)) {
-        alert(translateApiError(error.message, language) || label.createError);
+        toast.error(translateApiError(error.message, language) || label.createError);
         return;
       }
 
@@ -892,7 +893,7 @@ export default function Invoices() {
     [];
 
   if (!Array.isArray(invoiceItems) || invoiceItems.length === 0) {
-    alert(
+    toast.error(
       fa
         ? "جزئیات کالاهای این فاکتور از بک‌اند برنگشت. باید مسیر GET /invoices/{id} در بک‌اند آیتم‌های فاکتور را هم برگرداند."
         : language === "ar"
@@ -932,14 +933,15 @@ export default function Invoices() {
 }
 
   async function deleteInvoice(invoice) {
-    const ok = window.confirm(
+    const ok = await confirmAction(
       fa
         ? `فاکتور شماره ${n(invoice.id)} حذف شود؟`
         : language === "ar"
         ? `هل تريد حذف الفاتورة رقم ${n(invoice.id)}؟`
         : language === "tr"
         ? `${n(invoice.id)} numaralı fatura silinsin mi?`
-        : `Delete invoice #${invoice.id}?`
+        : `Delete invoice #${invoice.id}?`,
+      { danger: true }
     );
     if (!ok) return;
 
@@ -963,7 +965,7 @@ export default function Invoices() {
       // exists on the server. Only a genuine connectivity failure should
       // fall back to a local-only removal.
       if (!isNetworkError(error)) {
-        alert(translateApiError(error.message, language) || label.createError);
+        toast.error(translateApiError(error.message, language) || label.createError);
         return;
       }
 
@@ -985,7 +987,7 @@ export default function Invoices() {
   }
 
   async function convertInvoice(invoice) {
-    const ok = window.confirm(
+    const ok = await confirmAction(
       fa
         ? `پیش‌فاکتور شماره ${n(invoice.id)} به فاکتور فروش واقعی تبدیل شود؟ این باعث کسر موجودی انبار و ثبت سند حسابداری می‌شود.`
         : language === "ar"

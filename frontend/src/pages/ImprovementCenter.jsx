@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, TrendingUp, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { promptAction } from "../components/ui/confirmService";
 
 import { useLanguage } from "../localization/useLanguage";
 import {
@@ -149,7 +150,7 @@ export default function ImprovementCenter() {
   }
 
   async function handleDismiss() {
-    const reason = window.prompt(tr("دلیل رد یافته را وارد کنید:", "أدخل سبب الرفض:", "Reddetme nedenini girin:", "Enter a reason to dismiss this finding:"));
+    const reason = await promptAction(tr("دلیل رد یافته را وارد کنید:", "أدخل سبب الرفض:", "Reddetme nedenini girin:", "Enter a reason to dismiss this finding:"));
     if (!reason || !reason.trim()) return;
     try {
       await dismissBiFinding(detailId, reason.trim());
@@ -171,7 +172,7 @@ export default function ImprovementCenter() {
       await Promise.all([refreshDetail(), load()]);
     } catch (err) {
       if (err.status === 409) {
-        const reason = window.prompt(tr(
+        const reason = await promptAction(tr(
           "هدف هنوز محقق نشده. برای حل دستی دلیل را وارد کنید (لغو = انصراف):",
           "لم يتحقق الهدف بعد. أدخل سببًا للحل اليدوي (إلغاء = تراجع):",
           "Hedef henüz karşılanmadı. Manuel çözüm için bir neden girin (iptal = vazgeç):",

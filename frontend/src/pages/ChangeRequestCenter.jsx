@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, FileAudio, FileText, Mic, MicOff, PencilLine, Plus, RefreshCw, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_URL, getAuthHeaders, getSettings } from "../services/api";
+import { promptAction } from "../components/ui/confirmService";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
@@ -234,7 +235,7 @@ export default function ChangeRequestCenter() {
   }
 
   async function decide(id, action) {
-    const note = window.prompt(action === "reject" ? tr("دلیل رد را وارد کنید:", "أدخل سبب الرفض:", "Reddetme nedenini girin:", "Enter rejection reason:") : tr("یادداشت تأیید (اختیاری):", "ملاحظة الموافقة (اختياري):", "Onay notu (isteğe bağlı):", "Approval note (optional):"), "");
+    const note = await promptAction(action === "reject" ? tr("دلیل رد را وارد کنید:", "أدخل سبب الرفض:", "Reddetme nedenini girin:", "Enter rejection reason:") : tr("یادداشت تأیید (اختیاری):", "ملاحظة الموافقة (اختياري):", "Onay notu (isteğe bağlı):", "Approval note (optional):"), { defaultValue: "" });
     if (note === null || (action === "reject" && !note.trim())) return;
     try {
       await api(`/${id}/${action}`, {

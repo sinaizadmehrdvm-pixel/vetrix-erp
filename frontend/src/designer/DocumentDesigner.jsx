@@ -19,6 +19,7 @@ import {
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate, downloadAuthenticatedFile } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { confirmAction } from "../components/ui/confirmService";
 import Select from "../components/ui/Select";
 
 // Physical page size in PDF points, matching backend/app/designer/canvas_render.py's
@@ -276,7 +277,7 @@ export default function DocumentDesigner({ kind }) {
   }
 
   async function removeTemplate(id) {
-    if (!window.confirm(tr("حذف شود؟", "هل تريد الحذف؟", "Silinsin mi?", "Delete?"))) return;
+    if (!(await confirmAction(tr("حذف شود؟", "هل تريد الحذف؟", "Silinsin mi?", "Delete?"), { danger: true }))) return;
     await deletePdfTemplate(id);
     if (id === templateId) setTemplateId(null);
     await loadTemplates();
@@ -294,8 +295,8 @@ export default function DocumentDesigner({ kind }) {
     }
   }
 
-  function resetTemplate() {
-    if (!window.confirm(tr("به حالت پیش‌فرض برگردد؟", "إعادة التعيين؟", "Sıfırlansın mı?", "Reset?"))) return;
+  async function resetTemplate() {
+    if (!(await confirmAction(tr("به حالت پیش‌فرض برگردد؟", "إعادة التعيين؟", "Sıfırlansın mı?", "Reset?")))) return;
     setConfig(clone(defaultConfigFor(kind, language)));
     setTemplateId(null);
   }

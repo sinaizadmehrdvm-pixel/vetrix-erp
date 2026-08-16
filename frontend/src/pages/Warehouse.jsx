@@ -3,6 +3,7 @@ import { useStableCallback } from "../hooks/useStableCallback";
 import { Plus, Search, PackageCheck, RefreshCw, AlertTriangle, Boxes, ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal, ScanBarcode } from "lucide-react";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import Select from "../components/ui/Select";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { createStockMovement, getProducts, getStockMovements, getWarehouses } from "../services/api";
@@ -28,7 +29,7 @@ export default function Warehouse() {
   function handleBarcodeDetected(code) {
     setScannerOpen(false);
     const match = products.find(p => String(p.barcode || "") === String(code) || String(p.code || "") === String(code));
-    if (!match) { alert(language === "fa" ? "کالایی با این بارکد پیدا نشد." : language === "ar" ? "لم يتم العثور على منتج بهذا الباركود." : language === "tr" ? "Bu barkoda ait ürün bulunamadı." : "No product found for that barcode."); return; }
+    if (!match) { toast.error(language === "fa" ? "کالایی با این بارکد پیدا نشد." : language === "ar" ? "لم يتم العثور على منتج بهذا الباركود." : language === "tr" ? "Bu barkoda ait ürün bulunamadı." : "No product found for that barcode."); return; }
     setForm(prev => ({ ...prev, product_id: String(match.id) }));
   }
 
@@ -67,13 +68,13 @@ export default function Warehouse() {
   }, [language, stableLoad]);
 
   async function addMovement() {
-    if (!form.product_id || !form.quantity) { alert(language === "fa" ? "کالا و تعداد را وارد کن" : language === "ar" ? "اختر المنتج والكمية" : language === "tr" ? "Ürün ve miktar seçin" : "Select product and quantity"); return; }
+    if (!form.product_id || !form.quantity) { toast.error(language === "fa" ? "کالا و تعداد را وارد کن" : language === "ar" ? "اختر المنتج والكمية" : language === "tr" ? "Ürün ve miktar seçin" : "Select product and quantity"); return; }
     try {
       const result = await createStockMovement({ ...form, warehouse_id: form.warehouse_id ? Number(form.warehouse_id) : null, product_id: Number(form.product_id), quantity: toNumber(form.quantity) });
       if (result?.status === "error") throw new Error(result.message);
       setForm({ warehouse: defaultWarehouseLabel(language), warehouse_id: "", product_id: "", quantity: "", movement_type: "in", movement_date: "", note: "" });
       await load();
-    } catch (e) { alert(e.message || (language === "fa" ? "خطا در ثبت حرکت انبار" : language === "ar" ? "خطأ في حفظ حركة المخزون" : language === "tr" ? "Hareket kaydedilirken hata oluştu" : "Error saving movement")); }
+    } catch (e) { toast.error(e.message || (language === "fa" ? "خطا در ثبت حرکت انبار" : language === "ar" ? "خطأ في حفظ حركة المخزون" : language === "tr" ? "Hareket kaydedilirken hata oluştu" : "Error saving movement")); }
   }
 
   const filtered = useMemo(() => movements.filter(x => [x.product_name, x.warehouse, x.note, x.movement_type].join(" ").toLowerCase().includes(search.toLowerCase())), [movements, search]);

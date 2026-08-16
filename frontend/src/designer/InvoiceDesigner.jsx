@@ -18,6 +18,7 @@ import {
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { confirmAction } from "../components/ui/confirmService";
 import Select from "../components/ui/Select";
 
 const PAGE_SIZES = {
@@ -269,14 +270,14 @@ export default function InvoiceDesigner() {
   }
 
   async function removeTemplate(id) {
-    if (!window.confirm(tr("قالب حذف شود؟", "هل تريد حذف القالب؟", "Şablon silinsin mi?", "Delete template?"))) return;
+    if (!(await confirmAction(tr("قالب حذف شود؟", "هل تريد حذف القالب؟", "Şablon silinsin mi?", "Delete template?"), { danger: true }))) return;
     await deletePdfTemplate(id);
     setMessage(tr("قالب حذف شد.", "تم حذف القالب.", "Şablon silindi.", "Template deleted."));
     await loadTemplates();
   }
 
-  function resetTemplate() {
-    if (!window.confirm(tr("قالب به حالت پیش‌فرض برگردد؟", "هل تريد إعادة تعيين القالب؟", "Şablon sıfırlansın mı?", "Reset template?"))) return;
+  async function resetTemplate() {
+    if (!(await confirmAction(tr("قالب به حالت پیش‌فرض برگردد؟", "هل تريد إعادة تعيين القالب؟", "Şablon sıfırlansın mı?", "Reset template?")))) return;
     const cfg = clone(buildDefaultConfig(language));
     setConfig(cfg);
     setSelectedId("title");

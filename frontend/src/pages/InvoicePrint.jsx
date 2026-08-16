@@ -19,6 +19,7 @@ import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getCache } from "../storage/db";
 import Select from "../components/ui/Select";
 import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
+import { promptAction } from "../components/ui/confirmService";
 import {
   PAGE_SIZES,
   buildDefaultConfig,
@@ -180,7 +181,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
   async function saveAsTemplate() {
     const suffix = invoice?.id ? ` #${invoice.id}` : "";
-    const newName = window.prompt(
+    const newName = await promptAction(
       fa
         ? "نام قالب جدید را وارد کن:"
         : language === "ar"
@@ -188,7 +189,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         : language === "tr"
         ? "Yeni şablon adını girin:"
         : "Enter new template name:",
-      `${templateName}${suffix}`
+      { defaultValue: `${templateName}${suffix}` }
     );
 
     if (!newName) return;

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../../localization/useLanguage";
+import { confirmAction } from "../../components/ui/confirmService";
 import { useDebounce } from "../../hooks/useDebounce";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -222,12 +223,12 @@ export default function ProductImportWizard() {
 
   async function runRollback() {
     if (!preview || busy) return;
-    const ok = window.confirm(tr(
+    const ok = await confirmAction(tr(
       "این Batch بازگردانی شود؟ فقط کالاهایی که تازه ایجاد شده و در فاکتور یا تراکنش دیگری استفاده نشده‌اند حذف می‌شوند.",
       "هل تريد التراجع عن هذه الدفعة؟ سيتم حذف المنتجات المُنشأة حديثًا وغير المستخدمة فقط.",
       "Bu grup geri alınsın mı? Yalnızca yeni oluşturulan ve başka bir yerde kullanılmayan ürünler silinecek.",
       "Roll back this batch? Only newly-created products that haven't been used elsewhere will be removed."
-    ));
+    ), { danger: true });
     if (!ok) return;
     setBusy(true);
     try {

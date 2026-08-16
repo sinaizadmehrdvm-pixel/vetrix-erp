@@ -44,6 +44,21 @@
   --erp-danger: #fca5a5;
   --erp-danger-soft: rgba(239, 68, 68, 0.14);
 
+  /* Solid action-button colors - distinct from the -soft pill tokens
+     above (Badge/Button's success|danger variants intentionally stay
+     pale/restrained). These back the *opaque* filled action buttons
+     (approve/reject/withdraw, clear/bounce/cancel, etc.) that ~17 files
+     had each hardcoded identically as literal hex - status colors, not
+     brand colors, so they intentionally don't track --erp-accent and
+     stay constant across theme presets/light mode like any other solid
+     button fill would. */
+  --erp-success-solid: #166534;
+  --erp-success-solid-text: #dcfce7;
+  --erp-danger-solid: #7f1d1d;
+  --erp-danger-solid-text: #fee2e2;
+  --erp-warning-solid: #78350f;
+  --erp-warning-solid-text: #fef3c7;
+
   /* Elevation tiers - --erp-shadow (above) stays the resting-card depth
      everything already used; these two add a raised/hover step and a
      floating/modal step on top of it, so "premium" surfaces (Modal, a

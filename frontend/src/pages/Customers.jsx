@@ -56,6 +56,8 @@ import { Input } from "../components/ui/Field";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
 import Select from "../components/ui/Select";
 import Modal from "../components/ui/Modal";
+import { confirmAction } from "../components/ui/confirmService";
+import toast from "react-hot-toast";
 
 const CUSTOMERS_CACHE_KEY = "customers";
 const PAGE_SIZES = [25, 50, 100];
@@ -577,7 +579,7 @@ export default function Customers() {
 
   async function save() {
     if (!form.name.trim()) {
-      alert(fa ? "نام طرف‌حساب را وارد کن" : language === "ar" ? "أدخل اسم الطرف" : language === "tr" ? "Cari adını girin" : "Enter party name");
+      toast.error(fa ? "نام طرف‌حساب را وارد کن" : language === "ar" ? "أدخل اسم الطرف" : language === "tr" ? "Cari adını girin" : "Enter party name");
       return;
     }
 
@@ -601,7 +603,7 @@ export default function Customers() {
       // must NOT be queued offline. Surface the real reason immediately;
       // the form is left as-is so the user can fix it and resubmit.
       if (!isNetworkError(error)) {
-        alert(translateApiError(error.message, language) || (fa ? "خطا در ذخیره طرف‌حساب" : language === "ar" ? "خطأ في حفظ الطرف" : language === "tr" ? "Cari kaydedilirken hata oluştu" : "Error saving party"));
+        toast.error(translateApiError(error.message, language) || (fa ? "خطا در ذخیره طرف‌حساب" : language === "ar" ? "خطأ في حفظ الطرف" : language === "tr" ? "Cari kaydedilirken hata oluştu" : "Error saving party"));
         return;
       }
 
@@ -744,10 +746,11 @@ export default function Customers() {
   }
 
   async function remove(id) {
-    const ok = window.confirm(
+    const ok = await confirmAction(
       fa
         ? "آیا از حذف این طرف‌حساب مطمئنی؟"
-        : "Are you sure you want to delete this party?"
+        : "Are you sure you want to delete this party?",
+      { danger: true }
     );
     if (!ok) return;
 
@@ -769,7 +772,7 @@ export default function Customers() {
       // exists on the server. Only a genuine connectivity failure should
       // fall back to a local-only removal.
       if (!isNetworkError(error)) {
-        alert(translateApiError(error.message, language) || (fa ? "خطا در حذف طرف‌حساب" : language === "ar" ? "خطأ في حذف الطرف" : language === "tr" ? "Cari silinirken hata oluştu" : "Error deleting party"));
+        toast.error(translateApiError(error.message, language) || (fa ? "خطا در حذف طرف‌حساب" : language === "ar" ? "خطأ في حذف الطرف" : language === "tr" ? "Cari silinirken hata oluştu" : "Error deleting party"));
         return;
       }
 
@@ -791,10 +794,11 @@ export default function Customers() {
   }
 
   async function resetAllAccounting() {
-    const ok = window.confirm(
+    const ok = await confirmAction(
       fa
         ? "همه طرف‌حساب‌ها، فاکتورها، دریافت‌ها و پرداخت‌ها حذف شوند؟ این کار برگشت ندارد."
-        : "Delete all parties, invoices, receipts and payments? This cannot be undone."
+        : "Delete all parties, invoices, receipts and payments? This cannot be undone.",
+      { danger: true }
     );
     if (!ok) return;
 
@@ -803,9 +807,9 @@ export default function Customers() {
       await saveCache([]);
       setEditingId(null);
       setForm(emptyForm);
-      alert(fa ? "اطلاعات حسابداری پاک شد" : language === "ar" ? "تم مسح البيانات المحاسبية" : language === "tr" ? "Muhasebe verileri temizlendi" : "Accounting data cleared");
+      toast.success(fa ? "اطلاعات حسابداری پاک شد" : language === "ar" ? "تم مسح البيانات المحاسبية" : language === "tr" ? "Muhasebe verileri temizlendi" : "Accounting data cleared");
     } catch (error) {
-      alert(error.message || (fa ? "خطا در پاکسازی اطلاعات" : language === "ar" ? "خطأ في مسح البيانات" : language === "tr" ? "Verileri temizleme başarısız oldu" : "Reset failed"));
+      toast.error(error.message || (fa ? "خطا در پاکسازی اطلاعات" : language === "ar" ? "خطأ في مسح البيانات" : language === "tr" ? "Verileri temizleme başarısız oldu" : "Reset failed"));
     }
   }
 
@@ -889,7 +893,7 @@ export default function Customers() {
   async function runExport(kind) {
     const rowsSource = exportAllScope ? parties : filtered;
     if (!rowsSource.length) {
-      alert(fa ? "رکوردی برای خروجی گرفتن وجود ندارد" : ar ? "لا توجد سجلات للتصدير" : tr ? "Dışa aktarılacak kayıt yok" : "No records to export");
+      toast.error(fa ? "رکوردی برای خروجی گرفتن وجود ندارد" : ar ? "لا توجد سجلات للتصدير" : tr ? "Dışa aktarılacak kayıt yok" : "No records to export");
       return;
     }
     setExportBusy(true);
@@ -949,7 +953,7 @@ export default function Customers() {
         );
       }
     } catch (error) {
-      alert(error.message || (fa ? "خروجی گرفتن ناموفق بود" : ar ? "فشل التصدير" : tr ? "Dışa aktarma başarısız oldu" : "Export failed"));
+      toast.error(error.message || (fa ? "خروجی گرفتن ناموفق بود" : ar ? "فشل التصدير" : tr ? "Dışa aktarma başarısız oldu" : "Export failed"));
     } finally {
       setExportBusy(false);
     }
@@ -1788,13 +1792,13 @@ function CrmOverview({ fa, language, n, parties, summary }) {
                 tabIndex={hasValidId ? 0 : -1}
                 aria-label={fa ? `باز کردن پرونده ${item.name}` : `Open ${item.name}'s profile`}
                 onClick={() => {
-                  if (!hasValidId) return alert(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
+                  if (!hasValidId) return toast.error(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
                   navigate(`/customers/${item.id}/360`);
                 }}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" && event.key !== " ") return;
                   event.preventDefault();
-                  if (!hasValidId) return alert(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
+                  if (!hasValidId) return toast.error(fa ? "شناسه معتبر برای این طرف‌حساب یافت نشد." : "No valid ID found for this party.");
                   navigate(`/customers/${item.id}/360`);
                 }}
                 className={`rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4 text-start w-full erp-focus ${hasValidId ? "cursor-pointer hover:border-[var(--erp-accent)]" : "cursor-not-allowed opacity-60"}`}

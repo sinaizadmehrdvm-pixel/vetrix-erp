@@ -10,8 +10,10 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { createExpense, deleteExpense, getExpenses, isNetworkError } from "../services/api";
+import { confirmAction } from "../components/ui/confirmService";
 import { translateApiError } from "../localization/apiErrors";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { getCache, setCache } from "../storage/db";
@@ -164,7 +166,7 @@ export default function Expenses() {
     const amount = toNumber(form.amount);
 
     if (!form.title || amount <= 0) {
-      alert(language === "fa" ? "عنوان و مبلغ هزینه را وارد کن" : language === "ar" ? "العنوان والمبلغ مطلوبان" : language === "tr" ? "Başlık ve tutar zorunludur" : "Title & amount required");
+      toast.error(language === "fa" ? "عنوان و مبلغ هزینه را وارد کن" : language === "ar" ? "العنوان والمبلغ مطلوبان" : language === "tr" ? "Başlık ve tutar zorunludur" : "Title & amount required");
       return;
     }
 
@@ -199,7 +201,7 @@ export default function Expenses() {
       // ...) - retrying later would fail identically, so this must NOT be
       // queued offline. Surface the real reason immediately instead.
       if (!isNetworkError(e)) {
-        alert(translateApiError(e.message, language) || (language === "fa" ? "خطا در ثبت هزینه" : language === "ar" ? "خطأ في تسجيل المصروف" : language === "tr" ? "Gider kaydedilirken hata oluştu" : "Error saving expense"));
+        toast.error(translateApiError(e.message, language) || (language === "fa" ? "خطا در ثبت هزینه" : language === "ar" ? "خطأ في تسجيل المصروف" : language === "tr" ? "Gider kaydedilirken hata oluştu" : "Error saving expense"));
         return;
       }
 
@@ -275,7 +277,7 @@ export default function Expenses() {
   }
 
   async function removeExpense(id) {
-    if (!confirm(language === "fa" ? "این هزینه حذف شود؟" : language === "ar" ? "هل تريد حذف هذا المصروف؟" : language === "tr" ? "Bu gider silinsin mi?" : "Delete this expense?")) return;
+    if (!(await confirmAction(language === "fa" ? "این هزینه حذف شود؟" : language === "ar" ? "هل تريد حذف هذا المصروف؟" : language === "tr" ? "Bu gider silinsin mi?" : "Delete this expense?", { danger: true }))) return;
 
     try {
       await deleteExpense(id);

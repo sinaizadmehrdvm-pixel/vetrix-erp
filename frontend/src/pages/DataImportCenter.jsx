@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, History, LayoutTemplate, Save, Trash2, Upload } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { confirmAction } from "../components/ui/confirmService";
 import {
   applyImport, deleteImportBatch, downloadImportTemplate, getImportBatches, previewImport,
   inspectImportFile, getMappingProfiles, saveMappingProfile,
@@ -305,7 +306,7 @@ export default function DataImportCenter() {
             <p key={i} style={{ color: "#f87171", fontWeight: 700 }}><AlertTriangle size={16} style={{ display: "inline", marginInlineEnd: 6 }}/>{w.message}</p>
           ))}
           <div className="erp-table-scroll"><table className="erp-data-table"><thead><tr><th>#</th><th>{tr("نام", "الاسم", "Ad", "Name")}</th><th>{t.status}</th><th>{tr("جزئیات", "التفاصيل", "Ayrıntılar", "Details")}</th></tr></thead><tbody>{preview.preview.map(row => <tr key={row.row}><td>{n(row.row)}</td><td>{row.data.name || row.data.account_code || `${row.data.customer_name || ""} · ${row.data.product || ""}`}</td><td>{row.errors.length ? t.errors : row.duplicate ? t.duplicate : t.valid}</td><td>{row.errors.map(x => x.message).join(" · ") || "—"}</td></tr>)}</tbody></table></div>
-          <button disabled={!preview.can_apply || busy} onClick={runApply} style={{ marginTop: 13, padding: "12px 18px", borderRadius: 13, border: 0, fontWeight: 900, background: "#166534", color: "#dcfce7", opacity: !preview.can_apply || busy ? .5 : 1 }}><CheckCircle2 size={18} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.apply}</button>
+          <button disabled={!preview.can_apply || busy} onClick={runApply} style={{ marginTop: 13, padding: "12px 18px", borderRadius: 13, border: 0, fontWeight: 900, background: "var(--erp-success-solid)", color: "var(--erp-success-solid-text)", opacity: !preview.can_apply || busy ? .5 : 1 }}><CheckCircle2 size={18} style={{ display: "inline", marginInlineEnd: 7 }}/>{t.apply}</button>
         </section>}
       </>
     )}
@@ -317,7 +318,7 @@ export default function DataImportCenter() {
           <button
             title={t.deleteBatch}
             onClick={async () => {
-              if (!window.confirm(t.deleteBatchConfirm)) return;
+              if (!(await confirmAction(t.deleteBatchConfirm, { danger: true }))) return;
               try { await deleteImportBatch(batch.id); toast.success(t.deleteBatchDone); await load(); }
               catch (error) { toast.error(error.message); }
             }}

@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { API_URL, getAuthHeaders } from "../services/api";
 import { useTheme } from "../theme/useTheme";
@@ -383,7 +384,7 @@ export default function Settings() {
       setField(key, base64);
     } catch (error) {
       console.error("Image compress error:", error);
-      alert(fa ? "خطا در پردازش تصویر" : language === "ar" ? "خطأ في معالجة الصورة" : language === "tr" ? "Görsel işleme hatası" : "Image processing error");
+      toast.error(fa ? "خطا در پردازش تصویر" : language === "ar" ? "خطأ في معالجة الصورة" : language === "tr" ? "Görsel işleme hatası" : "Image processing error");
     }
   }
 

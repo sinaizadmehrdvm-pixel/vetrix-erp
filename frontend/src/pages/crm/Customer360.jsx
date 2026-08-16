@@ -3,6 +3,7 @@ import { ArrowLeft, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshC
 import { Link, useParams } from "react-router-dom";
 import { useLanguage } from "../../localization/useLanguage";
 import { toPersianDigits } from "../../localization/helpers";
+import { confirmAction } from "../../components/ui/confirmService";
 import Select from "../../components/ui/Select";
 import {
   API_URL,
@@ -184,7 +185,7 @@ async function fetchCustomerFiles(customerId) {
 
   async function removeNote(note) {
     if (!note?.id) return;
-    if (!window.confirm(language === "fa" ? "یادداشت حذف شود؟" : language === "ar" ? "هل تريد حذف الملاحظة؟" : language === "tr" ? "Not silinsin mi?" : "Delete note?")) return;
+    if (!(await confirmAction(language === "fa" ? "یادداشت حذف شود؟" : language === "ar" ? "هل تريد حذف الملاحظة؟" : language === "tr" ? "Not silinsin mi?" : "Delete note?"))) return;
     await deleteCrmNote(note.id);
     await loadCustomer360();
   }
@@ -201,7 +202,7 @@ async function fetchCustomerFiles(customerId) {
   }
 
   async function removeTask(taskId) {
-    if (!window.confirm(language === "fa" ? "وظیفه حذف شود؟" : language === "ar" ? "هل تريد حذف المهمة؟" : language === "tr" ? "Görev silinsin mi?" : "Delete task?")) return;
+    if (!(await confirmAction(language === "fa" ? "وظیفه حذف شود؟" : language === "ar" ? "هل تريد حذف المهمة؟" : language === "tr" ? "Görev silinsin mi?" : "Delete task?"))) return;
     await deleteCrmTask(taskId);
     await loadCustomer360();
   }
@@ -251,7 +252,7 @@ async function fetchCustomerFiles(customerId) {
   }
 
   async function deleteCustomerFile(fileId) {
-    if (!window.confirm(language === "fa" ? "فایل حذف شود؟" : language === "ar" ? "هل تريد حذف الملف؟" : language === "tr" ? "Dosya silinsin mi?" : "Delete file?")) return;
+    if (!(await confirmAction(language === "fa" ? "فایل حذف شود؟" : language === "ar" ? "هل تريد حذف الملف؟" : language === "tr" ? "Dosya silinsin mi?" : "Delete file?"))) return;
 
     const res = await fetch(`${API_BASE}/api/crm/files/${fileId}`, {
       method: "DELETE",
