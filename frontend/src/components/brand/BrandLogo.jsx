@@ -28,7 +28,21 @@ export default function BrandLogo({ variant = "full", animated = true, size, cla
         lineHeight: 0,
       }}
     >
-      <img src={src} alt={alt} style={{ display: "block", width: "100%", height: "auto" }} draggable={false} />
+      <img
+        src={src}
+        alt={alt}
+        style={
+          isIconOnly || isCompact
+            // Source art keeps deliberate breathing room around the mark for
+            // its card-icon composition; at 40px (sidebar) that padding
+            // eats into legibility, so zoom in uniformly (no stretch, same
+            // aspect ratio) and let the wrapper's overflow:hidden crop the
+            // excess evenly on every side.
+            ? { display: "block", width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.18)" }
+            : { display: "block", width: "100%", height: "auto" }
+        }
+        draggable={false}
+      />
       {animated && (
         <span
           aria-hidden="true"
