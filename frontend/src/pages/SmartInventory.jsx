@@ -17,6 +17,8 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import { getSmartInventoryOverview, createPurchaseOrder, getExpiringBatches, getBranches } from "../services/api";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -191,14 +193,14 @@ export default function SmartInventory() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <select
+          <Select
             value={branchId}
-            onChange={(e) => changeBranch(e.target.value)}
-            className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl px-4 py-3 outline-none text-[var(--erp-text)]"
-          >
-            <option value="">{language === "fa" ? "کل شرکت (همه شعب)" : language === "ar" ? "الشركة بأكملها (كل الفروع)" : language === "tr" ? "Tüm şirket (tüm şubeler)" : "Whole company (all branches)"}</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+            onChange={(value) => changeBranch(value)}
+            options={[
+              { value: "", label: language === "fa" ? "کل شرکت (همه شعب)" : language === "ar" ? "الشركة بأكملها (كل الفروع)" : language === "tr" ? "Tüm şirket (tüm şubeler)" : "Whole company (all branches)" },
+              ...branches.map((b) => ({ value: b.id, label: b.name })),
+            ]}
+          />
           <button
             type="button"
             onClick={() => load(branchId)}
@@ -238,32 +240,28 @@ export default function SmartInventory() {
             <AlertTriangle />
             {language === "fa" ? "بچ‌های نزدیک به انقضا (۳۰ روز آینده)" : language === "ar" ? "دفعات قريبة من انتهاء الصلاحية (30 يومًا)" : language === "tr" ? "Süresi yakında dolacak partiler (30 gün)" : "Batches expiring soon (next 30 days)"}
           </h2>
-          <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
-            <table className="w-full text-sm min-w-[600px]">
-              <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
-                <tr>
-                  <th className="p-3 text-right">#</th>
-                  <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
-                  <th className="p-3">{language === "fa" ? "بچ/سریال" : language === "ar" ? "الدفعة/التسلسلي" : language === "tr" ? "Parti/Seri" : "Batch/Serial"}</th>
-                  <th className="p-3">{language === "fa" ? "باقی‌مانده" : language === "ar" ? "المتبقي" : language === "tr" ? "Kalan" : "Remaining"}</th>
-                  <th className="p-3">{language === "fa" ? "انقضا" : language === "ar" ? "الصلاحية" : language === "tr" ? "SKT" : "Expiry"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expiringBatches.map((b, rowIndex) => (
-                  <tr key={b.id} className="border-t border-[var(--erp-border)]">
-                    <td className="p-3 text-center text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
-                    <td className="p-3 font-black text-[var(--erp-text)]">{b.product_name}</td>
-                    <td className="p-3 text-center">{b.batch_number}</td>
-                    <td className="p-3 text-center">{n(b.remaining_quantity)}</td>
-                    <td className={`p-3 text-center font-bold ${b.expired ? "text-rose-300" : "text-amber-300"}`}>
-                      {b.expiry_date} {b.expired ? `(${language === "fa" ? "منقضی" : language === "ar" ? "منتهي" : language === "tr" ? "Süresi doldu" : "expired"})` : `(${n(b.days_to_expiry)} ${language === "fa" ? "روز" : language === "ar" ? "يوم" : language === "tr" ? "gün" : "days"})`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table dir={dir} className="min-w-[600px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</Th>
+              <Th>{language === "fa" ? "بچ/سریال" : language === "ar" ? "الدفعة/التسلسلي" : language === "tr" ? "Parti/Seri" : "Batch/Serial"}</Th>
+              <Th align="end">{language === "fa" ? "باقی‌مانده" : language === "ar" ? "المتبقي" : language === "tr" ? "Kalan" : "Remaining"}</Th>
+              <Th>{language === "fa" ? "انقضا" : language === "ar" ? "الصلاحية" : language === "tr" ? "SKT" : "Expiry"}</Th>
+            </Thead>
+            <Tbody>
+              {expiringBatches.map((b, rowIndex) => (
+                <Tr key={b.id}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+                  <Td className="font-black text-[var(--erp-text)]">{b.product_name}</Td>
+                  <Td>{b.batch_number}</Td>
+                  <Td align="end">{n(b.remaining_quantity)}</Td>
+                  <Td className={`font-bold ${b.expired ? "text-rose-300" : "text-amber-300"}`}>
+                    {b.expiry_date} {b.expired ? `(${language === "fa" ? "منقضی" : language === "ar" ? "منتهي" : language === "tr" ? "Süresi doldu" : "expired"})` : `(${n(b.days_to_expiry)} ${language === "fa" ? "روز" : language === "ar" ? "يوم" : language === "tr" ? "gün" : "days"})`}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
         </div>
       )}
 
@@ -306,56 +304,50 @@ export default function SmartInventory() {
             <TabButton active={tab === "all"} onClick={() => setTab("all")} label={language === "fa" ? "همه کالاها" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"} />
           </div>
 
-          <div className="overflow-auto rounded-2xl border border-[var(--erp-border)]">
-            <table className="w-full text-sm min-w-[980px]">
-              <thead className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
-                <tr>
-                  <th className="p-3 text-right">#</th>
-                  <th className="p-3 text-right">{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</th>
-                  <th className="p-3">{language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}</th>
-                  <th className="p-3">{language === "fa" ? "فروش ۹۰ روز" : language === "ar" ? "مبيعات 90 يومًا" : language === "tr" ? "90 günlük satış" : "90d sales"}</th>
-                  <th className="p-3">{language === "fa" ? "دوام موجودی" : language === "ar" ? "الأيام المتبقية" : language === "tr" ? "Kalan gün" : "Days left"}</th>
-                  <th className="p-3">{language === "fa" ? "سفارش پیشنهادی" : language === "ar" ? "إعادة الطلب المقترحة" : language === "tr" ? "Önerilen yeniden sipariş" : "Suggested reorder"}</th>
-                  <th className="p-3">ABC</th>
-                  <th className="p-3">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? rows.map((item, rowIndex) => (
-                  <tr key={item.id} className="border-t border-[var(--erp-border)] hover:bg-[var(--erp-panel-solid)]/50">
-                    <td className="p-3 text-center text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
-                    <td className="p-3">
-                      <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-                      <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
-                    </td>
-                    <td className="p-3 text-center font-bold">
-                      {n(item.stock || 0)} {item.unit || ""}
-                      {branchId && (
-                        <div className="text-xs text-[var(--erp-muted)] font-normal mt-0.5">
-                          {language === "fa" ? "کل شرکت" : language === "ar" ? "إجمالي الشركة" : language === "tr" ? "Şirket toplamı" : "Company total"}: {n(item.company_stock || 0)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3 text-center">{n(item.net_qty_90d || 0)}</td>
-                    <td className="p-3 text-center">{item.days_left == null ? "-" : `${n(item.days_left)} ${language === "fa" ? "روز" : language === "ar" ? "يومًا" : language === "tr" ? "gün" : "days"}`}</td>
-                    <td className="p-3 text-center font-black text-amber-300">{n(item.suggested_reorder_qty || 0)}</td>
-                    <td className="p-3 text-center"><span className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">{item.abc_class || "C"}</span></td>
-                    <td className="p-3 text-center">
-                      <span className={`px-3 py-1 rounded-full border text-xs font-black ${levelClass(item.risk_level)}`}>
-                        {levelLabel(item.risk_level, language)}
-                      </span>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-[var(--erp-muted)]">
-                      {loading ? (language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...") : (language === "fa" ? "داده‌ای برای نمایش وجود ندارد." : language === "ar" ? "لا توجد بيانات لعرضها." : language === "tr" ? "Gösterilecek veri yok." : "No data.")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table dir={dir} className="min-w-[980px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{language === "fa" ? "کالا" : language === "ar" ? "المنتج" : language === "tr" ? "Ürün" : "Product"}</Th>
+              <Th align="end">{language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}</Th>
+              <Th align="end">{language === "fa" ? "فروش ۹۰ روز" : language === "ar" ? "مبيعات 90 يومًا" : language === "tr" ? "90 günlük satış" : "90d sales"}</Th>
+              <Th align="end">{language === "fa" ? "دوام موجودی" : language === "ar" ? "الأيام المتبقية" : language === "tr" ? "Kalan gün" : "Days left"}</Th>
+              <Th align="end">{language === "fa" ? "سفارش پیشنهادی" : language === "ar" ? "إعادة الطلب المقترحة" : language === "tr" ? "Önerilen yeniden sipariş" : "Suggested reorder"}</Th>
+              <Th>ABC</Th>
+              <Th>{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</Th>
+            </Thead>
+            <Tbody>
+              {rows.length ? rows.map((item, rowIndex) => (
+                <Tr key={item.id} className="hover:bg-[var(--erp-panel-solid)]/50">
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+                  <Td>
+                    <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
+                    <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
+                  </Td>
+                  <Td align="end" className="font-bold">
+                    {n(item.stock || 0)} {item.unit || ""}
+                    {branchId && (
+                      <div className="text-xs text-[var(--erp-muted)] font-normal mt-0.5">
+                        {language === "fa" ? "کل شرکت" : language === "ar" ? "إجمالي الشركة" : language === "tr" ? "Şirket toplamı" : "Company total"}: {n(item.company_stock || 0)}
+                      </div>
+                    )}
+                  </Td>
+                  <Td align="end">{n(item.net_qty_90d || 0)}</Td>
+                  <Td align="end">{item.days_left == null ? "-" : `${n(item.days_left)} ${language === "fa" ? "روز" : language === "ar" ? "يومًا" : language === "tr" ? "gün" : "days"}`}</Td>
+                  <Td align="end" className="font-black text-amber-300">{n(item.suggested_reorder_qty || 0)}</Td>
+                  <Td><span className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">{item.abc_class || "C"}</span></Td>
+                  <Td>
+                    <span className={`px-3 py-1 rounded-full border text-xs font-black ${levelClass(item.risk_level)}`}>
+                      {levelLabel(item.risk_level, language)}
+                    </span>
+                  </Td>
+                </Tr>
+              )) : (
+                <EmptyRow colSpan={8}>
+                  {loading ? (language === "fa" ? "در حال دریافت..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading...") : (language === "fa" ? "داده‌ای برای نمایش وجود ندارد." : language === "ar" ? "لا توجد بيانات لعرضها." : language === "tr" ? "Gösterilecek veri yok." : "No data.")}
+                </EmptyRow>
+              )}
+            </Tbody>
+          </Table>
         </div>
 
         <div className="space-y-4">

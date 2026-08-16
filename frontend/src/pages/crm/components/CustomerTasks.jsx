@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import JalaliDateField from "../../../components/forms/JalaliDateField";
 import { toJalali, toHijriText } from "../../../utils/date";
 import { toPersianDigits } from "../../../localization/helpers";
+import Select from "../../../components/ui/Select";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -161,19 +162,29 @@ export default function CustomerTasks({
           <JalaliDateField value={form.due_date} onChange={(isoDate) => setForm({ ...form, due_date: isoDate })} fa={lang === "fa"} language={lang} className="crm-input" style={{ gap: 8 }} />
           <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder={tr("مسئول انجام", "المسؤول", "Sorumlu", "Assignee")} className="crm-input" />
           <div className="grid grid-cols-2 gap-3">
-            <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="crm-input">
-              <option value="low">{tr("اولویت کم", "أولوية منخفضة", "Düşük öncelik", "Low")}</option>
-              <option value="normal">{tr("اولویت معمولی", "أولوية عادية", "Normal öncelik", "Normal")}</option>
-              <option value="medium">{tr("اولویت متوسط", "أولوية متوسطة", "Orta öncelik", "Medium")}</option>
-              <option value="high">{tr("اولویت زیاد", "أولوية مرتفعة", "Yüksek öncelik", "High")}</option>
-              <option value="urgent">{tr("فوری", "عاجلة", "Acil", "Urgent")}</option>
-            </select>
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="crm-input">
-              <option value="open">{tr("باز", "مفتوحة", "Açık", "Open")}</option>
-              <option value="doing">{tr("در حال انجام", "قيد التنفيذ", "Devam ediyor", "Doing")}</option>
-              <option value="done">{tr("انجام شده", "منجزة", "Tamamlandı", "Done")}</option>
-              <option value="cancelled">{tr("لغو شده", "ملغاة", "İptal edildi", "Cancelled")}</option>
-            </select>
+            <Select
+              value={form.priority}
+              onChange={(value) => setForm({ ...form, priority: value })}
+              className="crm-input"
+              options={[
+                { value: "low", label: tr("اولویت کم", "أولوية منخفضة", "Düşük öncelik", "Low") },
+                { value: "normal", label: tr("اولویت معمولی", "أولوية عادية", "Normal öncelik", "Normal") },
+                { value: "medium", label: tr("اولویت متوسط", "أولوية متوسطة", "Orta öncelik", "Medium") },
+                { value: "high", label: tr("اولویت زیاد", "أولوية مرتفعة", "Yüksek öncelik", "High") },
+                { value: "urgent", label: tr("فوری", "عاجلة", "Acil", "Urgent") },
+              ]}
+            />
+            <Select
+              value={form.status}
+              onChange={(value) => setForm({ ...form, status: value })}
+              className="crm-input"
+              options={[
+                { value: "open", label: tr("باز", "مفتوحة", "Açık", "Open") },
+                { value: "doing", label: tr("در حال انجام", "قيد التنفيذ", "Devam ediyor", "Doing") },
+                { value: "done", label: tr("انجام شده", "منجزة", "Tamamlandı", "Done") },
+                { value: "cancelled", label: tr("لغو شده", "ملغاة", "İptal edildi", "Cancelled") },
+              ]}
+            />
           </div>
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات وظیفه", "وصف المهمة", "Görev açıklaması", "Task description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
@@ -182,22 +193,32 @@ export default function CustomerTasks({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_190px_190px] gap-3 mb-4">
         <div className="relative"><Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" /><input value={query} onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={tr("جستجو در وظایف...", "بحث في المهام...", "Görevlerde ara...", "Search tasks...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" /></div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]">
-          <option value="all">{tr("همه وضعیت‌ها", "جميع الحالات", "Tüm durumlar", "All statuses")}</option>
-          <option value="active">{tr("فعال", "نشطة", "Aktif", "Active")}</option>
-          <option value="open">{tr("باز", "مفتوحة", "Açık", "Open")}</option>
-          <option value="doing">{tr("در حال انجام", "قيد التنفيذ", "Devam ediyor", "Doing")}</option>
-          <option value="done">{tr("انجام شده", "منجزة", "Tamamlandı", "Done")}</option>
-          <option value="cancelled">{tr("لغو شده", "ملغاة", "İptal edildi", "Cancelled")}</option>
-        </select>
-        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]">
-          <option value="all">{tr("همه اولویت‌ها", "جميع الأولويات", "Tüm öncelikler", "All priorities")}</option>
-          <option value="urgent">{tr("فوری", "عاجلة", "Acil", "Urgent")}</option>
-          <option value="high">{tr("زیاد", "مرتفعة", "Yüksek", "High")}</option>
-          <option value="medium">{tr("متوسط", "متوسطة", "Orta", "Medium")}</option>
-          <option value="normal">{tr("معمولی", "عادية", "Normal", "Normal")}</option>
-          <option value="low">{tr("کم", "منخفضة", "Düşük", "Low")}</option>
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: tr("همه وضعیت‌ها", "جميع الحالات", "Tüm durumlar", "All statuses") },
+            { value: "active", label: tr("فعال", "نشطة", "Aktif", "Active") },
+            { value: "open", label: tr("باز", "مفتوحة", "Açık", "Open") },
+            { value: "doing", label: tr("در حال انجام", "قيد التنفيذ", "Devam ediyor", "Doing") },
+            { value: "done", label: tr("انجام شده", "منجزة", "Tamamlandı", "Done") },
+            { value: "cancelled", label: tr("لغو شده", "ملغاة", "İptal edildi", "Cancelled") },
+          ]}
+        />
+        <Select
+          value={priorityFilter}
+          onChange={(value) => setPriorityFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: tr("همه اولویت‌ها", "جميع الأولويات", "Tüm öncelikler", "All priorities") },
+            { value: "urgent", label: tr("فوری", "عاجلة", "Acil", "Urgent") },
+            { value: "high", label: tr("زیاد", "مرتفعة", "Yüksek", "High") },
+            { value: "medium", label: tr("متوسط", "متوسطة", "Orta", "Medium") },
+            { value: "normal", label: tr("معمولی", "عادية", "Normal", "Normal") },
+            { value: "low", label: tr("کم", "منخفضة", "Düşük", "Low") },
+          ]}
+        />
       </div>
 
       <div className="space-y-3">

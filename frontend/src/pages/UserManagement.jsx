@@ -12,6 +12,7 @@ import {
 import toast from "react-hot-toast";
 
 import { useAuth } from "../auth/AuthContext";
+import Select from "../components/ui/Select";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import {
@@ -40,6 +41,7 @@ export default function UserManagement() {
   const [roles, setRoles] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [moveTargets, setMoveTargets] = useState({});
+  const [roleSelections, setRoleSelections] = useState({});
   const [customRoles, setCustomRoles] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [customRoleForm, setCustomRoleForm] = useState({ code: "", label: "", base_role: "sales", restrict_customers_to_own: false });
@@ -258,7 +260,7 @@ export default function UserManagement() {
   }
 
   async function saveRole(target) {
-    const selected = document.getElementById(`role-${target.id}`)?.value;
+    const selected = roleSelections[target.id] ?? (target.role === "user" ? "viewer" : target.role);
     if (!selected || selected === target.role) return;
     setBusyId(target.id);
     try {
@@ -354,14 +356,17 @@ export default function UserManagement() {
             <input type="password" style={{ ...input, paddingInlineStart: 38 }} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={copy.password} autoComplete="new-password" />
             <small style={{ color: "var(--erp-muted)" }}>{copy.passwordHint}</small>
           </label>
-          <select style={input} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            {roles.map((role) => <option key={role.code} value={role.code}>{roleNames[role.code] || role.label}</option>)}
-          </select>
+          <Select
+            value={form.role}
+            onChange={(value) => setForm({ ...form, role: value })}
+            options={roles.map((role) => ({ value: role.code, label: roleNames[role.code] || role.label }))}
+          />
           {isSuperAdmin && (
-            <select style={input} value={form.company_id} onChange={(e) => setForm({ ...form, company_id: e.target.value })}>
-              <option value="">{copy.company}</option>
-              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-            </select>
+            <Select
+              value={form.company_id}
+              onChange={(value) => setForm({ ...form, company_id: value })}
+              options={[{ value: "", label: copy.company }, ...companies.map((company) => ({ value: company.id, label: company.name }))]}
+            />
           )}
           {isSuperAdmin && (
             <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--erp-text)" }}>
@@ -392,11 +397,11 @@ export default function UserManagement() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 11, alignItems: "end" }}>
           <input style={input} value={customRoleForm.code} onChange={(e) => setCustomRoleForm({ ...customRoleForm, code: e.target.value.toLowerCase().replace(/\s+/g, "_") })} placeholder={fa ? "کد (مثلاً senior_sales)" : "code (e.g. senior_sales)"} />
           <input style={input} value={customRoleForm.label} onChange={(e) => setCustomRoleForm({ ...customRoleForm, label: e.target.value })} placeholder={fa ? "عنوان نمایشی" : language === "ar" ? "العنوان المعروض" : language === "tr" ? "Görünen ad" : "Display label"} />
-          <select style={input} value={customRoleForm.base_role} onChange={(e) => setCustomRoleForm({ ...customRoleForm, base_role: e.target.value })}>
-            {roles.filter((r) => !customRoles.some((cr) => cr.code === r.code) && r.code !== "admin" && r.code !== "user").map((r) => (
-              <option key={r.code} value={r.code}>{roleNames[r.code] || r.label}</option>
-            ))}
-          </select>
+          <Select
+            value={customRoleForm.base_role}
+            onChange={(value) => setCustomRoleForm({ ...customRoleForm, base_role: value })}
+            options={roles.filter((r) => !customRoles.some((cr) => cr.code === r.code) && r.code !== "admin" && r.code !== "user").map((r) => ({ value: r.code, label: roleNames[r.code] || r.label }))}
+          />
           <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--erp-text)" }}>
             <input type="checkbox" checked={customRoleForm.restrict_customers_to_own} onChange={(e) => setCustomRoleForm({ ...customRoleForm, restrict_customers_to_own: e.target.checked })} />
             {fa ? "فقط مشتریان خودش" : language === "ar" ? "عملاؤه فقط" : language === "tr" ? "Sadece kendi müşterileri" : "Own customers only"}
@@ -447,9 +452,12 @@ export default function UserManagement() {
                       <span style={{ display: "inline-block", marginTop: 6, color: "var(--erp-accent-2)", fontSize: 12, fontWeight: 900 }}>{copy.superAdmin}</span>
                     )}
                   </div>
-                  <select id={`role-${target.id}`} defaultValue={target.role === "user" ? "viewer" : target.role} disabled={self} style={input}>
-                    {roles.map((item) => <option key={item.code} value={item.code}>{roleNames[item.code] || item.label}</option>)}
-                  </select>
+                  <Select
+                    value={roleSelections[target.id] ?? (target.role === "user" ? "viewer" : target.role)}
+                    onChange={(value) => setRoleSelections((current) => ({ ...current, [target.id]: value }))}
+                    disabled={self}
+                    options={roles.map((item) => ({ value: item.code, label: roleNames[item.code] || item.label }))}
+                  />
                   <div>
                     <div style={{ color: "var(--erp-muted)", fontSize: 12, marginBottom: 7 }}>{copy.capabilities}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -490,16 +498,12 @@ export default function UserManagement() {
                     {isSuperAdmin && (
                       <>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <select
+                          <Select
+                            className="flex-1"
                             value={moveTargets[target.id] || ""}
-                            onChange={(event) => setMoveTargets((current) => ({ ...current, [target.id]: event.target.value }))}
-                            style={{ ...input, padding: "9px 10px", flex: 1 }}
-                          >
-                            <option value="">{copy.moveCompany}</option>
-                            {companies.filter((company) => company.id !== target.company_id).map((company) => (
-                              <option key={company.id} value={company.id}>{company.name}</option>
-                            ))}
-                          </select>
+                            onChange={(value) => setMoveTargets((current) => ({ ...current, [target.id]: value }))}
+                            options={[{ value: "", label: copy.moveCompany }, ...companies.filter((company) => company.id !== target.company_id).map((company) => ({ value: company.id, label: company.name }))]}
+                          />
                           <button
                             onClick={() => moveUserCompany(target)}
                             disabled={busyId === target.id || !moveTargets[target.id]}

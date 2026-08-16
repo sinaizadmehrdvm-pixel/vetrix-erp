@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate, renamePdfTemplate, downloadAuthenticatedFile } from "../services/api";
 import { translateApiError } from "../localization/apiErrors";
+import Select from "../components/ui/Select";
 
 // Design Studio is a hub, not a merged editor: each kind still has its own
 // working canvas (InvoiceDesigner.jsx / DocumentDesigner.jsx), untouched.
@@ -174,14 +175,15 @@ export default function DesignStudio() {
             className="w-full ps-9 pe-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--erp-accent)]"
           />
         </div>
-        <select
+        <Select
           value={kindFilter}
-          onChange={(e) => setKindFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm text-[var(--erp-text)]"
-        >
-          <option value="all">{tr("همه انواع", "كل الأنواع", "Tüm türler", "All kinds")}</option>
-          {KIND_ORDER.map((kind) => <option key={kind} value={kind}>{kindLabel(kind)}</option>)}
-        </select>
+          onChange={(value) => setKindFilter(value)}
+          options={[
+            { value: "all", label: tr("همه انواع", "كل الأنواع", "Tüm türler", "All kinds") },
+            ...KIND_ORDER.map((kind) => ({ value: kind, label: kindLabel(kind) })),
+          ]}
+          className="min-w-[160px]"
+        />
       </div>
 
       {loading ? (

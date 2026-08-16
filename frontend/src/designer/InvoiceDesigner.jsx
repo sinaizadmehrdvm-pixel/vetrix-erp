@@ -18,6 +18,7 @@ import {
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import Select from "../components/ui/Select";
 
 const PAGE_SIZES = {
   A4: { w: 620, h: 820, label: "A4" },
@@ -370,9 +371,12 @@ export default function InvoiceDesigner() {
         <Panel title={tr("قالب‌ها و ابزار", "القوالب والأدوات", "Şablonlar ve araçlar", "Templates & Tools")}>
           <input value={name} onChange={(e) => setName(e.target.value)} className="studio-input" />
 
-          <select value={config.page_size} onChange={(e) => setConfig((p) => ({ ...p, page_size: e.target.value }))} className="studio-input">
-            {Object.entries(PAGE_SIZES).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
-          </select>
+          <Select
+            value={config.page_size}
+            onChange={(value) => setConfig((p) => ({ ...p, page_size: value }))}
+            className="studio-input"
+            options={Object.entries(PAGE_SIZES).map(([key, val]) => ({ value: key, label: val.label }))}
+          />
 
           <div className="grid grid-cols-2 gap-2">
             <ToolButton onClick={() => addElement("text")} label={tr("متن", "نص", "Metin", "Text")} />
@@ -490,11 +494,16 @@ export default function InvoiceDesigner() {
               <Color label={tr("پس‌زمینه", "الخلفية", "Arka plan", "Background")} value={selected.bg} onChange={(v) => updateElement(selected.id, { bg: v })} />
               <Color label={tr("خط دور", "الحدود", "Kenarlık", "Border")} value={selected.border} onChange={(v) => updateElement(selected.id, { border: v })} />
 
-              <select value={selected.align || "center"} onChange={(e) => updateElement(selected.id, { align: e.target.value })} className="studio-input">
-                <option value="right">{tr("راست", "يمين", "Sağ", "Right")}</option>
-                <option value="center">{tr("وسط", "وسط", "Orta", "Center")}</option>
-                <option value="left">{tr("چپ", "يسار", "Sol", "Left")}</option>
-              </select>
+              <Select
+                value={selected.align || "center"}
+                onChange={(value) => updateElement(selected.id, { align: value })}
+                className="studio-input"
+                options={[
+                  { value: "right", label: tr("راست", "يمين", "Sağ", "Right") },
+                  { value: "center", label: tr("وسط", "وسط", "Orta", "Center") },
+                  { value: "left", label: tr("چپ", "يسار", "Sol", "Left") },
+                ]}
+              />
 
               <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex justify-between">
                 <span>{tr("درشت", "غامق", "Kalın", "Bold")}</span>

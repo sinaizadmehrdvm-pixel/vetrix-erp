@@ -22,6 +22,8 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import { getCustomers, getCrmCustomerProfile } from "../services/api";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 function toNumber(value) {
   return Number(
@@ -303,27 +305,26 @@ export default function CrmDashboard() {
         <CrmStat icon={<Crown />} title={language === "fa" ? "VIP" : language === "ar" ? "VIP" : language === "tr" ? "VIP" : "VIP"} value={n(summary.vip)} color="text-yellow-300" />
         <CrmStat icon={<PhoneCall />} title={language === "fa" ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip Gereken" : "Follow-up"} value={n(summary.followup)} color="text-amber-300" />
         <CrmStat icon={<ShieldAlert />} title={language === "fa" ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi Riski" : "Credit risk"} value={n(summary.critical)} color="text-rose-300" />
-        <CrmStat icon={<Activity />} title={language === "fa" ? "میانگین امتیاز" : language === "ar" ? "متوسط الدرجة" : language === "tr" ? "Ortalama Puan" : "Avg score"} value={`${n(avgScore)}/100`} color="text-emerald-300" />
+        <CrmStat icon={<Activity />} title={language === "fa" ? "میانگین امتیاز" : language === "ar" ? "متوسط الدرجة" : language === "tr" ? "Ortalama Puan" : "Avg score"} value={`${n(avgScore)}/${n(100)}`} color="text-emerald-300" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch">
         <CrmHero language={language} n={n} money={money} avgScore={avgScore} debt={summary.debt} credit={summary.credit} followup={summary.followup} />
         <NextBestActions language={language} money={money} items={riskCustomers} />
+        <TopCustomers language={language} n={n} money={money} items={topCustomers} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[.8fr_1.2fr] gap-5">
-        <TopCustomers language={language} n={n} money={money} items={topCustomers} />
-        <CustomerList
-          language={language}
-          n={n}
-          money={money}
-          items={filtered}
-          query={query}
-          setQuery={setQuery}
-          filter={filter}
-          setFilter={setFilter}
-        />
-      </div>
+      <CustomerList
+        language={language}
+        dir={dir}
+        n={n}
+        money={money}
+        items={filtered}
+        query={query}
+        setQuery={setQuery}
+        filter={filter}
+        setFilter={setFilter}
+      />
     </div>
   );
 }
@@ -358,7 +359,7 @@ function CrmHero({ language, n, money, avgScore, debt, credit, followup }) {
           {language === "fa" ? "تحلیل کلی ارتباط با مشتری" : language === "ar" ? "تحليل شامل للعلاقة مع العميل" : language === "tr" ? "Genel müşteri ilişkisi analizi" : "Customer relationship intelligence"}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-5 items-center">
           <div>
             <div className={`text-7xl font-black ${scoreColor}`}>{n(avgScore)}</div>
             <div className="text-[var(--erp-muted)] mt-2">{language === "fa" ? "امتیاز میانگین CRM" : language === "ar" ? "متوسط درجة CRM" : language === "tr" ? "Ortalama CRM puanı" : "Average CRM score"}</div>
@@ -367,7 +368,7 @@ function CrmHero({ language, n, money, avgScore, debt, credit, followup }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
             <MiniBox title={language === "fa" ? "مطالبات" : language === "ar" ? "المستحقات" : language === "tr" ? "Alacaklar" : "Receivables"} value={money(debt)} icon={<Wallet size={18} />} color="text-rose-300" />
             <MiniBox title={language === "fa" ? "بستانکاری" : language === "ar" ? "الرصيد الدائن" : language === "tr" ? "Alacaklı Bakiye" : "Credit"} value={money(credit)} icon={<CreditCard size={18} />} color="text-emerald-300" />
             <MiniBox title={language === "fa" ? "پیگیری فعال" : language === "ar" ? "متابعة نشطة" : language === "tr" ? "Aktif takip" : "Active follow-up"} value={n(followup)} icon={<PhoneCall size={18} />} color="text-amber-300" />
@@ -445,7 +446,7 @@ function TopCustomers({ language, n, money, items }) {
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
                 <div className="font-black text-[var(--erp-text)]">{item.name}</div>
-                <div className="text-xs text-[var(--erp-muted)]">{item.phone || (language === "fa" ? "بدون شماره" : language === "ar" ? "بدون رقم" : language === "tr" ? "Numara yok" : "No phone")}</div>
+                <div className="text-xs text-[var(--erp-muted)]">{item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : (language === "fa" ? "بدون شماره" : language === "ar" ? "بدون رقم" : language === "tr" ? "Numara yok" : "No phone")}</div>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color} ${item.level.border}`}>
                 {item.level.label}
@@ -467,9 +468,9 @@ function TopCustomers({ language, n, money, items }) {
   );
 }
 
-function CustomerList({ language, n, money, items, query, setQuery, filter, setFilter }) {
+function CustomerList({ language, dir, n, money, items, query, setQuery, filter, setFilter }) {
   return (
-    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+    <div className="min-w-0 overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <Users />
@@ -487,100 +488,97 @@ function CustomerList({ language, n, money, items, query, setQuery, filter, setF
             />
           </div>
 
-          <select
+          <Select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-3 py-2 outline-none"
-          >
-            <option value="all">{language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All"}</option>
-            <option value="vip">VIP</option>
-            <option value="followup">{language === "fa" ? "پیگیری" : language === "ar" ? "متابعة" : language === "tr" ? "Takip" : "Follow-up"}</option>
-            <option value="risk">{language === "fa" ? "ریسک" : language === "ar" ? "مخاطر" : language === "tr" ? "Risk" : "Risk"}</option>
-            <option value="healthy">{language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy"}</option>
-          </select>
+            onChange={(value) => setFilter(value)}
+            className="w-36 shrink-0"
+            options={[
+              { value: "all", label: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All" },
+              { value: "vip", label: "VIP" },
+              { value: "followup", label: language === "fa" ? "پیگیری" : language === "ar" ? "متابعة" : language === "tr" ? "Takip" : "Follow-up" },
+              { value: "risk", label: language === "fa" ? "ریسک" : language === "ar" ? "مخاطر" : language === "tr" ? "Risk" : "Risk" },
+              { value: "healthy", label: language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy" },
+            ]}
+          />
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead>
-            <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-              <th className="p-3 text-right">#</th>
-              <th className="p-3 text-right">{language === "fa" ? "مشتری" : language === "ar" ? "العميل" : language === "tr" ? "Müşteri" : "Customer"}</th>
-              <th className="p-3 text-right">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}</th>
-              <th className="p-3 text-right">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</th>
-              <th className="p-3 text-right">{language === "fa" ? "مانده" : language === "ar" ? "الرصيد" : language === "tr" ? "Bakiye" : "Balance"}</th>
-              <th className="p-3 text-right">{language === "fa" ? "اقدام بعدی" : language === "ar" ? "الإجراء التالي" : language === "tr" ? "Sonraki adım" : "Next action"}</th>
-              <th className="p-3 text-right">{language === "fa" ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</th>
-            </tr>
-          </thead>
+      <Table dir={dir} className="min-w-[900px] text-sm">
+        <Thead>
+          <Th className="w-12">#</Th>
+          <Th>{language === "fa" ? "مشتری" : language === "ar" ? "العميل" : language === "tr" ? "Müşteri" : "Customer"}</Th>
+          <Th align="center">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}</Th>
+          <Th align="center">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</Th>
+          <Th align="center">{language === "fa" ? "مانده" : language === "ar" ? "الرصيد" : language === "tr" ? "Bakiye" : "Balance"}</Th>
+          <Th align="center">{language === "fa" ? "اقدام بعدی" : language === "ar" ? "الإجراء التالي" : language === "tr" ? "Sonraki adım" : "Next action"}</Th>
+          <Th align="center">{language === "fa" ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</Th>
+        </Thead>
 
-          <tbody>
-            {items.map((item, rowIndex) => (
-              <tr key={item.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
-                <td className="p-3 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
-                <td className="p-3">
-                  <div className="font-black text-[var(--erp-text)]">{item.name}</div>
-                  <div className="text-xs text-[var(--erp-muted)] flex items-center gap-1 mt-1">
+        <Tbody>
+          {items.map((item, rowIndex) => (
+            <Tr key={item.id} className="hover:bg-[var(--erp-glow)]">
+              <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+              <Td className="whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-[var(--erp-text)]">{item.name}</span>
+                  <span className="text-xs text-[var(--erp-muted)] flex items-center gap-1">
                     <PhoneCall size={12} />
-                    {item.phone || "-"}
-                  </div>
-                </td>
-
-                <td className="p-3 min-w-[150px]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color}`}>
-                      {item.level.label}
-                    </span>
-                    <span className="text-[var(--erp-muted)] text-xs">{n(item.score)}/100</span>
-                  </div>
-                  <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${item.score}%` }} />
-                  </div>
-                </td>
-
-                <td className="p-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black ${item.risk.bg} ${item.risk.color}`}>
-                    {item.risk.label}
+                    {item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : "-"}
                   </span>
-                </td>
+                </div>
+              </Td>
 
-                <td className={`p-3 font-black ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-[var(--erp-accent)]"}`}>
-                  {money(Math.abs(getBalance(item)))}
-                </td>
+              <Td align="center" className="min-w-[150px] whitespace-nowrap">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap ${item.level.bg} ${item.level.color}`}>
+                    {item.level.label}
+                  </span>
+                  <span className="text-[var(--erp-muted)] text-xs">{n(item.score)}/{n(100)}</span>
+                </div>
+                <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${item.score}%` }} />
+                </div>
+              </Td>
 
-                <td className="p-3 text-[var(--erp-muted)]">
-                  <div className="flex items-center gap-1 text-xs">
-                    <CalendarClock size={13} className="text-[var(--erp-accent)]" />
-                    {item.risk.text}
-                  </div>
-                </td>
+              <Td align="center" className="whitespace-nowrap">
+                <span className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap ${item.risk.bg} ${item.risk.color}`}>
+                  {item.risk.label}
+                </span>
+              </Td>
 
-                <td className="p-3">
-                  <div className="flex gap-2">
-                    <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold flex items-center gap-1">
-                      <Eye size={15} />
-                      {language === "fa" ? "پرونده" : language === "ar" ? "الملف" : language === "tr" ? "Profil" : "Profile"}
-                    </Link>
-                    <Link to="/invoices" className="px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold flex items-center gap-1">
-                      <Receipt size={15} />
-                      {language === "fa" ? "فاکتور" : language === "ar" ? "فاتورة" : language === "tr" ? "Fatura" : "Invoice"}
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            ))}
+              <Td align="center" className={`font-black whitespace-nowrap ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-[var(--erp-accent)]"}`}>
+                {money(Math.abs(getBalance(item)))}
+              </Td>
 
-            {items.length === 0 && (
-              <tr>
-                <td colSpan="6" className="p-8 text-center text-[var(--erp-muted)]">
-                  {language === "fa" ? "موردی یافت نشد." : language === "ar" ? "لم يتم العثور على أي عنصر." : language === "tr" ? "Sonuç bulunamadı." : "No customer found."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              <Td align="center" className="text-[var(--erp-muted)] whitespace-nowrap">
+                <div className="flex items-center justify-center gap-1 text-xs">
+                  <CalendarClock size={13} className="text-[var(--erp-accent)] shrink-0" />
+                  {item.risk.text}
+                </div>
+              </Td>
+
+              <Td align="center" className="whitespace-nowrap">
+                <div className="flex items-center justify-center gap-2 flex-nowrap">
+                  <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold flex items-center gap-1 whitespace-nowrap">
+                    <Eye size={15} />
+                    {language === "fa" ? "پرونده" : language === "ar" ? "الملف" : language === "tr" ? "Profil" : "Profile"}
+                  </Link>
+                  <Link to="/invoices" className="px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold flex items-center gap-1 whitespace-nowrap">
+                    <Receipt size={15} />
+                    {language === "fa" ? "فاکتور" : language === "ar" ? "فاتورة" : language === "tr" ? "Fatura" : "Invoice"}
+                  </Link>
+                </div>
+              </Td>
+            </Tr>
+          ))}
+
+          {items.length === 0 && (
+            <EmptyRow colSpan={7}>
+              {language === "fa" ? "موردی یافت نشد." : language === "ar" ? "لم يتم العثور على أي عنصر." : language === "tr" ? "Sonuç bulunamadı." : "No customer found."}
+            </EmptyRow>
+          )}
+        </Tbody>
+      </Table>
     </div>
   );
 }

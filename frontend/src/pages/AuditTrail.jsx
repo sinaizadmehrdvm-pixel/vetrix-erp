@@ -16,6 +16,7 @@ import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { getAuditEvents, getAuditIntegrity } from "../services/auditApi";
+import Select from "../components/ui/Select";
 
 const PAGE_SIZE = 50;
 const initialFilters = {
@@ -210,16 +211,26 @@ export default function AuditTrail() {
       <form onSubmit={applyFilters} style={{ ...card, padding: 18, marginBottom: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
           <input style={input} value={language === "fa" ? toPersianDigits(filters.actor) : filters.actor} onChange={(e) => setFilters({ ...filters, actor: toEnglishDigits(e.target.value) })} placeholder={copy.actor} />
-          <select style={input} value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })}>
-            <option value="">{copy.action}: {copy.all}</option>
-            {["create", "update", "delete", "close", "reopen", "post", "cancel", "convert", "toggle"].map((action) => <option key={action} value={action}>{actionLabel(action)}</option>)}
-          </select>
+          <Select
+            className="w-full"
+            value={filters.action}
+            onChange={(value) => setFilters({ ...filters, action: value })}
+            options={[
+              { value: "", label: `${copy.action}: ${copy.all}` },
+              ...["create", "update", "delete", "close", "reopen", "post", "cancel", "convert", "toggle"].map((action) => ({ value: action, label: actionLabel(action) })),
+            ]}
+          />
           <input style={input} value={language === "fa" ? toPersianDigits(filters.path) : filters.path} onChange={(e) => setFilters({ ...filters, path: toEnglishDigits(e.target.value) })} placeholder={copy.resource} />
-          <select style={input} value={filters.success} onChange={(e) => setFilters({ ...filters, success: e.target.value })}>
-            <option value="all">{copy.result}: {copy.all}</option>
-            <option value="true">{copy.success}</option>
-            <option value="false">{copy.failed}</option>
-          </select>
+          <Select
+            className="w-full"
+            value={filters.success}
+            onChange={(value) => setFilters({ ...filters, success: value })}
+            options={[
+              { value: "all", label: `${copy.result}: ${copy.all}` },
+              { value: "true", label: copy.success },
+              { value: "false", label: copy.failed },
+            ]}
+          />
           <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.from}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.from_date} onChange={(iso) => setFilters({ ...filters, from_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px]" /></div></label>
           <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.to}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.to_date} onChange={(iso) => setFilters({ ...filters, to_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px]" /></div></label>
         </div>

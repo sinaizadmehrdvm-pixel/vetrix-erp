@@ -7,6 +7,8 @@ import { useLanguage } from "../localization/useLanguage";
 import { getEmployees, createEmployee, getBranches } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -103,10 +105,14 @@ export default function Employees() {
       <section className={cardClass}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <input className={inputClass} placeholder={tr("جستجو (نام، کد پرسنلی)", "بحث (الاسم، الرقم الوظيفي)", "Ara (ad, personel no)", "Search (name, employee number)")} value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">{tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses")}</option>
-            {["active", "on_leave", "suspended", "terminated"].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
-          </select>
+          <Select
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={[
+              { value: "", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
+              ...["active", "on_leave", "suspended", "terminated"].map((s) => ({ value: s, label: statusLabel(s) })),
+            ]}
+          />
         </div>
 
         {loading ? (
@@ -150,18 +156,28 @@ export default function Employees() {
             <input className={inputClass} placeholder={tr("کد پرسنلی", "الرقم الوظيفي", "Personel no", "Employee number")} value={draft.employee_number} onChange={(e) => setDraft({ ...draft, employee_number: e.target.value })} />
             <input className={inputClass} placeholder={tr("سمت شغلی", "المسمى الوظيفي", "Görev", "Job title")} value={draft.job_title} onChange={(e) => setDraft({ ...draft, job_title: e.target.value })} />
             <input className={inputClass} placeholder={tr("واحد سازمانی", "القسم", "Departman", "Department")} value={draft.department} onChange={(e) => setDraft({ ...draft, department: e.target.value })} />
-            <select className={inputClass} value={draft.employment_type} onChange={(e) => setDraft({ ...draft, employment_type: e.target.value })}>
-              {["full_time", "part_time", "contract", "intern", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select className={inputClass} value={draft.branch_id} onChange={(e) => setDraft({ ...draft, branch_id: e.target.value })}>
-              <option value="">{tr("شعبه", "الفرع", "Şube", "Branch")}</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <select className={inputClass} value={draft.manager_employee_id} onChange={(e) => setDraft({ ...draft, manager_employee_id: e.target.value })}>
-              <option value="">{tr("مدیر مستقیم", "المدير المباشر", "Yönetici", "Manager")}</option>
-              {items.map((e2) => <option key={e2.id} value={e2.id}>{e2.display_name || `${e2.first_name} ${e2.last_name}`}</option>)}
-            </select>
-            <input type="date" className={inputClass} value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} />
+            <Select
+              value={draft.employment_type}
+              onChange={(value) => setDraft({ ...draft, employment_type: value })}
+              options={["full_time", "part_time", "contract", "intern", "other"].map((t) => ({ value: t, label: t }))}
+            />
+            <Select
+              value={draft.branch_id}
+              onChange={(value) => setDraft({ ...draft, branch_id: value })}
+              options={[
+                { value: "", label: tr("شعبه", "الفرع", "Şube", "Branch") },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+            <Select
+              value={draft.manager_employee_id}
+              onChange={(value) => setDraft({ ...draft, manager_employee_id: value })}
+              options={[
+                { value: "", label: tr("مدیر مستقیم", "المدير المباشر", "Yönetici", "Manager") },
+                ...items.map((e2) => ({ value: e2.id, label: e2.display_name || `${e2.first_name} ${e2.last_name}` })),
+              ]}
+            />
+            <JalaliDateField className={inputClass} value={draft.start_date} onChange={(iso) => setDraft({ ...draft, start_date: iso })} language={language} />
             <input className={inputClass} placeholder={tr("موبایل", "الجوال", "Cep telefonu", "Mobile")} value={draft.mobile} onChange={(e) => setDraft({ ...draft, mobile: e.target.value })} />
             <input className={inputClass} placeholder={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")} value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
           </div>

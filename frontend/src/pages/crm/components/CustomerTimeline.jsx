@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { formatCalendarDate } from "../../../utils/date";
 import { toPersianDigits } from "../../../localization/helpers";
+import Select from "../../../components/ui/Select";
 
 function toNumber(value) {
   return Number(
@@ -219,19 +220,20 @@ export default function CustomerTimeline({
           />
         </div>
 
-        <select
+        <Select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
-        >
-          <option value="all">{tr("همه رویدادها", "جميع الأحداث", "Tüm olaylar", "All events")}</option>
-          <option value="invoice">{tr("فاکتورها", "الفواتير", "Faturalar", "Invoices")}</option>
-          <option value="payment">{tr("پرداخت / دریافت", "المدفوعات", "Ödemeler", "Payments")}</option>
-          <option value="call">{tr("تماس‌ها", "المكالمات", "Aramalar", "Calls")}</option>
-          <option value="task">{tr("وظایف", "المهام", "Görevler", "Tasks")}</option>
-          <option value="note">{tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes")}</option>
-          <option value="loyalty">{tr("باشگاه مشتریان", "برنامج الولاء", "Sadakat programı", "Loyalty")}</option>
-        </select>
+          onChange={(value) => setTypeFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: tr("همه رویدادها", "جميع الأحداث", "Tüm olaylar", "All events") },
+            { value: "invoice", label: tr("فاکتورها", "الفواتير", "Faturalar", "Invoices") },
+            { value: "payment", label: tr("پرداخت / دریافت", "المدفوعات", "Ödemeler", "Payments") },
+            { value: "call", label: tr("تماس‌ها", "المكالمات", "Aramalar", "Calls") },
+            { value: "task", label: tr("وظایف", "المهام", "Görevler", "Tasks") },
+            { value: "note", label: tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes") },
+            { value: "loyalty", label: tr("باشگاه مشتریان", "برنامج الولاء", "Sadakat programı", "Loyalty") },
+          ]}
+        />
       </div>
 
       {onAddNote && (

@@ -8,6 +8,8 @@ import {
   getCompanyDocuments, uploadCompanyDocument, deleteCompanyDocument, fetchAuthenticatedResource,
 } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -122,16 +124,21 @@ export default function CompanyProfile() {
               <label className={labelClass}><span className={labelTextClass}>{tr("کد شرکت", "رمز الشركة", "Şirket kodu", "Company code")}</span><input className={inputClass} value={draft.company_code} onChange={(e) => set("company_code", e.target.value)} /></label>
               <label className={labelClass}>
                 <span className={labelTextClass}>{tr("نوع شرکت", "نوع الشركة", "Şirket türü", "Company type")}</span>
-                <select className={inputClass} value={draft.company_type} onChange={(e) => set("company_type", e.target.value)}>
-                  <option value="">—</option>
-                  {["sole_proprietorship", "partnership", "llc", "corporation", "cooperative", "other"].map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
+                <Select
+                  className="w-full"
+                  value={draft.company_type}
+                  onChange={(value) => set("company_type", value)}
+                  options={[
+                    { value: "", label: "—" },
+                    ...["sole_proprietorship", "partnership", "llc", "corporation", "cooperative", "other"].map((v) => ({ value: v, label: v })),
+                  ]}
+                />
               </label>
               <label className={labelClass}><span className={labelTextClass}>{tr("شکل حقوقی", "الشكل القانوني", "Yasal şekil", "Legal form")}</span><input className={inputClass} value={draft.legal_form} onChange={(e) => set("legal_form", e.target.value)} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("شماره ثبت", "رقم التسجيل", "Tescil no", "Registration number")}</span><input className={inputClass} value={draft.registration_number} onChange={(e) => set("registration_number", e.target.value)} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("شماره مالیات بر ارزش‌افزوده", "الرقم الضريبي (VAT)", "KDV no", "VAT number")}</span><input className={inputClass} value={draft.vat_number} onChange={(e) => set("vat_number", e.target.value)} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("شناسه ملی (از تنظیمات)", "الهوية الوطنية (من الإعدادات)", "Ulusal kimlik (Ayarlardan)", "National ID (from Settings)")}</span><input className={inputClass} value={profile.national_id} disabled /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("تاریخ ثبت", "تاريخ التسجيل", "Tescil tarihi", "Registration date")}</span><input type="date" className={inputClass} value={draft.registration_date || ""} onChange={(e) => set("registration_date", e.target.value)} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("تاریخ ثبت", "تاريخ التسجيل", "Tescil tarihi", "Registration date")}</span><JalaliDateField className={inputClass} value={draft.registration_date || ""} onChange={(iso) => set("registration_date", iso)} language={language} /></label>
             </div>
           )}
 
@@ -191,8 +198,8 @@ export default function CompanyProfile() {
         </form>
       )}
 
-      {tab === "goals" && <GoalsPanel tr={tr} n={n} date={date} />}
-      {tab === "documents" && <DocumentsPanel tr={tr} n={n} date={date} />}
+      {tab === "goals" && <GoalsPanel tr={tr} n={n} date={date} language={language} />}
+      {tab === "documents" && <DocumentsPanel tr={tr} n={n} date={date} language={language} />}
       {tab === "relationships" && (
         <div className={cardClass}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -206,7 +213,7 @@ export default function CompanyProfile() {
   );
 }
 
-function GoalsPanel({ tr, n, date }) {
+function GoalsPanel({ tr, n, date, language }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({ title: "", measurable_target: "", start_date: "", target_date: "" });
@@ -254,7 +261,7 @@ function GoalsPanel({ tr, n, date }) {
       <form onSubmit={addGoal} className="flex flex-wrap gap-2">
         <input className={inputClass + " flex-1 min-w-[200px]"} placeholder={tr("عنوان هدف", "عنوان الهدف", "Hedef başlığı", "Goal title")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
         <input className={inputClass + " w-52"} placeholder={tr("شاخص قابل‌اندازه‌گیری", "مؤشر قابل للقياس", "Ölçülebilir hedef", "Measurable target")} value={draft.measurable_target} onChange={(e) => setDraft({ ...draft, measurable_target: e.target.value })} />
-        <input type="date" className={inputClass + " w-40"} value={draft.target_date} onChange={(e) => setDraft({ ...draft, target_date: e.target.value })} />
+        <JalaliDateField className={inputClass + " w-40"} value={draft.target_date} onChange={(iso) => setDraft({ ...draft, target_date: iso })} language={language} />
         <button type="submit" disabled={saving} className={btnClass}><Plus size={16} /></button>
       </form>
       {loading ? <p className="text-[var(--erp-muted)]">{tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</p> : (
@@ -276,9 +283,11 @@ function GoalsPanel({ tr, n, date }) {
                 <Td>{g.measurable_target || "—"}</Td>
                 <Td>{n(g.progress_percent)}%</Td>
                 <Td>
-                  <select className="text-xs rounded-lg bg-transparent border border-[var(--erp-border)] p-1" value={g.status} onChange={(e) => changeStatus(g, e.target.value)}>
-                    {["not_started", "in_progress", "completed", "at_risk", "cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <Select
+                    value={g.status}
+                    onChange={(value) => changeStatus(g, value)}
+                    options={["not_started", "in_progress", "completed", "at_risk", "cancelled"].map((s) => ({ value: s, label: s }))}
+                  />
                 </Td>
                 <Td>{g.target_date ? date(g.target_date) : "—"}</Td>
                 <Td align="end"><button onClick={() => remove(g.id)} className="text-red-300"><Trash2 size={16} /></button></Td>
@@ -291,7 +300,7 @@ function GoalsPanel({ tr, n, date }) {
   );
 }
 
-function DocumentsPanel({ tr, n, date }) {
+function DocumentsPanel({ tr, n, date, language }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState(null);
@@ -350,11 +359,14 @@ function DocumentsPanel({ tr, n, date }) {
   return (
     <div className={cardClass + " space-y-4"}>
       <form onSubmit={upload} className="flex flex-wrap gap-2 items-center">
-        <select className={inputClass + " w-40"} value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-          {["registration", "tax", "license", "contract", "certification", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select
+          className="w-40"
+          value={documentType}
+          onChange={(value) => setDocumentType(value)}
+          options={["registration", "tax", "license", "contract", "certification", "other"].map((t) => ({ value: t, label: t }))}
+        />
         <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input type="date" className={inputClass + " w-40"} value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} placeholder={tr("تاریخ انقضا", "تاريخ الانتهاء", "Son geçerlilik", "Expiry date")} />
+        <JalaliDateField className={inputClass + " w-40"} value={expiryDate} onChange={(iso) => setExpiryDate(iso)} language={language} placeholder={tr("تاریخ انقضا", "تاريخ الانتهاء", "Son geçerlilik", "Expiry date")} />
         <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
         <button type="submit" disabled={uploading || !file} className={btnClass}>{tr("بارگذاری", "رفع", "Yükle", "Upload")}</button>
       </form>

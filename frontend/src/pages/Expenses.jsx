@@ -23,7 +23,7 @@ import Select from "../components/ui/Select";
 const EXPENSES_CACHE_KEY = "expenses";
 
 const inputClass =
-  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-[var(--erp-radius-md)] py-2.5 px-3 outline-none transition-all w-full";
 
 function toNumber(value) {
   const cleaned = toEnglishDigits(String(value || ""))
@@ -367,6 +367,7 @@ export default function Expenses() {
             <Select
               value={form.category}
               onChange={(value) => setForm({ ...form, category: value })}
+              className="w-full"
               options={Object.entries(label.categoryOptions).map(([key, text]) => ({ value: key, label: text }))}
             />
           </Field>

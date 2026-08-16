@@ -11,6 +11,7 @@ import {
 import { useMemo, useState } from "react";
 import { formatCalendarDate } from "../../../utils/date";
 import { toPersianDigits } from "../../../localization/helpers";
+import Select from "../../../components/ui/Select";
 
 function toNumber(value) {
   return Number(
@@ -242,19 +243,20 @@ export default function CustomerFinancial({
               />
             </div>
 
-            <select
+            <Select
               value={invoiceFilter}
-              onChange={(e) => setInvoiceFilter(e.target.value)}
-              className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
-            >
-              <option value="all">{tr("همه", "الكل", "Tümü", "All")}</option>
-              <option value="sale">{tr("فروش", "بيع", "Satış", "Sale")}</option>
-              <option value="buy">{tr("خرید", "شراء", "Alış", "Buy")}</option>
-              <option value="proforma">{tr("پیش‌فاکتور", "فاتورة أولية", "Proforma", "Proforma")}</option>
-              <option value="paid">{tr("تسویه شده", "مدفوع", "Ödendi", "Paid")}</option>
-              <option value="unpaid">{tr("تسویه نشده", "غير مدفوع", "Ödenmedi", "Unpaid")}</option>
-              <option value="partial">{tr("ناقص", "جزئي", "Kısmi", "Partial")}</option>
-            </select>
+              onChange={(value) => setInvoiceFilter(value)}
+              className="w-full"
+              options={[
+                { value: "all", label: tr("همه", "الكل", "Tümü", "All") },
+                { value: "sale", label: tr("فروش", "بيع", "Satış", "Sale") },
+                { value: "buy", label: tr("خرید", "شراء", "Alış", "Buy") },
+                { value: "proforma", label: tr("پیش‌فاکتور", "فاتورة أولية", "Proforma", "Proforma") },
+                { value: "paid", label: tr("تسویه شده", "مدفوع", "Ödendi", "Paid") },
+                { value: "unpaid", label: tr("تسویه نشده", "غير مدفوع", "Ödenmedi", "Unpaid") },
+                { value: "partial", label: tr("ناقص", "جزئي", "Kısmi", "Partial") },
+              ]}
+            />
           </div>
         </div>
 

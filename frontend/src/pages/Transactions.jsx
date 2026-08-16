@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { Link } from "react-router-dom";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -509,44 +511,41 @@ export default function Transactions() {
         }}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <select
+          <Select
+            className={inputClass}
             value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-            className={inputClass}
-          >
-            <option value="income">{tr("دریافت", "مقبوضات", "Tahsilat", "Receipt")}</option>
-            <option value="outcome">{tr("پرداخت", "مدفوعات", "Ödeme", "Payment")}</option>
-          </select>
+            onChange={(value) => setForm({ ...form, type: value })}
+            options={[
+              { value: "income", label: tr("دریافت", "مقبوضات", "Tahsilat", "Receipt") },
+              { value: "outcome", label: tr("پرداخت", "مدفوعات", "Ödeme", "Payment") },
+            ]}
+          />
 
-          <select
+          <Select
+            className={inputClass}
             value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            className={inputClass}
-          >
-            {Object.keys(REASON_LABELS.fa).map((key) => (
-              <option key={key} value={key}>
-                {getReasonLabel(key, language)}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setForm({ ...form, reason: value })}
+            options={Object.keys(REASON_LABELS.fa).map((key) => ({
+              value: key,
+              label: getReasonLabel(key, language),
+            }))}
+          />
 
-          <select
+          <Select
+            className={inputClass}
             value={form.party_id}
-            onChange={(e) => setForm({ ...form, party_id: e.target.value })}
-            className={inputClass}
-          >
-            <option value="">
-              {form.type === "income"
-                ? tr("انتخاب پرداخت‌کننده", "اختر الدافع", "Ödeyeni seçin", "Select payer")
-                : tr("انتخاب دریافت‌کننده", "اختر المستلم", "Alıcıyı seçin", "Select receiver")}
-            </option>
-
-            {parties.map((party) => (
-              <option key={party.id} value={party.id}>
-                {party.name}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setForm({ ...form, party_id: value })}
+            options={[
+              {
+                value: "",
+                label:
+                  form.type === "income"
+                    ? tr("انتخاب پرداخت‌کننده", "اختر الدافع", "Ödeyeni seçin", "Select payer")
+                    : tr("انتخاب دریافت‌کننده", "اختر المستلم", "Alıcıyı seçin", "Select receiver"),
+              },
+              ...parties.map((party) => ({ value: party.id, label: party.name })),
+            ]}
+          />
 
           <input
             type="text"
@@ -562,17 +561,17 @@ export default function Transactions() {
             className={inputClass}
           />
 
-          <select
+          <Select
             value={form.method}
-            onChange={(e) => setForm({ ...form, method: e.target.value })}
-            className={inputClass}
-          >
-            <option value="cash">{t("cash")}</option>
-            <option value="pos">{tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS")}</option>
-            <option value="card">{t("card")}</option>
-            <option value="bank">{t("bank")}</option>
-            <option value="cheque">{t("cheque")}</option>
-          </select>
+            onChange={(value) => setForm({ ...form, method: value })}
+            options={[
+              { value: "cash", label: t("cash") },
+              { value: "pos", label: tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS") },
+              { value: "card", label: t("card") },
+              { value: "bank", label: t("bank") },
+              { value: "cheque", label: t("cheque") },
+            ]}
+          />
 
           <input
             type="text"
@@ -657,57 +656,54 @@ export default function Transactions() {
         ) : filteredTransactions.length === 0 ? (
           <p style={{ color: "var(--erp-muted)" }}>{t("noData")}</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", color: "var(--erp-text)" }}>
-              <thead>
-                <tr style={{ color: "var(--erp-accent)" }}>
-                  <th className="p-3 text-start">#</th>
-                  <th className="p-3 text-start">{t("transactionType")}</th>
-                  <th className="p-3 text-start">{tr("بابت", "السبب", "Sebep", "Reason")}</th>
-                  <th className="p-3 text-start">{t("party")}</th>
-                  <th className="p-3 text-start">{t("method")}</th>
-                  <th className="p-3 text-start">{t("amount")}</th>
-                  <th className="p-3 text-start">{tr("مانده بعد", "الرصيد بعد", "Sonraki bakiye", "Balance after")}</th>
-                  <th className="p-3 text-start">{t("date")}</th>
-                  <th className="p-3 text-start">{t("actions")}</th>
-                </tr>
-              </thead>
+          <Table dir={dir} className="text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{t("transactionType")}</Th>
+              <Th>{tr("بابت", "السبب", "Sebep", "Reason")}</Th>
+              <Th>{t("party")}</Th>
+              <Th>{t("method")}</Th>
+              <Th align="end">{t("amount")}</Th>
+              <Th align="end">{tr("مانده بعد", "الرصيد بعد", "Sonraki bakiye", "Balance after")}</Th>
+              <Th>{t("date")}</Th>
+              <Th>{t("actions")}</Th>
+            </Thead>
 
-              <tbody>
-                {filteredTransactions.map((item, rowIndex) => (
-                  <tr key={item.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
-                    <td className="p-3" style={{ color: "var(--erp-muted)", fontWeight: 700 }}>{n(rowIndex + 1)}</td>
-                    <td className="p-3">
-                      <span style={{ color: transactionColor(item), fontWeight: 900 }}>
-                        {transactionTypeLabel(item)}
-                      </span>
-                    </td>
+            <Tbody>
+              {filteredTransactions.map((item, rowIndex) => (
+                <Tr key={item.id}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+                  <Td>
+                    <span style={{ color: transactionColor(item), fontWeight: 900 }}>
+                      {transactionTypeLabel(item)}
+                    </span>
+                  </Td>
 
-                    <td className="p-3">{getReasonLabel(item.reason, language)}</td>
+                  <Td>{getReasonLabel(item.reason, language)}</Td>
 
-                    <td className="p-3">
-                      {item.party_id || item.customer_id ? (
-                        <Link
-                          to={`/customers/${item.party_id || item.customer_id}`}
-                          className="text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
-                        >
-                          <UserRound size={16} />
-                          {partyName(item.party_id || item.customer_id)}
-                        </Link>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+                  <Td>
+                    {item.party_id || item.customer_id ? (
+                      <Link
+                        to={`/customers/${item.party_id || item.customer_id}`}
+                        className="text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
+                      >
+                        <UserRound size={16} />
+                        {partyName(item.party_id || item.customer_id)}
+                      </Link>
+                    ) : (
+                      "-"
+                    )}
+                  </Td>
 
-                    <td className="p-3">{methodLabel(item.method)}</td>
-                    <td className="p-3 font-black">{money(item.amount)}</td>
-                    <td className="p-3 font-bold text-[var(--erp-accent)]">
-                      {item.balance_after ? money(item.balance_after) : "-"}
-                    </td>
-                    <td className="p-3">{displayDate(item.created_at || item.date)}</td>
+                  <Td>{methodLabel(item.method)}</Td>
+                  <Td align="end" className="font-black">{money(item.amount)}</Td>
+                  <Td align="end" className="font-bold text-[var(--erp-accent)]">
+                    {item.balance_after ? money(item.balance_after) : "-"}
+                  </Td>
+                  <Td>{displayDate(item.created_at || item.date)}</Td>
 
-                    <td className="p-3">
-                      <div className="flex gap-2">
+                  <Td>
+                    <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => editTransaction(item)}
@@ -768,12 +764,11 @@ export default function Transactions() {
                           <Trash2 size={17} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </Tbody>
+            </Table>
         )}
       </div>
     </div>

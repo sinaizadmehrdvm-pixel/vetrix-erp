@@ -47,6 +47,7 @@ import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
 import ReportHeader from "../components/reports/ReportHeader";
 import ReportFooter from "../components/reports/ReportFooter";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 import {
   downloadAuthenticatedFile,
@@ -800,7 +801,7 @@ export default function Reports() {
       {active === "customers" && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Panel title={tr("مطالبات از مشتریان", "المستحقات من العملاء", "Müşterilerden alacaklar", "Receivables from customers")}>
-            <Table className="erp-report-table">
+            <Table dir={dir} className="erp-report-table">
               <Thead>
                 <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
                 <Th>{tr("نام", "الاسم", "Ad", "Name")}</Th>
@@ -825,7 +826,7 @@ export default function Reports() {
             </Table>
           </Panel>
           <Panel title={tr("بدهی به تامین‌کنندگان / بستانکاران", "الديون للموردين / الدائنين", "Tedarikçi borçları / Alacaklılar", "Payables / Creditors")}>
-            <Table className="erp-report-table">
+            <Table dir={dir} className="erp-report-table">
               <Thead>
                 <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
                 <Th>{tr("نام", "الاسم", "Ad", "Name")}</Th>
@@ -868,7 +869,7 @@ export default function Reports() {
           </ChartPanel>
 
           <Panel title={tr("گزارش سود هر کالا", "تقرير ربح كل منتج", "Ürün kârı raporu", "Product profit report")}>
-            <Table className="erp-report-table">
+            <Table dir={dir} className="erp-report-table">
               <Thead>
                 <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
                 <Th>{tr("کالا", "المنتج", "Ürün", "Product")}</Th>
@@ -905,7 +906,7 @@ export default function Reports() {
 
       {active === "invoices" && (
         <Panel title={tr("فاکتورهای باز و تسویه نشده", "الفواتير المفتوحة وغير المسواة", "Açık ve ödenmemiş faturalar", "Open and unsettled invoices")}>
-          <Table className="erp-report-table">
+          <Table dir={dir} className="erp-report-table">
             <Thead>
               <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
               <Th>{tr("فاکتور", "فاتورة", "Fatura", "Invoice")}</Th>
@@ -942,14 +943,14 @@ export default function Reports() {
           </Panel>
 
           <Panel title={tr("تراکنش‌های اخیر", "المعاملات الأخيرة", "Son işlemler", "Recent transactions")}>
-            <TransactionsTable items={filteredTransactions.slice(0, 12)} money={money} n={n} date={date} tr={tr} language={language} />
+            <TransactionsTable items={filteredTransactions.slice(0, 12)} money={money} n={n} date={date} tr={tr} language={language} dir={dir} />
           </Panel>
         </div>
       )}
 
       {active === "inventory" && (
         <Panel title={tr("گزارش پیشرفته موجودی کالا", "تقرير مخزون متقدم", "Gelişmiş envanter raporu", "Advanced inventory report")}>
-          <Table className="erp-report-table">
+          <Table dir={dir} className="erp-report-table">
             <Thead>
               <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
               <Th>{tr("کالا", "المنتج", "Ürün", "Product")}</Th>
@@ -986,7 +987,7 @@ export default function Reports() {
 
       {active === "transactions" && (
         <Panel title={tr("گزارش کامل تراکنش‌ها", "تقرير كامل بالمعاملات", "Tam işlem raporu", "Full transactions report")}>
-          <TransactionsTable items={filteredTransactions} money={money} n={n} date={date} tr={tr} language={language} />
+          <TransactionsTable items={filteredTransactions} money={money} n={n} date={date} tr={tr} language={language} dir={dir} />
         </Panel>
       )}
 
@@ -1107,23 +1108,35 @@ function ScheduledReportsPanel({ tr, language }) {
       </h2>
 
       <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-        <select value={form.report_type} onChange={(e) => setForm({ ...form, report_type: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
-          {SCHEDULE_REPORT_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-        </select>
-        <select value={form.report_format} onChange={(e) => setForm({ ...form, report_format: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
-          <option value="pdf">PDF</option>
-          <option value="csv">CSV</option>
-        </select>
+        <Select
+          value={form.report_type}
+          onChange={(value) => setForm({ ...form, report_type: value })}
+          options={SCHEDULE_REPORT_TYPES.map(([key, label]) => ({ value: key, label }))}
+        />
+        <Select
+          value={form.report_format}
+          onChange={(value) => setForm({ ...form, report_format: value })}
+          options={[
+            { value: "pdf", label: "PDF" },
+            { value: "csv", label: "CSV" },
+          ]}
+        />
         <input type="email" required placeholder={tr("ایمیل مقصد", "البريد الإلكتروني", "E-posta adresi", "Destination email")} value={form.destination_email} onChange={(e) => setForm({ ...form, destination_email: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none" style={{ direction: "ltr" }} />
-        <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
-          <option value="daily">{tr("روزانه", "يوميًا", "Günlük", "Daily")}</option>
-          <option value="weekly">{tr("هفتگی", "أسبوعيًا", "Haftalık", "Weekly")}</option>
-          <option value="monthly">{tr("ماهانه", "شهريًا", "Aylık", "Monthly")}</option>
-        </select>
+        <Select
+          value={form.frequency}
+          onChange={(value) => setForm({ ...form, frequency: value })}
+          options={[
+            { value: "daily", label: tr("روزانه", "يوميًا", "Günlük", "Daily") },
+            { value: "weekly", label: tr("هفتگی", "أسبوعيًا", "Haftalık", "Weekly") },
+            { value: "monthly", label: tr("ماهانه", "شهريًا", "Aylık", "Monthly") },
+          ]}
+        />
         {form.frequency === "weekly" && (
-          <select value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none">
-            {weekdays.map((day, index) => <option key={day} value={index}>{day}</option>)}
-          </select>
+          <Select
+            value={form.day_of_week}
+            onChange={(value) => setForm({ ...form, day_of_week: value })}
+            options={weekdays.map((day, index) => ({ value: index, label: day }))}
+          />
         )}
         {form.frequency === "monthly" && (
           <input type="number" min="1" max="28" value={form.day_of_month} onChange={(e) => setForm({ ...form, day_of_month: e.target.value })} className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-3 outline-none" placeholder={tr("روز ماه", "يوم الشهر", "Ayın günü", "Day of month")} />
@@ -1222,9 +1235,9 @@ function ReportLine({ label, value, strong, negative, color }) {
 // Shared by the "cash" and "transactions" tabs - both list the same
 // transaction shape (date, description, source, debit/credit), so the
 // table markup is centralized here instead of duplicated per tab.
-function TransactionsTable({ items, money, n, date, tr, language }) {
+function TransactionsTable({ items, money, n, date, tr, language, dir }) {
   return (
-    <Table className="erp-report-table">
+    <Table dir={dir} className="erp-report-table">
       <Thead>
         <Th className="w-12">{tr("ردیف", "#", "#", "#")}</Th>
         <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>

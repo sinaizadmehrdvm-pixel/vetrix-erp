@@ -11,6 +11,8 @@ import {
   getEmployeePerformanceReviews, createEmployeePerformanceReview, fetchAuthenticatedResource,
 } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -120,11 +122,11 @@ export default function EmployeeProfile() {
       )}
 
       {tab === "history" && <HistoryTab employeeId={id} tr={tr} n={n} date={date} />}
-      {tab === "compensation" && summary?.compensation_visible && <CompensationTab employeeId={id} tr={tr} n={n} date={date} />}
+      {tab === "compensation" && summary?.compensation_visible && <CompensationTab employeeId={id} tr={tr} n={n} date={date} language={language} />}
       {tab === "compensation" && !summary?.compensation_visible && <div className={cardClass}>{tr("دسترسی ندارید.", "لا تملك صلاحية الوصول.", "Erişiminiz yok.", "You do not have access.")}</div>}
-      {tab === "leave" && <LeaveTab employeeId={id} tr={tr} n={n} date={date} onChange={load} />}
-      {tab === "attendance" && <AttendanceTab employeeId={id} tr={tr} n={n} date={date} />}
-      {tab === "documents" && <DocumentsTab employeeId={id} tr={tr} n={n} date={date} onChange={load} />}
+      {tab === "leave" && <LeaveTab employeeId={id} tr={tr} n={n} date={date} language={language} onChange={load} />}
+      {tab === "attendance" && <AttendanceTab employeeId={id} tr={tr} n={n} date={date} language={language} />}
+      {tab === "documents" && <DocumentsTab employeeId={id} tr={tr} n={n} date={date} language={language} onChange={load} />}
       {tab === "performance" && <PerformanceTab employeeId={id} tr={tr} n={n} />}
     </div>
   );
@@ -155,7 +157,7 @@ function HistoryTab({ employeeId, tr, n, date }) {
   );
 }
 
-function CompensationTab({ employeeId, tr, n, date }) {
+function CompensationTab({ employeeId, tr, n, date, language }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({ entry_type: "base_salary", amount: "", effective_date: "", note: "" });
@@ -182,11 +184,14 @@ function CompensationTab({ employeeId, tr, n, date }) {
     <div className={cardClass + " space-y-4"}>
       <p className="text-xs text-[var(--erp-muted)]">{tr("این یک دفتر پرداخت پرسنلی است، نه سیستم حقوق و دستمزد قانونی کامل.", "هذا سجل تعويضات للموظفين، وليس نظام رواتب قانونيًا كاملاً.", "Bu bir personel ücret defteridir, tam yasal bordro sistemi değildir.", "This is a personnel compensation ledger, not a full statutory payroll system.")}</p>
       <form onSubmit={submit} className="flex flex-wrap gap-2">
-        <select className={inputClass + " w-40"} value={draft.entry_type} onChange={(e) => setDraft({ ...draft, entry_type: e.target.value })}>
-          {["base_salary", "allowance", "bonus", "commission", "deduction", "advance", "reimbursement", "payment"].map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select
+          className="w-40"
+          value={draft.entry_type}
+          onChange={(value) => setDraft({ ...draft, entry_type: value })}
+          options={["base_salary", "allowance", "bonus", "commission", "deduction", "advance", "reimbursement", "payment"].map((t) => ({ value: t, label: t }))}
+        />
         <input type="number" step="any" className={inputClass + " w-40"} placeholder={tr("مبلغ", "المبلغ", "Tutar", "Amount")} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
-        <input type="date" className={inputClass + " w-40"} value={draft.effective_date} onChange={(e) => setDraft({ ...draft, effective_date: e.target.value })} />
+        <JalaliDateField className={inputClass + " w-40"} value={draft.effective_date} onChange={(iso) => setDraft({ ...draft, effective_date: iso })} language={language} />
         <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("یادداشت", "ملاحظة", "Not", "Note")} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
         <button type="submit" disabled={saving} className={btnClass}><Plus size={16} /></button>
       </form>
@@ -204,7 +209,7 @@ function CompensationTab({ employeeId, tr, n, date }) {
   );
 }
 
-function LeaveTab({ employeeId, tr, n, date, onChange }) {
+function LeaveTab({ employeeId, tr, n, date, language, onChange }) {
   const [balances, setBalances] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -255,9 +260,12 @@ function LeaveTab({ employeeId, tr, n, date, onChange }) {
           ))}
         </div>
         <form onSubmit={saveEntitlement} className="flex flex-wrap gap-2">
-          <select className={inputClass + " w-40"} value={entitlementDraft.leave_type} onChange={(e) => setEntitlementDraft({ ...entitlementDraft, leave_type: e.target.value })}>
-            {["annual", "sick", "unpaid", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <Select
+            className="w-40"
+            value={entitlementDraft.leave_type}
+            onChange={(value) => setEntitlementDraft({ ...entitlementDraft, leave_type: value })}
+            options={["annual", "sick", "unpaid", "other"].map((t) => ({ value: t, label: t }))}
+          />
           <input type="number" className={inputClass + " w-32"} placeholder={tr("سهمیه", "الاستحقاق", "Hak ediş", "Entitlement")} value={entitlementDraft.entitlement} onChange={(e) => setEntitlementDraft({ ...entitlementDraft, entitlement: e.target.value })} />
           <button type="submit" className={ghostBtnClass}>{tr("تنظیم سهمیه", "تعيين الاستحقاق", "Hak edişi ayarla", "Set entitlement")}</button>
         </form>
@@ -265,11 +273,14 @@ function LeaveTab({ employeeId, tr, n, date, onChange }) {
       <div className={cardClass}>
         <h3 className="font-black mb-3">{tr("درخواست مرخصی جدید", "طلب إجازة جديد", "Yeni izin isteği", "New leave request")}</h3>
         <form onSubmit={submitRequest} className="flex flex-wrap gap-2">
-          <select className={inputClass + " w-32"} value={requestDraft.leave_type} onChange={(e) => setRequestDraft({ ...requestDraft, leave_type: e.target.value })}>
-            {["annual", "sick", "unpaid", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <input type="date" className={inputClass + " w-40"} value={requestDraft.start_date} onChange={(e) => setRequestDraft({ ...requestDraft, start_date: e.target.value })} />
-          <input type="date" className={inputClass + " w-40"} value={requestDraft.end_date} onChange={(e) => setRequestDraft({ ...requestDraft, end_date: e.target.value })} />
+          <Select
+            className="w-32"
+            value={requestDraft.leave_type}
+            onChange={(value) => setRequestDraft({ ...requestDraft, leave_type: value })}
+            options={["annual", "sick", "unpaid", "other"].map((t) => ({ value: t, label: t }))}
+          />
+          <JalaliDateField className={inputClass + " w-40"} value={requestDraft.start_date} onChange={(iso) => setRequestDraft({ ...requestDraft, start_date: iso })} language={language} />
+          <JalaliDateField className={inputClass + " w-40"} value={requestDraft.end_date} onChange={(iso) => setRequestDraft({ ...requestDraft, end_date: iso })} language={language} />
           <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("دلیل", "السبب", "Neden", "Reason")} value={requestDraft.reason} onChange={(e) => setRequestDraft({ ...requestDraft, reason: e.target.value })} />
           <button type="submit" className={btnClass}>{tr("ارسال", "إرسال", "Gönder", "Submit")}</button>
         </form>
@@ -294,7 +305,7 @@ function LeaveTab({ employeeId, tr, n, date, onChange }) {
   );
 }
 
-function AttendanceTab({ employeeId, tr, n, date }) {
+function AttendanceTab({ employeeId, tr, n, date, language }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({ work_date: "", status: "present", hours: "" });
@@ -318,10 +329,13 @@ function AttendanceTab({ employeeId, tr, n, date }) {
     <div className={cardClass + " space-y-4"}>
       <p className="text-xs text-[var(--erp-muted)]">{tr("ثبت دستی است؛ اتصال به دستگاه حضور و غیاب پیاده‌سازی نشده.", "إدخال يدوي فقط؛ لا يوجد تكامل مع جهاز حضور.", "Yalnızca manuel giriş; bir zaman damgası cihazıyla entegrasyon yoktur.", "Manual entry only — no time-clock device integration exists.")}</p>
       <form onSubmit={submit} className="flex flex-wrap gap-2">
-        <input type="date" className={inputClass + " w-40"} value={draft.work_date} onChange={(e) => setDraft({ ...draft, work_date: e.target.value })} />
-        <select className={inputClass + " w-32"} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
-          {["present", "absent", "late", "overtime", "half_day"].map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <JalaliDateField className={inputClass + " w-40"} value={draft.work_date} onChange={(iso) => setDraft({ ...draft, work_date: iso })} language={language} />
+        <Select
+          className="w-32"
+          value={draft.status}
+          onChange={(value) => setDraft({ ...draft, status: value })}
+          options={["present", "absent", "late", "overtime", "half_day"].map((s) => ({ value: s, label: s }))}
+        />
         <input type="number" step="any" className={inputClass + " w-28"} placeholder={tr("ساعت", "ساعات", "Saat", "Hours")} value={draft.hours} onChange={(e) => setDraft({ ...draft, hours: e.target.value })} />
         <button type="submit" className={btnClass}><Plus size={16} /></button>
       </form>
@@ -339,7 +353,7 @@ function AttendanceTab({ employeeId, tr, n, date }) {
   );
 }
 
-function DocumentsTab({ employeeId, tr, n, date, onChange }) {
+function DocumentsTab({ employeeId, tr, n, date, language, onChange }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState(null);
@@ -391,11 +405,14 @@ function DocumentsTab({ employeeId, tr, n, date, onChange }) {
   return (
     <div className={cardClass + " space-y-4"}>
       <form onSubmit={upload} className="flex flex-wrap gap-2 items-center">
-        <select className={inputClass + " w-40"} value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-          {["id_document", "contract", "certificate", "diploma", "training_certificate", "cv", "license", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select
+          className="w-40"
+          value={documentType}
+          onChange={(value) => setDocumentType(value)}
+          options={["id_document", "contract", "certificate", "diploma", "training_certificate", "cv", "license", "other"].map((t) => ({ value: t, label: t }))}
+        />
         <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input type="date" className={inputClass + " w-40"} value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+        <JalaliDateField className={inputClass + " w-40"} value={expiryDate} onChange={(iso) => setExpiryDate(iso)} language={language} />
         <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
         <button type="submit" disabled={uploading || !file} className={btnClass}>{tr("بارگذاری", "رفع", "Yükle", "Upload")}</button>
       </form>

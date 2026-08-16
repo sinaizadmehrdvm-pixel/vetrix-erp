@@ -8,6 +8,7 @@ import {
 } from "../services/dataImportApi";
 import ProductImportWizard from "./dataImport/ProductImportWizard";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 // Mirrors backend/app/data_import.py's REQUIRED_FIELD - used only to mark
 // the required column with an asterisk in the mapping table.
@@ -185,13 +186,17 @@ export default function DataImportCenter() {
     </header>
     <section style={{ ...card, padding: 18, marginBottom: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10 }}>
-        <select value={entity} onChange={e => { setEntity(e.target.value); setPreview(null); setFile(null); setInspectData(null); setMappingOverride({}); setSelectedProfileId(""); }} style={{ padding: 12, borderRadius: 13, background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" }}>
-          <option value="customers">{t.customers}</option>
-          <option value="products">{t.products}</option>
-          <option value="gl_trial_balance">{t.gl_trial_balance}</option>
-          <option value="invoices">{t.invoices}</option>
-          <option value="employees">{t.employees}</option>
-        </select>
+        <Select
+          value={entity}
+          onChange={value => { setEntity(value); setPreview(null); setFile(null); setInspectData(null); setMappingOverride({}); setSelectedProfileId(""); }}
+          options={[
+            { value: "customers", label: t.customers },
+            { value: "products", label: t.products },
+            { value: "gl_trial_balance", label: t.gl_trial_balance },
+            { value: "invoices", label: t.invoices },
+            { value: "employees", label: t.employees },
+          ]}
+        />
       </div>
       <p style={{ color: "var(--erp-muted)", fontSize: 13, marginBottom: 0 }}>{t.order}</p>
     </section>
@@ -226,10 +231,14 @@ export default function DataImportCenter() {
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
               <label style={{ fontSize: 13, color: "var(--erp-muted)" }}>{t.loadTemplate}</label>
-              <select value={selectedProfileId} onChange={(e) => loadProfile(e.target.value)} style={{ padding: 9, borderRadius: 11, background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" }}>
-                <option value="">{t.autoDetected}</option>
-                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                value={selectedProfileId}
+                onChange={(value) => loadProfile(value)}
+                options={[
+                  { value: "", label: t.autoDetected },
+                  ...profiles.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </div>
 
             <div style={{ overflowX: "auto", marginBottom: 14 }}>
@@ -253,14 +262,15 @@ export default function DataImportCenter() {
                           {field}{field === REQUIRED_FIELD_LABEL[entity] && <span style={{ color: "var(--erp-danger)" }}> *</span>}
                         </td>
                         <td style={{ padding: 8 }}>
-                          <select
+                          <Select
                             value={header}
-                            onChange={(e) => setMappingOverride((prev) => ({ ...prev, [field]: e.target.value }))}
-                            style={{ padding: 7, borderRadius: 10, background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", width: "100%" }}
-                          >
-                            <option value="">{t.unmapped}</option>
-                            {inspectData.headers.map((h, idx) => <option key={`${h}-${idx}`} value={h}>{h}</option>)}
-                          </select>
+                            onChange={(value) => setMappingOverride((prev) => ({ ...prev, [field]: value }))}
+                            className="w-full"
+                            options={[
+                              { value: "", label: t.unmapped },
+                              ...inspectData.headers.map((h) => ({ value: h, label: h })),
+                            ]}
+                          />
                         </td>
                         <td style={{ padding: 8, fontSize: 12, fontWeight: 800, color: confidenceColor }}>
                           {confidence !== undefined && confidence !== null ? `${confidence}%` : "—"}

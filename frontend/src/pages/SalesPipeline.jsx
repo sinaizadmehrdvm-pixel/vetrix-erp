@@ -7,6 +7,7 @@ import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getCustomers, getPipelineDeals, createPipelineDeal, updatePipelineDeal, deletePipelineDeal } from "../services/api";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const STAGES = ["lead", "qualified", "proposal", "negotiation", "won", "lost"];
 
@@ -142,10 +143,15 @@ export default function SalesPipeline() {
             <input className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400" value={form.title} onChange={(e) => setForm({ ...form, title: fa ? toPersianDigits(e.target.value) : e.target.value })} />
           </Field>
           <Field label={label.customer}>
-            <select className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)]" value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })}>
-              <option value="">{label.noCustomer}</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Select
+              className="w-full"
+              value={form.customer_id}
+              onChange={(value) => setForm({ ...form, customer_id: value })}
+              options={[
+                { value: "", label: label.noCustomer },
+                ...customers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </Field>
           <Field label={label.amount}>
             <input type="text" inputMode="numeric" className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 outline-none w-full border border-[var(--erp-border)]" value={fa ? toPersianDigits(form.amount) : form.amount} onChange={(e) => setForm({ ...form, amount: cleanNumberInput(e.target.value) })} placeholder={fa ? "۰" : "0"} />

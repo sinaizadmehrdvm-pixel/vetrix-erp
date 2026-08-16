@@ -69,6 +69,7 @@ import { countPending, syncPendingRecords, useOnlineSync } from "../storage/offl
 import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { translateApiError } from "../localization/apiErrors";
 import Button from "../components/ui/Button";
+import Select from "../components/ui/Select";
 import IconButton from "../components/ui/IconButton";
 import Notice from "../components/ui/Notice";
 import Badge from "../components/ui/Badge";
@@ -1176,18 +1177,18 @@ export default function Invoices() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           <Field label={counterpartyLabel} icon={<UserRound size={16} />}>
             <div className="flex items-center gap-2">
-              <select
+              <Select
                 value={form.customer_id}
-                onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-                className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-              >
-                <option value="">{label.selectCustomer}</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name || c.full_name || c.title || `#${c.id}`}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setForm({ ...form, customer_id: value })}
+                className="w-full"
+                options={[
+                  { value: "", label: label.selectCustomer },
+                  ...customers.map((c) => ({
+                    value: c.id,
+                    label: c.name || c.full_name || c.title || `#${c.id}`,
+                  })),
+                ]}
+              />
               <button
                 type="button"
                 onClick={() => setQuickCreateOpen(true)}
@@ -1316,19 +1317,18 @@ export default function Invoices() {
               <div key={index} className="bg-[var(--erp-panel)] rounded-[var(--erp-radius-lg)] p-4 border border-[var(--erp-border)]">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                   <Field label={`${label.item} ${n(index + 1)}`} icon={<Package size={16} />}>
-                    <select
+                    <Select
                       value={item.product_id}
-                      onChange={(e) => updateItem(index, "product_id", e.target.value)}
-                      className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-                    >
-                      <option value="">{label.selectProduct}</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name || p.title || `#${p.id}`} | {label.stock}:{" "}
-                          {n(p.stock ?? p.quantity ?? 0)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => updateItem(index, "product_id", value)}
+                      className="w-full"
+                      options={[
+                        { value: "", label: label.selectProduct },
+                        ...products.map((p) => ({
+                          value: p.id,
+                          label: `${p.name || p.title || `#${p.id}`} | ${label.stock}: ${n(p.stock ?? p.quantity ?? 0)}`,
+                        })),
+                      ]}
+                    />
                     {products.length === 0 ? (
                       <p className="text-xs mt-2" style={{ color: "var(--erp-warning)" }}>{label.emptyProducts}</p>
                     ) : null}
@@ -1370,16 +1370,15 @@ export default function Invoices() {
                 {warehouses.length > 1 && (
                   <div className="mt-3">
                     <Field label={fa ? "انبار/شعبه (اختیاری)" : language === "ar" ? "المستودع/الفرع (اختياري)" : language === "tr" ? "Depo/Şube (opsiyonel)" : "Warehouse (optional)"}>
-                      <select
+                      <Select
                         value={item.warehouse_id}
-                        onChange={(e) => updateItem(index, "warehouse_id", e.target.value)}
-                        className="bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] p-3 outline-none w-full border border-[var(--erp-border)] focus:border-cyan-400"
-                      >
-                        <option value="">{fa ? "مشخص نشده" : language === "ar" ? "غير محدد" : language === "tr" ? "Belirtilmedi" : "Unspecified"}</option>
-                        {warehouses.filter((w) => w.active).map((w) => (
-                          <option key={w.id} value={w.id}>{w.name}</option>
-                        ))}
-                      </select>
+                        onChange={(value) => updateItem(index, "warehouse_id", value)}
+                        className="w-full"
+                        options={[
+                          { value: "", label: fa ? "مشخص نشده" : language === "ar" ? "غير محدد" : language === "tr" ? "Belirtilmedi" : "Unspecified" },
+                          ...warehouses.filter((w) => w.active).map((w) => ({ value: w.id, label: w.name })),
+                        ]}
+                      />
                     </Field>
                   </div>
                 )}

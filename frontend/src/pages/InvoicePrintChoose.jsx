@@ -14,6 +14,7 @@ import {
   buildReplaceTokens,
 } from "./invoicePrintHelpers";
 import { Canvas, PrintElement } from "./invoicePrintComponents";
+import Select from "../components/ui/Select";
 
 // The invoice list's "Print" button used to drop straight into the full
 // drag/resize Print Studio editor, which is overkill for the common
@@ -168,12 +169,14 @@ export default function InvoicePrintChoose() {
             <span className="text-[var(--erp-accent)] text-sm font-bold block">
               {tr("انتخاب قالب", "اختيار القالب", "Şablon Seç", "Choose template")}
             </span>
-            <select value={selectedTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className="choose-input">
-              <option value="default">{tr("قالب پیش‌فرض", "القالب الافتراضي", "Varsayılan Şablon", "Default template")}</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
+            <Select
+              value={selectedTemplateId}
+              onChange={(value) => handleTemplateChange(value)}
+              options={[
+                { value: "default", label: tr("قالب پیش‌فرض", "القالب الافتراضي", "Varsayılan Şablon", "Default template") },
+                ...templates.map((template) => ({ value: template.id, label: template.name })),
+              ]}
+            />
           </label>
 
           <label className="block space-y-2">

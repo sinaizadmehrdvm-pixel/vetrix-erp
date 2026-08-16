@@ -6,6 +6,7 @@ import { useLanguage } from "../localization/useLanguage";
 import { activateBranch, createBranch, deactivateBranch, getBranches, getWarehouses, updateBranch } from "../services/api";
 import Modal from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -204,15 +205,23 @@ export default function Branches() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select className={inputClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option value="">{tr("همه انواع", "كل الأنواع", "Tüm türler", "All types")}</option>
-            {BRANCH_TYPES.map((t) => <option key={t} value={t}>{branchTypeLabel(t)}</option>)}
-          </select>
-          <select className={inputClass} value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}>
-            <option value="">{tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses")}</option>
-            <option value="true">{tr("فعال", "نشط", "Aktif", "Active")}</option>
-            <option value="false">{tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}</option>
-          </select>
+          <Select
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { value: "", label: tr("همه انواع", "كل الأنواع", "Tüm türler", "All types") },
+              ...BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) })),
+            ]}
+          />
+          <Select
+            value={activeFilter}
+            onChange={setActiveFilter}
+            options={[
+              { value: "", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
+              { value: "true", label: tr("فعال", "نشط", "Aktif", "Active") },
+              { value: "false", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
+            ]}
+          />
         </div>
       </section>
 
@@ -279,14 +288,20 @@ export default function Branches() {
                   <label key={key} className="text-sm">
                     <span className="block mb-1 text-[var(--erp-muted)]">{label}</span>
                     {type === "select" ? (
-                      <select className={inputClass} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}>
-                        {BRANCH_TYPES.map((t) => <option key={t} value={t}>{branchTypeLabel(t)}</option>)}
-                      </select>
+                      <Select
+                        value={draft[key]}
+                        onChange={(value) => setDraft({ ...draft, [key]: value })}
+                        options={BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) }))}
+                      />
                     ) : type === "warehouse" ? (
-                      <select className={inputClass} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}>
-                        <option value="">{tr("بدون انبار پیش‌فرض", "بدون مستودع افتراضي", "Varsayılan depo yok", "No default warehouse")}</option>
-                        {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                      </select>
+                      <Select
+                        value={draft[key]}
+                        onChange={(value) => setDraft({ ...draft, [key]: value })}
+                        options={[
+                          { value: "", label: tr("بدون انبار پیش‌فرض", "بدون مستودع افتراضي", "Varsayılan depo yok", "No default warehouse") },
+                          ...warehouses.map((w) => ({ value: w.id, label: w.name })),
+                        ]}
+                      />
                     ) : (
                       <input
                         className={inputClass}

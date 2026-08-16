@@ -17,6 +17,7 @@ import { toPersianDigits } from "../localization/helpers";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 import ReportHeader from "../components/reports/ReportHeader";
 import ReportFooter from "../components/reports/ReportFooter";
 
@@ -187,10 +188,14 @@ export default function FinancialStatements() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select value={periodId} onChange={(event) => changePeriod(event.target.value)} style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}>
-            <option value="">{copy.allTime}</option>
-            {periods.map((period) => <option key={period.id} value={period.id}>{period.name} — {period.status}</option>)}
-          </select>
+          <Select
+            value={periodId}
+            onChange={(value) => changePeriod(value)}
+            options={[
+              { value: "", label: copy.allTime },
+              ...periods.map((period) => ({ value: period.id, label: `${period.name} — ${period.status}` })),
+            ]}
+          />
           <JalaliDateField
             value={startDate}
             onChange={(iso) => changeDateRange(iso, endDate)}

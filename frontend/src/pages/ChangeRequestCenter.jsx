@@ -6,6 +6,8 @@ import { API_URL, getAuthHeaders, getSettings } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}/api/change-requests${path}`, {
@@ -266,22 +268,35 @@ export default function ChangeRequestCenter() {
           {audioName && <p className="text-xs" style={{ color: "var(--erp-muted)" }}>{audioName}</p>}
 
           <Field label={tr("منبع ویس", "مصدر الصوت", "Ses kaynağı", "Voice source")}>
-            <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>{["in_app", "telegram", "whatsapp", "other"].map((item) => <option key={item} value={item}>{{ in_app: tr("درون‌برنامه‌ای", "داخل التطبيق", "Uygulama içi", "In-app"), telegram: "Telegram", whatsapp: "WhatsApp", other: tr("سایر", "أخرى", "Diğer", "Other") }[item]}</option>)}</select>
+            <Select
+              className="w-full"
+              value={form.source}
+              onChange={(value) => setForm({ ...form, source: value })}
+              options={["in_app", "telegram", "whatsapp", "other"].map((item) => ({
+                value: item,
+                label: { in_app: tr("درون‌برنامه‌ای", "داخل التطبيق", "Uygulama içi", "In-app"), telegram: "Telegram", whatsapp: "WhatsApp", other: tr("سایر", "أخرى", "Diğer", "Other") }[item],
+              }))}
+            />
           </Field>
           {form.source !== "in_app" && <Field label={tr("شناسه پیام یا لینک", "معرّف الرسالة أو الرابط", "Mesaj kimliği veya bağlantı", "Message ID or link")}><input style={inputStyle} value={language === "fa" ? toPersianDigits(form.source_reference) : form.source_reference} onChange={(e) => setForm({ ...form, source_reference: toEnglishDigits(e.target.value) })} /></Field>}
           <Field label={tr("متن ویس پس از بررسی", "نص الرسالة الصوتية بعد المراجعة", "İncelenmiş ses dökümü", "Reviewed voice transcript")}>
             <textarea required minLength={2} rows={5} style={inputStyle} value={form.transcript} onChange={(e) => setForm({ ...form, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("متن دقیق درخواست را وارد یا پس از تبدیل صدا اصلاح کنید…", "أدخل نص الطلب الدقيق أو راجعه بعد تحويل الصوت إلى نص…", "Talebin tam metnini girin veya sesten metne dönüştürüldükten sonra düzenleyin…", "Enter or review the exact voice instruction…")} />
           </Field>
           <Field label={tr("نوع درخواست", "نوع الطلب", "Talep türü", "Request type")}>
-            <select style={inputStyle} value={form.action_type} onChange={(e) => setForm({ ...form, action_type: e.target.value })}>
-              <option value="note_only">{tr("فقط یادداشت؛ بدون اجرا", "ملاحظة فقط؛ دون تنفيذ", "Sadece not; uygulama yok", "Note only; no execution")}</option>
-              <option value="online_product_update">{tr("تغییر مشخصات کالای سایت", "تحديث بيانات المنتج على الموقع", "Site ürün güncellemesi", "Online product update")}</option>
-              <option value="campaign_draft">{tr("ساخت پیش‌نویس تبلیغ", "إنشاء مسودة حملة", "Kampanya taslağı oluştur", "Create campaign draft")}</option>
-              <option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option>
-              <option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option>
-              <option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری پرداخت", "إضافة/حذف قناة تذكير الدفع", "Ödeme hatırlatma kanalı ekle/kaldır", "Add/remove a payment reminder channel")}</option>
-              <option value="pricing_rule_draft">{tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule")}</option>
-            </select>
+            <Select
+              className="w-full"
+              value={form.action_type}
+              onChange={(value) => setForm({ ...form, action_type: value })}
+              options={[
+                { value: "note_only", label: tr("فقط یادداشت؛ بدون اجرا", "ملاحظة فقط؛ دون تنفيذ", "Sadece not; uygulama yok", "Note only; no execution") },
+                { value: "online_product_update", label: tr("تغییر مشخصات کالای سایت", "تحديث بيانات المنتج على الموقع", "Site ürün güncellemesi", "Online product update") },
+                { value: "campaign_draft", label: tr("ساخت پیش‌نویس تبلیغ", "إنشاء مسودة حملة", "Kampanya taslağı oluştur", "Create campaign draft") },
+                { value: "sale_invoice_draft", label: tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft") },
+                { value: "report_delivery", label: tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report") },
+                { value: "reminder_channel_manage", label: tr("افزودن/حذف کانال یادآوری پرداخت", "إضافة/حذف قناة تذكير الدفع", "Ödeme hatırlatma kanalı ekle/kaldır", "Add/remove a payment reminder channel") },
+                { value: "pricing_rule_draft", label: tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule") },
+              ]}
+            />
           </Field>
 
           {form.action_type === "pricing_rule_draft" && (
@@ -311,9 +326,42 @@ export default function ChangeRequestCenter() {
           )}
 
           {form.action_type === "online_product_update" && <>
-            <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select required style={inputStyle} value={form.target_id} onChange={(e) => setForm({ ...form, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-            <Field label={tr("فیلد قابل تغییر", "الحقل القابل للتعديل", "Değiştirilebilir alan", "Allowed field")}><select style={inputStyle} value={form.field} onChange={(e) => setForm({ ...form, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("وضعیت انتشار", "حالة النشر", "Yayın durumu", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
-            <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? <select style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(form.value) : form.value} onChange={(e) => setForm({ ...form, value: cleanNumberInput(e.target.value) })} />}</Field>
+            <Field label={tr("کالا", "المنتج", "Ürün", "Product")}>
+              <Select
+                className="w-full"
+                value={form.target_id}
+                onChange={(value) => setForm({ ...form, target_id: value })}
+                options={[
+                  { value: "", label: tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product") },
+                  ...products.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
+            </Field>
+            <Field label={tr("فیلد قابل تغییر", "الحقل القابل للتعديل", "Değiştirilebilir alan", "Allowed field")}>
+              <Select
+                className="w-full"
+                value={form.field}
+                onChange={(value) => setForm({ ...form, field: value })}
+                options={[
+                  { value: "online_price", label: tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price") },
+                  { value: "discount_percent", label: tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent") },
+                  { value: "is_published", label: tr("وضعیت انتشار", "حالة النشر", "Yayın durumu", "Published") },
+                  { value: "sync_stock", label: tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync") },
+                ]}
+              />
+            </Field>
+            <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(form.field) ? (
+              <Select
+                className="w-full"
+                value={form.value}
+                onChange={(value) => setForm({ ...form, value })}
+                options={[
+                  { value: "", label: tr("انتخاب", "اختر", "Seçin", "Choose") },
+                  { value: "true", label: tr("فعال", "مفعّل", "Etkin", "Enabled") },
+                  { value: "false", label: tr("غیرفعال", "معطّل", "Devre dışı", "Disabled") },
+                ]}
+              />
+            ) : <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(form.value) : form.value} onChange={(e) => setForm({ ...form, value: cleanNumberInput(e.target.value) })} />}</Field>
           </>}
 
           {form.action_type === "campaign_draft" && <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input required style={inputStyle} value={form.value} onChange={(e) => setForm({ ...form, value: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>}
@@ -389,18 +437,28 @@ function InvoiceItemsBuilder({ language, customers, products, customerId, items,
   return (
     <>
       <Field label={tr("طرف‌حساب", "العميل", "Cari", "Customer")}>
-        <select required style={inputStyle} value={customerId} onChange={(e) => onCustomerChange(e.target.value)}>
-          <option value="">{tr("انتخاب طرف‌حساب", "اختر العميل", "Cari seçin", "Choose customer")}</option>
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <Select
+          className="w-full"
+          value={customerId}
+          onChange={(value) => onCustomerChange(value)}
+          options={[
+            { value: "", label: tr("انتخاب طرف‌حساب", "اختر العميل", "Cari seçin", "Choose customer") },
+            ...customers.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
       </Field>
       {items.map((row, index) => (
         <div key={index} className="grid grid-cols-[1fr_90px_40px] gap-2 items-end">
           <Field label={index === 0 ? tr("کالا", "المنتج", "Ürün", "Product") : ""}>
-            <select required style={inputStyle} value={row.product_id} onChange={(e) => updateRow(index, "product_id", e.target.value)}>
-              <option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select
+              className="w-full"
+              value={row.product_id}
+              onChange={(value) => updateRow(index, "product_id", value)}
+              options={[
+                { value: "", label: tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product") },
+                ...products.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
           </Field>
           <Field label={index === 0 ? tr("تعداد", "الكمية", "Adet", "Qty") : ""}>
             <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(row.quantity) : row.quantity} onChange={(e) => updateRow(index, "quantity", cleanNumberInput(e.target.value))} />
@@ -423,15 +481,23 @@ function ReportDeliveryFields({ language, reportType, reportFormat, destinationE
   return (
     <>
       <Field label={tr("نوع گزارش", "نوع التقرير", "Rapor türü", "Report type")}>
-        <select style={inputStyle} value={reportType} onChange={(e) => onReportTypeChange(e.target.value)}>
-          {REPORT_TYPES.map((rt) => <option key={rt.value} value={rt.value}>{reportTypeLabel(rt)}</option>)}
-        </select>
+        <Select
+          className="w-full"
+          value={reportType}
+          onChange={(value) => onReportTypeChange(value)}
+          options={REPORT_TYPES.map((rt) => ({ value: rt.value, label: reportTypeLabel(rt) }))}
+        />
       </Field>
       <Field label={tr("فرمت", "الصيغة", "Biçim", "Format")}>
-        <select style={inputStyle} value={reportFormat} onChange={(e) => onReportFormatChange(e.target.value)}>
-          <option value="pdf">PDF</option>
-          <option value="csv">CSV / Excel</option>
-        </select>
+        <Select
+          className="w-full"
+          value={reportFormat}
+          onChange={(value) => onReportFormatChange(value)}
+          options={[
+            { value: "pdf", label: "PDF" },
+            { value: "csv", label: "CSV / Excel" },
+          ]}
+        />
       </Field>
       <Field label={tr("ارسال به ایمیل", "الإرسال إلى البريد الإلكتروني", "E-postaya gönder", "Send to email")}>
         <input
@@ -454,48 +520,73 @@ function PricingRuleFields({ language, products, productId, rule, onProductChang
   return (
     <>
       <Field label={tr("کالا", "المنتج", "Ürün", "Product")}>
-        <select required style={inputStyle} value={productId} onChange={(e) => onProductChange(e.target.value)}>
-          <option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>
-          {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <Select
+          className="w-full"
+          value={productId}
+          onChange={(value) => onProductChange(value)}
+          options={[
+            { value: "", label: tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product") },
+            ...products.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
       </Field>
       <Field label={tr("گروه/کانال مشتری", "مجموعة/قناة العميل", "Müşteri grubu/kanalı", "Customer group/channel")}>
-        <select style={inputStyle} value={rule.customer_scope_type} onChange={(e) => onRuleChange({ ...rule, customer_scope_type: e.target.value, customer_scope_value: "" })}>
-          <option value="any">{tr("همه مشتریان", "جميع العملاء", "Tüm müşteriler", "All customers")}</option>
-          <option value="group">{tr("گروه قیمت‌گذاری", "مجموعة التسعير", "Fiyat grubu", "Pricing group")}</option>
-          <option value="loyalty_tier">{tr("سطح باشگاه مشتریان", "مستوى الولاء", "Sadakat seviyesi", "Loyalty tier")}</option>
-        </select>
+        <Select
+          className="w-full"
+          value={rule.customer_scope_type}
+          onChange={(value) => onRuleChange({ ...rule, customer_scope_type: value, customer_scope_value: "" })}
+          options={[
+            { value: "any", label: tr("همه مشتریان", "جميع العملاء", "Tüm müşteriler", "All customers") },
+            { value: "group", label: tr("گروه قیمت‌گذاری", "مجموعة التسعير", "Fiyat grubu", "Pricing group") },
+            { value: "loyalty_tier", label: tr("سطح باشگاه مشتریان", "مستوى الولاء", "Sadakat seviyesi", "Loyalty tier") },
+          ]}
+        />
       </Field>
       {rule.customer_scope_type === "group" && (
         <Field label={tr("گروه", "المجموعة", "Grup", "Group")}>
-          <select required style={inputStyle} value={rule.customer_scope_value} onChange={(e) => onRuleChange({ ...rule, customer_scope_value: e.target.value })}>
-            <option value="">{tr("انتخاب...", "اختر...", "Seçin...", "Select...")}</option>
-            <option value="retail">{tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail")}</option>
-            <option value="wholesale">{tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale")}</option>
-          </select>
+          <Select
+            className="w-full"
+            value={rule.customer_scope_value}
+            onChange={(value) => onRuleChange({ ...rule, customer_scope_value: value })}
+            options={[
+              { value: "", label: tr("انتخاب...", "اختر...", "Seçin...", "Select...") },
+              { value: "retail", label: tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail") },
+              { value: "wholesale", label: tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale") },
+            ]}
+          />
         </Field>
       )}
       {rule.customer_scope_type === "loyalty_tier" && (
         <Field label={tr("سطح", "المستوى", "Seviye", "Tier")}>
-          <select required style={inputStyle} value={rule.customer_scope_value} onChange={(e) => onRuleChange({ ...rule, customer_scope_value: e.target.value })}>
-            <option value="">{tr("انتخاب...", "اختر...", "Seçin...", "Select...")}</option>
-            {["Bronze", "Silver", "Gold", "Platinum", "VIP"].map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
-          </select>
+          <Select
+            className="w-full"
+            value={rule.customer_scope_value}
+            onChange={(value) => onRuleChange({ ...rule, customer_scope_value: value })}
+            options={[
+              { value: "", label: tr("انتخاب...", "اختر...", "Seçin...", "Select...") },
+              ...["Bronze", "Silver", "Gold", "Platinum", "VIP"].map((lvl) => ({ value: lvl, label: lvl })),
+            ]}
+          />
         </Field>
       )}
       <Field label={tr("نوع تغییر قیمت", "نوع تغيير السعر", "Fiyat değişikliği türü", "Price change type")}>
-        <select style={inputStyle} value={rule.price_mode} onChange={(e) => onRuleChange({ ...rule, price_mode: e.target.value })}>
-          <option value="percent_discount">{tr("درصد تخفیف", "نسبة خصم", "Yüzde indirim", "Percent discount")}</option>
-          <option value="fixed_discount">{tr("تخفیف مبلغ ثابت", "خصم بمبلغ ثابت", "Sabit tutar indirim", "Fixed amount discount")}</option>
-          <option value="fixed">{tr("قیمت ثابت", "سعر ثابت", "Sabit fiyat", "Fixed price")}</option>
-          <option value="markup">{tr("افزایش قیمت", "هامش ربح", "Kâr marjı", "Markup")}</option>
-        </select>
+        <Select
+          className="w-full"
+          value={rule.price_mode}
+          onChange={(value) => onRuleChange({ ...rule, price_mode: value })}
+          options={[
+            { value: "percent_discount", label: tr("درصد تخفیف", "نسبة خصم", "Yüzde indirim", "Percent discount") },
+            { value: "fixed_discount", label: tr("تخفیف مبلغ ثابت", "خصم بمبلغ ثابت", "Sabit tutar indirim", "Fixed amount discount") },
+            { value: "fixed", label: tr("قیمت ثابت", "سعر ثابت", "Sabit fiyat", "Fixed price") },
+            { value: "markup", label: tr("افزایش قیمت", "هامش ربح", "Kâr marjı", "Markup") },
+          ]}
+        />
       </Field>
       <Field label={tr("مقدار (عدد یا درصد)", "القيمة (رقم أو نسبة)", "Değer (sayı veya yüzde)", "Value (amount or percent)")}>
         <input required type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(rule.price_value) : rule.price_value} onChange={(e) => onRuleChange({ ...rule, price_value: cleanNumberInput(e.target.value) })} />
       </Field>
       <Field label={tr("اجرا از تاریخ (اختیاری)", "سارٍ من تاريخ (اختياري)", "Geçerlilik başlangıcı (isteğe bağlı)", "Effective from (optional)")}>
-        <input type="date" style={inputStyle} value={rule.effective_from} onChange={(e) => onRuleChange({ ...rule, effective_from: e.target.value })} />
+        <JalaliDateField style={inputStyle} value={rule.effective_from} onChange={(iso) => onRuleChange({ ...rule, effective_from: iso })} language={language} />
       </Field>
     </>
   );
@@ -508,10 +599,15 @@ function ReminderChannelFields({ language, existingChannels, operation, name, li
   return (
     <>
       <Field label={tr("عملیات", "العملية", "İşlem", "Operation")}>
-        <select style={inputStyle} value={operation} onChange={(e) => onOperationChange(e.target.value)}>
-          <option value="add">{tr("افزودن کانال جدید", "إضافة قناة جديدة", "Yeni kanal ekle", "Add a new channel")}</option>
-          <option value="remove">{tr("حذف کانال موجود", "حذف قناة موجودة", "Mevcut kanalı kaldır", "Remove an existing channel")}</option>
-        </select>
+        <Select
+          className="w-full"
+          value={operation}
+          onChange={(value) => onOperationChange(value)}
+          options={[
+            { value: "add", label: tr("افزودن کانال جدید", "إضافة قناة جديدة", "Yeni kanal ekle", "Add a new channel") },
+            { value: "remove", label: tr("حذف کانال موجود", "حذف قناة موجودة", "Mevcut kanalı kaldır", "Remove an existing channel") },
+          ]}
+        />
       </Field>
       {operation === "add" ? (
         <>
@@ -524,10 +620,15 @@ function ReminderChannelFields({ language, existingChannels, operation, name, li
         </>
       ) : (
         <Field label={tr("کانال مورد نظر", "القناة المطلوبة", "Hedef kanal", "Channel to remove")}>
-          <select required style={inputStyle} value={channelId} onChange={(e) => onChannelIdChange(e.target.value)}>
-            <option value="">{tr("انتخاب کنید", "اختر", "Seçin", "Choose")}</option>
-            {existingChannels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <Select
+            className="w-full"
+            value={channelId}
+            onChange={(value) => onChannelIdChange(value)}
+            options={[
+              { value: "", label: tr("انتخاب کنید", "اختر", "Seçin", "Choose") },
+              ...existingChannels.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </Field>
       )}
     </>
@@ -780,7 +881,22 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
       </div>
     )}
     <Field label={tr("متن نهایی تأییدشده توسط مدیر", "النص النهائي الذي راجعه المدير", "Yönetici tarafından incelenen nihai metin", "Manager-reviewed final transcript")}><textarea rows={5} minLength={2} style={inputStyle} value={review.transcript} onChange={(e) => setReview({ ...review, transcript: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
-    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}><select style={inputStyle} value={review.action_type} onChange={(e) => setReview({ ...review, action_type: e.target.value })}><option value="note_only">{tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note")}</option><option value="online_product_update">{tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update")}</option><option value="campaign_draft">{tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft")}</option><option value="sale_invoice_draft">{tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft")}</option><option value="report_delivery">{tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report")}</option><option value="reminder_channel_manage">{tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel")}</option><option value="pricing_rule_draft">{tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule")}</option></select></Field>
+    <Field label={tr("تبدیل متن به", "تحويل النص إلى", "Metni şuna dönüştür", "Convert transcript to")}>
+      <Select
+        className="w-full"
+        value={review.action_type}
+        onChange={(value) => setReview({ ...review, action_type: value })}
+        options={[
+          { value: "note_only", label: tr("یادداشت بدون اجرا", "ملاحظة غير قابلة للتنفيذ", "Uygulanamayan not", "Non-executable note") },
+          { value: "online_product_update", label: tr("تغییر کالای سایت", "تحديث منتج الموقع", "Site ürün güncellemesi", "Online product update") },
+          { value: "campaign_draft", label: tr("پیش‌نویس کمپین", "مسودة حملة", "Kampanya taslağı", "Campaign draft") },
+          { value: "sale_invoice_draft", label: tr("پیش‌نویس فاکتور فروش", "مسودة فاتورة بيع", "Satış faturası taslağı", "Sale invoice draft") },
+          { value: "report_delivery", label: tr("ارسال گزارش", "إرسال تقرير", "Rapor gönder", "Send a report") },
+          { value: "reminder_channel_manage", label: tr("افزودن/حذف کانال یادآوری", "إضافة/حذف قناة تذكير", "Hatırlatma kanalı ekle/kaldır", "Add/remove reminder channel") },
+          { value: "pricing_rule_draft", label: tr("ساخت قانون قیمت‌گذاری", "إنشاء قاعدة تسعير", "Fiyatlandırma kuralı oluştur", "Create a pricing rule") },
+        ]}
+      />
+    </Field>
     {review.action_type === "pricing_rule_draft" && (
       <PricingRuleFields
         language={language}
@@ -828,13 +944,56 @@ function TranscriptReviewer({ item, products, customers, reminderChannels, langu
       />
     )}
     {review.action_type === "online_product_update" && <>
-      <Field label={tr("کالا", "المنتج", "Ürün", "Product")}><select style={inputStyle} value={review.target_id} onChange={(e) => setReview({ ...review, target_id: e.target.value })}><option value="">{tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product")}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></Field>
-      <Field label={tr("فیلد مجاز", "الحقل المسموح به", "İzin verilen alan", "Allowed field")}><select style={inputStyle} value={review.field} onChange={(e) => setReview({ ...review, field: e.target.value })}><option value="online_price">{tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price")}</option><option value="discount_percent">{tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent")}</option><option value="is_published">{tr("انتشار", "النشر", "Yayın", "Published")}</option><option value="sync_stock">{tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync")}</option></select></Field>
-      <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? <select style={inputStyle} value={review.value} onChange={(e) => setReview({ ...review, value: e.target.value })}><option value="">{tr("انتخاب", "اختر", "Seçin", "Choose")}</option><option value="true">{tr("فعال", "مفعّل", "Etkin", "Enabled")}</option><option value="false">{tr("غیرفعال", "معطّل", "Devre dışı", "Disabled")}</option></select> : <input type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(review.value) : review.value} onChange={(e) => setReview({ ...review, value: cleanNumberInput(e.target.value) })} />}</Field>
+      <Field label={tr("کالا", "المنتج", "Ürün", "Product")}>
+        <Select
+          className="w-full"
+          value={review.target_id}
+          onChange={(value) => setReview({ ...review, target_id: value })}
+          options={[
+            { value: "", label: tr("انتخاب کالا", "اختر المنتج", "Ürün seçin", "Choose product") },
+            ...products.map((product) => ({ value: product.id, label: product.name })),
+          ]}
+        />
+      </Field>
+      <Field label={tr("فیلد مجاز", "الحقل المسموح به", "İzin verilen alan", "Allowed field")}>
+        <Select
+          className="w-full"
+          value={review.field}
+          onChange={(value) => setReview({ ...review, field: value })}
+          options={[
+            { value: "online_price", label: tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price") },
+            { value: "discount_percent", label: tr("درصد تخفیف", "نسبة الخصم", "İndirim yüzdesi", "Discount percent") },
+            { value: "is_published", label: tr("انتشار", "النشر", "Yayın", "Published") },
+            { value: "sync_stock", label: tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Stock sync") },
+          ]}
+        />
+      </Field>
+      <Field label={tr("مقدار جدید", "القيمة الجديدة", "Yeni değer", "New value")}>{["is_published", "sync_stock"].includes(review.field) ? (
+        <Select
+          className="w-full"
+          value={review.value}
+          onChange={(value) => setReview({ ...review, value })}
+          options={[
+            { value: "", label: tr("انتخاب", "اختر", "Seçin", "Choose") },
+            { value: "true", label: tr("فعال", "مفعّل", "Etkin", "Enabled") },
+            { value: "false", label: tr("غیرفعال", "معطّل", "Devre dışı", "Disabled") },
+          ]}
+        />
+      ) : <input type="text" inputMode="numeric" style={inputStyle} value={language === "fa" ? toPersianDigits(review.value) : review.value} onChange={(e) => setReview({ ...review, value: cleanNumberInput(e.target.value) })} />}</Field>
     </>}
     {review.action_type === "campaign_draft" && <>
       <Field label={tr("عنوان کمپین", "عنوان الحملة", "Kampanya başlığı", "Campaign title")}><input style={inputStyle} value={review.campaign_title} onChange={(e) => setReview({ ...review, campaign_title: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></Field>
-      <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}><select style={inputStyle} value={review.campaign_channel} onChange={(e) => setReview({ ...review, campaign_channel: e.target.value })}>{["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => <option key={channel} value={channel}>{channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1)}</option>)}</select></Field>
+      <Field label={tr("شبکه", "القناة", "Kanal", "Channel")}>
+        <Select
+          className="w-full"
+          value={review.campaign_channel}
+          onChange={(value) => setReview({ ...review, campaign_channel: value })}
+          options={["website", "instagram", "telegram", "whatsapp", "linkedin"].map((channel) => ({
+            value: channel,
+            label: channel === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : channel[0].toUpperCase() + channel.slice(1),
+          }))}
+        />
+      </Field>
     </>}
     <div className="flex gap-2"><button type="button" disabled={saving || review.transcript.trim().length < 2 || (review.action_type === "online_product_update" && (!review.target_id || review.value === "")) || (review.action_type === "campaign_draft" && !review.campaign_title.trim()) || (review.action_type === "sale_invoice_draft" && (!review.invoice_customer_id || !review.invoice_items.some((row) => row.product_id && Number(row.quantity) > 0))) || (review.action_type === "report_delivery" && !review.destination_email.trim()) || (review.action_type === "reminder_channel_manage" && (review.reminder_operation === "add" ? (!review.reminder_name.trim() || !review.reminder_link_template.trim()) : !review.reminder_channel_id)) || (review.action_type === "pricing_rule_draft" && (!review.target_id || review.pricing_rule.price_value === "" || (review.pricing_rule.customer_scope_type !== "any" && !review.pricing_rule.customer_scope_value)))} onClick={submitReview} className="rounded-xl px-4 py-2 font-black" style={{ background: "#22c55e", color: "#052e16", opacity: saving ? .6 : 1 }}>{saving ? "..." : tr("ثبت بازبینی و ارسال برای تأیید نهایی", "حفظ المراجعة وإرسالها للموافقة النهائية", "İncelemeyi kaydet ve nihai onaya gönder", "Save review & queue final approval")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 bg-[var(--erp-panel-solid)] text-[var(--erp-text)]">{tr("انصراف", "إلغاء", "İptal", "Cancel")}</button></div>
   </div>;

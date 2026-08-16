@@ -6,7 +6,8 @@ import { getPaymentProviders, savePaymentProvider } from "../../services/api";
 import { translateApiError } from "../../localization/apiErrors";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
-import Field, { Input, Select } from "../ui/Field";
+import Field, { Input } from "../ui/Field";
+import Select from "../ui/Select";
 
 const PROVIDER_LABELS = {
   sandbox: { fa: "آزمایشی (Sandbox)", ar: "تجريبي (Sandbox)", tr: "Test (Sandbox)", en: "Sandbox (test)" },
@@ -110,10 +111,14 @@ export default function PaymentProvidersCard() {
                 <Input value={draft.display_name} onChange={(e) => setDraftField(key, "display_name", e.target.value)} />
               </Field>
               <Field label={tr("محیط", "البيئة", "Ortam", "Environment")}>
-                <Select value={draft.mode} onChange={(e) => setDraftField(key, "mode", e.target.value)}>
-                  <option value="test">{tr("آزمایشی", "تجريبي", "Test", "Test")}</option>
-                  <option value="live">{tr("واقعی", "حقيقي", "Canlı", "Live")}</option>
-                </Select>
+                <Select
+                  value={draft.mode}
+                  onChange={(value) => setDraftField(key, "mode", value)}
+                  options={[
+                    { value: "test", label: tr("آزمایشی", "تجريبي", "Test", "Test") },
+                    { value: "live", label: tr("واقعی", "حقيقي", "Canlı", "Live") },
+                  ]}
+                />
               </Field>
               <Field label={isPos ? tr("شناسه ترمینال", "معرّف الجهاز", "Terminal kimliği", "Terminal ID") : tr("شناسه پذیرنده (Merchant ID)", "معرّف التاجر", "Merchant ID", "Merchant ID")}>
                 <Input value={draft.merchant_id} onChange={(e) => setDraftField(key, "merchant_id", e.target.value)} />

@@ -2,6 +2,7 @@ import { Plus, Trash2, Wallet, Landmark } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 import { toEnglishDigits } from "../localization/helpers";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 // Mirrors backend/app/accounting/integrity.py's ALLOWED_PAYMENT_METHODS.
 const METHODS = [
@@ -79,11 +80,12 @@ export default function PaymentPanel({ rows, onChange, total }) {
                 <label style={{ fontSize: 11, color: "var(--erp-muted)", display: "block", marginBottom: 4 }}>
                   {tr("روش پرداخت", "طريقة الدفع", "Ödeme yöntemi", "Payment method")}
                 </label>
-                <select value={row.method} onChange={(e) => updateRow(index, { method: e.target.value })} style={inputStyle}>
-                  {METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label[language] || m.label.en}</option>
-                  ))}
-                </select>
+                <Select
+                  value={row.method}
+                  onChange={(value) => updateRow(index, { method: value })}
+                  className="w-full"
+                  options={METHODS.map((m) => ({ value: m.value, label: m.label[language] || m.label.en }))}
+                />
               </div>
               <div>
                 <label style={{ fontSize: 11, color: "var(--erp-muted)", display: "block", marginBottom: 4 }}>

@@ -17,6 +17,7 @@ import {
   exportImportReportExcel, exportImportReportSummaryPdf,
 } from "../../services/dataImportApi";
 import JalaliDateField from "../../components/forms/JalaliDateField";
+import Select from "../../components/ui/Select";
 
 const PAGE_SIZE = 50;
 const UPDATE_FIELD_OPTIONS = [
@@ -392,11 +393,11 @@ export default function ProductImportWizard() {
           {inspectData && inspectData.sheet_names.length > 1 && (
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>{tr("انتخاب Sheet", "اختر الورقة", "Sayfa seçin", "Choose sheet")}</label>
-              <select value={sheetName} onChange={(e) => handleSheetChange(e.target.value)} style={inputStyle}>
-                {inspectData.sheet_names.map((name) => (
-                  <option key={name} value={name}>{name} ({n(inspectData.row_counts[name] ?? 0)})</option>
-                ))}
-              </select>
+              <Select
+                value={sheetName}
+                onChange={(value) => handleSheetChange(value)}
+                options={inspectData.sheet_names.map((name) => ({ value: name, label: `${name} (${n(inspectData.row_counts[name] ?? 0)})` }))}
+              />
             </div>
           )}
 
@@ -417,10 +418,15 @@ export default function ProductImportWizard() {
           {profiles.length > 0 && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
               <label style={{ fontSize: 13, color: "var(--erp-muted)" }}>{tr("بارگذاری Mapping ذخیره‌شده:", "تحميل تخطيط محفوظ:", "Kayıtlı eşlemeyi yükle:", "Load saved mapping:")}</label>
-              <select value={selectedProfileId} onChange={(e) => loadProfile(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-                <option value="">{tr("انتخاب کنید", "اختر", "Seçin", "Select")}</option>
-                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                value={selectedProfileId}
+                onChange={(value) => loadProfile(value)}
+                className="w-auto"
+                options={[
+                  { value: "", label: tr("انتخاب کنید", "اختر", "Seçin", "Select") },
+                  ...profiles.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </div>
           )}
 
@@ -444,14 +450,14 @@ export default function ProductImportWizard() {
                         {field === "name" && <span style={{ color: "var(--erp-danger)" }}> *</span>}
                       </td>
                       <td style={{ padding: 8 }}>
-                        <select
+                        <Select
                           value={header}
-                          onChange={(e) => setMappingOverride((prev) => ({ ...prev, [field]: e.target.value }))}
-                          style={{ ...inputStyle, padding: 6 }}
-                        >
-                          <option value="">{tr("— نگاشت نشده —", "— غير مطابق —", "— eşlenmedi —", "— unmapped —")}</option>
-                          {inspectData.headers.map((h, idx) => <option key={`${h}-${idx}`} value={h}>{h}</option>)}
-                        </select>
+                          onChange={(value) => setMappingOverride((prev) => ({ ...prev, [field]: value }))}
+                          options={[
+                            { value: "", label: tr("— نگاشت نشده —", "— غير مطابق —", "— eşlenmedi —", "— unmapped —") },
+                            ...inspectData.headers.map((h) => ({ value: h, label: h })),
+                          ]}
+                        />
                       </td>
                       <td style={{ padding: 8, color: "var(--erp-muted)", fontSize: 13 }}>{String(sampleForField(field) ?? "")}</td>
                       <td style={{ padding: 8 }}>
@@ -492,33 +498,49 @@ export default function ProductImportWizard() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
             <div>
               <label style={labelStyle}>{tr("سیاست موارد تکراری", "سياسة التكرارات", "Yinelenen ilkesi", "Duplicate policy")}</label>
-              <select value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value)} style={inputStyle}>
-                <option value="skip">{tr("فقط ایجاد کالاهای جدید (رد تکراری‌ها)", "إنشاء الجديد فقط (تجاهل المكرر)", "Yalnızca yenilerini oluştur (yinelenenleri yoksay)", "Create new only (skip duplicates)")}</option>
-                <option value="update">{tr("به‌روزرسانی کالاهای موجود", "تحديث المنتجات الموجودة", "Mevcut ürünleri güncelle", "Update existing products")}</option>
-              </select>
+              <Select
+                value={duplicatePolicy}
+                onChange={(value) => setDuplicatePolicy(value)}
+                options={[
+                  { value: "skip", label: tr("فقط ایجاد کالاهای جدید (رد تکراری‌ها)", "إنشاء الجديد فقط (تجاهل المكرر)", "Yalnızca yenilerini oluştur (yinelenenleri yoksay)", "Create new only (skip duplicates)") },
+                  { value: "update", label: tr("به‌روزرسانی کالاهای موجود", "تحديث المنتجات الموجودة", "Mevcut ürünleri güncelle", "Update existing products") },
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>{tr("بررسی تکراری بر اساس", "التحقق من التكرار حسب", "Yinelenen kontrolü", "Check duplicates by")}</label>
-              <select value={matchKeys} onChange={(e) => setMatchKeys(e.target.value)} style={inputStyle}>
-                <option value="code">{tr("کد کالا", "كود المنتج", "Ürün kodu", "Product code")}</option>
-                <option value="sku">SKU</option>
-                <option value="barcode">{tr("بارکد", "الباركود", "Barkod", "Barcode")}</option>
-                <option value="code_or_barcode">{tr("کد یا بارکد", "الكود أو الباركود", "Kod veya barkod", "Code or barcode")}</option>
-              </select>
+              <Select
+                value={matchKeys}
+                onChange={(value) => setMatchKeys(value)}
+                options={[
+                  { value: "code", label: tr("کد کالا", "كود المنتج", "Ürün kodu", "Product code") },
+                  { value: "sku", label: "SKU" },
+                  { value: "barcode", label: tr("بارکد", "الباركود", "Barkod", "Barcode") },
+                  { value: "code_or_barcode", label: tr("کد یا بارکد", "الكود أو الباركود", "Kod veya barkod", "Code or barcode") },
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>{tr("سیاست موجودی منفی", "سياسة الرصيد السالب", "Negatif stok ilkesi", "Negative stock policy")}</label>
-              <select value={negativeStockPolicy} onChange={(e) => setNegativeStockPolicy(e.target.value)} style={inputStyle}>
-                <option value="block">{tr("مسدود شود", "يُحظر", "Engelle", "Block")}</option>
-                <option value="warn">{tr("با هشدار پذیرفته شود", "يُقبل مع تحذير", "Uyarı ile kabul et", "Accept with warning")}</option>
-              </select>
+              <Select
+                value={negativeStockPolicy}
+                onChange={(value) => setNegativeStockPolicy(value)}
+                options={[
+                  { value: "block", label: tr("مسدود شود", "يُحظر", "Engelle", "Block") },
+                  { value: "warn", label: tr("با هشدار پذیرفته شود", "يُقبل مع تحذير", "Uyarı ile kabul et", "Accept with warning") },
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>{tr("انبار مقصد موجودی اولیه", "المستودع الوجهة للرصيد الافتتاحي", "Açılış stoku hedef deposu", "Opening stock warehouse")}</label>
-              <select value={defaultWarehouseId} onChange={(e) => setDefaultWarehouseId(e.target.value)} style={inputStyle}>
-                <option value="">{tr("پیش‌فرض (Main)", "افتراضي (Main)", "Varsayılan (Main)", "Default (Main)")}</option>
-                {warehouses.filter((w) => !w.is_default).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <Select
+                value={defaultWarehouseId}
+                onChange={(value) => setDefaultWarehouseId(value)}
+                options={[
+                  { value: "", label: tr("پیش‌فرض (Main)", "افتراضي (Main)", "Varsayılan (Main)", "Default (Main)") },
+                  ...warehouses.filter((w) => !w.is_default).map((w) => ({ value: w.id, label: w.name })),
+                ]}
+              />
             </div>
             <div>
               <label style={labelStyle}>{tr("تاریخ سند افتتاحیه", "تاريخ الافتتاح", "Açılış tarihi", "Opening date")}</label>
@@ -583,10 +605,15 @@ export default function ProductImportWizard() {
                 style={{ background: "transparent", border: 0, outline: "none", color: "var(--erp-text)", flex: 1 }}
               />
             </div>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "auto" }}>
-              <option value="all">{tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses")}</option>
-              {Object.entries(STATUS_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-            </select>
+            <Select
+              value={statusFilter}
+              onChange={(value) => { setStatusFilter(value); setPage(1); }}
+              className="w-auto"
+              options={[
+                { value: "all", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
+                ...Object.entries(STATUS_LABEL).map(([key, label]) => ({ value: key, label })),
+              ]}
+            />
           </div>
 
           <div style={{ overflowX: "auto" }}>

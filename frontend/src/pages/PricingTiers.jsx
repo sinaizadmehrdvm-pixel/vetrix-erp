@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import {
   createPriceTier,
   createPricingRule,
@@ -18,6 +19,7 @@ import {
   updatePricingRule,
 } from "../services/api";
 import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
@@ -261,17 +263,17 @@ export default function PricingTiers() {
         <label className="block text-sm text-[var(--erp-muted)] mb-2">
           {language === "fa" ? "انتخاب کالا" : language === "ar" ? "اختيار المنتج" : language === "tr" ? "Ürün Seç" : "Select product"}
         </label>
-        <select
-          className={inputClass}
+        <Select
+          className="w-full mb-3"
           value={productId}
-          onChange={(e) => setProductId(e.target.value)}
+          onChange={(value) => setProductId(value)}
           disabled={loading}
-        >
-          <option value="">{language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..."}</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+          placeholder={language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..."}
+          options={[
+            { value: "", label: language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..." },
+            ...products.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
 
         {selectedProduct && (
           <p className="text-sm text-[var(--erp-muted)] mb-4">
@@ -298,15 +300,16 @@ export default function PricingTiers() {
                 value={language === "fa" ? toPersianDigits(unitPrice) : unitPrice}
                 onChange={(e) => setUnitPrice(cleanNumberInput(e.target.value))}
               />
-              <select
-                className={inputClass + " mb-0"}
+              <Select
+                className="w-full"
                 value={customerGroup}
-                onChange={(e) => setCustomerGroup(e.target.value)}
-              >
-                <option value="">{fa ? "همه مشتریان" : language === "ar" ? "جميع العملاء" : language === "tr" ? "Tüm müşteriler" : "All customers"}</option>
-                <option value="retail">{fa ? "فقط خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة فقط" : language === "tr" ? "Sadece perakende" : "Retail only"}</option>
-                <option value="wholesale">{fa ? "فقط عمده‌فروشی" : language === "ar" ? "بيع بالجملة فقط" : language === "tr" ? "Sadece toptan" : "Wholesale only"}</option>
-              </select>
+                onChange={(value) => setCustomerGroup(value)}
+                options={[
+                  { value: "", label: fa ? "همه مشتریان" : language === "ar" ? "جميع العملاء" : language === "tr" ? "Tüm müşteriler" : "All customers" },
+                  { value: "retail", label: fa ? "فقط خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة فقط" : language === "tr" ? "Sadece perakende" : "Retail only" },
+                  { value: "wholesale", label: fa ? "فقط عمده‌فروشی" : language === "ar" ? "بيع بالجملة فقط" : language === "tr" ? "Sadece toptan" : "Wholesale only" },
+                ]}
+              />
               <button
                 type="submit"
                 disabled={creating}
@@ -412,25 +415,40 @@ export default function PricingTiers() {
           {tr("شبیه‌سازی قیمت", "محاكاة السعر", "Fiyat simülasyonu", "Price simulation")}
         </h2>
         <form onSubmit={runSimulation} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select className={inputClass} value={sim.product_id} onChange={(e) => setSim({ ...sim, product_id: e.target.value })}>
-            <option value="">{tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...")}</option>
-            {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          <select className={inputClass} value={sim.customer_id} onChange={(e) => setSim({ ...sim, customer_id: e.target.value })}>
-            <option value="">{tr("بدون مشتری خاص", "بدون عميل محدد", "Belirli müşteri yok", "No specific customer")}</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <Select
+            className="w-full mb-3"
+            value={sim.product_id}
+            onChange={(value) => setSim({ ...sim, product_id: value })}
+            options={[
+              { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
+              ...products.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+          />
+          <Select
+            className="w-full mb-3"
+            value={sim.customer_id}
+            onChange={(value) => setSim({ ...sim, customer_id: value })}
+            options={[
+              { value: "", label: tr("بدون مشتری خاص", "بدون عميل محدد", "Belirli müşteri yok", "No specific customer") },
+              ...customers.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
           <input
             type="text" inputMode="numeric" className={inputClass}
             placeholder={tr("تعداد", "الكمية", "Miktar", "Quantity")}
             value={fa ? toPersianDigits(String(sim.quantity)) : sim.quantity}
             onChange={(e) => setSim({ ...sim, quantity: cleanNumberInput(e.target.value) })}
           />
-          <select className={inputClass} value={sim.branch_id} onChange={(e) => setSim({ ...sim, branch_id: e.target.value })}>
-            <option value="">{tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch")}</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-          <input type="date" className={inputClass} value={sim.on_date} onChange={(e) => setSim({ ...sim, on_date: e.target.value })} />
+          <Select
+            className="w-full mb-3"
+            value={sim.branch_id}
+            onChange={(value) => setSim({ ...sim, branch_id: value })}
+            options={[
+              { value: "", label: tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch") },
+              ...branches.map((b) => ({ value: b.id, label: b.name })),
+            ]}
+          />
+          <JalaliDateField className={inputClass} value={sim.on_date} onChange={(iso) => setSim({ ...sim, on_date: iso })} fa={fa} language={language} />
           <button type="submit" disabled={simLoading} className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60">
             {simLoading ? "…" : tr("محاسبه", "احتساب", "Hesapla", "Calculate")}
           </button>
@@ -479,70 +497,109 @@ export default function PricingTiers() {
             <input className={inputClass} placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={ruleDraft.name} onChange={(e) => setRuleDraft({ ...ruleDraft, name: e.target.value })} />
             <input type="number" className={inputClass} placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={ruleDraft.priority} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: e.target.value })} />
 
-            <select className={inputClass} value={ruleDraft.scope_type} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_type: e.target.value, scope_value: "" })}>
-              {SCOPE_TYPES.map((t) => <option key={t} value={t}>{scopeTypeLabel(t)}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={ruleDraft.scope_type}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, scope_type: value, scope_value: "" })}
+              options={SCOPE_TYPES.map((t) => ({ value: t, label: scopeTypeLabel(t) }))}
+            />
             {ruleDraft.scope_type === "all" ? (
               <div />
             ) : ruleDraft.scope_type === "product" ? (
-              <select className={inputClass} value={ruleDraft.scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: e.target.value })}>
-                <option value="">{tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...")}</option>
-                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                className="w-full mb-3"
+                value={ruleDraft.scope_value}
+                onChange={(value) => setRuleDraft({ ...ruleDraft, scope_value: value })}
+                options={[
+                  { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
+                  ...products.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             ) : (
               <input className={inputClass} placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={ruleDraft.scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: e.target.value })} />
             )}
 
-            <select className={inputClass} value={ruleDraft.customer_scope_type} onChange={(e) => setRuleDraft({ ...ruleDraft, customer_scope_type: e.target.value, customer_scope_value: "" })}>
-              {CUSTOMER_SCOPE_TYPES.map((t) => <option key={t} value={t}>{customerScopeTypeLabel(t)}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={ruleDraft.customer_scope_type}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_type: value, customer_scope_value: "" })}
+              options={CUSTOMER_SCOPE_TYPES.map((t) => ({ value: t, label: customerScopeTypeLabel(t) }))}
+            />
             {ruleDraft.customer_scope_type === "any" ? (
               <div />
             ) : ruleDraft.customer_scope_type === "group" ? (
-              <select className={inputClass} value={ruleDraft.customer_scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, customer_scope_value: e.target.value })}>
-                <option value="">{tr("انتخاب گروه...", "اختر مجموعة...", "Grup seçin...", "Select group...")}</option>
-                <option value="retail">{tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail")}</option>
-                <option value="wholesale">{tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale")}</option>
-              </select>
+              <Select
+                className="w-full mb-3"
+                value={ruleDraft.customer_scope_value}
+                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+                options={[
+                  { value: "", label: tr("انتخاب گروه...", "اختر مجموعة...", "Grup seçin...", "Select group...") },
+                  { value: "retail", label: tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail") },
+                  { value: "wholesale", label: tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale") },
+                ]}
+              />
             ) : ruleDraft.customer_scope_type === "loyalty_tier" ? (
-              <select className={inputClass} value={ruleDraft.customer_scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, customer_scope_value: e.target.value })}>
-                <option value="">{tr("انتخاب سطح...", "اختر مستوى...", "Seviye seçin...", "Select tier...")}</option>
-                {LOYALTY_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <Select
+                className="w-full mb-3"
+                value={ruleDraft.customer_scope_value}
+                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+                options={[
+                  { value: "", label: tr("انتخاب سطح...", "اختر مستوى...", "Seviye seçin...", "Select tier...") },
+                  ...LOYALTY_LEVELS.map((l) => ({ value: l, label: l })),
+                ]}
+              />
             ) : (
-              <select className={inputClass} value={ruleDraft.customer_scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, customer_scope_value: e.target.value })}>
-                <option value="">{tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...")}</option>
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <Select
+                className="w-full mb-3"
+                value={ruleDraft.customer_scope_value}
+                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+                options={[
+                  { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
+                  ...customers.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+              />
             )}
 
-            <select className={inputClass} value={ruleDraft.branch_id} onChange={(e) => setRuleDraft({ ...ruleDraft, branch_id: e.target.value })}>
-              <option value="">{tr("همه شعب", "كل الفروع", "Tüm şubeler", "All branches")}</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={ruleDraft.branch_id}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, branch_id: value })}
+              options={[
+                { value: "", label: tr("همه شعب", "كل الفروع", "Tüm şubeler", "All branches") },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
             <input className={inputClass} placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={ruleDraft.channel} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: e.target.value })} />
 
             <input type="number" className={inputClass} placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={ruleDraft.min_quantity} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: e.target.value })} />
             <input type="number" className={inputClass} placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={ruleDraft.max_quantity} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: e.target.value })} />
 
-            <select className={inputClass} value={ruleDraft.price_mode} onChange={(e) => setRuleDraft({ ...ruleDraft, price_mode: e.target.value })}>
-              {PRICE_MODES.map((m) => <option key={m} value={m}>{priceModeLabel(m)}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={ruleDraft.price_mode}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, price_mode: value })}
+              options={PRICE_MODES.map((m) => ({ value: m, label: priceModeLabel(m) }))}
+            />
             <input type="number" step="any" className={inputClass} placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={ruleDraft.price_value} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: e.target.value })} />
 
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ شروع (اختیاری)", "تاريخ البدء (اختياري)", "Başlangıç tarihi (isteğe bağlı)", "Start date (optional)")}</span>
-              <input type="date" className={inputClass} value={ruleDraft.start_date} onChange={(e) => setRuleDraft({ ...ruleDraft, start_date: e.target.value })} />
+              <JalaliDateField className={inputClass} value={ruleDraft.start_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, start_date: iso })} fa={fa} language={language} />
             </label>
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ پایان (اختیاری)", "تاريخ الانتهاء (اختياري)", "Bitiş tarihi (isteğe bağlı)", "End date (optional)")}</span>
-              <input type="date" className={inputClass} value={ruleDraft.end_date} onChange={(e) => setRuleDraft({ ...ruleDraft, end_date: e.target.value })} />
+              <JalaliDateField className={inputClass} value={ruleDraft.end_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, end_date: iso })} fa={fa} language={language} />
             </label>
 
-            <select className={inputClass} value={ruleDraft.status} onChange={(e) => setRuleDraft({ ...ruleDraft, status: e.target.value })}>
-              <option value="active">{tr("فعال", "نشط", "Aktif", "Active")}</option>
-              <option value="inactive">{tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}</option>
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={ruleDraft.status}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, status: value })}
+              options={[
+                { value: "active", label: tr("فعال", "نشط", "Aktif", "Active") },
+                { value: "inactive", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
+              ]}
+            />
             <input className={inputClass} placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={ruleDraft.notes} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: e.target.value })} />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">

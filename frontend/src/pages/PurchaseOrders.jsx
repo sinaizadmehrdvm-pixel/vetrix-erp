@@ -10,6 +10,8 @@ import {
   getPurchaseOrderDispatchLog, cancelPurchaseOrder, receivePurchaseOrder, getPurchaseOrderReceipts, getWarehouses,
 } from "../services/api";
 import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
+import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 
 const inputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-3 outline-none transition-all w-full";
 const button = "border-0 rounded-2xl px-4 py-3 font-black cursor-pointer inline-flex items-center gap-2";
@@ -288,16 +290,26 @@ export default function PurchaseOrders() {
         <h2 className="text-xl font-black text-[var(--erp-accent)]">{label.newOrder}</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label={label.supplier}>
-            <select className={inputClass} value={form.supplier_id} onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}>
-              <option value="">{label.noSupplier}</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Select
+              className="w-full"
+              value={form.supplier_id}
+              onChange={(value) => setForm({ ...form, supplier_id: value })}
+              options={[
+                { value: "", label: label.noSupplier },
+                ...customers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </Field>
           <Field label={label.defaultWarehouse}>
-            <select className={inputClass} value={form.default_warehouse_id} onChange={(e) => setForm({ ...form, default_warehouse_id: e.target.value })}>
-              <option value="">{label.noWarehouse}</option>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            <Select
+              className="w-full"
+              value={form.default_warehouse_id}
+              onChange={(value) => setForm({ ...form, default_warehouse_id: value })}
+              options={[
+                { value: "", label: label.noWarehouse },
+                ...warehouses.map((w) => ({ value: w.id, label: w.name })),
+              ]}
+            />
           </Field>
           <Field label={label.note}>
             <input className={inputClass} value={form.note} onChange={(e) => setForm({ ...form, note: fa ? toPersianDigits(e.target.value) : e.target.value })} />
@@ -308,10 +320,15 @@ export default function PurchaseOrders() {
           {form.items.map((item, index) => (
             <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_140px_160px_auto] gap-3 items-end">
               <Field label={label.product}>
-                <select className={inputClass} value={item.product_id} onChange={(e) => setItem(index, "product_id", e.target.value)}>
-                  <option value="">{label.product}</option>
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.name} | {label.quantity}: {n(p.stock || 0)}</option>)}
-                </select>
+                <Select
+                  className="w-full"
+                  value={item.product_id}
+                  onChange={(value) => setItem(index, "product_id", value)}
+                  options={[
+                    { value: "", label: label.product },
+                    ...products.map((p) => ({ value: p.id, label: `${p.name} | ${label.quantity}: ${n(p.stock || 0)}` })),
+                  ]}
+                />
               </Field>
               <Field label={label.quantity}>
                 <input type="text" inputMode="numeric" className={inputClass} value={fa ? toPersianDigits(item.quantity) : item.quantity} onChange={(e) => setItem(index, "quantity", cleanNumberInput(e.target.value))} placeholder={fa ? "۰" : "0"} />
@@ -400,9 +417,12 @@ export default function PurchaseOrders() {
           <form onSubmit={submitDispatch} className="p-5 space-y-3">
             <h2 id="po-dispatch-title" className="text-lg font-bold">{label.dispatchTitle} — #{n(dispatchModal.po.id)}</h2>
             <Field label={label.method}>
-              <select className={inputClass} value={dispatchForm.method} onChange={(e) => setDispatchForm({ ...dispatchForm, method: e.target.value })}>
-                {DISPATCH_METHODS.map((m) => <option key={m} value={m}>{label.methodLabel[m]}</option>)}
-              </select>
+              <Select
+                className="w-full"
+                value={dispatchForm.method}
+                onChange={(value) => setDispatchForm({ ...dispatchForm, method: value })}
+                options={DISPATCH_METHODS.map((m) => ({ value: m, label: label.methodLabel[m] }))}
+              />
             </Field>
             {!["manual", "print_pdf", "copy_text"].includes(dispatchForm.method) && (
               <Field label={label.destination}>
@@ -455,47 +475,48 @@ export default function PurchaseOrders() {
             <h2 id="po-receive-title" className="text-lg font-bold">{label.receiveTitle} — #{n(receiveModal.po.id)}</h2>
 
             <Field label={label.receiveWarehouse}>
-              <select className={inputClass} value={receiveForm.warehouse_id} onChange={(e) => setReceiveForm({ ...receiveForm, warehouse_id: e.target.value })}>
-                <option value="">{label.noWarehouse}</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <Select
+                className="w-full"
+                value={receiveForm.warehouse_id}
+                onChange={(value) => setReceiveForm({ ...receiveForm, warehouse_id: value })}
+                options={[
+                  { value: "", label: label.noWarehouse },
+                  ...warehouses.map((w) => ({ value: w.id, label: w.name })),
+                ]}
+              />
             </Field>
 
             {receiveModal.lines.length === 0 ? (
               <p className="text-[var(--erp-muted)] text-sm">{label.fullyReceivedNote}</p>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-[var(--erp-border)]">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]">
-                      <th className="p-3 text-start">{label.row}</th>
-                      <th className="p-3 text-start">{label.product}</th>
-                      <th className="p-3 text-start">{label.ordered}</th>
-                      <th className="p-3 text-start">{label.previouslyReceived}</th>
-                      <th className="p-3 text-start">{label.remaining}</th>
-                      <th className="p-3 text-start">{label.receivingNow}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {receiveModal.lines.map((line, index) => (
-                      <tr key={line.po_item_id} className="border-t border-[var(--erp-border)]">
-                        <td className="p-3 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
-                        <td className="p-3">{line.product_name}</td>
-                        <td className="p-3">{n(line.ordered)}</td>
-                        <td className="p-3">{n(line.previouslyReceived)}</td>
-                        <td className="p-3 font-bold text-[var(--erp-accent)]">{n(line.remaining)}</td>
-                        <td className="p-3">
-                          <input
-                            type="text" inputMode="numeric" className={`${inputClass} !p-2`}
-                            value={fa ? toPersianDigits(line.receivingNow) : line.receivingNow}
-                            onChange={(e) => setReceiveLineQty(index, cleanNumberInput(e.target.value))}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table dir={dir} className="text-sm">
+                <Thead>
+                  <Th className="w-12">{label.row}</Th>
+                  <Th>{label.product}</Th>
+                  <Th align="end">{label.ordered}</Th>
+                  <Th align="end">{label.previouslyReceived}</Th>
+                  <Th align="end">{label.remaining}</Th>
+                  <Th>{label.receivingNow}</Th>
+                </Thead>
+                <Tbody>
+                  {receiveModal.lines.map((line, index) => (
+                    <Tr key={line.po_item_id}>
+                      <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                      <Td>{line.product_name}</Td>
+                      <Td align="end">{n(line.ordered)}</Td>
+                      <Td align="end">{n(line.previouslyReceived)}</Td>
+                      <Td align="end" className="font-bold text-[var(--erp-accent)]">{n(line.remaining)}</Td>
+                      <Td>
+                        <input
+                          type="text" inputMode="numeric" className={`${inputClass} !p-2`}
+                          value={fa ? toPersianDigits(line.receivingNow) : line.receivingNow}
+                          onChange={(e) => setReceiveLineQty(index, cleanNumberInput(e.target.value))}
+                        />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
             )}
 
             <Field label={label.receiveNoteLabel}>

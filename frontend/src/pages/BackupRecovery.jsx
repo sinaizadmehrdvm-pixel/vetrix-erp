@@ -34,6 +34,7 @@ import {
   testRestoreBackup,
   verifyBackup,
 } from "../services/backupApi";
+import Select from "../components/ui/Select";
 
 export default function BackupRecovery() {
   const { user } = useAuth();
@@ -464,19 +465,25 @@ function DeliveryPolicies({ card, language, dir, n, date }) {
         <form onSubmit={createPolicy} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
           <input required placeholder={tr("نام سیاست", "اسم السياسة", "Politika adı", "Policy name")} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }} />
-          <select value={draft.frequency} onChange={(e) => setDraft({ ...draft, frequency: e.target.value })}
-            style={{ padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }}>
-            <option value="daily">{tr("روزانه", "يومي", "Günlük", "Daily")}</option>
-            <option value="weekly">{tr("هفتگی", "أسبوعي", "Haftalık", "Weekly")}</option>
-            <option value="manual">{tr("دستی", "يدوي", "Manuel", "Manual")}</option>
-          </select>
-          <select value={draft.channel} onChange={(e) => setDraft({ ...draft, channel: e.target.value })}
-            style={{ padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }}>
-            <option value="download">{tr("لینک امن دانلود", "رابط تنزيل آمن", "Güvenli indirme linki", "Secure download link")}</option>
-            <option value="email">{tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")}</option>
-            <option value="telegram">Telegram</option>
-            <option value="whatsapp">WhatsApp</option>
-          </select>
+          <Select
+            value={draft.frequency}
+            onChange={(value) => setDraft({ ...draft, frequency: value })}
+            options={[
+              { value: "daily", label: tr("روزانه", "يومي", "Günlük", "Daily") },
+              { value: "weekly", label: tr("هفتگی", "أسبوعي", "Haftalık", "Weekly") },
+              { value: "manual", label: tr("دستی", "يدوي", "Manuel", "Manual") },
+            ]}
+          />
+          <Select
+            value={draft.channel}
+            onChange={(value) => setDraft({ ...draft, channel: value })}
+            options={[
+              { value: "download", label: tr("لینک امن دانلود", "رابط تنزيل آمن", "Güvenli indirme linki", "Secure download link") },
+              { value: "email", label: tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email") },
+              { value: "telegram", label: "Telegram" },
+              { value: "whatsapp", label: "WhatsApp" },
+            ]}
+          />
           {draft.channel !== "download" && (
             <input placeholder={tr("مقصد (ایمیل/چت‌آیدی/شماره)", "الهدف (بريد/معرف/رقم)", "Hedef (e-posta/sohbet id/numara)", "Target (email/chat id/number)")} value={draft.target}
               onChange={(e) => setDraft({ ...draft, target: e.target.value })}

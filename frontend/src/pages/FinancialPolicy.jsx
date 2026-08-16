@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, FileClock, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import {
@@ -184,8 +185,8 @@ export default function FinancialPolicy() {
       <h2 style={{ display: "flex", gap: 9, alignItems: "center", marginTop: 0 }}><Plus />{text.create}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
         <label>{text.version}<input required maxLength={80} value={draft.version} onChange={e => setDraft({ ...draft, version: e.target.value })} style={input} /></label>
-        <label>{text.country}<select value={draft.country_code} onChange={e => {
-          const profile = countries.find(item => item.code === e.target.value);
+        <label>{text.country}<Select value={draft.country_code} onChange={value => {
+          const profile = countries.find(item => item.code === value);
           if (!profile) return;
           setDraft({
             ...draft,
@@ -199,16 +200,16 @@ export default function FinancialPolicy() {
             measurement_system: profile.measurementSystem,
             version: `${profile.code}-${today}`,
           });
-        }} style={input}>{countries.map(item => <option key={item.code} value={item.code}>{language === "fa" ? item.name.fa : item.name.en}</option>)}</select></label>
+        }} options={countries.map(item => ({ value: item.code, label: language === "fa" ? item.name.fa : item.name.en }))} /></label>
         <label>{text.currency}<input required minLength={3} maxLength={3} value={draft.currency_code} onChange={e => setDraft({ ...draft, currency_code: e.target.value.toUpperCase() })} style={input} /></label>
-        <label>{text.decimals}<select value={draft.decimal_places} onChange={e => setDraft({ ...draft, decimal_places: e.target.value })} style={input}>{[0,1,2,3,4].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
-        <label style={wideField}>{text.rounding}<select value={draft.rounding_mode} onChange={e => setDraft({ ...draft, rounding_mode: e.target.value })} style={input}>{Object.keys(ROUNDING_LABELS).map(key => <option key={key} value={key}>{ROUNDING_LABELS[key][language] || ROUNDING_LABELS[key].en}</option>)}</select></label>
+        <label>{text.decimals}<Select value={draft.decimal_places} onChange={value => setDraft({ ...draft, decimal_places: value })} options={[0,1,2,3,4].map(x => ({ value: x, label: n(x) }))} /></label>
+        <label style={wideField}>{text.rounding}<Select value={draft.rounding_mode} onChange={value => setDraft({ ...draft, rounding_mode: value })} options={Object.keys(ROUNDING_LABELS).map(key => ({ value: key, label: ROUNDING_LABELS[key][language] || ROUNDING_LABELS[key].en }))} /></label>
         <label>{text.effective}<JalaliDateField value={draft.effective_from} onChange={(iso) => setDraft({ ...draft, effective_from: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-bg)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-xl p-[11px_12px] w-full" /></label>
-        <label style={wideField}>{text.calendar}<select value={draft.calendar_system} onChange={e => setDraft({ ...draft, calendar_system: e.target.value })} style={input}>{Object.keys(CALENDAR_LABELS).map(key => <option key={key} value={key}>{CALENDAR_LABELS[key][language] || CALENDAR_LABELS[key].en}</option>)}</select></label>
+        <label style={wideField}>{text.calendar}<Select value={draft.calendar_system} onChange={value => setDraft({ ...draft, calendar_system: value })} options={Object.keys(CALENDAR_LABELS).map(key => ({ value: key, label: CALENDAR_LABELS[key][language] || CALENDAR_LABELS[key].en }))} /></label>
         <label>{text.timeZone}<input required value={draft.time_zone} onChange={e => setDraft({ ...draft, time_zone: e.target.value })} style={input} /></label>
-        <label>{text.firstDay}<select value={draft.first_day_of_week} onChange={e => setDraft({ ...draft, first_day_of_week: e.target.value })} style={input}>{[0,1,2,3,4,5,6].map(x => <option key={x} value={x}>{n(x)}</option>)}</select></label>
+        <label>{text.firstDay}<Select value={draft.first_day_of_week} onChange={value => setDraft({ ...draft, first_day_of_week: value })} options={[0,1,2,3,4,5,6].map(x => ({ value: x, label: n(x) }))} /></label>
         <label>{text.fiscalStart}<input required value={draft.fiscal_year_start} onChange={e => setDraft({ ...draft, fiscal_year_start: e.target.value })} style={input} /></label>
-        <label style={wideField}>{text.measurement}<select value={draft.measurement_system} onChange={e => setDraft({ ...draft, measurement_system: e.target.value })} style={input}>{Object.keys(MEASUREMENT_LABELS).map(key => <option key={key} value={key}>{MEASUREMENT_LABELS[key][language] || MEASUREMENT_LABELS[key].en}</option>)}</select></label>
+        <label style={wideField}>{text.measurement}<Select value={draft.measurement_system} onChange={value => setDraft({ ...draft, measurement_system: value })} options={Object.keys(MEASUREMENT_LABELS).map(key => ({ value: key, label: MEASUREMENT_LABELS[key][language] || MEASUREMENT_LABELS[key].en }))} /></label>
         <label>{text.taxRate}<input type="text" inputMode="numeric" required value={language === "fa" ? toPersianDigits(draft.tax_percent) : draft.tax_percent} onChange={e => setDraft({ ...draft, tax_percent: cleanNumberInput(e.target.value) })} style={input} /></label>
       </div>
       <button disabled={saving} style={{ marginTop: 13, border: 0, borderRadius: 13, padding: "11px 16px", background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028", fontWeight: 900 }}>{saving ? "..." : text.save}</button>

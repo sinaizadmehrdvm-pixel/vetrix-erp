@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { getProductBatches, createProductBatch, deleteProductBatch } from "../services/api";
+import JalaliDateField from "./forms/JalaliDateField";
 
 /**
  * Serial/batch/expiry tracking for one product. Recording-and-visibility
@@ -80,7 +81,7 @@ export default function ProductBatchesPanel({ productId }) {
       <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-[1fr_100px_150px_auto] gap-2 mb-3">
         <input value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} placeholder={label.batchNumber} className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-xl p-2 text-sm outline-none" />
         <input type="number" min="0.01" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} placeholder={label.quantity} className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-xl p-2 text-sm outline-none" />
-        <input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-xl p-2 text-sm outline-none" />
+        <JalaliDateField value={form.expiry_date} onChange={(iso) => setForm({ ...form, expiry_date: iso })} language={language} className="bg-[var(--erp-panel)] border border-[var(--erp-border)] rounded-xl p-2 text-sm outline-none" />
         <button type="submit" className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-bold text-sm flex items-center gap-1">
           <Plus size={14} />{label.add}
         </button>

@@ -14,6 +14,7 @@ import {
 } from "../services/api";
 import { getUsers } from "../services/usersApi";
 import { translateApiError } from "../localization/apiErrors";
+import Select from "../components/ui/Select";
 
 const CHANNEL_LABELS = {
   email: { fa: "ایمیل", ar: "البريد الإلكتروني", tr: "E-posta", en: "Email" },
@@ -239,12 +240,12 @@ export default function MessageTemplates() {
             )}
           </p>
           <div className="flex gap-2 flex-wrap mb-4">
-            <select value={grantUserId} onChange={(e) => setGrantUserId(e.target.value)} className="p-3 rounded-xl bg-[var(--erp-bg)] border border-[var(--erp-border)] outline-none flex-1 min-w-[200px]">
-              <option value="">{tr("انتخاب کاربر...", "اختر مستخدمًا...", "Kullanıcı seçin...", "Select a user...")}</option>
-              {nonEditorUsers.map((u) => (
-                <option key={u.id} value={u.id}>{u.full_name || u.username} ({u.role})</option>
-              ))}
-            </select>
+            <Select
+              className="flex-1 min-w-[200px]"
+              value={grantUserId}
+              onChange={(value) => setGrantUserId(value)}
+              options={[{ value: "", label: tr("انتخاب کاربر...", "اختر مستخدمًا...", "Kullanıcı seçin...", "Select a user...") }, ...nonEditorUsers.map((u) => ({ value: u.id, label: `${u.full_name || u.username} (${u.role})` }))]}
+            />
             <button onClick={grantEditor} disabled={!grantUserId} className="px-4 py-3 rounded-xl bg-[var(--erp-accent)] text-black font-bold flex items-center gap-2 disabled:opacity-50">
               <UserPlus size={16} /> {tr("افزودن", "إضافة", "Ekle", "Add")}
             </button>

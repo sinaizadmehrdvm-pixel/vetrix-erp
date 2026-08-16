@@ -27,6 +27,7 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import {
   createCustomerPortalLink,
   createSupplierPortalLink,
@@ -891,101 +892,89 @@ export default function CustomerDetails() {
         </div>
 
         {viewMode === "all" ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                  <th className="p-3 text-right">#</th>
-                  <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
-                  <th className="p-3 text-right">{tr("شرح", "البيان", "Açıklama", "Description")}</th>
-                  <th className="p-3 text-right">{tr("بدهکار", "مدين", "Borç", "Debit")}</th>
-                  <th className="p-3 text-right">{tr("بستانکار", "دائن", "Alacak", "Credit")}</th>
-                  <th className="p-3 text-right">{tr("مانده حساب", "رصيد الحساب", "Hesap Bakiyesi", "Account balance")}</th>
-                  <th className="p-3 text-right">{tr("وضعیت", "الحالة", "Durum", "Status")}</th>
-                </tr>
-              </thead>
+          <Table dir={dir} className="min-w-[900px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+              <Th>{tr("شرح", "البيان", "Açıklama", "Description")}</Th>
+              <Th align="end">{tr("بدهکار", "مدين", "Borç", "Debit")}</Th>
+              <Th align="end">{tr("بستانکار", "دائن", "Alacak", "Credit")}</Th>
+              <Th align="end">{tr("مانده حساب", "رصيد الحساب", "Hesap Bakiyesi", "Account balance")}</Th>
+              <Th>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+            </Thead>
 
-              <tbody>
-                {visibleRows.map((row, index) => {
-                  const bal = toNumber(row.computedBalance ?? getRowBalance(row));
+            <Tbody>
+              {visibleRows.map((row, index) => {
+                const bal = toNumber(row.computedBalance ?? getRowBalance(row));
 
-                  return (
-                    <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
-                      <td className="p-3 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
-                      <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
-                      <td className="p-3">
-                        <div className="font-black text-[var(--erp-text)]">
-                          {row.description || sourceLabel(row.source_type, language)}
-                        </div>
-                        <div className="text-xs text-[var(--erp-muted)]">
-                          {sourceLabel(row.source_type, language)} {row.source_id ? `#${n(row.source_id)}` : ""}
-                        </div>
-                      </td>
-                      <td className="p-3 text-rose-300 font-black">
-                        {toNumber(row.debit) ? money(row.debit) : "-"}
-                      </td>
-                      <td className="p-3 text-emerald-300 font-black">
-                        {toNumber(row.credit) ? money(row.credit) : "-"}
-                      </td>
-                      <td className="p-3 text-[var(--erp-accent)] font-black">{money(Math.abs(bal))}</td>
-                      <td className="p-3 text-[var(--erp-text)] font-black">{balanceLabel(bal, language)}</td>
-                    </tr>
-                  );
-                })}
-
-                {visibleRows.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="p-8 text-center text-[var(--erp-muted)]">
-                      {tr("هنوز گردش حسابی ثبت نشده است", "لم يتم تسجيل أي حركة حساب بعد", "Henüz hesap hareketi kaydedilmedi", "No ledger rows")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                  <th className="p-3 text-right">#</th>
-                  <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
-                  <th className="p-3 text-right">{tr("شرح عملیات بانکی", "بيان العملية البنكية", "Banka İşlemi Açıklaması", "Bank transaction")}</th>
-                  <th className="p-3 text-right">{tr("ورود وجه", "الوارد", "Giren Tutar", "Inflow")}</th>
-                  <th className="p-3 text-right">{tr("خروج وجه", "الصادر", "Çıkan Tutar", "Outflow")}</th>
-                  <th className="p-3 text-right">{tr("مانده نقد/بانک", "رصيد النقد/البنك", "Nakit/Banka Bakiyesi", "Cash/Bank balance")}</th>
-                  <th className="p-3 text-right">{tr("نوع", "النوع", "Tür", "Type")}</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {bankRows.map((row, index) => (
-                  <tr key={`${row.id}-${index}`} className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5">
-                    <td className="p-3 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
-                    <td className="p-3 text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</td>
-                    <td className="p-3">
+                return (
+                  <Tr key={`${row.id}-${index}`}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</Td>
+                    <Td>
                       <div className="font-black text-[var(--erp-text)]">
                         {row.description || sourceLabel(row.source_type, language)}
                       </div>
-                      <div className="text-xs text-[var(--erp-muted)]">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
-                    </td>
-                    <td className="p-3 text-emerald-300 font-black">{row.inflow ? money(row.inflow) : "-"}</td>
-                    <td className="p-3 text-rose-300 font-black">{row.outflow ? money(row.outflow) : "-"}</td>
-                    <td className="p-3 text-[var(--erp-accent)] font-black">{money(Math.abs(row.cashBalance))}</td>
-                    <td className="p-3 text-[var(--erp-text)] font-black">{sourceLabel(row.source_type, language)}</td>
-                  </tr>
-                ))}
+                      <div className="text-xs text-[var(--erp-muted)]">
+                        {sourceLabel(row.source_type, language)} {row.source_id ? `#${n(row.source_id)}` : ""}
+                      </div>
+                    </Td>
+                    <Td align="end" className="text-rose-300 font-black">
+                      {toNumber(row.debit) ? money(row.debit) : "-"}
+                    </Td>
+                    <Td align="end" className="text-emerald-300 font-black">
+                      {toNumber(row.credit) ? money(row.credit) : "-"}
+                    </Td>
+                    <Td align="end" className="text-[var(--erp-accent)] font-black">{money(Math.abs(bal))}</Td>
+                    <Td className="text-[var(--erp-text)] font-black">{balanceLabel(bal, language)}</Td>
+                  </Tr>
+                );
+              })}
 
-                {bankRows.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="p-8 text-center text-[var(--erp-muted)]">
-                      {tr("هنوز دریافت یا پرداخت بانکی ثبت نشده است", "لم يتم تسجيل أي قبض أو دفع بنكي بعد", "Henüz banka tahsilatı veya ödemesi kaydedilmedi", "No bank transaction has been registered yet")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              {visibleRows.length === 0 && (
+                <EmptyRow colSpan={7}>
+                  {tr("هنوز گردش حسابی ثبت نشده است", "لم يتم تسجيل أي حركة حساب بعد", "Henüz hesap hareketi kaydedilmedi", "No ledger rows")}
+                </EmptyRow>
+              )}
+            </Tbody>
+          </Table>
+        ) : (
+          <Table dir={dir} className="min-w-[900px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+              <Th>{tr("شرح عملیات بانکی", "بيان العملية البنكية", "Banka İşlemi Açıklaması", "Bank transaction")}</Th>
+              <Th align="end">{tr("ورود وجه", "الوارد", "Giren Tutar", "Inflow")}</Th>
+              <Th align="end">{tr("خروج وجه", "الصادر", "Çıkan Tutar", "Outflow")}</Th>
+              <Th align="end">{tr("مانده نقد/بانک", "رصيد النقد/البنك", "Nakit/Banka Bakiyesi", "Cash/Bank balance")}</Th>
+              <Th>{tr("نوع", "النوع", "Tür", "Type")}</Th>
+            </Thead>
+
+            <Tbody>
+              {bankRows.map((row, index) => (
+                <Tr key={`${row.id}-${index}`}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                  <Td className="text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</Td>
+                  <Td>
+                    <div className="font-black text-[var(--erp-text)]">
+                      {row.description || sourceLabel(row.source_type, language)}
+                    </div>
+                    <div className="text-xs text-[var(--erp-muted)]">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
+                  </Td>
+                  <Td align="end" className="text-emerald-300 font-black">{row.inflow ? money(row.inflow) : "-"}</Td>
+                  <Td align="end" className="text-rose-300 font-black">{row.outflow ? money(row.outflow) : "-"}</Td>
+                  <Td align="end" className="text-[var(--erp-accent)] font-black">{money(Math.abs(row.cashBalance))}</Td>
+                  <Td className="text-[var(--erp-text)] font-black">{sourceLabel(row.source_type, language)}</Td>
+                </Tr>
+              ))}
+
+              {bankRows.length === 0 && (
+                <EmptyRow colSpan={7}>
+                  {tr("هنوز دریافت یا پرداخت بانکی ثبت نشده است", "لم يتم تسجيل أي قبض أو دفع بنكي بعد", "Henüz banka tahsilatı veya ödemesi kaydedilmedi", "No bank transaction has been registered yet")}
+                </EmptyRow>
+              )}
+            </Tbody>
+          </Table>
         )}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Download, Printer, ReceiptText, RefreshCw, Scale, ShoppingCart, Trendin
 import { useLanguage } from "../localization/useLanguage";
 import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getVatReport } from "../services/taxApi";
+import Select from "../components/ui/Select";
 
 export default function TaxAccounting() {
   const { language, dir, money, date, n } = useLanguage();
@@ -98,10 +99,14 @@ export default function TaxAccounting() {
           <div><h1 style={{ margin: 0, color: "var(--erp-accent)", fontSize: "clamp(27px,4vw,40px)" }}>{copy.title}</h1><p style={{ margin: "7px 0 0", color: "var(--erp-muted)" }}>{copy.subtitle}</p></div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select value={periodId} onChange={(event) => changePeriod(event.target.value)} style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}>
-            <option value="">{copy.allTime}</option>
-            {periods.map((period) => <option key={period.id} value={period.id}>{period.name} — {period.status}</option>)}
-          </select>
+          <Select
+            value={periodId}
+            onChange={(value) => changePeriod(value)}
+            options={[
+              { value: "", label: copy.allTime },
+              ...periods.map((period) => ({ value: period.id, label: `${period.name} — ${period.status}` })),
+            ]}
+          />
           <button onClick={() => load()} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
           <button onClick={downloadCsv} disabled={!data} style={{ ...button, background: "#166534", color: "#dcfce7" }}><Download size={16} />{copy.export}</button>
           <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)" }}><Printer size={16} />{copy.print}</button>

@@ -14,6 +14,7 @@ import {
   pauseRecurringInvoice,
   resumeRecurringInvoice,
 } from "../services/api";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -193,31 +194,38 @@ export default function RecurringInvoices() {
         </h2>
         <form onSubmit={handleCreate}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <select className={inputClass} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">{tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...")}</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <select className={inputClass} value={invoiceType} onChange={(e) => setInvoiceType(e.target.value)}>
-              <option value="sale">{tr("فروش", "بيع", "Satış", "Sale")}</option>
-              <option value="buy">{tr("خرید", "شراء", "Alış", "Purchase")}</option>
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={customerId}
+              onChange={(value) => setCustomerId(value)}
+              options={[
+                { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
+                ...customers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+            <Select
+              className="w-full mb-3"
+              value={invoiceType}
+              onChange={(value) => setInvoiceType(value)}
+              options={[
+                { value: "sale", label: tr("فروش", "بيع", "Satış", "Sale") },
+                { value: "buy", label: tr("خرید", "شراء", "Alış", "Purchase") },
+              ]}
+            />
           </div>
 
           <div className="space-y-2 mb-3">
             {items.map((item, index) => (
               <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
-                <select
-                  className={inputClass + " mb-0 md:col-span-2"}
+                <Select
+                  className="w-full md:col-span-2"
                   value={item.product_id}
-                  onChange={(e) => updateItem(index, "product_id", e.target.value)}
-                >
-                  <option value="">{tr("انتخاب کالا...", "اختر منتجاً...", "Ürün seçin...", "Select product...")}</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                  onChange={(value) => updateItem(index, "product_id", value)}
+                  options={[
+                    { value: "", label: tr("انتخاب کالا...", "اختر منتجاً...", "Ürün seçin...", "Select product...") },
+                    ...products.map((p) => ({ value: p.id, label: p.name })),
+                  ]}
+                />
                 <input
                   type="text"
                   inputMode="numeric"
@@ -249,11 +257,16 @@ export default function RecurringInvoices() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select className={inputClass} value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-              <option value="weekly">{tr("هفتگی", "أسبوعي", "Haftalık", "Weekly")}</option>
-              <option value="monthly">{tr("ماهانه", "شهري", "Aylık", "Monthly")}</option>
-              <option value="custom">{tr("فاصله دلخواه (روز)", "فترة مخصصة (أيام)", "Özel aralık (gün)", "Custom interval (days)")}</option>
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={frequency}
+              onChange={(value) => setFrequency(value)}
+              options={[
+                { value: "weekly", label: tr("هفتگی", "أسبوعي", "Haftalık", "Weekly") },
+                { value: "monthly", label: tr("ماهانه", "شهري", "Aylık", "Monthly") },
+                { value: "custom", label: tr("فاصله دلخواه (روز)", "فترة مخصصة (أيام)", "Özel aralık (gün)", "Custom interval (days)") },
+              ]}
+            />
             {frequency === "custom" && (
               <input
                 type="text"

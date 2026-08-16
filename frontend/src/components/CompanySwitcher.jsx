@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { getCompanies, switchCompany } from "../services/companiesApi";
+import Select from "./ui/Select";
 
 // Milestone 4: only a super-admin can act inside more than one company's
 // context. Everyone else is permanently bound to their own company via
@@ -24,8 +25,8 @@ export default function CompanySwitcher() {
 
   if (!user?.is_super_admin) return null;
 
-  async function handleChange(event) {
-    const companyId = Number(event.target.value);
+  async function handleChange(value) {
+    const companyId = Number(value);
     if (!companyId || companyId === activeCompany?.id) return;
     setBusy(true);
     try {
@@ -53,26 +54,13 @@ export default function CompanySwitcher() {
       title={fa ? "سوپرادمین: سوییچ کانتکست شرکت" : ar ? "مسؤول عام: تبديل سياق الشركة" : trk ? "Süper yönetici: şirket bağlamını değiştir" : "Super-admin: switch company context"}
     >
       <Building2 size={18} color="var(--erp-accent)" />
-      <select
+      <Select
         value={activeCompany?.id || ""}
         disabled={busy || !companies.length}
         onChange={handleChange}
-        style={{
-          background: "transparent",
-          color: "var(--erp-text)",
-          border: "none",
-          outline: "none",
-          fontWeight: 800,
-          cursor: busy ? "wait" : "pointer",
-          minWidth: 0,
-        }}
-      >
-        {companies.map((company) => (
-          <option key={company.id} value={company.id} style={{ color: "black" }}>
-            {company.name}
-          </option>
-        ))}
-      </select>
+        options={companies.map((company) => ({ value: company.id, label: company.name }))}
+        className="min-w-0"
+      />
     </div>
   );
 }

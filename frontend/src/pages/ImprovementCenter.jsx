@@ -11,6 +11,8 @@ import {
 import { getUsers } from "../services/usersApi";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
+import JalaliDateField from "../components/forms/JalaliDateField";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -230,22 +232,33 @@ export default function ImprovementCenter() {
 
       <section className={cardClass}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">{tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses")}</option>
-            {["new", "acknowledged", "action_planned", "in_progress", "monitoring", "resolved", "reopened", "dismissed"].map((s) => (
-              <option key={s} value={s}>{statusLabel(s)}</option>
-            ))}
-          </select>
-          <select className={inputClass} value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-            <option value="">{tr("همه سطوح", "كل المستويات", "Tüm seviyeler", "All severities")}</option>
-            {["critical", "warning", "info"].map((s) => <option key={s} value={s}>{severityLabel(s)}</option>)}
-          </select>
-          <select className={inputClass} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">{tr("همه دسته‌ها", "كل الفئات", "Tüm kategoriler", "All categories")}</option>
-            {["receivables_aging", "sales_decline", "dead_stock", "low_stock", "customer_risk", "budget_variance", "expiring_stock", "cashflow_pressure"].map((c) => (
-              <option key={c} value={c}>{categoryLabel(c)}</option>
-            ))}
-          </select>
+          <Select
+            className="w-full"
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={[
+              { value: "", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
+              ...["new", "acknowledged", "action_planned", "in_progress", "monitoring", "resolved", "reopened", "dismissed"].map((s) => ({ value: s, label: statusLabel(s) })),
+            ]}
+          />
+          <Select
+            className="w-full"
+            value={severityFilter}
+            onChange={(value) => setSeverityFilter(value)}
+            options={[
+              { value: "", label: tr("همه سطوح", "كل المستويات", "Tüm seviyeler", "All severities") },
+              ...["critical", "warning", "info"].map((s) => ({ value: s, label: severityLabel(s) })),
+            ]}
+          />
+          <Select
+            className="w-full"
+            value={categoryFilter}
+            onChange={(value) => setCategoryFilter(value)}
+            options={[
+              { value: "", label: tr("همه دسته‌ها", "كل الفئات", "Tüm kategoriler", "All categories") },
+              ...["receivables_aging", "sales_decline", "dead_stock", "low_stock", "customer_risk", "budget_variance", "expiring_stock", "cashflow_pressure"].map((c) => ({ value: c, label: categoryLabel(c) })),
+            ]}
+          />
         </div>
 
         {loading ? (
@@ -292,6 +305,7 @@ export default function ImprovementCenter() {
             detail={detail}
             tr={tr}
             date={date}
+            language={language}
             users={users}
             categoryLabel={categoryLabel}
             severityLabel={severityLabel}
@@ -309,7 +323,7 @@ export default function ImprovementCenter() {
   );
 }
 
-function FindingDetail({ detail, tr, date, users, categoryLabel, severityLabel, statusLabel, onClose, onAcknowledge, onDismiss, onReopen, onResolve, onRefresh }) {
+function FindingDetail({ detail, tr, date, language, users, categoryLabel, severityLabel, statusLabel, onClose, onAcknowledge, onDismiss, onReopen, onResolve, onRefresh }) {
   const [planFormOpen, setPlanFormOpen] = useState(false);
   const [planDraft, setPlanDraft] = useState({
     objective: "", selected_action: detail.recommended_actions?.[0] || "", responsible_user_id: "",
@@ -382,19 +396,30 @@ function FindingDetail({ detail, tr, date, users, categoryLabel, severityLabel, 
       {planFormOpen && (
         <form onSubmit={handleCreatePlan} className="rounded-xl border border-[var(--erp-border)] p-4 space-y-3">
           <textarea className={inputClass} rows={2} placeholder={tr("هدف", "الهدف", "Hedef", "Objective")} value={planDraft.objective} onChange={(e) => setPlanDraft({ ...planDraft, objective: e.target.value })} />
-          <select className={inputClass} value={planDraft.selected_action} onChange={(e) => setPlanDraft({ ...planDraft, selected_action: e.target.value })}>
-            {(detail.recommended_actions || []).map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
+          <Select
+            className="w-full"
+            value={planDraft.selected_action}
+            onChange={(value) => setPlanDraft({ ...planDraft, selected_action: value })}
+            options={(detail.recommended_actions || []).map((a) => ({ value: a, label: a }))}
+          />
           <div className="grid grid-cols-2 gap-3">
-            <select className={inputClass} value={planDraft.responsible_user_id} onChange={(e) => setPlanDraft({ ...planDraft, responsible_user_id: e.target.value })}>
-              <option value="">{tr("مسئول را انتخاب کنید", "اختر المسؤول", "Sorumluyu seç", "Select owner")}</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
-            <select className={inputClass} value={planDraft.priority} onChange={(e) => setPlanDraft({ ...planDraft, priority: e.target.value })}>
-              {["low", "medium", "high", "critical"].map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <input type="date" className={inputClass} value={planDraft.start_date} onChange={(e) => setPlanDraft({ ...planDraft, start_date: e.target.value })} placeholder={tr("تاریخ شروع", "تاريخ البدء", "Başlangıç", "Start date")} />
-            <input type="date" className={inputClass} value={planDraft.target_date} onChange={(e) => setPlanDraft({ ...planDraft, target_date: e.target.value })} placeholder={tr("تاریخ هدف", "التاريخ المستهدف", "Hedef tarih", "Target date")} />
+            <Select
+              className="w-full"
+              value={planDraft.responsible_user_id}
+              onChange={(value) => setPlanDraft({ ...planDraft, responsible_user_id: value })}
+              options={[
+                { value: "", label: tr("مسئول را انتخاب کنید", "اختر المسؤول", "Sorumluyu seç", "Select owner") },
+                ...users.map((u) => ({ value: u.id, label: u.full_name })),
+              ]}
+            />
+            <Select
+              className="w-full"
+              value={planDraft.priority}
+              onChange={(value) => setPlanDraft({ ...planDraft, priority: value })}
+              options={["low", "medium", "high", "critical"].map((p) => ({ value: p, label: p }))}
+            />
+            <JalaliDateField className={inputClass} value={planDraft.start_date} onChange={(iso) => setPlanDraft({ ...planDraft, start_date: iso })} language={language} placeholder={tr("تاریخ شروع", "تاريخ البدء", "Başlangıç", "Start date")} />
+            <JalaliDateField className={inputClass} value={planDraft.target_date} onChange={(iso) => setPlanDraft({ ...planDraft, target_date: iso })} language={language} placeholder={tr("تاریخ هدف", "التاريخ المستهدف", "Hedef tarih", "Target date")} />
             <input className={inputClass} placeholder={tr("شاخص هدف (مثلاً درصد فراتر از بودجه)", "المؤشر المستهدف", "Hedef KPI", "Target KPI")} value={planDraft.target_kpi} onChange={(e) => setPlanDraft({ ...planDraft, target_kpi: e.target.value })} />
             <input type="number" step="any" className={inputClass} placeholder={tr("مقدار هدف", "القيمة المستهدفة", "Hedef değer", "Target value")} value={planDraft.target_value} onChange={(e) => setPlanDraft({ ...planDraft, target_value: e.target.value })} />
           </div>
@@ -411,7 +436,7 @@ function FindingDetail({ detail, tr, date, users, categoryLabel, severityLabel, 
       {detail.plans?.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-black text-sm">{tr("برنامه‌های اقدام", "خطط العمل", "Eylem planları", "Action plans")}</h3>
-          {detail.plans.map((plan) => <PlanCard key={plan.id} plan={plan} tr={tr} users={users} onRefresh={onRefresh} />)}
+          {detail.plans.map((plan) => <PlanCard key={plan.id} plan={plan} tr={tr} language={language} users={users} onRefresh={onRefresh} />)}
         </div>
       )}
 
@@ -433,7 +458,7 @@ function FindingDetail({ detail, tr, date, users, categoryLabel, severityLabel, 
   );
 }
 
-function PlanCard({ plan, tr, users, onRefresh }) {
+function PlanCard({ plan, tr, language, users, onRefresh }) {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDeadline, setTaskDeadline] = useState("");
   const [taskOwner, setTaskOwner] = useState("");
@@ -486,13 +511,11 @@ function PlanCard({ plan, tr, users, onRefresh }) {
           {plan.tasks.map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-2 text-sm bg-[var(--erp-panel-solid)] rounded-lg px-3 py-2">
               <span>{t.title} {t.owner_user_name ? `· ${t.owner_user_name}` : ""} {t.deadline ? `· ${t.deadline}` : ""}</span>
-              <select
-                className="text-xs rounded-lg bg-transparent border border-[var(--erp-border)] p-1"
+              <Select
                 value={t.status}
-                onChange={(e) => runAction(() => updateBiActionTask(t.id, { status: e.target.value }))}
-              >
-                {["pending", "in_progress", "done", "blocked"].map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+                onChange={(value) => runAction(() => updateBiActionTask(t.id, { status: value }))}
+                options={["pending", "in_progress", "done", "blocked"].map((s) => ({ value: s, label: s }))}
+              />
             </li>
           ))}
         </ul>
@@ -501,11 +524,16 @@ function PlanCard({ plan, tr, users, onRefresh }) {
       {!["completed", "cancelled"].includes(plan.status) && (
         <form onSubmit={addTask} className="flex flex-wrap gap-2">
           <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان وظیفه", "عنوان المهمة", "Görev başlığı", "Task title")} value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
-          <select className={inputClass + " w-40"} value={taskOwner} onChange={(e) => setTaskOwner(e.target.value)}>
-            <option value="">{tr("مسئول", "المسؤول", "Sorumlu", "Owner")}</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
-          <input type="date" className={inputClass + " w-40"} value={taskDeadline} onChange={(e) => setTaskDeadline(e.target.value)} />
+          <Select
+            className="w-full w-40"
+            value={taskOwner}
+            onChange={(value) => setTaskOwner(value)}
+            options={[
+              { value: "", label: tr("مسئول", "المسؤول", "Sorumlu", "Owner") },
+              ...users.map((u) => ({ value: u.id, label: u.full_name })),
+            ]}
+          />
+          <JalaliDateField className={inputClass + " w-40"} value={taskDeadline} onChange={(iso) => setTaskDeadline(iso)} language={language} />
           <button type="submit" disabled={busy} className={ghostBtnClass}>{tr("افزودن", "إضافة", "Ekle", "Add")}</button>
         </form>
       )}

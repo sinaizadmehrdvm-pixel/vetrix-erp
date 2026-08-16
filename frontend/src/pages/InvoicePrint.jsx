@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getCache } from "../storage/db";
+import Select from "../components/ui/Select";
 import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
 import {
   PAGE_SIZES,
@@ -369,12 +370,14 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           </h2>
 
           <Field label={fa ? "انتخاب قالب ذخیره‌شده" : language === "ar" ? "اختيار قالب محفوظ" : language === "tr" ? "Kayıtlı Şablon Seç" : "Saved template"}>
-            <select value={selectedTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className="studio-input">
-              <option value="default">{fa ? "قالب پیش‌فرض سریع" : language === "ar" ? "القالب الافتراضي السريع" : language === "tr" ? "Hızlı Varsayılan Şablon" : "Default template"}</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
+            <Select
+              value={selectedTemplateId}
+              onChange={(value) => handleTemplateChange(value)}
+              options={[
+                { value: "default", label: fa ? "قالب پیش‌فرض سریع" : language === "ar" ? "القالب الافتراضي السريع" : language === "tr" ? "Hızlı Varsayılan Şablon" : "Default template" },
+                ...templates.map((template) => ({ value: template.id, label: template.name })),
+              ]}
+            />
           </Field>
 
           <Field label={fa ? "نام قالب / نسخه چاپ" : language === "ar" ? "اسم القالب / نسخة الطباعة" : language === "tr" ? "Şablon Adı / Baskı Sürümü" : "Template name"}>
@@ -382,12 +385,16 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           </Field>
 
           <Field label={fa ? "اندازه صفحه" : language === "ar" ? "حجم الصفحة" : language === "tr" ? "Sayfa Boyutu" : "Page size"}>
-            <select value={config.page_size} onChange={(e) => updateConfig({ ...config, page_size: e.target.value })} className="studio-input">
-              <option value="A4">A4</option>
-              <option value="A5">A5</option>
-              <option value="THERMAL80">Thermal 80</option>
-              <option value="THERMAL58">Thermal 58</option>
-            </select>
+            <Select
+              value={config.page_size}
+              onChange={(value) => updateConfig({ ...config, page_size: value })}
+              options={[
+                { value: "A4", label: "A4" },
+                { value: "A5", label: "A5" },
+                { value: "THERMAL80", label: "Thermal 80" },
+                { value: "THERMAL58", label: "Thermal 58" },
+              ]}
+            />
           </Field>
 
           <div className="grid grid-cols-2 gap-2">

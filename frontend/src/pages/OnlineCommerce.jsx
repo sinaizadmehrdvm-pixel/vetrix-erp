@@ -7,6 +7,7 @@ import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
 const SEGMENT_TYPES = ["", "new_customers", "returning_customers", "high_value", "inactive", "vip", "city", "category"];
@@ -314,15 +315,32 @@ export default function OnlineCommerce() {
           <form onSubmit={createCampaign} className="erp-surface rounded-3xl p-5 space-y-3">
             <h2 className="text-xl font-black erp-accent">{tr("کمپین جدید", "حملة جديدة", "Yeni kampanya", "New campaign")}</h2>
             <Input label={tr("عنوان", "العنوان", "Başlık", "Title")} value={campaign.title} onChange={(value) => setCampaign({ ...campaign, title: language === "fa" ? toPersianDigits(value) : value })} required />
-            <label className="block text-sm font-bold">{tr("شبکه", "القناة", "Kanal", "Channel")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.channel} onChange={(e) => setCampaign({ ...campaign, channel: e.target.value })}>{channels.map((item) => <option key={item} value={item}>{item === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : item[0].toUpperCase() + item.slice(1)}</option>)}</select></label>
-            <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.product_id} onChange={(e) => setCampaign({ ...campaign, product_id: e.target.value })}><option value="">{tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product")}</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="block text-sm font-bold">{tr("شبکه", "القناة", "Kanal", "Channel")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.channel}
+                onChange={(value) => setCampaign({ ...campaign, channel: value })}
+                options={channels.map((item) => ({ value: item, label: item === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : item[0].toUpperCase() + item.slice(1) }))}
+              />
+            </label>
+            <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.product_id}
+                onChange={(value) => setCampaign({ ...campaign, product_id: value })}
+                options={[{ value: "", label: tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product") }, ...products.map((item) => ({ value: item.id, label: item.name }))]}
+              />
+            </label>
             <label className="block text-sm font-bold">{tr("متن تبلیغ", "نص الإعلان", "Reklam metni", "Post copy")}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></label>
             <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
 
             <label className="block text-sm font-bold">{tr("مخاطب هدف", "الجمهور المستهدف", "Hedef kitle", "Target audience")}
-              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.segment_type} onChange={(e) => setCampaign({ ...campaign, segment_type: e.target.value, segment_value: "" })}>
-                {SEGMENT_TYPES.map((s) => <option key={s} value={s}>{segmentLabel(s)}</option>)}
-              </select>
+              <Select
+                className="w-full mt-1"
+                value={campaign.segment_type}
+                onChange={(value) => setCampaign({ ...campaign, segment_type: value, segment_value: "" })}
+                options={SEGMENT_TYPES.map((s) => ({ value: s, label: segmentLabel(s) }))}
+              />
             </label>
             {campaign.segment_type === "city" && (
               <Input label={tr("نام شهر", "اسم المدينة", "Şehir adı", "City name")} value={campaign.segment_value} onChange={(value) => setCampaign({ ...campaign, segment_value: value })} />
@@ -356,21 +374,28 @@ export default function OnlineCommerce() {
             )}
 
             <label className="block text-sm font-bold">{tr("قالب پیام (اختیاری)", "قالب الرسالة (اختياري)", "Mesaj şablonu (isteğe bağlı)", "Message template (optional)")}
-              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.template_key} onChange={(e) => setCampaign({ ...campaign, template_key: e.target.value })}>
-                {TEMPLATE_KEYS.map((k) => <option key={k} value={k}>{k || tr("بدون قالب", "بدون قالب", "Şablonsuz", "No template")}</option>)}
-              </select>
+              <Select
+                className="w-full mt-1"
+                value={campaign.template_key}
+                onChange={(value) => setCampaign({ ...campaign, template_key: value })}
+                options={TEMPLATE_KEYS.map((k) => ({ value: k, label: k || tr("بدون قالب", "بدون قالب", "Şablonsuz", "No template") }))}
+              />
             </label>
             <label className="block text-sm font-bold">{tr("طرح گرافیکی (Design Studio)", "التصميم الجرافيكي", "Grafik tasarım", "Design (Design Studio)")}
-              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.design_template_id} onChange={(e) => setCampaign({ ...campaign, design_template_id: e.target.value })}>
-                <option value="">{tr("بدون طرح", "بدون تصميم", "Tasarımsız", "No design")}</option>
-                {designTemplates.map((t) => <option key={t.id} value={t.id}>{t.name || `#${t.id}`}</option>)}
-              </select>
+              <Select
+                className="w-full mt-1"
+                value={campaign.design_template_id}
+                onChange={(value) => setCampaign({ ...campaign, design_template_id: value })}
+                options={[{ value: "", label: tr("بدون طرح", "بدون تصميم", "Tasarımsız", "No design") }, ...designTemplates.map((t) => ({ value: t.id, label: t.name || `#${t.id}` }))]}
+              />
             </label>
             <label className="block text-sm font-bold">{tr("لینک کاتالوگ (اختیاری)", "رابط الكتالوج (اختياري)", "Katalog bağlantısı (isteğe bağlı)", "Catalog link (optional)")}
-              <select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.catalog_link_id} onChange={(e) => setCampaign({ ...campaign, catalog_link_id: e.target.value })}>
-                <option value="">{tr("بدون کاتالوگ", "بدون كتالوج", "Katalogsuz", "No catalog")}</option>
-                {catalogLinks.map((c) => <option key={c.id} value={c.id}>{c.title || `#${c.id}`}</option>)}
-              </select>
+              <Select
+                className="w-full mt-1"
+                value={campaign.catalog_link_id}
+                onChange={(value) => setCampaign({ ...campaign, catalog_link_id: value })}
+                options={[{ value: "", label: tr("بدون کاتالوگ", "بدون كتالوج", "Katalogsuz", "No catalog") }, ...catalogLinks.map((c) => ({ value: c.id, label: c.title || `#${c.id}` }))]}
+              />
             </label>
             <label className="block text-sm font-bold">
               {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}

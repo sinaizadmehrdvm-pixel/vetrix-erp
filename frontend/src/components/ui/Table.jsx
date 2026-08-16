@@ -2,6 +2,7 @@
 // data-fetching/columns; only the markup layer changes. Sticky header,
 // tabular-nums, consistent cell padding, hover-row state and an
 // empty-state slot are handled once here instead of per page.
+import { Children, cloneElement } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 export function Table({ className = "", children, ...rest }) {
   return (
@@ -22,6 +23,21 @@ export function Table({ className = "", children, ...rest }) {
 }
 
 export function Thead({ children, ...rest }) {
+  // border-radius on a <tr> (display: table-row) is unreliably painted
+  // across browsers, so the rounded top corners are applied to the actual
+  // first/last <th> cells instead - table-cell elements support
+  // background+radius consistently. Logical properties keep this correct
+  // in both RTL and LTR without knowing which side is visually which.
+  const items = Children.toArray(children);
+  const withRadius = items.map((child, index) => {
+    const corner = {
+      ...(index === 0 ? { borderStartStartRadius: "var(--erp-radius-lg)" } : null),
+      ...(index === items.length - 1 ? { borderStartEndRadius: "var(--erp-radius-lg)" } : null),
+    };
+    if (!Object.keys(corner).length) return child;
+    return cloneElement(child, { style: { ...child.props.style, ...corner } });
+  });
+
   return (
     <thead {...rest}>
       <tr
@@ -32,7 +48,7 @@ export function Thead({ children, ...rest }) {
           background: "var(--erp-panel-solid)",
         }}
       >
-        {children}
+        {withRadius}
       </tr>
     </thead>
   );
@@ -52,6 +68,7 @@ export function Th({ align = "start", className = "", style, children, ...rest }
         letterSpacing: 0.4,
         borderBottom: "1px solid var(--erp-border)",
         whiteSpace: "nowrap",
+        background: "var(--erp-panel-solid)",
         ...style,
       }}
       {...rest}

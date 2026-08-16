@@ -52,8 +52,9 @@ import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
 import MoneyDisplay from "../components/ui/MoneyDisplay";
-import { Input, Select } from "../components/ui/Field";
+import { Input } from "../components/ui/Field";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 import Modal from "../components/ui/Modal";
 
 const CUSTOMERS_CACHE_KEY = "customers";
@@ -554,9 +555,9 @@ export default function Customers() {
       name: form.name.trim(),
       phone: toEnglishDigits(form.phone || form.mobile || ""),
       mobile: toEnglishDigits(form.mobile || ""),
-      telegram_chat_id: (form.telegram_chat_id || "").trim(),
-      latitude: form.latitude === "" || form.latitude === null || form.latitude === undefined ? null : Number(form.latitude),
-      longitude: form.longitude === "" || form.longitude === null || form.longitude === undefined ? null : Number(form.longitude),
+      telegram_chat_id: toEnglishDigits((form.telegram_chat_id || "").trim()),
+      latitude: form.latitude === "" || form.latitude === null || form.latitude === undefined ? null : toNumber(form.latitude),
+      longitude: form.longitude === "" || form.longitude === null || form.longitude === undefined ? null : toNumber(form.longitude),
       email: form.email || "",
       address: form.address || "",
       city: form.city || "",
@@ -726,6 +727,9 @@ export default function Customers() {
       party_type: item.party_type || item.customer_type || "customer",
       phone: faText(item.phone || "", fa),
       mobile: faText(item.mobile || "", fa),
+      telegram_chat_id: faText(item.telegram_chat_id || "", fa),
+      latitude: item.latitude === null || item.latitude === undefined || item.latitude === "" ? "" : faText(String(item.latitude), fa),
+      longitude: item.longitude === null || item.longitude === undefined || item.longitude === "" ? "" : faText(String(item.longitude), fa),
       national_id: faText(item.national_id || "", fa),
       economic_code: faText(item.economic_code || "", fa),
       opening_balance:
@@ -1082,34 +1086,35 @@ export default function Customers() {
 
           <Select
             value={form.party_type}
-            onChange={(e) => setForm({ ...form, party_type: e.target.value })}
-          >
-            <option value="customer">{t("customerParty")}</option>
-            <option value="supplier">{t("supplierParty")}</option>
-            <option value="partner">{t("partnerParty")}</option>
-            <option value="staff">{t("staffParty")}</option>
-            <option value="company">{t("companyParty")}</option>
-            <option value="doctor">{t("doctorParty")}</option>
-            <option value="other">{t("otherParty")}</option>
-          </Select>
+            onChange={(value) => setForm({ ...form, party_type: value })}
+            options={[
+              { value: "customer", label: t("customerParty") },
+              { value: "supplier", label: t("supplierParty") },
+              { value: "partner", label: t("partnerParty") },
+              { value: "staff", label: t("staffParty") },
+              { value: "company", label: t("companyParty") },
+              { value: "doctor", label: t("doctorParty") },
+              { value: "other", label: t("otherParty") },
+            ]}
+          />
 
           <Select
             value={form.pricing_group}
-            onChange={(e) => setForm({ ...form, pricing_group: e.target.value })}
-          >
-            <option value="retail">{fa ? "خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة" : language === "tr" ? "Perakende" : "Retail"}</option>
-            <option value="wholesale">{fa ? "عمده‌فروشی" : language === "ar" ? "بيع بالجملة" : language === "tr" ? "Toptan" : "Wholesale"}</option>
-          </Select>
+            onChange={(value) => setForm({ ...form, pricing_group: value })}
+            options={[
+              { value: "retail", label: fa ? "خرده‌فروشی" : language === "ar" ? "بيع بالتجزئة" : language === "tr" ? "Perakende" : "Retail" },
+              { value: "wholesale", label: fa ? "عمده‌فروشی" : language === "ar" ? "بيع بالجملة" : language === "tr" ? "Toptan" : "Wholesale" },
+            ]}
+          />
 
           <Select
             value={form.assigned_rep_id || ""}
-            onChange={(e) => setForm({ ...form, assigned_rep_id: e.target.value })}
-          >
-            <option value="">{fa ? "بدون کارشناس فروش" : language === "ar" ? "بدون مندوب مبيعات" : language === "tr" ? "Satış temsilcisi yok" : "No sales rep"}</option>
-            {salesReps.map((rep) => (
-              <option key={rep.id} value={rep.id}>{rep.full_name || rep.username}</option>
-            ))}
-          </Select>
+            onChange={(value) => setForm({ ...form, assigned_rep_id: value })}
+            options={[
+              { value: "", label: fa ? "بدون کارشناس فروش" : language === "ar" ? "بدون مندوب مبيعات" : language === "tr" ? "Satış temsilcisi yok" : "No sales rep" },
+              ...salesReps.map((rep) => ({ value: rep.id, label: rep.full_name || rep.username })),
+            ]}
+          />
 
           <div className="flex flex-col gap-1 self-center">
             <label className="flex items-center gap-2 font-bold">
@@ -1163,20 +1168,20 @@ export default function Customers() {
 
           <Input
             placeholder={fa ? "شناسه چت تلگرام (اختیاری)" : language === "ar" ? "معرّف دردشة تيليجرام (اختياري)" : language === "tr" ? "Telegram sohbet kimliği (isteğe bağlı)" : "Telegram chat ID (optional)"}
-            value={form.telegram_chat_id || ""}
-            onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
+            value={faText(form.telegram_chat_id, fa)}
+            onChange={(e) => setForm({ ...form, telegram_chat_id: faText(e.target.value, fa) })}
           />
 
           <div style={{ display: "flex", gap: 8, gridColumn: "span 1" }}>
             <Input
               placeholder={fa ? "عرض جغرافیایی" : language === "ar" ? "خط العرض" : language === "tr" ? "Enlem" : "Latitude"}
-              value={form.latitude ?? ""}
-              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+              value={faText(form.latitude, fa)}
+              onChange={(e) => setForm({ ...form, latitude: faText(e.target.value, fa) })}
             />
             <Input
               placeholder={fa ? "طول جغرافیایی" : language === "ar" ? "خط الطول" : language === "tr" ? "Boylam" : "Longitude"}
-              value={form.longitude ?? ""}
-              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+              value={faText(form.longitude, fa)}
+              onChange={(e) => setForm({ ...form, longitude: faText(e.target.value, fa) })}
             />
             <button
               type="button"
@@ -1184,7 +1189,7 @@ export default function Customers() {
               onClick={() => {
                 if (!navigator.geolocation) return;
                 navigator.geolocation.getCurrentPosition(
-                  (pos) => setForm((prev) => ({ ...prev, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude) })),
+                  (pos) => setForm((prev) => ({ ...prev, latitude: faText(String(pos.coords.latitude), fa), longitude: faText(String(pos.coords.longitude), fa) })),
                   () => {},
                   { enableHighAccuracy: true, timeout: 10000 }
                 );
@@ -1315,64 +1320,69 @@ export default function Customers() {
             className="bg-transparent outline-none flex-1 min-w-[220px] text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
 
-          <select
+          <Select
             value={filters.type}
-            onChange={(e) => patchFilters({ type: e.target.value })}
-            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
-          >
-            <option value="all">{fa ? "همه انواع" : language === "ar" ? "كل الأنواع" : language === "tr" ? "Tüm türler" : "All types"}</option>
-            <option value="customer">{t("customerParty")}</option>
-            <option value="supplier">{t("supplierParty")}</option>
-            <option value="partner">{t("partnerParty")}</option>
-            <option value="staff">{t("staffParty")}</option>
-            <option value="company">{t("companyParty")}</option>
-            <option value="doctor">{t("doctorParty")}</option>
-            <option value="other">{t("otherParty")}</option>
-          </select>
+            onChange={(value) => patchFilters({ type: value })}
+            className="w-40 shrink-0"
+            options={[
+              { value: "all", label: fa ? "همه انواع" : language === "ar" ? "كل الأنواع" : language === "tr" ? "Tüm türler" : "All types" },
+              { value: "customer", label: t("customerParty") },
+              { value: "supplier", label: t("supplierParty") },
+              { value: "partner", label: t("partnerParty") },
+              { value: "staff", label: t("staffParty") },
+              { value: "company", label: t("companyParty") },
+              { value: "doctor", label: t("doctorParty") },
+              { value: "other", label: t("otherParty") },
+            ]}
+          />
 
-          <select
+          <Select
             value={filters.bal}
-            onChange={(e) => patchFilters({ bal: e.target.value })}
-            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
-          >
-            <option value="all">{fa ? "همه وضعیت مالی" : ar ? "كل الحالات المالية" : tr ? "Tüm bakiyeler" : "All balances"}</option>
-            <option value="debtor">{fa ? "فقط بدهکار" : ar ? "مدين فقط" : tr ? "Sadece borçlu" : "Debtors only"}</option>
-            <option value="creditor">{fa ? "فقط بستانکار" : ar ? "دائن فقط" : tr ? "Sadece alacaklı" : "Creditors only"}</option>
-            <option value="zero">{fa ? "بی‌حساب / صفر" : ar ? "بدون رصيد" : tr ? "Sıfır bakiye" : "Zero balance"}</option>
-            <option value="has_balance">{fa ? "دارای مانده" : ar ? "لديه رصيد" : tr ? "Bakiyesi olan" : "Has balance"}</option>
-          </select>
+            onChange={(value) => patchFilters({ bal: value })}
+            className="w-44 shrink-0"
+            options={[
+              { value: "all", label: fa ? "همه وضعیت مالی" : ar ? "كل الحالات المالية" : tr ? "Tüm bakiyeler" : "All balances" },
+              { value: "debtor", label: fa ? "فقط بدهکار" : ar ? "مدين فقط" : tr ? "Sadece borçlu" : "Debtors only" },
+              { value: "creditor", label: fa ? "فقط بستانکار" : ar ? "دائن فقط" : tr ? "Sadece alacaklı" : "Creditors only" },
+              { value: "zero", label: fa ? "بی‌حساب / صفر" : ar ? "بدون رصيد" : tr ? "Sıfır bakiye" : "Zero balance" },
+              { value: "has_balance", label: fa ? "دارای مانده" : ar ? "لديه رصيد" : tr ? "Bakiyesi olan" : "Has balance" },
+            ]}
+          />
 
-          <select
+          <Select
             value={filters.crm}
-            onChange={(e) => patchFilters({ crm: e.target.value })}
-            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
-          >
-            <option value="all">{fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM"}</option>
-            <option value="vip">{fa ? "VIP" : language === "ar" ? "VIP" : language === "tr" ? "VIP" : "VIP"}</option>
-            <option value="followup">{fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Needs follow-up"}</option>
-            <option value="risk">{fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk"}</option>
-            <option value="settled">{fa ? "تسویه" : language === "ar" ? "مسدد" : language === "tr" ? "Kapandı" : "Settled"}</option>
-          </select>
+            onChange={(value) => patchFilters({ crm: value })}
+            className="w-40 shrink-0"
+            options={[
+              { value: "all", label: fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM" },
+              { value: "vip", label: "VIP" },
+              { value: "followup", label: fa ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Needs follow-up" },
+              { value: "risk", label: fa ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk" },
+              { value: "settled", label: fa ? "تسویه" : language === "ar" ? "مسدد" : language === "tr" ? "Kapandı" : "Settled" },
+            ]}
+          />
 
-          <select
+          <Select
             value={filters.phoneHas}
-            onChange={(e) => patchFilters({ phoneHas: e.target.value })}
-            className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
-          >
-            <option value="all">{fa ? "شماره تماس: همه" : ar ? "رقم الهاتف: الكل" : tr ? "Telefon: hepsi" : "Phone: all"}</option>
-            <option value="yes">{fa ? "دارای شماره تماس" : ar ? "لديه رقم" : tr ? "Numarası var" : "Has phone"}</option>
-            <option value="no">{fa ? "بدون شماره تماس" : ar ? "بلا رقم" : tr ? "Numarası yok" : "No phone"}</option>
-          </select>
+            onChange={(value) => patchFilters({ phoneHas: value })}
+            className="w-48 shrink-0"
+            options={[
+              { value: "all", label: fa ? "شماره تماس: همه" : ar ? "رقم الهاتف: الكل" : tr ? "Telefon: hepsi" : "Phone: all" },
+              { value: "yes", label: fa ? "دارای شماره تماس" : ar ? "لديه رقم" : tr ? "Numarası var" : "Has phone" },
+              { value: "no", label: fa ? "بدون شماره تماس" : ar ? "بلا رقم" : tr ? "Numarası yok" : "No phone" },
+            ]}
+          />
 
           {cityOptions.length > 0 && (
-            <select
+            <Select
               value={filters.city}
-              onChange={(e) => patchFilters({ city: e.target.value })}
-              className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-2 outline-none text-[var(--erp-text)]"
-            >
-              <option value="all">{fa ? "همه شهرها" : ar ? "كل المدن" : tr ? "Tüm şehirler" : "All cities"}</option>
-              {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
-            </select>
+              onChange={(value) => patchFilters({ city: value })}
+              className="w-36 shrink-0"
+              options={[
+                { value: "all", label: fa ? "همه شهرها" : ar ? "كل المدن" : tr ? "Tüm şehirler" : "All cities" },
+                ...cityOptions.map((city) => ({ value: city, label: city })),
+              ]}
+            />
           )}
 
           {user && (
@@ -1439,7 +1449,7 @@ export default function Customers() {
               inputMode="numeric"
               placeholder={fa ? "حداقل مانده" : ar ? "الحد الأدنى للرصيد" : tr ? "En az bakiye" : "Min balance"}
               value={filters.balMin}
-              onChange={(e) => patchFilters({ balMin: normalizeNumberInput(e.target.value, false) })}
+              onChange={(e) => patchFilters({ balMin: normalizeNumberInput(e.target.value, fa) })}
               className="!w-32"
             />
             <span className="text-[var(--erp-muted)]">-</span>
@@ -1448,7 +1458,7 @@ export default function Customers() {
               inputMode="numeric"
               placeholder={fa ? "حداکثر مانده" : ar ? "الحد الأقصى للرصيد" : tr ? "En çok bakiye" : "Max balance"}
               value={filters.balMax}
-              onChange={(e) => patchFilters({ balMax: normalizeNumberInput(e.target.value, false) })}
+              onChange={(e) => patchFilters({ balMax: normalizeNumberInput(e.target.value, fa) })}
               className="!w-32"
             />
           </div>
@@ -1633,13 +1643,12 @@ export default function Customers() {
           <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[var(--erp-border)]">
             <div className="flex items-center gap-2 text-sm text-[var(--erp-muted)]">
               <span>{fa ? "ردیف در هر صفحه:" : ar ? "صفوف لكل صفحة:" : tr ? "Sayfa başına satır:" : "Rows per page:"}</span>
-              <select
+              <Select
                 value={String(pageSize)}
-                onChange={(e) => patchFilters({ size: e.target.value })}
-                className="bg-[var(--erp-bg-soft)] rounded-[var(--erp-radius-sm)] p-1.5 outline-none text-[var(--erp-text)]"
-              >
-                {PAGE_SIZES.map((size) => <option key={size} value={size}>{n(size)}</option>)}
-              </select>
+                onChange={(value) => patchFilters({ size: value })}
+                options={PAGE_SIZES.map((size) => ({ value: String(size), label: n(size) }))}
+                className="w-24"
+              />
             </div>
 
             <div className="flex items-center gap-3">

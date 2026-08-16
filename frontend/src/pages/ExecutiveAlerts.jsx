@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { getExecutiveAlertsSummary, getExecutiveAlertSettings, updateExecutiveAlertSettings } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -169,14 +170,24 @@ export default function ExecutiveAlerts() {
 
       <section className={cardClass}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-          <select className={inputClass} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">{tr("همه دسته‌ها", "كل الفئات", "Tüm kategoriler", "All categories")}</option>
-            {["receivable", "payable", "cheque_in", "cheque_out", "low_stock"].map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
-          </select>
-          <select className={inputClass} value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-            <option value="">{tr("همه سطوح", "كل المستويات", "Tüm seviyeler", "All severities")}</option>
-            {["critical", "warning", "info"].map((s) => <option key={s} value={s}>{severityLabel(s)}</option>)}
-          </select>
+          <Select
+            className="w-full"
+            value={categoryFilter}
+            onChange={(value) => setCategoryFilter(value)}
+            options={[
+              { value: "", label: tr("همه دسته‌ها", "كل الفئات", "Tüm kategoriler", "All categories") },
+              ...["receivable", "payable", "cheque_in", "cheque_out", "low_stock"].map((c) => ({ value: c, label: categoryLabel(c) })),
+            ]}
+          />
+          <Select
+            className="w-full"
+            value={severityFilter}
+            onChange={(value) => setSeverityFilter(value)}
+            options={[
+              { value: "", label: tr("همه سطوح", "كل المستويات", "Tüm seviyeler", "All severities") },
+              ...["critical", "warning", "info"].map((s) => ({ value: s, label: severityLabel(s) })),
+            ]}
+          />
         </div>
 
         {loading ? (

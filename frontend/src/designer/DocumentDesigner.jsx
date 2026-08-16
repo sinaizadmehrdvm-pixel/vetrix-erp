@@ -19,6 +19,7 @@ import {
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate, downloadAuthenticatedFile } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import Select from "../components/ui/Select";
 
 // Physical page size in PDF points, matching backend/app/designer/canvas_render.py's
 // KIND_PAGE_SIZES exactly - canvas pixel coordinates map 1:1 onto the
@@ -442,11 +443,16 @@ export default function DocumentDesigner({ kind }) {
               <Color label={tr("رنگ متن", "لون النص", "Metin rengi", "Color")} value={selected.color} onChange={(v) => updateElement(selected.id, { color: v })} />
               <Color label={tr("پس‌زمینه", "الخلفية", "Arka plan", "Background")} value={selected.bg} onChange={(v) => updateElement(selected.id, { bg: v })} />
               <Color label={tr("خط دور", "الحدود", "Kenarlık", "Border")} value={selected.border} onChange={(v) => updateElement(selected.id, { border: v })} />
-              <select value={selected.align || "center"} onChange={(e) => updateElement(selected.id, { align: e.target.value })} className="studio-input">
-                <option value="right">{tr("راست", "يمين", "Sağ", "Right")}</option>
-                <option value="center">{tr("وسط", "وسط", "Orta", "Center")}</option>
-                <option value="left">{tr("چپ", "يسار", "Sol", "Left")}</option>
-              </select>
+              <Select
+                value={selected.align || "center"}
+                onChange={(value) => updateElement(selected.id, { align: value })}
+                className="studio-input"
+                options={[
+                  { value: "right", label: tr("راست", "يمين", "Sağ", "Right") },
+                  { value: "center", label: tr("وسط", "وسط", "Orta", "Center") },
+                  { value: "left", label: tr("چپ", "يسار", "Sol", "Left") },
+                ]}
+              />
               <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-3 flex justify-between">
                 <span>{tr("درشت", "غامق", "Kalın", "Bold")}</span>
                 <input type="checkbox" checked={!!selected.bold} onChange={(e) => updateElement(selected.id, { bold: e.target.checked })} />

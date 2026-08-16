@@ -17,6 +17,7 @@ import {
   updateWarehouse,
 } from "../services/api";
 import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -249,13 +250,18 @@ export default function Warehouses() {
             value={code}
             onChange={(e) => setCode(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
-          <select className={inputClass + " mb-0"} value={createBranchId} onChange={(e) => setCreateBranchId(e.target.value)}>
-            <option value="">{tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch")}</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-          <select className={inputClass + " mb-0"} value={createType} onChange={(e) => setCreateType(e.target.value)}>
-            {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <Select
+            className="mb-0"
+            value={createBranchId}
+            onChange={(value) => setCreateBranchId(value)}
+            options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+          />
+          <Select
+            className="mb-0"
+            value={createType}
+            onChange={(value) => setCreateType(value)}
+            options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: t }))}
+          />
           <button type="submit" disabled={creating} className={buttonClass}>
             <Plus size={16} />
             {creating ? (language === "fa" ? "در حال ساخت..." : language === "ar" ? "جارٍ الإنشاء..." : language === "tr" ? "Oluşturuluyor..." : "Creating...") : (language === "fa" ? "ساخت" : language === "ar" ? "إنشاء" : language === "tr" ? "Oluştur" : "Create")}
@@ -322,13 +328,18 @@ export default function Warehouses() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input className={inputClass} placeholder={tr("نام", "الاسم", "Ad", "Name")} value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
             <input className={inputClass} placeholder={tr("کد", "الرمز", "Kod", "Code")} value={editDraft.code} onChange={(e) => setEditDraft({ ...editDraft, code: e.target.value })} />
-            <select className={inputClass} value={editDraft.branch_id} onChange={(e) => setEditDraft({ ...editDraft, branch_id: e.target.value })}>
-              <option value="">{tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch")}</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <select className={inputClass} value={editDraft.warehouse_type} onChange={(e) => setEditDraft({ ...editDraft, warehouse_type: e.target.value })}>
-              {WAREHOUSE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <Select
+              className="mb-3"
+              value={editDraft.branch_id}
+              onChange={(value) => setEditDraft({ ...editDraft, branch_id: value })}
+              options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+            />
+            <Select
+              className="mb-3"
+              value={editDraft.warehouse_type}
+              onChange={(value) => setEditDraft({ ...editDraft, warehouse_type: value })}
+              options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: t }))}
+            />
             <input className={inputClass} placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={editDraft.address} onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })} />
             <input className={inputClass} placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={editDraft.postal_code} onChange={(e) => setEditDraft({ ...editDraft, postal_code: e.target.value })} />
             <input className={inputClass} placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={editDraft.phone} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
@@ -353,16 +364,12 @@ export default function Warehouses() {
           <ArrowRightLeft size={18} /> {language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}
         </h2>
         <form onSubmit={handleTransfer} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select
-            className={inputClass}
+          <Select
+            className="mb-3"
             value={transferProductId}
-            onChange={(e) => setTransferProductId(e.target.value)}
-          >
-            <option value="">{language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..."}</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            onChange={(value) => setTransferProductId(value)}
+            options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: p.name }))]}
+          />
           <input
             type="text"
             inputMode="numeric"
@@ -371,18 +378,18 @@ export default function Warehouses() {
             value={language === "fa" ? toPersianDigits(quantity) : quantity}
             onChange={(e) => setQuantity(cleanNumberInput(e.target.value))}
           />
-          <select className={inputClass} value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>
-            <option value="">{language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..."}</option>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
-          <select className={inputClass} value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>
-            <option value="">{language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..."}</option>
-            {activeWarehouses.map((w) => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
+          <Select
+            className="mb-3"
+            value={fromWarehouseId}
+            onChange={(value) => setFromWarehouseId(value)}
+            options={[{ value: "", label: language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))]}
+          />
+          <Select
+            className="mb-3"
+            value={toWarehouseId}
+            onChange={(value) => setToWarehouseId(value)}
+            options={[{ value: "", label: language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..." }, ...activeWarehouses.map((w) => ({ value: w.id, label: w.name }))]}
+          />
           <textarea
             className={inputClass + " md:col-span-2"}
             placeholder={language === "fa" ? "یادداشت (اختیاری)" : language === "ar" ? "ملاحظة (اختياري)" : language === "tr" ? "Not (isteğe bağlı)" : "Note (optional)"}
@@ -398,16 +405,12 @@ export default function Warehouses() {
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}</h2>
-        <select
-          className={inputClass}
+        <Select
+          className="mb-3"
           value={breakdownProductId}
-          onChange={(e) => void loadBreakdown(e.target.value)}
-        >
-          <option value="">{language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..."}</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+          onChange={(value) => void loadBreakdown(value)}
+          options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: p.name }))]}
+        />
         {breakdown && (
           <div className="space-y-2 mt-3">
             <p className="text-sm text-[var(--erp-muted)]">
@@ -425,16 +428,12 @@ export default function Warehouses() {
 
       <section className={cardClass}>
         <h2 className="text-lg font-bold mb-4">{language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}</h2>
-        <select
-          className={inputClass}
+        <Select
+          className="mb-3"
           value={browseWarehouseId}
-          onChange={(e) => void loadWarehouseItems(e.target.value)}
-        >
-          <option value="">{language === "fa" ? "انتخاب انبار..." : language === "ar" ? "اختيار المستودع..." : language === "tr" ? "Depo seçin..." : "Select warehouse..."}</option>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
+          onChange={(value) => void loadWarehouseItems(value)}
+          options={[{ value: "", label: language === "fa" ? "انتخاب انبار..." : language === "ar" ? "اختيار المستودع..." : language === "tr" ? "Depo seçin..." : "Select warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))]}
+        />
         {warehouseItems && (
           warehouseItems.items.length === 0 ? (
             <p className="text-[var(--erp-muted)] mt-3">{language === "fa" ? "کالایی در این انبار نیست." : language === "ar" ? "لا يوجد مخزون في هذا المستودع." : language === "tr" ? "Bu depoda stok yok." : "No stock in this warehouse."}</p>

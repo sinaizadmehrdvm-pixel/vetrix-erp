@@ -3,6 +3,7 @@ import { ArrowLeft, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshC
 import { Link, useParams } from "react-router-dom";
 import { useLanguage } from "../../localization/useLanguage";
 import { toPersianDigits } from "../../localization/helpers";
+import Select from "../../components/ui/Select";
 import {
   API_URL,
   createCrmInteraction,
@@ -528,12 +529,16 @@ async function fetchCustomerFiles(customerId) {
             </CrmForm>
 
             <CrmForm title={fa ? "ثبت تماس / تعامل" : language === "ar" ? "إضافة تفاعل" : language === "tr" ? "Etkileşim ekle" : "Add interaction"} icon={<Phone />}>
-              <select className="crm-input" value={interactionForm.interaction_type} onChange={(e) => setInteractionForm({ ...interactionForm, interaction_type: e.target.value })}>
-                <option value="call">{fa ? "تماس" : language === "ar" ? "اتصال" : language === "tr" ? "Arama" : "Call"}</option>
-                <option value="meeting">{fa ? "جلسه" : language === "ar" ? "اجتماع" : language === "tr" ? "Toplantı" : "Meeting"}</option>
-                <option value="sms">{fa ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS"}</option>
-                <option value="whatsapp">{fa ? "واتساپ" : language === "ar" ? "واتساب" : language === "tr" ? "WhatsApp" : "WhatsApp"}</option>
-              </select>
+              <Select
+                value={interactionForm.interaction_type}
+                onChange={(value) => setInteractionForm({ ...interactionForm, interaction_type: value })}
+                options={[
+                  { value: "call", label: fa ? "تماس" : language === "ar" ? "اتصال" : language === "tr" ? "Arama" : "Call" },
+                  { value: "meeting", label: fa ? "جلسه" : language === "ar" ? "اجتماع" : language === "tr" ? "Toplantı" : "Meeting" },
+                  { value: "sms", label: fa ? "پیامک" : language === "ar" ? "رسالة نصية" : language === "tr" ? "SMS" : "SMS" },
+                  { value: "whatsapp", label: fa ? "واتساپ" : language === "ar" ? "واتساب" : language === "tr" ? "WhatsApp" : "WhatsApp" },
+                ]}
+              />
               <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={interactionForm.title} onChange={(e) => setInteractionForm({ ...interactionForm, title: e.target.value })} />
               <textarea className="crm-input" rows={2} placeholder={fa ? "توضیح تعامل" : language === "ar" ? "وصف التفاعل" : language === "tr" ? "Etkileşim açıklaması" : "Interaction description"} value={interactionForm.description} onChange={(e) => setInteractionForm({ ...interactionForm, description: fa ? toPersianDigits(e.target.value) : e.target.value })} />
               <button onClick={() => addInteraction()} className="crm-btn">

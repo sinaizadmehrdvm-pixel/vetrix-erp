@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import { createProductCategory, deleteProductCategory, getProductCategories, updateProductCategory } from "../services/api";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 
 export default function ProductCategories() {
   const { language, n } = useLanguage();
@@ -167,54 +168,52 @@ export default function ProductCategories() {
 
         {loading ? (
           <p className="text-[var(--erp-muted)] text-center py-6">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-[var(--erp-muted)] text-center py-6">
-            {language === "fa" ? "دسته‌بندی‌ای ثبت نشده است." : language === "ar" ? "لا توجد تصنيفات بعد." : language === "tr" ? "Henüz kategori yok." : "No categories yet."}
-          </p>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
-                <th className="p-4 text-start w-12">{language === "fa" ? "ردیف" : "#"}</th>
-                <th className="p-4 text-start">ID</th>
-                <th className="p-4 text-start">{language === "fa" ? "گروه اصلی" : language === "ar" ? "الرئيسي" : language === "tr" ? "Ana" : "Main"}</th>
-                <th className="p-4 text-start">{language === "fa" ? "گروه فرعی" : language === "ar" ? "الفرعي" : language === "tr" ? "Alt" : "Sub"}</th>
-                <th className="p-4 text-start">{language === "fa" ? "کد" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code"}</th>
-                <th className="p-4 text-start">{language === "fa" ? "عملیات" : language === "ar" ? "الإجراء" : language === "tr" ? "İşlem" : "Action"}</th>
-              </tr>
-            </thead>
+          <Table dir={language === "fa" ? "rtl" : language === "ar" ? "rtl" : language === "tr" ? "ltr" : "ltr"}>
+            <Thead>
+              <Th className="w-12">{language === "fa" ? "ردیف" : "#"}</Th>
+              <Th>ID</Th>
+              <Th>{language === "fa" ? "گروه اصلی" : language === "ar" ? "الرئيسي" : language === "tr" ? "Ana" : "Main"}</Th>
+              <Th>{language === "fa" ? "گروه فرعی" : language === "ar" ? "الفرعي" : language === "tr" ? "Alt" : "Sub"}</Th>
+              <Th>{language === "fa" ? "کد" : language === "ar" ? "الرمز" : language === "tr" ? "Kod" : "Code"}</Th>
+              <Th>{language === "fa" ? "عملیات" : language === "ar" ? "الإجراء" : language === "tr" ? "İşlem" : "Action"}</Th>
+            </Thead>
 
-            <tbody>
-              {filtered.map((item, index) => {
+            <Tbody>
+              {filtered.length === 0 ? (
+                <EmptyRow colSpan={6}>
+                  {language === "fa" ? "دسته‌بندی‌ای ثبت نشده است." : language === "ar" ? "لا توجد تصنيفات بعد." : language === "tr" ? "Henüz kategori yok." : "No categories yet."}
+                </EmptyRow>
+              ) : filtered.map((item, index) => {
                 const isEditing = editingId === item.id;
                 if (isEditing) {
                   return (
-                    <tr key={item.id} className="border-b border-[var(--erp-border)] bg-cyan-500/5">
-                      <td className="p-4 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
-                      <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
-                      <td className="p-2">
+                    <Tr key={item.id} className="bg-cyan-500/5">
+                      <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                      <Td>#{n(item.id)}</Td>
+                      <Td className="p-2">
                         <input
                           autoFocus
                           value={editForm.main_category}
                           onChange={(e) => setEditForm({ ...editForm, main_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
                           className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
                         />
-                      </td>
-                      <td className="p-2">
+                      </Td>
+                      <Td className="p-2">
                         <input
                           value={editForm.sub_category}
                           onChange={(e) => setEditForm({ ...editForm, sub_category: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
                           className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
                         />
-                      </td>
-                      <td className="p-2">
+                      </Td>
+                      <Td className="p-2">
                         <input
                           value={editForm.code}
                           onChange={(e) => setEditForm({ ...editForm, code: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
                           className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-xl p-2 outline-none w-full"
                         />
-                      </td>
-                      <td className="p-4">
+                      </Td>
+                      <Td>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => saveEdit(item.id)}
@@ -230,21 +229,18 @@ export default function ProductCategories() {
                             <X className="text-[var(--erp-muted)]" size={18} />
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   );
                 }
                 return (
-                  <tr
-                    key={item.id}
-                    className="border-b border-[var(--erp-border)] hover:bg-cyan-500/5"
-                  >
-                    <td className="p-4 text-[var(--erp-muted)] font-bold">{n(index + 1)}</td>
-                    <td className="p-4 text-[var(--erp-text)]">#{n(item.id)}</td>
-                    <td className="p-4 font-bold text-[var(--erp-text)]">{item.main_category}</td>
-                    <td className="p-4 text-[var(--erp-text)]">{item.sub_category || "-"}</td>
-                    <td className="p-4 text-[var(--erp-text)]">{(language === "fa" ? toPersianDigits(item.code) : item.code) || "-"}</td>
-                    <td className="p-4">
+                  <Tr key={item.id} className="hover:bg-cyan-500/5">
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td>#{n(item.id)}</Td>
+                    <Td className="font-bold text-[var(--erp-text)]">{item.main_category}</Td>
+                    <Td>{item.sub_category || "-"}</Td>
+                    <Td>{(language === "fa" ? toPersianDigits(item.code) : item.code) || "-"}</Td>
+                    <Td>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => startEdit(item)}
@@ -259,12 +255,12 @@ export default function ProductCategories() {
                           <Trash2 className="text-red-400" size={18} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </Tbody>
+          </Table>
         )}
       </div>
     </div>

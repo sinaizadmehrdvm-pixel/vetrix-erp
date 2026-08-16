@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { openAuthenticatedDocument } from "../../../services/api";
 import { formatCalendarDate } from "../../../utils/date";
 import { toPersianDigits } from "../../../localization/helpers";
+import Select from "../../../components/ui/Select";
 
 function fileIcon(file) {
   const name = String(file?.name || file?.file_name || file?.title || "").toLowerCase();
@@ -110,16 +111,21 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <input value={uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })} placeholder={tr("عنوان فایل", "عنوان الملف", "Dosya başlığı", "File title")} className="crm-input" />
-          <select value={uploadForm.category} onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })} className="crm-input">
-            <option value="document">{tr("سند عمومی", "مستند عام", "Genel belge", "Document")}</option>
-            <option value="contract">{tr("قرارداد", "عقد", "Sözleşme", "Contract")}</option>
-            <option value="identity">{tr("مدارک هویتی", "وثائق الهوية", "Kimlik belgeleri", "Identity")}</option>
-            <option value="invoice">{tr("فاکتور", "فاتورة", "Fatura", "Invoice")}</option>
-            <option value="medical">{tr("پزشکی", "طبي", "Tıbbi", "Medical")}</option>
-            <option value="warranty">{tr("گارانتی", "ضمان", "Garanti", "Warranty")}</option>
-            <option value="service">{tr("خدمات", "خدمة", "Servis", "Service")}</option>
-            <option value="other">{tr("سایر", "أخرى", "Diğer", "Other")}</option>
-          </select>
+          <Select
+            value={uploadForm.category}
+            onChange={(value) => setUploadForm({ ...uploadForm, category: value })}
+            className="crm-input"
+            options={[
+              { value: "document", label: tr("سند عمومی", "مستند عام", "Genel belge", "Document") },
+              { value: "contract", label: tr("قرارداد", "عقد", "Sözleşme", "Contract") },
+              { value: "identity", label: tr("مدارک هویتی", "وثائق الهوية", "Kimlik belgeleri", "Identity") },
+              { value: "invoice", label: tr("فاکتور", "فاتورة", "Fatura", "Invoice") },
+              { value: "medical", label: tr("پزشکی", "طبي", "Tıbbi", "Medical") },
+              { value: "warranty", label: tr("گارانتی", "ضمان", "Garanti", "Warranty") },
+              { value: "service", label: tr("خدمات", "خدمة", "Servis", "Service") },
+              { value: "other", label: tr("سایر", "أخرى", "Diğer", "Other") },
+            ]}
+          />
           <textarea value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات فایل", "وصف الملف", "Dosya açıklaması", "File description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
 
@@ -133,17 +139,22 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
           <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
           <input value={query} onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={tr("جستجو در فایل‌ها...", "بحث في الملفات...", "Dosyalarda ara...", "Search files...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" />
         </div>
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]">
-          <option value="all">{tr("همه دسته‌ها", "جميع الفئات", "Tüm kategoriler", "All categories")}</option>
-          <option value="document">{tr("سند عمومی", "مستند عام", "Genel belge", "Document")}</option>
-          <option value="contract">{tr("قرارداد", "عقد", "Sözleşme", "Contract")}</option>
-          <option value="identity">{tr("مدارک هویتی", "وثائق الهوية", "Kimlik belgeleri", "Identity")}</option>
-          <option value="invoice">{tr("فاکتور", "فاتورة", "Fatura", "Invoice")}</option>
-          <option value="medical">{tr("پزشکی", "طبي", "Tıbbi", "Medical")}</option>
-          <option value="warranty">{tr("گارانتی", "ضمان", "Garanti", "Warranty")}</option>
-          <option value="service">{tr("خدمات", "خدمة", "Servis", "Service")}</option>
-          <option value="other">{tr("سایر", "أخرى", "Diğer", "Other")}</option>
-        </select>
+        <Select
+          value={categoryFilter}
+          onChange={(value) => setCategoryFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: tr("همه دسته‌ها", "جميع الفئات", "Tüm kategoriler", "All categories") },
+            { value: "document", label: tr("سند عمومی", "مستند عام", "Genel belge", "Document") },
+            { value: "contract", label: tr("قرارداد", "عقد", "Sözleşme", "Contract") },
+            { value: "identity", label: tr("مدارک هویتی", "وثائق الهوية", "Kimlik belgeleri", "Identity") },
+            { value: "invoice", label: tr("فاکتور", "فاتورة", "Fatura", "Invoice") },
+            { value: "medical", label: tr("پزشکی", "طبي", "Tıbbi", "Medical") },
+            { value: "warranty", label: tr("گارانتی", "ضمان", "Garanti", "Warranty") },
+            { value: "service", label: tr("خدمات", "خدمة", "Servis", "Service") },
+            { value: "other", label: tr("سایر", "أخرى", "Diğer", "Other") },
+          ]}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

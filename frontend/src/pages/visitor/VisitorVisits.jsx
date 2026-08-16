@@ -11,6 +11,7 @@ import { getCache, setCache } from "../../storage/db";
 import { syncPendingRecords, useOnlineSync } from "../../storage/offlineSync";
 import { getCurrentPosition, formatDistance } from "./geo";
 import VisitorLayout from "./VisitorLayout";
+import Select from "../../components/ui/Select";
 
 const CUSTOMERS_CACHE_KEY = "visitor_customers";
 const PENDING_VISITS_CACHE_KEY = "visitor_pending_visits";
@@ -231,15 +232,12 @@ export default function VisitorVisits() {
           </div>
           <div style={{ fontWeight: 800, marginBottom: 12 }}>{activeCustomerName || tr("مشتری", "العميل", "Müşteri", "Customer")}</div>
 
-          <select
+          <Select
             value={outcome}
-            onChange={(event) => setOutcome(event.target.value)}
-            style={{ width: "100%", background: "var(--erp-bg)", border: "1px solid var(--erp-border)", borderRadius: 10, padding: 10, color: "var(--erp-text)", marginBottom: 10 }}
-          >
-            {OUTCOMES.map((item) => (
-              <option key={item.value} value={item.value}>{item.label[language] || item.label.en}</option>
-            ))}
-          </select>
+            onChange={(value) => setOutcome(value)}
+            className="w-full mb-[10px]"
+            options={OUTCOMES.map((item) => ({ value: item.value, label: item.label[language] || item.label.en }))}
+          />
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
@@ -261,16 +259,15 @@ export default function VisitorVisits() {
           <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 900, color: "var(--erp-accent)" }}>
             {tr("شروع ویزیت جدید", "بدء زيارة جديدة", "Yeni ziyaret başlat", "Start a new visit")}
           </h3>
-          <select
+          <Select
             value={customerId}
-            onChange={(event) => setCustomerId(event.target.value)}
-            style={{ width: "100%", background: "var(--erp-bg)", border: "1px solid var(--erp-border)", borderRadius: 10, padding: 10, color: "var(--erp-text)", marginBottom: 12 }}
-          >
-            <option value="">{tr("انتخاب مشتری", "اختر عميلًا", "Müşteri seçin", "Select customer")}</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </select>
+            onChange={(value) => setCustomerId(value)}
+            className="w-full mb-3"
+            options={[
+              { value: "", label: tr("انتخاب مشتری", "اختر عميلًا", "Müşteri seçin", "Select customer") },
+              ...customers.map((customer) => ({ value: customer.id, label: customer.name })),
+            ]}
+          />
           <button
             type="button"
             onClick={startVisit}

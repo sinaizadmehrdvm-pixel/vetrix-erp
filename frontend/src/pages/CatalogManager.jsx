@@ -7,6 +7,8 @@ import QRCodeLib from "qrcode";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits } from "../localization/helpers";
 import Modal from "../components/ui/Modal";
+import Select from "../components/ui/Select";
+import JalaliDateField from "../components/forms/JalaliDateField";
 import {
   archiveCatalogLink,
   createCatalogLink,
@@ -398,12 +400,15 @@ export default function CatalogManager() {
           </div>
 
           {mode === "category" ? (
-            <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">{language === "fa" ? "همه گروه‌ها" : language === "ar" ? "كل التصنيفات" : language === "tr" ? "Tüm kategoriler" : "All categories"}</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={category}
+              onChange={(value) => setCategory(value)}
+              options={[
+                { value: "", label: language === "fa" ? "همه گروه‌ها" : language === "ar" ? "كل التصنيفات" : language === "tr" ? "Tüm kategoriler" : "All categories" },
+                ...categories.map((c) => ({ value: c, label: c })),
+              ]}
+            />
           ) : (
             <div className="mb-3">
               <input
@@ -454,15 +459,25 @@ export default function CatalogManager() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <input className={inputClass + " mb-0"} placeholder={tr("جستجوی عنوان...", "بحث بالعنوان...", "Başlığa göre ara...", "Search by title...")} value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
-          <select className={inputClass + " mb-0"} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option value="">{tr("همه انواع", "كل الأنواع", "Tüm türler", "All types")}</option>
-            {CATALOG_TYPES.map((t) => <option key={t} value={t}>{catalogTypeLabel(t)}</option>)}
-          </select>
-          <select className={inputClass + " mb-0"} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="active">{tr("فعال", "نشط", "Aktif", "Active")}</option>
-            <option value="archived">{tr("آرشیوشده", "مؤرشف", "Arşivlenmiş", "Archived")}</option>
-            <option value="all">{tr("همه", "الكل", "Tümü", "All")}</option>
-          </select>
+          <Select
+            className="w-full mb-0"
+            value={typeFilter}
+            onChange={(value) => setTypeFilter(value)}
+            options={[
+              { value: "", label: tr("همه انواع", "كل الأنواع", "Tüm türler", "All types") },
+              ...CATALOG_TYPES.map((t) => ({ value: t, label: catalogTypeLabel(t) })),
+            ]}
+          />
+          <Select
+            className="w-full mb-0"
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={[
+              { value: "active", label: tr("فعال", "نشط", "Aktif", "Active") },
+              { value: "archived", label: tr("آرشیوشده", "مؤرشف", "Arşivlenmiş", "Archived") },
+              { value: "all", label: tr("همه", "الكل", "Tümü", "All") },
+            ]}
+          />
         </div>
         {loading ? (
           <p className="text-[var(--erp-muted)]">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
@@ -560,33 +575,52 @@ export default function CatalogManager() {
           <h2 id="catalog-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش کاتالوگ", "تعديل الكتالوج", "Kataloğu düzenle", "Edit catalog")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input className={inputClass} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={editDraft.title} onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
-            <select className={inputClass} value={editDraft.catalog_type} onChange={(e) => setEditDraft({ ...editDraft, catalog_type: e.target.value })}>
-              {CATALOG_TYPES.map((t) => <option key={t} value={t}>{catalogTypeLabel(t)}</option>)}
-            </select>
-            <select className={inputClass} value={editDraft.branch_id} onChange={(e) => setEditDraft({ ...editDraft, branch_id: e.target.value })}>
-              <option value="">{tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch")}</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <select className={inputClass} value={editDraft.language} onChange={(e) => setEditDraft({ ...editDraft, language: e.target.value })}>
-              {["fa", "ar", "tr", "en"].map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={editDraft.catalog_type}
+              onChange={(value) => setEditDraft({ ...editDraft, catalog_type: value })}
+              options={CATALOG_TYPES.map((t) => ({ value: t, label: catalogTypeLabel(t) }))}
+            />
+            <Select
+              className="w-full mb-3"
+              value={editDraft.branch_id}
+              onChange={(value) => setEditDraft({ ...editDraft, branch_id: value })}
+              options={[
+                { value: "", label: tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch") },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+            <Select
+              className="w-full mb-3"
+              value={editDraft.language}
+              onChange={(value) => setEditDraft({ ...editDraft, language: value })}
+              options={["fa", "ar", "tr", "en"].map((l) => ({ value: l, label: l.toUpperCase() }))}
+            />
             <input className={inputClass} placeholder={tr("واحد پول (مثلاً IRR)", "العملة", "Para birimi", "Currency")} value={editDraft.currency} onChange={(e) => setEditDraft({ ...editDraft, currency: e.target.value })} />
-            <select className={inputClass} value={editDraft.price_source} onChange={(e) => setEditDraft({ ...editDraft, price_source: e.target.value })}>
-              {PRICE_SOURCES.map((s) => <option key={s} value={s}>{priceSourceLabel(s)}</option>)}
-            </select>
+            <Select
+              className="w-full mb-3"
+              value={editDraft.price_source}
+              onChange={(value) => setEditDraft({ ...editDraft, price_source: value })}
+              options={PRICE_SOURCES.map((s) => ({ value: s, label: priceSourceLabel(s) }))}
+            />
             {editDraft.price_source === "customer_specific" && (
-              <select className={inputClass} value={editDraft.customer_id} onChange={(e) => setEditDraft({ ...editDraft, customer_id: e.target.value })}>
-                <option value="">{tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...")}</option>
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <Select
+                className="w-full mb-3"
+                value={editDraft.customer_id}
+                onChange={(value) => setEditDraft({ ...editDraft, customer_id: value })}
+                options={[
+                  { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
+                  ...customers.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+              />
             )}
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("معتبر از", "صالح من", "Geçerlilik başlangıcı", "Valid from")}</span>
-              <input type="date" className={inputClass} value={editDraft.valid_from} onChange={(e) => setEditDraft({ ...editDraft, valid_from: e.target.value })} />
+              <JalaliDateField className={inputClass} value={editDraft.valid_from} onChange={(iso) => setEditDraft({ ...editDraft, valid_from: iso })} language={language} />
             </label>
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("معتبر تا", "صالح حتى", "Geçerlilik bitişi", "Valid until")}</span>
-              <input type="date" className={inputClass} value={editDraft.valid_until} onChange={(e) => setEditDraft({ ...editDraft, valid_until: e.target.value })} />
+              <JalaliDateField className={inputClass} value={editDraft.valid_until} onChange={(iso) => setEditDraft({ ...editDraft, valid_until: iso })} language={language} />
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={editDraft.show_stock_status} onChange={(e) => setEditDraft({ ...editDraft, show_stock_status: e.target.checked })} />

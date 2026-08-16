@@ -34,6 +34,7 @@ import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import ProductBatchesPanel from "../components/ProductBatchesPanel";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
 import MoneyDisplay from "../components/ui/MoneyDisplay";
+import Select from "../components/ui/Select";
 
 const PRODUCTS_CACHE_KEY = "products";
 
@@ -905,17 +906,12 @@ export default function Products() {
           </Field>
 
           <Field label={label.unit}>
-            <select
-              className={inputClass}
+            <Select
+              className="w-full"
               value={form.unit || tr("عدد", "قطعة", "Adet", "pcs")}
-              onChange={(e) => setField("unit", e.target.value)}
-            >
-              {unitOptions.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setField("unit", value)}
+              options={unitOptions.map((unit) => ({ value: unit, label: unit }))}
+            />
           </Field>
 
           <Field label={label.buy}>
@@ -943,21 +939,28 @@ export default function Products() {
               "Add new categories from the Product Categories page"
             )}
           >
-            <select className={inputClass} value={form.main_category} onChange={(e) => { setField("main_category", e.target.value); setField("sub_category", ""); }}>
-              <option value="">{tr("بدون گروه اصلی", "بدون تصنيف رئيسي", "Ana kategori yok", "No main category")}</option>
-              {mainCategoryOptions.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+            <Select
+              className="w-full"
+              value={form.main_category}
+              onChange={(value) => { setField("main_category", value); setField("sub_category", ""); }}
+              options={[
+                { value: "", label: tr("بدون گروه اصلی", "بدون تصنيف رئيسي", "Ana kategori yok", "No main category") },
+                ...mainCategoryOptions.map((name) => ({ value: name, label: name })),
+              ]}
+            />
           </Field>
 
           <Field label={label.subCategory}>
-            <select className={inputClass} value={form.sub_category} onChange={(e) => setField("sub_category", e.target.value)} disabled={!form.main_category}>
-              <option value="">{tr("بدون زیرگروه", "بدون تصنيف فرعي", "Alt kategori yok", "No sub category")}</option>
-              {subCategoryOptions.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+            <Select
+              className="w-full"
+              value={form.sub_category}
+              onChange={(value) => setField("sub_category", value)}
+              disabled={!form.main_category}
+              options={[
+                { value: "", label: tr("بدون زیرگروه", "بدون تصنيف فرعي", "Alt kategori yok", "No sub category") },
+                ...subCategoryOptions.map((name) => ({ value: name, label: name })),
+              ]}
+            />
           </Field>
 
           <label className="bg-[var(--erp-panel-solid)] rounded-2xl p-4 outline-none flex items-center gap-2 cursor-pointer border border-[var(--erp-border)]">
@@ -1014,41 +1017,67 @@ export default function Products() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap mb-5">
-          <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
-            <option value="all">{tr("همه برندها", "كل العلامات", "Tüm markalar", "All brands")}</option>
-            {brandOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-          <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
-            <option value="all">{tr("همه واحدها", "كل الوحدات", "Tüm birimler", "All units")}</option>
-            {unitOptionsFromData.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
+          <Select
+            value={brandFilter}
+            onChange={(value) => setBrandFilter(value)}
+            className="w-40 shrink-0"
+            options={[
+              { value: "all", label: tr("همه برندها", "كل العلامات", "Tüm markalar", "All brands") },
+              ...brandOptions.map((b) => ({ value: b, label: b })),
+            ]}
+          />
+          <Select
+            value={unitFilter}
+            onChange={(value) => setUnitFilter(value)}
+            className="w-36 shrink-0"
+            options={[
+              { value: "all", label: tr("همه واحدها", "كل الوحدات", "Tüm birimler", "All units") },
+              ...unitOptionsFromData.map((u) => ({ value: u, label: u })),
+            ]}
+          />
           {categoryFilterOptions.length > 0 && (
-            <select
+            <Select
               value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setSubCategoryFilter("all"); }}
-              className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm"
-            >
-              <option value="all">{tr("همه گروه‌های اصلی", "كل التصنيفات الرئيسية", "Tüm ana kategoriler", "All main categories")}</option>
-              {categoryFilterOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+              onChange={(value) => { setCategoryFilter(value); setSubCategoryFilter("all"); }}
+              className="w-48 shrink-0"
+              options={[
+                { value: "all", label: tr("همه گروه‌های اصلی", "كل التصنيفات الرئيسية", "Tüm ana kategoriler", "All main categories") },
+                ...categoryFilterOptions.map((c) => ({ value: c, label: c })),
+              ]}
+            />
           )}
           {subCategoryFilterOptions.length > 0 && (
-            <select value={subCategoryFilter} onChange={(e) => setSubCategoryFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
-              <option value="all">{tr("همه زیرگروه‌ها", "كل المجموعات الفرعية", "Tüm alt gruplar", "All subcategories")}</option>
-              {subCategoryFilterOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <Select
+              value={subCategoryFilter}
+              onChange={(value) => setSubCategoryFilter(value)}
+              className="w-44 shrink-0"
+              options={[
+                { value: "all", label: tr("همه زیرگروه‌ها", "كل المجموعات الفرعية", "Tüm alt gruplar", "All subcategories") },
+                ...subCategoryFilterOptions.map((c) => ({ value: c, label: c })),
+              ]}
+            />
           )}
-          <select value={stockStatusFilter} onChange={(e) => setStockStatusFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
-            <option value="all">{tr("هر وضعیت موجودی", "أي حالة مخزون", "Her stok durumu", "Any stock status")}</option>
-            <option value="in_stock">{tr("موجود", "متوفر", "Stokta", "In stock")}</option>
-            <option value="low_stock">{tr("موجودی کم", "مخزون منخفض", "Az stok", "Low stock")}</option>
-            <option value="out_of_stock">{tr("ناموجود", "نفد المخزون", "Stok yok", "Out of stock")}</option>
-          </select>
-          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)} className="bg-[var(--erp-bg)] border border-[var(--erp-border)] rounded-xl p-2 outline-none text-[var(--erp-text)] text-sm">
-            <option value="all">{tr("فعال و غیرفعال", "نشط وغير نشط", "Aktif ve pasif", "Active & inactive")}</option>
-            <option value="active">{tr("فقط فعال", "نشط فقط", "Sadece aktif", "Active only")}</option>
-            <option value="inactive">{tr("فقط غیرفعال", "غير نشط فقط", "Sadece pasif", "Inactive only")}</option>
-          </select>
+          <Select
+            value={stockStatusFilter}
+            onChange={(value) => setStockStatusFilter(value)}
+            className="w-48 shrink-0"
+            options={[
+              { value: "all", label: tr("هر وضعیت موجودی", "أي حالة مخزون", "Her stok durumu", "Any stock status") },
+              { value: "in_stock", label: tr("موجود", "متوفر", "Stokta", "In stock") },
+              { value: "low_stock", label: tr("موجودی کم", "مخزون منخفض", "Az stok", "Low stock") },
+              { value: "out_of_stock", label: tr("ناموجود", "نفد المخزون", "Stok yok", "Out of stock") },
+            ]}
+          />
+          <Select
+            value={activeFilter}
+            onChange={(value) => setActiveFilter(value)}
+            className="w-44 shrink-0"
+            options={[
+              { value: "all", label: tr("فعال و غیرفعال", "نشط وغير نشط", "Aktif ve pasif", "Active & inactive") },
+              { value: "active", label: tr("فقط فعال", "نشط فقط", "Sadece aktif", "Active only") },
+              { value: "inactive", label: tr("فقط غیرفعال", "غير نشط فقط", "Sadece pasif", "Inactive only") },
+            ]}
+          />
         </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap mb-5">

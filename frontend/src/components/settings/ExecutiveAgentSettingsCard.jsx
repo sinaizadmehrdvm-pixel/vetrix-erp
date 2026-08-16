@@ -9,8 +9,9 @@ import {
 } from "../../services/api";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
-import Field, { Select } from "../ui/Field";
+import Field from "../ui/Field";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../ui/Table";
+import Select from "../ui/Select";
 
 const CATEGORY_LABELS = {
   summary: { fa: "خلاصه روزانه", ar: "الملخص اليومي", tr: "Günlük özet", en: "Daily summary" },
@@ -124,13 +125,12 @@ export default function ExecutiveAgentSettingsCard() {
         <Field label={tr("شعبه پیش‌فرض (اختیاری)", "الفرع الافتراضي (اختياري)", "Varsayılan şube (isteğe bağlı)", "Default branch (optional)")}>
           <Select
             value={draft.default_branch_id ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, default_branch_id: e.target.value ? Number(e.target.value) : null }))}
-          >
-            <option value="">{tr("بدون شعبه پیش‌فرض", "بدون فرع افتراضي", "Varsayılan şube yok", "No default branch")}</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </Select>
+            onChange={(value) => setDraft((d) => ({ ...d, default_branch_id: value ? Number(value) : null }))}
+            options={[
+              { value: "", label: tr("بدون شعبه پیش‌فرض", "بدون فرع افتراضي", "Varsayılan şube yok", "No default branch") },
+              ...branches.map((b) => ({ value: b.id, label: b.name })),
+            ]}
+          />
         </Field>
 
         <div>

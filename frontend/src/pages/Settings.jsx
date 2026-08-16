@@ -21,7 +21,8 @@ import { useTheme } from "../theme/useTheme";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Notice from "../components/ui/Notice";
-import Field, { Input, Select, Textarea } from "../components/ui/Field";
+import Field, { Input, Textarea } from "../components/ui/Field";
+import Select from "../components/ui/Select";
 import PaymentProvidersCard from "../components/settings/PaymentProvidersCard";
 import ExecutiveAgentSettingsCard from "../components/settings/ExecutiveAgentSettingsCard";
 
@@ -413,13 +414,11 @@ export default function Settings() {
 
       <Card icon={Languages} title={label.language}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
-            {languages.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.label}
-              </option>
-            ))}
-          </Select>
+          <Select
+            value={language}
+            onChange={(value) => setLanguage(value)}
+            options={languages.map((item) => ({ value: item.code, label: item.label }))}
+          />
 
           <InfoCard
             title={fa ? "حالت فعلی" : language === "ar" ? "الوضع الحالي" : language === "tr" ? "Mevcut Mod" : "Current Mode"}
@@ -441,8 +440,8 @@ export default function Settings() {
           <Field label={tr("کشور محل فعالیت شرکت", "بلد نشاط الشركة", "Şirketin faaliyet gösterdiği ülke", "Company operating country")}>
             <Select
               value={country}
-              onChange={(event) => {
-                const next = countries.find((item) => item.code === event.target.value);
+              onChange={(value) => {
+                const next = countries.find((item) => item.code === value);
                 if (!next) return;
                 setCountry(next.code);
                 setCompanyFormatting({
@@ -470,20 +469,15 @@ export default function Settings() {
                   tax_profile_verified_at: "",
                 }));
               }}
-            >
-              {countries.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.name[language] || item.name.en}
-                </option>
-              ))}
-            </Select>
+              options={countries.map((item) => ({ value: item.code, label: item.name[language] || item.name.en }))}
+            />
           </Field>
 
           <Field label={tr("ارز و اعشار", "العملة والكسور العشرية", "Para birimi ve ondalık", "Currency & decimals")}>
             <Select
               value={countryProfile.currency}
-              onChange={(event) => {
-                const option = CURRENCY_OPTIONS.find((item) => item.code === event.target.value);
+              onChange={(value) => {
+                const option = CURRENCY_OPTIONS.find((item) => item.code === value);
                 if (!option) return;
                 updateFormatting({
                   currency_code: option.code,
@@ -491,46 +485,32 @@ export default function Settings() {
                   decimal_places: option.digits,
                 });
               }}
-            >
-              {CURRENCY_OPTIONS.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {option.label[language] || option.label.en}
-                </option>
-              ))}
-            </Select>
+              options={CURRENCY_OPTIONS.map((option) => ({ value: option.code, label: option.label[language] || option.label.en }))}
+            />
           </Field>
 
           <Field label={tr("تقویم اصلی", "التقويم الأساسي", "Ana takvim", "Primary calendar")}>
             <Select
               value={countryProfile.calendar}
-              onChange={(event) => updateFormatting({ calendar_system: event.target.value })}
-            >
-              {Object.keys(CALENDAR_LABELS).map((value) => (
-                <option key={value} value={value}>{calendarLabel(value, language)}</option>
-              ))}
-            </Select>
+              onChange={(value) => updateFormatting({ calendar_system: value })}
+              options={Object.keys(CALENDAR_LABELS).map((value) => ({ value, label: calendarLabel(value, language) }))}
+            />
           </Field>
 
           <Field label={tr("منطقه زمانی", "المنطقة الزمنية", "Saat dilimi", "Time zone")}>
             <Select
               value={countryProfile.timeZone}
-              onChange={(event) => updateFormatting({ time_zone: event.target.value })}
-            >
-              {TIME_ZONE_OPTIONS.map((zone) => (
-                <option key={zone} value={zone}>{zone}</option>
-              ))}
-            </Select>
+              onChange={(value) => updateFormatting({ time_zone: value })}
+              options={TIME_ZONE_OPTIONS.map((zone) => ({ value: zone, label: zone }))}
+            />
           </Field>
 
           <Field label={tr("سیستم اندازه‌گیری", "نظام القياس", "Ölçüm sistemi", "Measurement system")}>
             <Select
               value={countryProfile.measurementSystem}
-              onChange={(event) => updateFormatting({ measurement_system: event.target.value })}
-            >
-              {Object.keys(MEASUREMENT_LABELS).map((value) => (
-                <option key={value} value={value}>{measurementLabel(value, language)}</option>
-              ))}
-            </Select>
+              onChange={(value) => updateFormatting({ measurement_system: value })}
+              options={Object.keys(MEASUREMENT_LABELS).map((value) => ({ value, label: measurementLabel(value, language) }))}
+            />
           </Field>
 
           <Field label={tr("شروع سال مالی", "بداية السنة المالية", "Mali yıl başlangıcı", "Fiscal year start")}>
@@ -568,11 +548,11 @@ export default function Settings() {
           <Field
             label={tr("نوع کسب‌وکار (فیلدهای اختصاصی فاکتور)", "نوع النشاط التجاري (حقول الفاتورة المتخصصة)", "İşletme türü (özel fatura alanları)", "Business type (specialized invoice fields)")}
           >
-            <Select value={settings.industry || "general"} onChange={(e) => setField("industry", e.target.value)}>
-              {Object.keys(INDUSTRY_LABELS).map((value) => (
-                <option key={value} value={value}>{INDUSTRY_LABELS[value][language] || INDUSTRY_LABELS[value].en}</option>
-              ))}
-            </Select>
+            <Select
+              value={settings.industry || "general"}
+              onChange={(value) => setField("industry", value)}
+              options={Object.keys(INDUSTRY_LABELS).map((value) => ({ value, label: INDUSTRY_LABELS[value][language] || INDUSTRY_LABELS[value].en }))}
+            />
           </Field>
 
           <Field label={tr("تلفن", "الهاتف", "Telefon", "Phone")}>
@@ -630,16 +610,20 @@ export default function Settings() {
       <Card icon={Wallet} title={label.finance}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Field label={tr("واحد پول", "العملة", "Para Birimi", "Currency")}>
-            <Select value={settings.currency || "تومان"} onChange={(e) => setField("currency", e.target.value)}>
-              <option value="IRR">{tr("ریال ایران (IRR)", "الريال الإيراني (IRR)", "İran riyali (IRR)", "Iranian rial (IRR)")}</option>
-              <option value="تومان">{tr("تومان (واحد نمایشی)", "تومان (وحدة عرض)", "Tomen (görüntüleme birimi)", "Toman (display unit)")}</option>
-              <option value="TRY">{tr("لیر ترکیه (TRY)", "الليرة التركية (TRY)", "Türk lirası (TRY)", "Turkish lira (TRY)")}</option>
-              <option value="EUR">{tr("یورو (EUR)", "يورو (EUR)", "Euro (EUR)", "Euro (EUR)")}</option>
-              <option value="AED">{tr("درهم امارات (AED)", "الدرهم الإماراتي (AED)", "BAE dirhemi (AED)", "UAE dirham (AED)")}</option>
-              <option value="SAR">{tr("ریال عربستان (SAR)", "الريال السعودي (SAR)", "Suudi riyali (SAR)", "Saudi riyal (SAR)")}</option>
-              <option value="GBP">{tr("پوند بریتانیا (GBP)", "الجنيه الإسترليني (GBP)", "İngiliz sterlini (GBP)", "Pound sterling (GBP)")}</option>
-              <option value="USD">{tr("دلار آمریکا (USD)", "الدولار الأمريكي (USD)", "ABD doları (USD)", "US dollar (USD)")}</option>
-            </Select>
+            <Select
+              value={settings.currency || "تومان"}
+              onChange={(value) => setField("currency", value)}
+              options={[
+                { value: "IRR", label: tr("ریال ایران (IRR)", "الريال الإيراني (IRR)", "İran riyali (IRR)", "Iranian rial (IRR)") },
+                { value: "تومان", label: tr("تومان (واحد نمایشی)", "تومان (وحدة عرض)", "Tomen (görüntüleme birimi)", "Toman (display unit)") },
+                { value: "TRY", label: tr("لیر ترکیه (TRY)", "الليرة التركية (TRY)", "Türk lirası (TRY)", "Turkish lira (TRY)") },
+                { value: "EUR", label: tr("یورو (EUR)", "يورو (EUR)", "Euro (EUR)", "Euro (EUR)") },
+                { value: "AED", label: tr("درهم امارات (AED)", "الدرهم الإماراتي (AED)", "BAE dirhemi (AED)", "UAE dirham (AED)") },
+                { value: "SAR", label: tr("ریال عربستان (SAR)", "الريال السعودي (SAR)", "Suudi riyali (SAR)", "Saudi riyal (SAR)") },
+                { value: "GBP", label: tr("پوند بریتانیا (GBP)", "الجنيه الإسترليني (GBP)", "İngiliz sterlini (GBP)", "Pound sterling (GBP)") },
+                { value: "USD", label: tr("دلار آمریکا (USD)", "الدولار الأمريكي (USD)", "ABD doları (USD)", "US dollar (USD)") },
+              ]}
+            />
           </Field>
 
           <Field label={tr("درصد مالیات پیش‌فرض", "نسبة الضريبة الافتراضية", "Varsayılan Vergi Oranı", "Default Tax Percent")}>
