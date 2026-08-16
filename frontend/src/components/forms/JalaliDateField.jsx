@@ -103,8 +103,21 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
   };
   const [text, setText] = useState(() => displayFor(value));
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [cursor, setCursor] = useState(() => cursorFromIso(value));
   const wrapperRef = useRef(null);
+
+  // Popup is ~320px tall at most; flip it above the field when there isn't
+  // room below (e.g. a date field near the bottom of a modal) so it never
+  // forces the page/modal to scroll just to show the calendar grid.
+  function openPopup() {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (rect) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 340 && rect.top > spaceBelow);
+    }
+    setOpen(true);
+  }
 
   // Resync the local draft text when the value/language changes from
   // outside (e.g. picking a day, the Today shortcut, or the parent
@@ -188,7 +201,12 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
     }
   }
 
-  const grid = buildGrid(calendarSystem, cursor, lang);
+  // Only build the (moment-jalaali-driven, non-trivial) month grid while
+  // the popup is actually visible - this field re-renders on every
+  // keystroke in forms that hold it alongside other fields in one state
+  // object, and recomputing the grid unconditionally on each of those
+  // renders was the source of visible typing lag.
+  const grid = open ? buildGrid(calendarSystem, cursor, lang) : null;
 
   return (
     <div ref={wrapperRef} style={{ position: "relative", display: "flex", gap: 8, ...style }}>
@@ -198,7 +216,7 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={(e) => commit(e.target.value)}
-        onFocus={() => setOpen(true)}
+        onFocus={openPopup}
         placeholder={
           placeholder ||
           (calendarSystem === "jalali"
@@ -212,7 +230,7 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
       />
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? setOpen(false) : openPopup())}
         aria-label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}
         className="rounded-2xl bg-[var(--erp-accent)] text-slate-950 flex items-center justify-center"
         style={{ width: 44, height: 44, flexShrink: 0 }}
@@ -224,7 +242,9 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
         <div
           className="border border-[var(--erp-border)] bg-[var(--erp-panel)] p-3"
           style={{
-            position: "absolute", top: "100%", marginTop: 6, zIndex: 50, width: 260, insetInlineEnd: 0,
+            position: "absolute",
+            ...(openUpward ? { bottom: "100%", marginBottom: 6 } : { top: "100%", marginTop: 6 }),
+            zIndex: 50, width: 260, insetInlineEnd: 0,
             borderRadius: "var(--erp-radius-lg)", boxShadow: "var(--erp-shadow)",
           }}
         >

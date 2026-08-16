@@ -3,6 +3,7 @@ import { Building2, Pencil, Plus, Search, ShieldCheck, ShieldOff } from "lucide-
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { activateBranch, createBranch, deactivateBranch, getBranches, getWarehouses, updateBranch } from "../services/api";
 import Modal from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
@@ -13,6 +14,9 @@ const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border bor
 const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
 
 const BRANCH_TYPES = ["headquarters", "retail_store", "warehouse_only", "office", "other"];
+// Every free-text field gets its digits Persianized on entry except email/website,
+// which must stay ASCII to remain valid addresses/URLs.
+const LATIN_ONLY_TEXT_FIELDS = new Set(["email", "website"]);
 
 const emptyDraft = {
   name: "", code: "", branch_type: "retail_store", address: "", province: "", city: "", district: "",
@@ -24,6 +28,7 @@ const emptyDraft = {
 export default function Branches() {
   const { dir, language, n } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -246,11 +251,11 @@ export default function Branches() {
               ) : branches.map((b, index) => (
                 <Tr key={b.id}>
                   <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
-                  <Td className="font-bold">{b.name}{b.code ? <span className="ms-2 text-xs text-[var(--erp-muted)]">{b.code}</span> : null}</Td>
+                  <Td className="font-bold">{pd(b.name)}{b.code ? <span className="ms-2 text-xs text-[var(--erp-muted)]">{pd(b.code)}</span> : null}</Td>
                   <Td>{branchTypeLabel(b.branch_type)}</Td>
-                  <Td>{b.city || "—"}</Td>
-                  <Td>{b.manager_name || "—"}</Td>
-                  <Td>{b.phone || b.mobile || "—"}</Td>
+                  <Td>{b.city ? pd(b.city) : "—"}</Td>
+                  <Td>{b.manager_name ? pd(b.manager_name) : "—"}</Td>
+                  <Td>{b.phone || b.mobile ? pd(b.phone || b.mobile) : "—"}</Td>
                   <Td>
                     {b.active ? (
                       <span className="text-xs px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300">{tr("فعال", "نشط", "Aktif", "Active")}</span>
@@ -299,16 +304,23 @@ export default function Branches() {
                         onChange={(value) => setDraft({ ...draft, [key]: value })}
                         options={[
                           { value: "", label: tr("بدون انبار پیش‌فرض", "بدون مستودع افتراضي", "Varsayılan depo yok", "No default warehouse") },
-                          ...warehouses.map((w) => ({ value: w.id, label: w.name })),
+                          ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) })),
                         ]}
+                      />
+                    ) : type === "number" ? (
+                      <input
+                        className={inputClass}
+                        type="text"
+                        inputMode="decimal"
+                        value={pd(draft[key])}
+                        onChange={(e) => setDraft({ ...draft, [key]: cleanNumberInput(e.target.value) })}
                       />
                     ) : (
                       <input
                         className={inputClass}
-                        type={type === "number" ? "number" : "text"}
-                        step={type === "number" ? "any" : undefined}
-                        value={draft[key]}
-                        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                        type="text"
+                        value={!LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(draft[key]) : draft[key]}
+                        onChange={(e) => setDraft({ ...draft, [key]: !LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(e.target.value) : e.target.value })}
                       />
                     )}
                   </label>

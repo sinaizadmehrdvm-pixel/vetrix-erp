@@ -40,6 +40,7 @@ export default function PricingTiers() {
   const { dir, language, money, n } = useLanguage();
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
 
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState("");
@@ -271,7 +272,7 @@ export default function PricingTiers() {
           placeholder={language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..."}
           options={[
             { value: "", label: language === "fa" ? "یک کالا انتخاب کنید..." : language === "ar" ? "اختر منتجًا..." : language === "tr" ? "Bir ürün seçin..." : "Choose a product..." },
-            ...products.map((p) => ({ value: p.id, label: p.name })),
+            ...products.map((p) => ({ value: p.id, label: pd(p.name) })),
           ]}
         />
 
@@ -381,9 +382,9 @@ export default function PricingTiers() {
             ) : rules.map((rule, index) => (
               <Tr key={rule.id}>
                 <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
-                <Td className="font-bold">{rule.name || "—"}</Td>
-                <Td>{scopeTypeLabel(rule.scope_type)}{rule.scope_value ? `: ${rule.scope_value}` : ""}</Td>
-                <Td>{customerScopeTypeLabel(rule.customer_scope_type)}{rule.customer_scope_value ? `: ${rule.customer_scope_value}` : ""}</Td>
+                <Td className="font-bold">{pd(rule.name) || "—"}</Td>
+                <Td>{scopeTypeLabel(rule.scope_type)}{rule.scope_value ? `: ${pd(rule.scope_value)}` : ""}</Td>
+                <Td>{customerScopeTypeLabel(rule.customer_scope_type)}{rule.customer_scope_value ? `: ${pd(rule.customer_scope_value)}` : ""}</Td>
                 <Td>{n(rule.min_quantity)}{rule.max_quantity != null ? ` – ${n(rule.max_quantity)}` : "+"}</Td>
                 <Td>{priceModeLabel(rule.price_mode)}: {rule.price_mode === "percent_discount" || rule.price_mode === "markup" ? `${n(rule.price_value)}%` : money(rule.price_value)}</Td>
                 <Td>
@@ -421,7 +422,7 @@ export default function PricingTiers() {
             onChange={(value) => setSim({ ...sim, product_id: value })}
             options={[
               { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
-              ...products.map((p) => ({ value: p.id, label: p.name })),
+              ...products.map((p) => ({ value: p.id, label: pd(p.name) })),
             ]}
           />
           <Select
@@ -430,7 +431,7 @@ export default function PricingTiers() {
             onChange={(value) => setSim({ ...sim, customer_id: value })}
             options={[
               { value: "", label: tr("بدون مشتری خاص", "بدون عميل محدد", "Belirli müşteri yok", "No specific customer") },
-              ...customers.map((c) => ({ value: c.id, label: c.name })),
+              ...customers.map((c) => ({ value: c.id, label: pd(c.name) })),
             ]}
           />
           <input
@@ -445,7 +446,7 @@ export default function PricingTiers() {
             onChange={(value) => setSim({ ...sim, branch_id: value })}
             options={[
               { value: "", label: tr("بدون شعبه خاص", "بدون فرع محدد", "Belirli şube yok", "No specific branch") },
-              ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
             ]}
           />
           <JalaliDateField className={inputClass} value={sim.on_date} onChange={(iso) => setSim({ ...sim, on_date: iso })} fa={fa} language={language} />
@@ -463,7 +464,7 @@ export default function PricingTiers() {
               </div>
               <div>
                 <div className="text-[var(--erp-muted)]">{tr("قانون برنده", "القاعدة الفائزة", "Kazanan kural", "Winning rule")}</div>
-                <div className="font-bold">{simResult.rule_name || (simResult.source === "price_tier" ? tr("پله قیمتی قدیمی", "شريحة سعرية قديمة", "Eski fiyat kademesi", "Legacy price tier") : tr("بدون قانون (پایه)", "لا توجد قاعدة (أساسي)", "Kural yok (taban)", "No rule (base)"))}</div>
+                <div className="font-bold">{pd(simResult.rule_name) || (simResult.source === "price_tier" ? tr("پله قیمتی قدیمی", "شريحة سعرية قديمة", "Eski fiyat kademesi", "Legacy price tier") : tr("بدون قانون (پایه)", "لا توجد قاعدة (أساسي)", "Kural yok (taban)", "No rule (base)"))}</div>
               </div>
               <div>
                 <div className="text-[var(--erp-muted)]">{tr("مبلغ تخفیف", "مبلغ الخصم", "İndirim tutarı", "Discount amount")}</div>
@@ -481,7 +482,7 @@ export default function PricingTiers() {
             {simResult.matched_rules?.length > 1 && (
               <div className="text-xs text-[var(--erp-muted)] pt-2">
                 {tr("سایر قوانین منطبق: ", "قواعد أخرى مطابقة: ", "Diğer eşleşen kurallar: ", "Other matching rules: ")}
-                {simResult.matched_rules.filter((r) => r.id !== simResult.rule_id).map((r) => r.name).join(", ")}
+                {simResult.matched_rules.filter((r) => r.id !== simResult.rule_id).map((r) => pd(r.name)).join(", ")}
               </div>
             )}
           </div>
@@ -494,8 +495,8 @@ export default function PricingTiers() {
             {editingRuleId ? tr("ویرایش قانون قیمت‌گذاری", "تعديل قاعدة التسعير", "Fiyatlandırma kuralını düzenle", "Edit pricing rule") : tr("قانون قیمت‌گذاری جدید", "قاعدة تسعير جديدة", "Yeni fiyatlandırma kuralı", "New pricing rule")}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={ruleDraft.name} onChange={(e) => setRuleDraft({ ...ruleDraft, name: e.target.value })} />
-            <input type="number" className={inputClass} placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={ruleDraft.priority} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: e.target.value })} />
+            <input className={inputClass} placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={pd(ruleDraft.name)} onChange={(e) => setRuleDraft({ ...ruleDraft, name: pd(e.target.value) })} />
+            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={pd(ruleDraft.priority)} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: cleanNumberInput(e.target.value) })} />
 
             <Select
               className="w-full mb-3"
@@ -512,11 +513,11 @@ export default function PricingTiers() {
                 onChange={(value) => setRuleDraft({ ...ruleDraft, scope_value: value })}
                 options={[
                   { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
-                  ...products.map((p) => ({ value: p.id, label: p.name })),
+                  ...products.map((p) => ({ value: p.id, label: pd(p.name) })),
                 ]}
               />
             ) : (
-              <input className={inputClass} placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={ruleDraft.scope_value} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: e.target.value })} />
+              <input className={inputClass} placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={pd(ruleDraft.scope_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: pd(e.target.value) })} />
             )}
 
             <Select
@@ -555,7 +556,7 @@ export default function PricingTiers() {
                 onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
                 options={[
                   { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
-                  ...customers.map((c) => ({ value: c.id, label: c.name })),
+                  ...customers.map((c) => ({ value: c.id, label: pd(c.name) })),
                 ]}
               />
             )}
@@ -566,13 +567,13 @@ export default function PricingTiers() {
               onChange={(value) => setRuleDraft({ ...ruleDraft, branch_id: value })}
               options={[
                 { value: "", label: tr("همه شعب", "كل الفروع", "Tüm şubeler", "All branches") },
-                ...branches.map((b) => ({ value: b.id, label: b.name })),
+                ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
               ]}
             />
             <input className={inputClass} placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={ruleDraft.channel} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: e.target.value })} />
 
-            <input type="number" className={inputClass} placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={ruleDraft.min_quantity} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: e.target.value })} />
-            <input type="number" className={inputClass} placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={ruleDraft.max_quantity} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: e.target.value })} />
+            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={pd(ruleDraft.min_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: cleanNumberInput(e.target.value) })} />
+            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={pd(ruleDraft.max_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: cleanNumberInput(e.target.value) })} />
 
             <Select
               className="w-full mb-3"
@@ -580,7 +581,7 @@ export default function PricingTiers() {
               onChange={(value) => setRuleDraft({ ...ruleDraft, price_mode: value })}
               options={PRICE_MODES.map((m) => ({ value: m, label: priceModeLabel(m) }))}
             />
-            <input type="number" step="any" className={inputClass} placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={ruleDraft.price_value} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: e.target.value })} />
+            <input type="text" inputMode="decimal" className={inputClass} placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={pd(ruleDraft.price_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: cleanNumberInput(e.target.value) })} />
 
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ شروع (اختیاری)", "تاريخ البدء (اختياري)", "Başlangıç tarihi (isteğe bağlı)", "Start date (optional)")}</span>
@@ -600,7 +601,7 @@ export default function PricingTiers() {
                 { value: "inactive", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
               ]}
             />
-            <input className={inputClass} placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={ruleDraft.notes} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: e.target.value })} />
+            <input className={inputClass} placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={pd(ruleDraft.notes)} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: pd(e.target.value) })} />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <button type="button" onClick={() => setRuleModalOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]">

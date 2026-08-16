@@ -69,6 +69,7 @@ function levelLabel(level, language) {
 
 export default function SmartInventory() {
   const { language, dir, money, n } = useLanguage();
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const navigate = useNavigate();
 
   const [data, setData] = useState(null);
@@ -198,7 +199,7 @@ export default function SmartInventory() {
             onChange={(value) => changeBranch(value)}
             options={[
               { value: "", label: language === "fa" ? "کل شرکت (همه شعب)" : language === "ar" ? "الشركة بأكملها (كل الفروع)" : language === "tr" ? "Tüm şirket (tüm şubeler)" : "Whole company (all branches)" },
-              ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
             ]}
           />
           <button
@@ -252,8 +253,8 @@ export default function SmartInventory() {
               {expiringBatches.map((b, rowIndex) => (
                 <Tr key={b.id}>
                   <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
-                  <Td className="font-black text-[var(--erp-text)]">{b.product_name}</Td>
-                  <Td>{b.batch_number}</Td>
+                  <Td className="font-black text-[var(--erp-text)]">{pd(b.product_name)}</Td>
+                  <Td>{pd(b.batch_number)}</Td>
                   <Td align="end">{n(b.remaining_quantity)}</Td>
                   <Td className={`font-bold ${b.expired ? "text-rose-300" : "text-amber-300"}`}>
                     {b.expiry_date} {b.expired ? `(${language === "fa" ? "منقضی" : language === "ar" ? "منتهي" : language === "tr" ? "Süresi doldu" : "expired"})` : `(${n(b.days_to_expiry)} ${language === "fa" ? "روز" : language === "ar" ? "يوم" : language === "tr" ? "gün" : "days"})`}
@@ -265,7 +266,7 @@ export default function SmartInventory() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5 mb-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5 mb-5">
         <div className="rounded-[2rem] bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
             <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
@@ -320,8 +321,8 @@ export default function SmartInventory() {
                 <Tr key={item.id} className="hover:bg-[var(--erp-panel-solid)]/50">
                   <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
                   <Td>
-                    <div className="font-black text-[var(--erp-text)]">{item.name || "-"}</div>
-                    <div className="text-xs text-[var(--erp-muted)] mt-1">{item.brand || item.code || item.barcode || "-"}</div>
+                    <div className="font-black text-[var(--erp-text)]">{pd(item.name) || "-"}</div>
+                    <div className="text-xs text-[var(--erp-muted)] mt-1">{pd(item.brand || item.code || item.barcode) || "-"}</div>
                   </Td>
                   <Td align="end" className="font-bold">
                     {n(item.stock || 0)} {item.unit || ""}
@@ -359,9 +360,9 @@ export default function SmartInventory() {
             <div className="space-y-3">
               {safeArray(data?.insights).map((insight, index) => (
                 <div key={index} className={`rounded-2xl p-4 border ${insight.type === "danger" ? "bg-rose-500/10 border-rose-400/20" : insight.type === "warning" ? "bg-amber-500/10 border-amber-400/20" : insight.type === "success" ? "bg-emerald-500/10 border-emerald-400/20" : "bg-[var(--erp-glow)] border-[var(--erp-border)]"}`}>
-                  <div className="font-black text-[var(--erp-text)]">{insight.title}</div>
-                  <div className="text-[var(--erp-muted)] text-sm mt-1">{insight.message}</div>
-                  <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{insight.action}</div>
+                  <div className="font-black text-[var(--erp-text)]">{pd(insight.title)}</div>
+                  <div className="text-[var(--erp-muted)] text-sm mt-1">{pd(insight.message)}</div>
+                  <div className="text-[var(--erp-accent)] text-xs font-bold mt-2">{pd(insight.action)}</div>
                 </div>
               ))}
             </div>

@@ -33,6 +33,15 @@ const emptyEditDraft = {
 export default function Warehouses() {
   const { dir, language, n } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
+
+  const warehouseTypeLabel = (type) => ({
+    main: tr("انبار اصلی", "المستودع الرئيسي", "Ana depo", "Main"),
+    branch_stockroom: tr("انبار شعبه", "مخزن الفرع", "Şube deposu", "Branch stockroom"),
+    distribution_center: tr("مرکز توزیع", "مركز التوزيع", "Dağıtım merkezi", "Distribution center"),
+    retail_backroom: tr("انبار پشت فروشگاه", "مخزن خلفي للمتجر", "Mağaza arka deposu", "Retail backroom"),
+    other: tr("سایر", "أخرى", "Diğer", "Other"),
+  }[type] || type);
 
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -254,13 +263,13 @@ export default function Warehouses() {
             className="mb-0"
             value={createBranchId}
             onChange={(value) => setCreateBranchId(value)}
-            options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+            options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: pd(b.name) }))]}
           />
           <Select
             className="mb-0"
             value={createType}
             onChange={(value) => setCreateType(value)}
-            options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: t }))}
+            options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: warehouseTypeLabel(t) }))}
           />
           <button type="submit" disabled={creating} className={buttonClass}>
             <Plus size={16} />
@@ -279,7 +288,7 @@ export default function Warehouses() {
               <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
                 <div>
                   <div className="font-bold">
-                    {w.name}
+                    {pd(w.name)}
                     {w.is_default && (
                       <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-glow)] text-[var(--erp-accent)]">
                         {language === "fa" ? "پیش‌فرض" : language === "ar" ? "افتراضي" : language === "tr" ? "Varsayılan" : "Default"}
@@ -292,8 +301,8 @@ export default function Warehouses() {
                     )}
                   </div>
                   <div className="text-xs text-[var(--erp-muted)] flex gap-2">
-                    {w.code && <span>{w.code}</span>}
-                    {w.branch_id && <span>{branchName(w.branch_id)}</span>}
+                    {w.code && <span>{pd(w.code)}</span>}
+                    {w.branch_id && <span>{pd(branchName(w.branch_id))}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -326,27 +335,27 @@ export default function Warehouses() {
         <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
           <h2 id="warehouse-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش انبار", "تعديل المستودع", "Depoyu düzenle", "Edit warehouse")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={tr("نام", "الاسم", "Ad", "Name")} value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-            <input className={inputClass} placeholder={tr("کد", "الرمز", "Kod", "Code")} value={editDraft.code} onChange={(e) => setEditDraft({ ...editDraft, code: e.target.value })} />
+            <input className={inputClass} placeholder={tr("نام", "الاسم", "Ad", "Name")} value={pd(editDraft.name)} onChange={(e) => setEditDraft({ ...editDraft, name: pd(e.target.value) })} />
+            <input className={inputClass} placeholder={tr("کد", "الرمز", "Kod", "Code")} value={pd(editDraft.code)} onChange={(e) => setEditDraft({ ...editDraft, code: pd(e.target.value) })} />
             <Select
               className="mb-3"
               value={editDraft.branch_id}
               onChange={(value) => setEditDraft({ ...editDraft, branch_id: value })}
-              options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+              options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: pd(b.name) }))]}
             />
             <Select
               className="mb-3"
               value={editDraft.warehouse_type}
               onChange={(value) => setEditDraft({ ...editDraft, warehouse_type: value })}
-              options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: t }))}
+              options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: warehouseTypeLabel(t) }))}
             />
-            <input className={inputClass} placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={editDraft.address} onChange={(e) => setEditDraft({ ...editDraft, address: e.target.value })} />
-            <input className={inputClass} placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={editDraft.postal_code} onChange={(e) => setEditDraft({ ...editDraft, postal_code: e.target.value })} />
-            <input className={inputClass} placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={editDraft.phone} onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })} />
-            <input className={inputClass} placeholder={tr("مسئول انبار", "المسؤول", "Sorumlu kişi", "Responsible person")} value={editDraft.responsible_person} onChange={(e) => setEditDraft({ ...editDraft, responsible_person: e.target.value })} />
+            <input className={inputClass} placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={pd(editDraft.address)} onChange={(e) => setEditDraft({ ...editDraft, address: pd(e.target.value) })} />
+            <input className={inputClass} placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={pd(editDraft.postal_code)} onChange={(e) => setEditDraft({ ...editDraft, postal_code: pd(e.target.value) })} />
+            <input className={inputClass} placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={pd(editDraft.phone)} onChange={(e) => setEditDraft({ ...editDraft, phone: pd(e.target.value) })} />
+            <input className={inputClass} placeholder={tr("مسئول انبار", "المسؤول", "Sorumlu kişi", "Responsible person")} value={pd(editDraft.responsible_person)} onChange={(e) => setEditDraft({ ...editDraft, responsible_person: pd(e.target.value) })} />
             <input className={inputClass} type="number" step="any" placeholder={tr("ظرفیت", "السعة", "Kapasite", "Capacity")} value={editDraft.capacity} onChange={(e) => setEditDraft({ ...editDraft, capacity: e.target.value })} />
-            <input className={inputClass} placeholder={tr("واحد ظرفیت (مثلاً متر مربع)", "وحدة السعة", "Kapasite birimi", "Capacity unit")} value={editDraft.capacity_unit} onChange={(e) => setEditDraft({ ...editDraft, capacity_unit: e.target.value })} />
-            <textarea className={inputClass + " md:col-span-2"} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} value={editDraft.description} onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })} />
+            <input className={inputClass} placeholder={tr("واحد ظرفیت (مثلاً متر مربع)", "وحدة السعة", "Kapasite birimi", "Capacity unit")} value={pd(editDraft.capacity_unit)} onChange={(e) => setEditDraft({ ...editDraft, capacity_unit: pd(e.target.value) })} />
+            <textarea className={inputClass + " md:col-span-2"} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} value={pd(editDraft.description)} onChange={(e) => setEditDraft({ ...editDraft, description: pd(e.target.value) })} />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel)] border border-[var(--erp-border)]">
@@ -368,7 +377,7 @@ export default function Warehouses() {
             className="mb-3"
             value={transferProductId}
             onChange={(value) => setTransferProductId(value)}
-            options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: p.name }))]}
+            options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: pd(p.name) }))]}
           />
           <input
             type="text"
@@ -382,13 +391,13 @@ export default function Warehouses() {
             className="mb-3"
             value={fromWarehouseId}
             onChange={(value) => setFromWarehouseId(value)}
-            options={[{ value: "", label: language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))]}
+            options={[{ value: "", label: language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) }))]}
           />
           <Select
             className="mb-3"
             value={toWarehouseId}
             onChange={(value) => setToWarehouseId(value)}
-            options={[{ value: "", label: language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..." }, ...activeWarehouses.map((w) => ({ value: w.id, label: w.name }))]}
+            options={[{ value: "", label: language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..." }, ...activeWarehouses.map((w) => ({ value: w.id, label: pd(w.name) }))]}
           />
           <textarea
             className={inputClass + " md:col-span-2"}
@@ -409,7 +418,7 @@ export default function Warehouses() {
           className="mb-3"
           value={breakdownProductId}
           onChange={(value) => void loadBreakdown(value)}
-          options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: p.name }))]}
+          options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: pd(p.name) }))]}
         />
         {breakdown && (
           <div className="space-y-2 mt-3">
@@ -418,7 +427,7 @@ export default function Warehouses() {
             </p>
             {breakdown.by_warehouse.map((row) => (
               <div key={row.warehouse_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
-                <span>{row.warehouse_name}</span>
+                <span>{pd(row.warehouse_name)}</span>
                 <span className="font-black text-[var(--erp-accent)]">{n(row.quantity)}</span>
               </div>
             ))}
@@ -432,7 +441,7 @@ export default function Warehouses() {
           className="mb-3"
           value={browseWarehouseId}
           onChange={(value) => void loadWarehouseItems(value)}
-          options={[{ value: "", label: language === "fa" ? "انتخاب انبار..." : language === "ar" ? "اختيار المستودع..." : language === "tr" ? "Depo seçin..." : "Select warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))]}
+          options={[{ value: "", label: language === "fa" ? "انتخاب انبار..." : language === "ar" ? "اختيار المستودع..." : language === "tr" ? "Depo seçin..." : "Select warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) }))]}
         />
         {warehouseItems && (
           warehouseItems.items.length === 0 ? (
@@ -441,7 +450,7 @@ export default function Warehouses() {
             <div className="space-y-2 mt-3">
               {warehouseItems.items.map((item) => (
                 <div key={item.product_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
-                  <span>{item.product_name}</span>
+                  <span>{pd(item.product_name)}</span>
                   <span className="font-black text-[var(--erp-accent)]">{n(item.quantity)}</span>
                 </div>
               ))}

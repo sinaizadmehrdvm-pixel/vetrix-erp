@@ -99,7 +99,9 @@ export default function Select({ value, onChange, options, placeholder, classNam
           style={{
             top: "calc(100% + 6px)",
             insetInlineStart: 0,
-            insetInlineEnd: 0,
+            minWidth: "100%",
+            width: "max-content",
+            maxWidth: "min(480px, 90vw)",
             maxHeight: 260,
             overflowY: "auto",
             background: "var(--erp-panel-solid)",
