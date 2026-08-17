@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
@@ -6,20 +6,25 @@ export default function StatsCard({
   title,
   value,
   icon,
-  color = "#22d3ee",
+  color = "var(--erp-accent)",
   to,
 }) {
   const { dir } = useLanguage();
+  const reduceMotion = useReducedMotion();
   const Wrapper = to ? Link : "div";
   const wrapperProps = to ? { to } : {};
 
   return (
-    <motion.div whileHover={{ scale: 1.03 }} whileTap={to ? { scale: 0.98 } : undefined}>
+    <motion.div
+      whileHover={reduceMotion ? undefined : { y: -3 }}
+      whileTap={reduceMotion || !to ? undefined : { y: 0 }}
+      transition={{ duration: 0.15 }}
+    >
       <Wrapper
         {...wrapperProps}
         className="erp-surface"
         style={{
-          borderRadius: 24,
+          borderRadius: "var(--erp-radius-lg)",
           padding: 24,
           color: "var(--erp-text)",
           display: "flex",
@@ -46,9 +51,11 @@ export default function StatsCard({
           <div
             style={{
               color: "var(--erp-muted)",
-              marginBottom: 10,
-              fontSize: 14,
+              marginBottom: 8,
+              fontSize: 11,
               fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -59,10 +66,10 @@ export default function StatsCard({
 
           <div
             style={{
-              fontSize: "clamp(15px, 8.5cqi, 28px)",
-              fontWeight: "bold",
-              letterSpacing: 0.3,
-              lineHeight: 1.3,
+              fontSize: "clamp(16px, 9cqi, 30px)",
+              fontWeight: 900,
+              letterSpacing: 0.2,
+              lineHeight: 1.25,
               wordBreak: "keep-all",
               overflowWrap: "normal",
               color: "var(--erp-text)",
@@ -79,14 +86,15 @@ export default function StatsCard({
             minWidth: 70,
             minHeight: 70,
             flexShrink: 0,
-            borderRadius: 20,
-            background: color,
+            borderRadius: "var(--erp-radius-md)",
+            background: `color-mix(in srgb, ${color} 16%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 30,
-            color: "#071028",
-            boxShadow: `0 10px 30px ${color}55`,
+            color,
+            boxShadow: `0 10px 30px -12px color-mix(in srgb, ${color} 55%, transparent)`,
           }}
         >
           {icon}

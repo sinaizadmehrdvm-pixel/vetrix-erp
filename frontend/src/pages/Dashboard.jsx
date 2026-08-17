@@ -41,6 +41,7 @@ import {
   Boxes,
   Sparkles,
   ChevronDown,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -48,6 +49,7 @@ import { fetchAuthenticatedResource, getAiBiSummary, getDashboardStats, getRepor
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Notice from "../components/ui/Notice";
+import PageHeader from "../components/ui/PageHeader";
 import { TONE_STYLES } from "../components/ui/tones";
 
 
@@ -370,44 +372,37 @@ export default function Dashboard() {
         minHeight: "100vh",
         direction: dir,
         background:
-          "radial-gradient(circle at top left, var(--erp-glow), transparent 36%), radial-gradient(circle at top right, var(--erp-glow), transparent 34%), var(--erp-bg)",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 36%), radial-gradient(circle at top right, var(--erp-glow-gold), transparent 34%), var(--erp-bg)",
         backgroundSize: "160% 160%, 160% 160%, 100% 100%",
       }}
     >
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-7">
-        <div>
-          <h1 className="text-[var(--erp-accent)] text-4xl font-black mb-2 text-right">
-            {t("dashboard")}
-          </h1>
-          <div
-            aria-hidden="true"
-            className="mb-3"
-            style={{ width: 64, height: 3, borderRadius: 2, background: "linear-gradient(90deg, var(--erp-accent), var(--erp-accent-2))" }}
-          />
-          <p className="text-[var(--erp-muted)]">
-            {tr(
-              "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار",
-              "لوحة تحكم ذكية للمبيعات والسيولة والأرباح والمستحقات والتنبيهات ونمو الأعمال",
-              "Satış, nakit akışı, kâr, alacaklar, uyarılar ve iş büyümesi için akıllı panel",
-              "Smart dashboard for sales, cashflow, profit, receivables, alerts and business growth"
-            )}
-          </p>
-          {lastUpdate && (
-            <p className="text-xs text-[var(--erp-muted)] mt-2">
-              {tr("آخرین بروزرسانی: ", "آخر تحديث: ", "Son güncelleme: ", "Last update: ")}
-{time(lastUpdate)}
-            </p>
-          )}
-        </div>
-
-        <div className="flex gap-3 flex-wrap items-center">
-          <LiveClock />
-          <DateBadge />
+      <PageHeader
+        icon={LayoutDashboard}
+        title={t("dashboard")}
+        description={tr(
+          "داشبورد هوشمند فروش، نقدینگی، سود، مطالبات، هشدارها و رشد کسب‌وکار",
+          "لوحة تحكم ذكية للمبيعات والسيولة والأرباح والمستحقات والتنبيهات ونمو الأعمال",
+          "Satış, nakit akışı, kâr, alacaklar, uyarılar ve iş büyümesi için akıllı panel",
+          "Smart dashboard for sales, cashflow, profit, receivables, alerts and business growth"
+        )}
+        secondaryActions={
+          <>
+            <LiveClock />
+            <DateBadge />
+          </>
+        }
+        primaryAction={
           <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={loadDashboard}>
             {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </Button>
-        </div>
-      </div>
+        }
+      />
+      {lastUpdate && (
+        <p className="text-xs text-[var(--erp-muted)] -mt-4 mb-6" style={{ marginInlineStart: 54 }}>
+          {tr("آخرین بروزرسانی: ", "آخر تحديث: ", "Son güncelleme: ", "Last update: ")}
+          {time(lastUpdate)}
+        </p>
+      )}
 
       <ExecutiveAlertsPanel />
 
@@ -444,27 +439,27 @@ export default function Dashboard() {
       <ExportButtons />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginTop: 20, marginBottom: 30, direction: dir, alignItems: "stretch" }}>
-        <StatsCard to="/invoices" title={tr("فروش امروز", "مبيعات اليوم", "Bugünkü satış", "Sales today")} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="#22d3ee" />
-        <StatsCard to="/invoices" title={tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales this month")} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="#10b981" />
-        <StatsCard to="/invoices" title={tr("خرید ماه", "مشتريات الشهر", "Aylık alış", "Purchases this month")} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="#f59e0b" />
-        <StatsCard to="/receipts" title={tr("دریافت امروز", "مقبوضات اليوم", "Bugünkü tahsilat", "Receipts today")} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="#10b981" />
-        <StatsCard to="/payments" title={tr("پرداخت امروز", "مدفوعات اليوم", "Bugünkü ödeme", "Payments today")} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="#ef4444" />
-        <StatsCard to="/reports" title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "#22d3ee" : "#ef4444"} />
-        <StatsCard to="/invoices" title={tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="#f59e0b" />
-        <StatsCard to="/products" title={tr("کالاهای کم موجود", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock")} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="#ef4444" />
+        <StatsCard to="/invoices" title={tr("فروش امروز", "مبيعات اليوم", "Bugünkü satış", "Sales today")} value={money(todayMonth.sales_today || 0)} icon={<DollarSign />} color="var(--erp-accent)" />
+        <StatsCard to="/invoices" title={tr("فروش ماه", "مبيعات الشهر", "Aylık satış", "Sales this month")} value={money(todayMonth.sales_month || dashboardData.total_revenue || 0)} icon={<TrendingUp />} color="var(--erp-success)" />
+        <StatsCard to="/invoices" title={tr("خرید ماه", "مشتريات الشهر", "Aylık alış", "Purchases this month")} value={money(todayMonth.purchases_month || dashboardData.total_purchases || 0)} icon={<ShoppingCart />} color="var(--erp-warning)" />
+        <StatsCard to="/receipts" title={tr("دریافت امروز", "مقبوضات اليوم", "Bugünkü tahsilat", "Receipts today")} value={money(todayMonth.receipt_today || cash.receipt_today || 0)} icon={<Receipt />} color="var(--erp-success)" />
+        <StatsCard to="/payments" title={tr("پرداخت امروز", "مدفوعات اليوم", "Bugünkü ödeme", "Payments today")} value={money(todayMonth.payment_today || cash.payment_today || 0)} icon={<CreditCard />} color="var(--erp-danger)" />
+        <StatsCard to="/reports" title={tr("سود خالص", "صافي الربح", "Net kâr", "Net profit")} value={money(profit.net_profit ?? dashboardData.net_profit ?? 0)} icon={<TrendingUp />} color={netProfit >= 0 ? "var(--erp-accent)" : "var(--erp-danger)"} />
+        <StatsCard to="/invoices" title={tr("فاکتورهای باز", "الفواتير المفتوحة", "Açık faturalar", "Open invoices")} value={n(invoices.open_count || openInvoices.length || 0)} icon={<Wallet />} color="var(--erp-warning)" />
+        <StatsCard to="/products" title={tr("کالاهای کم موجود", "منتجات منخفضة المخزون", "Düşük stoklu ürünler", "Low stock")} value={n(inventory.low_stock_count ?? dashboardData.low_stock ?? 0)} icon={<AlertTriangle />} color="var(--erp-danger)" />
       </div>
 
-      <details className="group rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4">
+      <details className="group rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
         <summary className="cursor-pointer list-none rounded-[var(--erp-radius-md)] bg-[var(--erp-panel-solid)] px-4 py-3 text-[var(--erp-accent)] font-black flex items-center justify-between gap-3">
           <span>{tr("نمایش جزئیات و تحلیل‌های بیشتر", "عرض المزيد من التفاصيل والتحليلات", "Daha fazla ayrıntı ve analiz göster", "Show more details and analytics")}</span>
           <ChevronDown className="transition-transform group-open:rotate-180" size={20} />
         </summary>
         <div className="pt-4">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 20, marginBottom: 30, direction: dir }}>
-        <StatsCard to="/invoices" title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="#6366f1" />
-        <StatsCard to="/customers" title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="#10b981" />
-        <StatsCard to="/products" title={t("products")} value={n(dashboardData.products_count || 0)} icon={<Package />} color="#f59e0b" />
-        <StatsCard to="/products" title={tr("ارزش موجودی", "قيمة المخزون", "Envanter değeri", "Inventory value")} value={money(inventory.inventory_value || 0)} icon={<Package />} color="#22d3ee" />
+        <StatsCard to="/invoices" title={t("invoices")} value={n(dashboardData.invoices_count || 0)} icon={<ShoppingCart />} color="var(--erp-accent-2)" />
+        <StatsCard to="/customers" title={t("customers")} value={n(dashboardData.customers_count || 0)} icon={<Users />} color="var(--erp-success)" />
+        <StatsCard to="/products" title={t("products")} value={n(dashboardData.products_count || 0)} icon={<Package />} color="var(--erp-warning)" />
+        <StatsCard to="/products" title={tr("ارزش موجودی", "قيمة المخزون", "Envanter değeri", "Inventory value")} value={money(inventory.inventory_value || 0)} icon={<Package />} color="var(--erp-accent)" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mb-5">
@@ -501,9 +496,16 @@ function ExecutiveHero({ language, money, n, score, netProfit, profitMargin, ope
   const scoreLabel = score >= 75 ? tr("عالی", "ممتاز", "Mükemmel", "Excellent") : score >= 45 ? tr("نیازمند توجه", "يحتاج إلى اهتمام", "Dikkat gerektiriyor", "Needs attention") : tr("بحرانی", "حرج", "Kritik", "Critical");
 
   return (
-    <div className="relative overflow-hidden rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-6" style={{ boxShadow: "var(--erp-shadow)" }}>
-      <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl" />
+    <div
+      className="relative overflow-hidden rounded-[var(--erp-radius-lg)] border p-6"
+      style={{
+        borderColor: "color-mix(in srgb, var(--erp-accent) 22%, var(--erp-border))",
+        background: "var(--erp-bg-soft)",
+        boxShadow: "var(--erp-elevation-2)",
+      }}
+    >
+      <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full blur-3xl" style={{ background: "color-mix(in srgb, var(--erp-accent) 10%, transparent)" }} />
+      <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl" style={{ background: "color-mix(in srgb, var(--erp-accent-2) 10%, transparent)" }} />
 
       <div className="relative flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -577,7 +579,7 @@ function SmartAlertCenter({ language, alerts }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
-    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5" style={{ boxShadow: "var(--erp-shadow)" }}>
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
           <BellRing />
@@ -616,7 +618,7 @@ function QuickActions({ language, actions }) {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   return (
-    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5">
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-4 mb-5" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
       <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black mb-3">
         <Sparkles size={20} />
         {tr("دسترسی سریع عملیاتی", "إجراءات سريعة", "Hızlı işlemler", "Quick actions")}
@@ -676,7 +678,7 @@ function BusinessPulse({ language, n, money, reports, stats }) {
   ];
 
   return (
-    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 h-full flex flex-col" style={{ boxShadow: "var(--erp-shadow)" }}>
+    <div className="rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-bg-soft)] p-5 h-full flex flex-col" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
       <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4">
         {tr("نبض کسب‌وکار", "نبض الأعمال", "İş nabzı", "Business pulse")}
       </h2>

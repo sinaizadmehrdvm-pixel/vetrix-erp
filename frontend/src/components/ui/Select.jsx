@@ -10,7 +10,12 @@ import { Check, ChevronDown } from "lucide-react";
 // from a collapsed state" looks like the rest of the app instead of a
 // flat OS rectangle. Keyboard-operable (arrow keys, Enter, Escape) and
 // exposes the standard ARIA listbox pattern.
-export default function Select({ value, onChange, options, placeholder, className = "", disabled = false }) {
+// `variant="flush"` strips the trigger's own border/background/radius so
+// it can be embedded as a bare row inside a parent that already supplies
+// that chrome (Sidebar's context zone) - the floating popup keeps its own
+// full "erp-surface" treatment either way, since it's absolutely
+// positioned and needs to read as its own elevated surface regardless.
+export default function Select({ value, onChange, options, placeholder, className = "", disabled = false, variant = "default" }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef(null);
@@ -76,16 +81,21 @@ export default function Select({ value, onChange, options, placeholder, classNam
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 erp-focus"
-        style={{
-          background: "var(--erp-panel-solid)",
-          color: "var(--erp-text)",
-          border: "1px solid var(--erp-border)",
-          borderRadius: "var(--erp-radius-md)",
-          padding: "10px 12px",
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
+        className={`w-full flex items-center justify-between gap-2 ${variant === "flush" ? "" : "vitalix-control-inset"}`}
+        style={
+          variant === "flush"
+            ? { background: "transparent", color: "var(--erp-text)", border: "1px solid transparent", padding: 0, opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer" }
+            : {
+                background: "var(--erp-panel-solid)",
+                color: "var(--erp-text)",
+                border: "1px solid var(--erp-border)",
+                borderRadius: "var(--erp-radius-md)",
+                padding: "10px 12px",
+                minHeight: 44,
+                opacity: disabled ? 0.5 : 1,
+                cursor: disabled ? "not-allowed" : "pointer",
+              }
+        }
       >
         <span className="truncate">{selected ? selected.label : (placeholder || "")}</span>
         <ChevronDown size={16} style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
@@ -95,7 +105,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
         <ul
           ref={listRef}
           role="listbox"
-          className="absolute z-30"
+          className="absolute z-30 erp-surface"
           style={{
             top: "calc(100% + 6px)",
             insetInlineStart: 0,
@@ -104,10 +114,8 @@ export default function Select({ value, onChange, options, placeholder, classNam
             maxWidth: "min(480px, 90vw)",
             maxHeight: 260,
             overflowY: "auto",
-            background: "var(--erp-panel-solid)",
-            border: "1px solid var(--erp-border)",
             borderRadius: "var(--erp-radius-md)",
-            boxShadow: "var(--erp-shadow)",
+            boxShadow: "var(--erp-elevation-3), inset 0 1px 0 0 var(--erp-surface-highlight)",
             padding: 6,
             margin: 0,
             listStyle: "none",

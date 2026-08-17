@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 // fight that rule, via Tailwind's `!` important modifier.
 const VARIANT_CLASSES = {
   primary:
-    "vitalix-btn-sweep bg-[var(--erp-accent)] text-[#04121b] hover:brightness-110 active:brightness-95",
+    "vitalix-btn-sweep bg-[var(--erp-accent)] text-[var(--erp-on-accent)] hover:brightness-110 active:brightness-95",
   secondary:
     "bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] border border-[var(--erp-border)] hover:bg-[var(--erp-glow)]",
   ghost:
@@ -20,7 +20,7 @@ const VARIANT_CLASSES = {
   success:
     "bg-[var(--erp-success-soft)] text-[var(--erp-success)] hover:brightness-110",
   accent:
-    "vitalix-btn-sweep text-[#04121b] hover:brightness-110 active:brightness-95",
+    "vitalix-btn-sweep text-[var(--erp-on-accent)] hover:brightness-110 active:brightness-95",
 };
 
 const VARIANT_STYLE = {

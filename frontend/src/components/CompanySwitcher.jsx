@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { getCompanies, switchCompany } from "../services/companiesApi";
 import Select from "./ui/Select";
+import Tooltip from "./ui/Tooltip";
 
 // Milestone 4: only a super-admin can act inside more than one company's
 // context. Everyone else is permanently bound to their own company via
@@ -40,27 +41,29 @@ export default function CompanySwitcher() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        background: "var(--erp-panel-solid)",
-        border: "1px solid var(--erp-border)",
-        borderRadius: 18,
-        padding: "10px 14px",
-        color: "var(--erp-text)",
-      }}
-      title={fa ? "سوپرادمین: سوییچ کانتکست شرکت" : ar ? "مسؤول عام: تبديل سياق الشركة" : trk ? "Süper yönetici: şirket bağlamını değiştir" : "Super-admin: switch company context"}
+    <Tooltip
+      side="end"
+      label={fa ? "سوپرادمین: سوییچ کانتکست شرکت" : ar ? "مسؤول عام: تبديل سياق الشركة" : trk ? "Süper yönetici: şirket bağlamını değiştir" : "Super-admin: switch company context"}
     >
-      <Building2 size={18} color="var(--erp-accent)" />
-      <Select
-        value={activeCompany?.id || ""}
-        disabled={busy || !companies.length}
-        onChange={handleChange}
-        options={companies.map((company) => ({ value: company.id, label: company.name }))}
-        className="min-w-0"
-      />
-    </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "8px 12px",
+          color: "var(--erp-text)",
+        }}
+      >
+        <Building2 size={16} color="var(--erp-accent)" style={{ flexShrink: 0 }} />
+        <Select
+          variant="flush"
+          value={activeCompany?.id || ""}
+          disabled={busy || !companies.length}
+          onChange={handleChange}
+          options={companies.map((company) => ({ value: company.id, label: company.name }))}
+          className="min-w-0"
+        />
+      </div>
+    </Tooltip>
   );
 }

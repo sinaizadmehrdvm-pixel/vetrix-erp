@@ -2,26 +2,54 @@
 // nearly every page (Settings.jsx, SystemHealth.jsx, etc.) into one real,
 // token-driven component so radius/shadow/border/padding stay consistent
 // app-wide instead of being reinvented per page.
+//
+// `tone` gives semantic cards (kpi/info/warning/danger/success/
+// interactive) a restrained 2px block-start accent edge instead of each
+// page inventing its own colored-border card - no new components, just a
+// color lookup on the same shared surface. `level` distinguishes a major
+// page section (1, flat bg-soft) from a card/table/module (2, the default
+// translucent "glass" erp-surface look) per the app's depth system.
+const TONE_EDGE = {
+  kpi: "var(--erp-accent)",
+  info: "var(--erp-accent)",
+  success: "var(--erp-success)",
+  warning: "var(--erp-warning)",
+  danger: "var(--erp-danger)",
+  interactive: "var(--erp-accent-2)",
+};
+
 export default function Card({
   icon: Icon,
   title,
   action,
   padding = true,
-  hover = false,
+  hover,
   accent = false,
+  tone,
+  level = 2,
   className = "",
   children,
   ...rest
 }) {
   const hasHeader = Boolean(Icon || title || action);
+  const isHover = hover ?? tone === "interactive";
+  // `accent`'s border-image needs a uniform border-width to slice cleanly,
+  // so it wins outright over `tone`'s 2px block-start edge rather than the
+  // two fighting over the same top border - a page asking for both gets
+  // the gradient border-image (the pre-existing, more established prop).
+  const toneEdge = tone && !accent ? TONE_EDGE[tone] : undefined;
 
   return (
     <div
-      className={["erp-surface", hover ? "erp-surface-hover" : "", className].join(" ").trim()}
+      className={[
+        level === 1 ? "erp-level-1" : "erp-surface",
+        isHover ? "erp-surface-hover" : "",
+        className,
+      ].join(" ").trim()}
       style={{
         borderRadius: "var(--erp-radius-lg)",
-        boxShadow: "var(--erp-elevation-1)",
         borderImage: accent ? "linear-gradient(120deg, var(--erp-accent), var(--erp-accent-2)) 1" : undefined,
+        borderBlockStart: toneEdge ? `2px solid ${toneEdge}` : undefined,
         overflow: "hidden",
       }}
       {...rest}

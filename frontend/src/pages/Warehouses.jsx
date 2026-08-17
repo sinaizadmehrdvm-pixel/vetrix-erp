@@ -18,10 +18,13 @@ import {
 } from "../services/api";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
-
-const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
-const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Tooltip from "../components/ui/Tooltip";
+import PageHeader from "../components/ui/PageHeader";
+import { Input, Textarea } from "../components/ui/Field";
+import Skeleton from "../components/ui/Skeleton";
 
 const WAREHOUSE_TYPES = ["main", "branch_stockroom", "distribution_center", "retail_backroom", "other"];
 
@@ -236,184 +239,193 @@ export default function Warehouses() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
-      <h1 className="text-2xl font-black flex items-center gap-2">
-        <WarehouseIcon className="text-[var(--erp-accent)]" />
-        {language === "fa" ? "شعبه‌ها و انبارهای متعدد" : language === "ar" ? "الفروع والمستودعات المتعددة" : language === "tr" ? "Çoklu şube ve depolar" : "Multi-branch warehouses"}
-      </h1>
+    <div dir={dir} className="p-4 md:p-6 space-y-5 text-[var(--erp-text)]">
+      <PageHeader
+        icon={WarehouseIcon}
+        title={language === "fa" ? "شعبه‌ها و انبارهای متعدد" : language === "ar" ? "الفروع والمستودعات المتعددة" : language === "tr" ? "Çoklu şube ve depolar" : "Multi-branch warehouses"}
+        description={
+          language === "fa"
+            ? "ساخت، ویرایش و انتقال موجودی بین انبارها و شعبه‌ها"
+            : language === "ar"
+            ? "إنشاء المستودعات وتعديلها ونقل المخزون بينها"
+            : language === "tr"
+            ? "Depo/şube oluşturma, düzenleme ve depolar arası stok transferi"
+            : "Create, edit and transfer stock across warehouses and branches"
+        }
+      />
 
-      <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Plus size={18} /> {language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}
-        </h2>
+      <Card icon={Plus} title={language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}>
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <input
-            className={inputClass + " mb-0"}
+          <Input
             placeholder={language === "fa" ? "نام انبار (مثلاً «شعبه شمال»)" : language === "ar" ? "اسم المستودع (مثال: «الفرع الشمالي»)" : language === "tr" ? "Depo adı (örn. \"Kuzey şubesi\")" : "Warehouse name (e.g. \"North branch\")"}
             value={name}
             onChange={(e) => setName(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
-          <input
-            className={inputClass + " mb-0"}
+          <Input
             placeholder={language === "fa" ? "کد (اختیاری)" : language === "ar" ? "الرمز (اختياري)" : language === "tr" ? "Kod (isteğe bağlı)" : "Code (optional)"}
             value={code}
             onChange={(e) => setCode(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
           <Select
-            className="mb-0"
             value={createBranchId}
             onChange={(value) => setCreateBranchId(value)}
             options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: pd(b.name) }))]}
           />
           <Select
-            className="mb-0"
             value={createType}
             onChange={(value) => setCreateType(value)}
             options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: warehouseTypeLabel(t) }))}
           />
-          <button type="submit" disabled={creating} className={buttonClass}>
-            <Plus size={16} />
+          <Button type="submit" loading={creating} icon={Plus} className="md:col-span-4 justify-self-start">
             {creating ? (language === "fa" ? "در حال ساخت..." : language === "ar" ? "جارٍ الإنشاء..." : language === "tr" ? "Oluşturuluyor..." : "Creating...") : (language === "fa" ? "ساخت" : language === "ar" ? "إنشاء" : language === "tr" ? "Oluştur" : "Create")}
-          </button>
+          </Button>
         </form>
-      </section>
+      </Card>
 
-      <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "لیست انبارها" : language === "ar" ? "المستودعات" : language === "tr" ? "Depolar" : "Warehouses"}</h2>
+      <Card title={language === "fa" ? "لیست انبارها" : language === "ar" ? "المستودعات" : language === "tr" ? "Depolar" : "Warehouses"}>
         {loading ? (
-          <p className="text-[var(--erp-muted)]">{language === "fa" ? "در حال بارگذاری..." : language === "ar" ? "جارٍ التحميل..." : language === "tr" ? "Yükleniyor..." : "Loading..."}</p>
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} height={64} radius="var(--erp-radius-md)" />
+            ))}
+          </div>
         ) : (
           <div className="space-y-2">
             {warehouses.map((w) => (
-              <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
-                <div>
-                  <div className="font-bold">
-                    {pd(w.name)}
-                    {w.is_default && (
-                      <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-[var(--erp-glow)] text-[var(--erp-accent)]">
-                        {language === "fa" ? "پیش‌فرض" : language === "ar" ? "افتراضي" : language === "tr" ? "Varsayılan" : "Default"}
-                      </span>
-                    )}
-                    {!w.active && (
-                      <span className="ms-2 text-xs px-2 py-1 rounded-lg bg-red-500/15 text-red-200">
-                        {language === "fa" ? "غیرفعال" : language === "ar" ? "غير نشط" : language === "tr" ? "Pasif" : "Inactive"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-[var(--erp-muted)] flex gap-2">
-                    {w.code && <span>{pd(w.code)}</span>}
-                    {w.branch_id && <span>{pd(branchName(w.branch_id))}</span>}
+              <div
+                key={w.id}
+                className="erp-level-1 erp-table-row flex flex-wrap items-center justify-between gap-3 rounded-[var(--erp-radius-md)] px-4 py-2.5 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="inline-flex items-center justify-center shrink-0"
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: "var(--erp-radius-sm)",
+                      background: "var(--erp-glow)",
+                      color: "var(--erp-accent)",
+                    }}
+                  >
+                    <WarehouseIcon size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-bold flex items-center gap-2 flex-wrap">
+                      {pd(w.name)}
+                      {w.is_default && (
+                        <Badge tone="info">
+                          {language === "fa" ? "پیش‌فرض" : language === "ar" ? "افتراضي" : language === "tr" ? "Varsayılan" : "Default"}
+                        </Badge>
+                      )}
+                      {!w.active && (
+                        <Badge tone="danger">
+                          {language === "fa" ? "غیرفعال" : language === "ar" ? "غير نشط" : language === "tr" ? "Pasif" : "Inactive"}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-[var(--erp-muted)] flex gap-2">
+                      {w.code && <span>{pd(w.code)}</span>}
+                      {w.branch_id && <span>{pd(branchName(w.branch_id))}</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => openEdit(w)} className="p-2 rounded-xl bg-[var(--erp-panel)] border border-[var(--erp-border)]" title={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
-                    <Pencil size={14} />
-                  </button>
+                  <Tooltip side="top" label={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
+                    <Button variant="secondary" size="sm" icon={Pencil} aria-label={tr("ویرایش", "تعديل", "Düzenle", "Edit")} onClick={() => openEdit(w)} />
+                  </Tooltip>
                   {!w.is_default && (w.active ? (
-                    <button
-                      onClick={() => handleDeactivate(w.id)}
-                      className="px-3 py-2 rounded-xl bg-red-500/15 text-red-200 text-sm font-bold flex items-center gap-1"
-                    >
-                      <ShieldOff size={14} /> {language === "fa" ? "غیرفعال کردن" : language === "ar" ? "إلغاء التفعيل" : language === "tr" ? "Devre Dışı Bırak" : "Deactivate"}
-                    </button>
+                    <Button variant="danger" size="sm" icon={ShieldOff} onClick={() => handleDeactivate(w.id)}>
+                      {language === "fa" ? "غیرفعال کردن" : language === "ar" ? "إلغاء التفعيل" : language === "tr" ? "Devre Dışı Bırak" : "Deactivate"}
+                    </Button>
                   ) : (
-                    <button
-                      onClick={() => handleActivate(w.id)}
-                      className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-300 text-sm font-bold flex items-center gap-1"
-                    >
-                      <ShieldCheck size={14} /> {tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
-                    </button>
+                    <Button variant="success" size="sm" icon={ShieldCheck} onClick={() => handleActivate(w.id)}>
+                      {tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
+                    </Button>
                   ))}
                 </div>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
       <Modal open={editOpen} onClose={() => setEditOpen(false)} maxWidthClassName="max-w-2xl" labelledBy="warehouse-edit-title">
         <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
           <h2 id="warehouse-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش انبار", "تعديل المستودع", "Depoyu düzenle", "Edit warehouse")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={tr("نام", "الاسم", "Ad", "Name")} value={pd(editDraft.name)} onChange={(e) => setEditDraft({ ...editDraft, name: pd(e.target.value) })} />
-            <input className={inputClass} placeholder={tr("کد", "الرمز", "Kod", "Code")} value={pd(editDraft.code)} onChange={(e) => setEditDraft({ ...editDraft, code: pd(e.target.value) })} />
+            <Input placeholder={tr("نام", "الاسم", "Ad", "Name")} value={pd(editDraft.name)} onChange={(e) => setEditDraft({ ...editDraft, name: pd(e.target.value) })} />
+            <Input placeholder={tr("کد", "الرمز", "Kod", "Code")} value={pd(editDraft.code)} onChange={(e) => setEditDraft({ ...editDraft, code: pd(e.target.value) })} />
             <Select
-              className="mb-3"
               value={editDraft.branch_id}
               onChange={(value) => setEditDraft({ ...editDraft, branch_id: value })}
               options={[{ value: "", label: tr("بدون شعبه", "بدون فرع", "Şubesiz", "No branch") }, ...branches.map((b) => ({ value: b.id, label: pd(b.name) }))]}
             />
             <Select
-              className="mb-3"
               value={editDraft.warehouse_type}
               onChange={(value) => setEditDraft({ ...editDraft, warehouse_type: value })}
               options={WAREHOUSE_TYPES.map((t) => ({ value: t, label: warehouseTypeLabel(t) }))}
             />
-            <input className={inputClass} placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={pd(editDraft.address)} onChange={(e) => setEditDraft({ ...editDraft, address: pd(e.target.value) })} />
-            <input className={inputClass} placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={pd(editDraft.postal_code)} onChange={(e) => setEditDraft({ ...editDraft, postal_code: pd(e.target.value) })} />
-            <input className={inputClass} placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={pd(editDraft.phone)} onChange={(e) => setEditDraft({ ...editDraft, phone: pd(e.target.value) })} />
-            <input className={inputClass} placeholder={tr("مسئول انبار", "المسؤول", "Sorumlu kişi", "Responsible person")} value={pd(editDraft.responsible_person)} onChange={(e) => setEditDraft({ ...editDraft, responsible_person: pd(e.target.value) })} />
-            <input className={inputClass} type="number" step="any" placeholder={tr("ظرفیت", "السعة", "Kapasite", "Capacity")} value={editDraft.capacity} onChange={(e) => setEditDraft({ ...editDraft, capacity: e.target.value })} />
-            <input className={inputClass} placeholder={tr("واحد ظرفیت (مثلاً متر مربع)", "وحدة السعة", "Kapasite birimi", "Capacity unit")} value={pd(editDraft.capacity_unit)} onChange={(e) => setEditDraft({ ...editDraft, capacity_unit: pd(e.target.value) })} />
-            <textarea className={inputClass + " md:col-span-2"} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} value={pd(editDraft.description)} onChange={(e) => setEditDraft({ ...editDraft, description: pd(e.target.value) })} />
+            <Input placeholder={tr("آدرس", "العنوان", "Adres", "Address")} value={pd(editDraft.address)} onChange={(e) => setEditDraft({ ...editDraft, address: pd(e.target.value) })} />
+            <Input placeholder={tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")} value={pd(editDraft.postal_code)} onChange={(e) => setEditDraft({ ...editDraft, postal_code: pd(e.target.value) })} />
+            <Input placeholder={tr("تلفن", "الهاتف", "Telefon", "Phone")} value={pd(editDraft.phone)} onChange={(e) => setEditDraft({ ...editDraft, phone: pd(e.target.value) })} />
+            <Input placeholder={tr("مسئول انبار", "المسؤول", "Sorumlu kişi", "Responsible person")} value={pd(editDraft.responsible_person)} onChange={(e) => setEditDraft({ ...editDraft, responsible_person: pd(e.target.value) })} />
+            <Input type="number" step="any" placeholder={tr("ظرفیت", "السعة", "Kapasite", "Capacity")} value={editDraft.capacity} onChange={(e) => setEditDraft({ ...editDraft, capacity: e.target.value })} />
+            <Input placeholder={tr("واحد ظرفیت (مثلاً متر مربع)", "وحدة السعة", "Kapasite birimi", "Capacity unit")} value={pd(editDraft.capacity_unit)} onChange={(e) => setEditDraft({ ...editDraft, capacity_unit: pd(e.target.value) })} />
+            <Textarea
+              className="md:col-span-2"
+              placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")}
+              value={pd(editDraft.description)}
+              onChange={(e) => setEditDraft({ ...editDraft, description: pd(e.target.value) })}
+            />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel)] border border-[var(--erp-border)]">
+            <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
               {tr("انصراف", "إلغاء", "İptal", "Cancel")}
-            </button>
-            <button type="submit" disabled={savingEdit} className={buttonClass}>
+            </Button>
+            <Button type="submit" loading={savingEdit}>
               {savingEdit ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
 
-      <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <ArrowRightLeft size={18} /> {language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}
-        </h2>
+      <Card icon={ArrowRightLeft} title={language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}>
         <form onSubmit={handleTransfer} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Select
-            className="mb-3"
             value={transferProductId}
             onChange={(value) => setTransferProductId(value)}
             options={[{ value: "", label: language === "fa" ? "انتخاب کالا..." : language === "ar" ? "اختيار المنتج..." : language === "tr" ? "Ürün seçin..." : "Select product..." }, ...products.map((p) => ({ value: p.id, label: pd(p.name) }))]}
           />
-          <input
+          <Input
             type="text"
             inputMode="numeric"
-            className={inputClass}
             placeholder={language === "fa" ? "تعداد" : language === "ar" ? "الكمية" : language === "tr" ? "Miktar" : "Quantity"}
             value={language === "fa" ? toPersianDigits(quantity) : quantity}
             onChange={(e) => setQuantity(cleanNumberInput(e.target.value))}
           />
           <Select
-            className="mb-3"
             value={fromWarehouseId}
             onChange={(value) => setFromWarehouseId(value)}
             options={[{ value: "", label: language === "fa" ? "از انبار..." : language === "ar" ? "من المستودع..." : language === "tr" ? "Kaynak depo..." : "From warehouse..." }, ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) }))]}
           />
           <Select
-            className="mb-3"
             value={toWarehouseId}
             onChange={(value) => setToWarehouseId(value)}
             options={[{ value: "", label: language === "fa" ? "به انبار..." : language === "ar" ? "إلى المستودع..." : language === "tr" ? "Hedef depo..." : "To warehouse..." }, ...activeWarehouses.map((w) => ({ value: w.id, label: pd(w.name) }))]}
           />
-          <textarea
-            className={inputClass + " md:col-span-2"}
+          <Textarea
+            className="md:col-span-2"
             placeholder={language === "fa" ? "یادداشت (اختیاری)" : language === "ar" ? "ملاحظة (اختياري)" : language === "tr" ? "Not (isteğe bağlı)" : "Note (optional)"}
             value={note}
             onChange={(e) => setNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
           />
-          <button type="submit" disabled={transferring} className={buttonClass}>
-            <ArrowRightLeft size={16} />
+          <Button type="submit" loading={transferring} icon={ArrowRightLeft} className="md:col-span-2 justify-self-start">
             {transferring ? (language === "fa" ? "در حال انتقال..." : language === "ar" ? "جارٍ النقل..." : language === "tr" ? "Transfer ediliyor..." : "Transferring...") : (language === "fa" ? "انتقال" : language === "ar" ? "نقل" : language === "tr" ? "Transfer" : "Transfer")}
-          </button>
+          </Button>
         </form>
-      </section>
+      </Card>
 
-      <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}</h2>
+      <Card title={language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}>
         <Select
           className="mb-3"
           value={breakdownProductId}
@@ -426,17 +438,16 @@ export default function Warehouses() {
               {language === "fa" ? "مجموع کل: " : language === "ar" ? "الإجمالي: " : language === "tr" ? "Toplam: " : "Total: "}{n(breakdown.total)}
             </p>
             {breakdown.by_warehouse.map((row) => (
-              <div key={row.warehouse_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
+              <div key={row.warehouse_id} className="erp-level-1 erp-table-row flex items-center justify-between rounded-[var(--erp-radius-md)] px-4 py-2.5 transition-colors">
                 <span>{pd(row.warehouse_name)}</span>
                 <span className="font-black text-[var(--erp-accent)]">{n(row.quantity)}</span>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className={cardClass}>
-        <h2 className="text-lg font-bold mb-4">{language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}</h2>
+      <Card title={language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}>
         <Select
           className="mb-3"
           value={browseWarehouseId}
@@ -449,7 +460,7 @@ export default function Warehouses() {
           ) : (
             <div className="space-y-2 mt-3">
               {warehouseItems.items.map((item) => (
-                <div key={item.product_id} className="flex items-center justify-between rounded-xl bg-[var(--erp-panel-solid)] px-4 py-3">
+                <div key={item.product_id} className="erp-level-1 erp-table-row flex items-center justify-between rounded-[var(--erp-radius-md)] px-4 py-2.5 transition-colors">
                   <span>{pd(item.product_name)}</span>
                   <span className="font-black text-[var(--erp-accent)]">{n(item.quantity)}</span>
                 </div>
@@ -457,7 +468,7 @@ export default function Warehouses() {
             </div>
           )
         )}
-      </section>
+      </Card>
     </div>
   );
 }

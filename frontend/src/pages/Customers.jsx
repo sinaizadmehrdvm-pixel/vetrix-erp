@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Filter,
   LocateFixed,
+  UsersRound,
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -56,6 +57,8 @@ import { Input } from "../components/ui/Field";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow, SortableTh } from "../components/ui/Table";
 import Select from "../components/ui/Select";
 import Modal from "../components/ui/Modal";
+import Tooltip from "../components/ui/Tooltip";
+import PageHeader from "../components/ui/PageHeader";
 import { confirmAction } from "../components/ui/confirmService";
 import toast from "react-hot-toast";
 
@@ -969,30 +972,30 @@ export default function Customers() {
 
   return (
     <div dir={dir} className="space-y-6" style={{ direction: dir }}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{t("parties")}</h1>
-          <p className="text-[var(--erp-muted)] mt-2">
-            {fa
-              ? "مدیریت طرف‌حساب‌ها، بدهکار، بستانکار، مانده حساب و پرونده مالی"
-              : "Manage parties, debtors, creditors, balances and financial profiles"}
-          </p>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
+      <PageHeader
+        icon={UsersRound}
+        title={t("parties")}
+        description={
+          fa
+            ? "مدیریت طرف‌حساب‌ها، بدهکار، بستانکار، مانده حساب و پرونده مالی"
+            : "Manage parties, debtors, creditors, balances and financial profiles"
+        }
+        secondaryActions={
+          <>
+            <Button variant="secondary" icon={Download} onClick={exportCrmCsv}>
+              {exportLabels.csv}
+            </Button>
+            <Button variant="danger" icon={AlertTriangle} onClick={resetAllAccounting}>
+              {fa ? "پاکسازی تست‌ها" : language === "ar" ? "مسح بيانات الاختبار" : language === "tr" ? "Test verilerini temizle" : "Clear test data"}
+            </Button>
+          </>
+        }
+        primaryAction={
           <Button variant="secondary" icon={RefreshCcw} onClick={load}>
             {fa ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
           </Button>
-
-          <Button variant="secondary" icon={Download} onClick={exportCrmCsv}>
-            {exportLabels.csv}
-          </Button>
-
-          <Button variant="danger" icon={AlertTriangle} onClick={resetAllAccounting}>
-            {fa ? "پاکسازی تست‌ها" : language === "ar" ? "مسح بيانات الاختبار" : language === "tr" ? "Test verilerini temizle" : "Clear test data"}
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {message && (
         <Notice tone={offlineMode ? "warning" : "danger"}>{message}</Notice>
@@ -1045,7 +1048,7 @@ export default function Customers() {
           title={fa ? "مشتریان VIP" : language === "ar" ? "عملاء VIP" : language === "tr" ? "VIP müşteriler" : "VIP customers"}
           value={summary.vipCount}
           isCount
-          color="#fde047"
+          color="var(--erp-accent-2)"
           onClick={() => applyCardFilter({ crm: "vip" })}
           active={filters.crm === "vip"}
           ariaLabel={fa ? "نمایش فقط مشتریان VIP" : "Show VIP customers only"}
@@ -1080,7 +1083,7 @@ export default function Customers() {
         summary={summary}
       />
 
-      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Input
             placeholder={t("party")}
@@ -1187,21 +1190,26 @@ export default function Customers() {
               value={faText(form.longitude, fa)}
               onChange={(e) => setForm({ ...form, longitude: faText(e.target.value, fa) })}
             />
-            <button
-              type="button"
-              title={fa ? "استفاده از موقعیت فعلی" : language === "ar" ? "استخدام الموقع الحالي" : language === "tr" ? "Mevcut konumu kullan" : "Use my current location"}
-              onClick={() => {
-                if (!navigator.geolocation) return;
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => setForm((prev) => ({ ...prev, latitude: faText(String(pos.coords.latitude), fa), longitude: faText(String(pos.coords.longitude), fa) })),
-                  () => {},
-                  { enableHighAccuracy: true, timeout: 10000 }
-                );
-              }}
-              className="shrink-0 px-3 rounded-xl border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"
+            <Tooltip
+              side="top"
+              label={fa ? "استفاده از موقعیت فعلی" : language === "ar" ? "استخدام الموقع الحالي" : language === "tr" ? "Mevcut konumu kullan" : "Use my current location"}
             >
-              <LocateFixed size={16} />
-            </button>
+              <button
+                type="button"
+                aria-label={fa ? "استفاده از موقعیت فعلی" : language === "ar" ? "استخدام الموقع الحالي" : language === "tr" ? "Mevcut konumu kullan" : "Use my current location"}
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => setForm((prev) => ({ ...prev, latitude: faText(String(pos.coords.latitude), fa), longitude: faText(String(pos.coords.longitude), fa) })),
+                    () => {},
+                    { enableHighAccuracy: true, timeout: 10000 }
+                  );
+                }}
+                className="shrink-0 px-3 rounded-xl border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"
+              >
+                <LocateFixed size={16} />
+              </button>
+            </Tooltip>
           </div>
 
           <Input
@@ -1305,7 +1313,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <div ref={tableTopRef} className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5">
+      <div ref={tableTopRef} className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
         <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] px-4 py-3 mb-3">
           <Search size={20} className="text-[var(--erp-accent)] shrink-0" />
 
@@ -1750,7 +1758,10 @@ function CrmOverview({ fa, language, n, parties, summary }) {
   const averageScore = parties.length ? Math.round(summary.scoreSum / parties.length) : 0;
 
   return (
-    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5 shadow-2xl">
+    <div
+      className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5"
+      style={{ boxShadow: "var(--erp-elevation-2), inset 0 1px 0 0 var(--erp-surface-highlight)" }}
+    >
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <div>
           <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
@@ -1841,8 +1852,11 @@ function SummaryCard({ icon, title, value, suffix, color, colorClassName, isCoun
       }}
       aria-label={ariaLabel}
       aria-pressed={active}
-      className="bg-[var(--erp-bg-soft)] border rounded-[var(--erp-radius-lg)] p-6 shadow-2xl cursor-pointer transition-colors erp-focus hover:border-[var(--erp-accent)]"
-      style={{ borderColor: active ? "var(--erp-accent)" : "var(--erp-border)" }}
+      className="bg-[var(--erp-bg-soft)] border rounded-[var(--erp-radius-lg)] p-6 cursor-pointer transition-colors erp-focus hover:border-[var(--erp-accent)]"
+      style={{
+        borderColor: active ? "var(--erp-accent)" : "var(--erp-border)",
+        boxShadow: "var(--erp-elevation-1), inset 0 1px 0 0 var(--erp-surface-highlight)",
+      }}
     >
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <div>

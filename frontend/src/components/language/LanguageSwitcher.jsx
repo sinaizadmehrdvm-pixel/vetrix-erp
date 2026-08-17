@@ -11,16 +11,14 @@ export default function LanguageSwitcher() {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        background: "var(--erp-panel-solid)",
-        border: "1px solid var(--erp-border)",
-        borderRadius: 18,
-        padding: "10px 14px",
+        padding: "8px 12px",
         color: "var(--erp-text)",
       }}
     >
-      <Globe2 size={18} color="var(--erp-accent)" />
+      <Globe2 size={16} color="var(--erp-accent)" style={{ flexShrink: 0 }} />
 
       <Select
+        variant="flush"
         value={language}
         onChange={setLanguage}
         options={languages.map((item) => ({ value: item.code, label: item.label }))}

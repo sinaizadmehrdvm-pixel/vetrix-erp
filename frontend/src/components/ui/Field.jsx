@@ -7,7 +7,7 @@ import { forwardRef } from "react";
 // that here replaces the `inputClass` string / `input` style-object each
 // page redefined for itself.
 const CONTROL_CLASSES =
-  "erp-focus w-full border transition-colors duration-150 " +
+  "vitalix-control-inset w-full border " +
   "disabled:opacity-50 disabled:cursor-not-allowed";
 
 const CONTROL_STYLE = {
@@ -17,12 +17,18 @@ const CONTROL_STYLE = {
   fontSize: 14,
 };
 
+// Single-line controls match Button's 44px height exactly ("identical
+// geometry" across the app); Textarea stays multi-line height (its own
+// global min-height rule in index.css already handles that) so it isn't
+// forced down to a one-line box.
+const SINGLE_LINE_STYLE = { ...CONTROL_STYLE, minHeight: 44 };
+
 export const Input = forwardRef(function Input({ className = "", style, ...rest }, ref) {
   return (
     <input
       ref={ref}
       className={[CONTROL_CLASSES, className].join(" ")}
-      style={{ ...CONTROL_STYLE, ...style }}
+      style={{ ...SINGLE_LINE_STYLE, ...style }}
       {...rest}
     />
   );
@@ -33,7 +39,7 @@ export const Select = forwardRef(function Select({ className = "", style, childr
     <select
       ref={ref}
       className={[CONTROL_CLASSES, className].join(" ")}
-      style={{ ...CONTROL_STYLE, ...style }}
+      style={{ ...SINGLE_LINE_STYLE, ...style }}
       {...rest}
     >
       {children}

@@ -15,9 +15,16 @@ export default function BrandLogo({ variant = "full", animated = true, size, cla
   const src = isIconOnly ? logoIcon : isCompact ? logoIcon : logoFull;
   const alt = "VITALIX ACCOUNTING";
 
+  // Hero placement only (Login) - the source PNG is a square, opaque-
+  // background asset, which reads as "an image pasted in a box" at large
+  // hero sizes. A radial mask dissolves that square edge into the page
+  // instead of cutting it off hard - icon/compact stay full-bleed since
+  // they're small enough that legibility matters more than atmosphere.
+  const isHero = !isIconOnly && !isCompact;
+
   const imageBox = (
     <span
-      className={`brand-logo-wrap${animated ? " brand-logo-reveal" : ""}`}
+      className={`brand-logo-wrap${isHero ? " brand-logo-wrap-hero" : ""}${animated ? " brand-logo-reveal" : ""}`}
       style={{
         display: "block",
         position: "relative",

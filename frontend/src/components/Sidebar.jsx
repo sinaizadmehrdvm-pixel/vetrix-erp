@@ -16,6 +16,7 @@ import CompanySwitcher from "./CompanySwitcher";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 import BrandLogo from "./brand/BrandLogo";
 import Tooltip from "./ui/Tooltip";
+import Button from "./ui/Button";
 
 const groups = [
   {
@@ -181,12 +182,37 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         transition: "width .24s ease, min-width .24s ease",
       }}
     >
+      {/* BRAND ZONE - logo gets its own full-width row on a lit "stage"
+          (vignette + ambient cyan/gold halo, shared with Login's hero via
+          .vitalix-brand-halo) instead of sharing horizontal space with the
+          toolbar. The toolbar is a dedicated end-aligned row underneath -
+          it never sits beside the logo, so it can't crowd or overlap it. */}
       <div
-        className={compact ? "flex flex-col items-center gap-3 mb-4" : "flex items-center justify-between gap-2 mb-4"}
-        style={{ paddingBottom: 14, borderBottom: "1px solid var(--erp-border)" }}
+        className="vitalix-brand-halo flex flex-col items-center gap-3 mb-3"
+        style={{
+          paddingBlock: compact ? 10 : 18,
+          paddingInline: 6,
+          marginInline: -6,
+          // A fading (not full-width solid) rule so the brand zone reads as
+          // continuous with the context zone below it rather than two
+          // stacked cards separated by a hard line.
+          borderBottom: "1px solid transparent",
+          borderImage: "linear-gradient(90deg, transparent, var(--erp-border) 25%, var(--erp-border) 75%, transparent) 1",
+        }}
       >
-        {compact ? <BrandLogo variant="icon" size={40} /> : <BrandLogo variant="compact" size={190} />}
-        <div className={compact ? "flex flex-col items-center gap-2" : "flex items-center gap-2"}>
+        {compact ? <BrandLogo variant="icon" size={44} /> : <BrandLogo variant="compact" size={208} />}
+        {!compact && <div className="vitalix-brand-reflection" style={{ width: "72%" }} />}
+        {/* Toolbar - its own bordered/filled pill so the theme+collapse
+            toggles read as one grouped control, never sharing a row with
+            the logo. */}
+        <div
+          className={compact ? "flex flex-col items-center gap-1 p-1" : "flex items-center gap-1 p-1 self-end"}
+          style={{
+            borderRadius: "var(--erp-radius-lg)",
+            border: "1px solid var(--erp-border)",
+            background: "var(--erp-panel-solid)",
+          }}
+        >
           <Tooltip
             side="end"
             label={
@@ -202,7 +228,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
             <button
               type="button"
               onClick={() => setTheme(isLight ? "midnight" : "light")}
-              className="erp-surface erp-accent rounded-xl p-2 cursor-pointer vitalix-toolbar-btn"
+              className="erp-accent rounded-[var(--erp-radius-sm)] p-2 cursor-pointer vitalix-toolbar-btn"
               aria-label={
                 fa
                   ? (isLight ? "تغییر به حالت شب" : "تغییر به حالت روز")
@@ -231,7 +257,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
             <button
               type="button"
               onClick={() => setCompact((value) => !value)}
-              className="erp-surface erp-accent rounded-xl p-2 cursor-pointer vitalix-toolbar-btn"
+              className="erp-accent rounded-[var(--erp-radius-sm)] p-2 cursor-pointer vitalix-toolbar-btn"
               aria-label={
                 fa
                   ? "جمع‌کردن منو"
@@ -248,59 +274,88 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         </div>
       </div>
 
+      {/* CONTEXT/UTILITY ZONE - language, company and search are rows of
+          ONE bordered panel (hairline dividers between them via
+          .vitalix-context-zone) instead of three separately-carded
+          controls, and each row is compact (~36px) rather than a full
+          44px control, since these are secondary/occasional actions. */}
       {!compact && (
-        <div className="mb-4 flex flex-col gap-2">
+        <div
+          className="mb-3 flex flex-col vitalix-context-zone"
+          style={{
+            borderRadius: "var(--erp-radius-lg)",
+            border: "1px solid var(--erp-border)",
+            overflow: "hidden",
+          }}
+        >
           <LanguageSwitcher />
           <CompanySwitcher />
-        </div>
-      )}
 
-      {!compact && (
-        <label className="erp-surface mb-4 flex items-center gap-2 rounded-2xl px-3 py-2">
-          <Search size={18} aria-hidden="true" style={{ color: "var(--erp-accent)" }} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={
-              fa
-                ? "جستجو در امکانات…"
-                : language === "ar"
-                ? "البحث في الميزات…"
-                : language === "tr"
-                ? "Özelliklerde ara…"
-                : "Search features…"
-            }
-            aria-label={
-              fa
-                ? "جستجو در منوی برنامه"
-                : language === "ar"
-                ? "البحث في قائمة التطبيق"
-                : language === "tr"
-                ? "Uygulama menüsünde ara"
-                : "Search application menu"
-            }
-            className="min-w-0 flex-1 border-0 bg-transparent outline-none"
-            style={{ color: "var(--erp-text)" }}
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
+          <label
+            className="flex items-center gap-2.5"
+            style={{
+              padding: "8px 12px",
+              color: "var(--erp-text)",
+            }}
+          >
+            <Search size={16} aria-hidden="true" style={{ color: "var(--erp-accent)", flexShrink: 0 }} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={
+                fa
+                  ? "جستجو در امکانات…"
+                  : language === "ar"
+                  ? "البحث في الميزات…"
+                  : language === "tr"
+                  ? "Özelliklerde ara…"
+                  : "Search features…"
+              }
               aria-label={
                 fa
-                  ? "پاک‌کردن جستجو"
+                  ? "جستجو در منوی برنامه"
                   : language === "ar"
-                  ? "مسح البحث"
+                  ? "البحث في قائمة التطبيق"
                   : language === "tr"
-                  ? "Aramayı temizle"
-                  : "Clear search"
+                  ? "Uygulama menüsünde ara"
+                  : "Search application menu"
               }
-              className="p-1"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </label>
+              className="min-w-0 flex-1 border-0 bg-transparent outline-none"
+              style={{ color: "var(--erp-text)" }}
+            />
+            {query && (
+              <Tooltip
+                side="end"
+                label={
+                  fa
+                    ? "پاک‌کردن جستجو"
+                    : language === "ar"
+                    ? "مسح البحث"
+                    : language === "tr"
+                    ? "Aramayı temizle"
+                    : "Clear search"
+                }
+              >
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label={
+                    fa
+                      ? "پاک‌کردن جستجو"
+                      : language === "ar"
+                      ? "مسح البحث"
+                      : language === "tr"
+                      ? "Aramayı temizle"
+                      : "Clear search"
+                  }
+                  className="p-1"
+                >
+                  <X size={16} />
+                </button>
+              </Tooltip>
+            )}
+          </label>
+        </div>
       )}
 
       <nav className="flex flex-col gap-2">
@@ -310,17 +365,24 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
               <button
                 type="button"
                 onClick={() => toggleGroup(group.id)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-black"
-                style={{ color: "var(--erp-muted)", background: expanded[group.id] ? "var(--erp-glow)" : "transparent" }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+                style={{
+                  color: "var(--erp-muted)",
+                  background: "transparent",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
                 aria-expanded={Boolean(expanded[group.id])}
               >
                 <span>{groupLabel(group)}</span>
-                <ChevronDown size={16} style={{ transform: expanded[group.id] ? "rotate(180deg)" : "none" }} />
+                <ChevronDown size={14} style={{ transform: expanded[group.id] ? "rotate(180deg)" : "none", transition: `transform var(--erp-duration-base) var(--erp-ease)` }} />
               </button>
             )}
 
             {(compact || query || expanded[group.id]) && (
-              <div className="flex flex-col gap-1.5 mt-1">
+              <div className="flex flex-col gap-0.5 mt-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -334,21 +396,22 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                           display: "flex",
                           alignItems: "center",
                           gap: 11,
-                          padding: compact ? "12px 0" : "11px 13px",
-                          borderRadius: 14,
+                          padding: compact ? "12px 0" : "10px 13px",
+                          borderRadius: "var(--erp-radius-md)",
                           textDecoration: "none",
                           color: isActive ? "var(--erp-accent)" : "var(--erp-text)",
-                          background: isActive ? "var(--erp-glow)" : "var(--erp-panel-solid)",
+                          background: isActive
+                            ? "linear-gradient(90deg, color-mix(in srgb, var(--erp-accent) 15%, transparent), transparent 85%)"
+                            : "transparent",
                           borderInlineStart: isActive ? "3px solid var(--erp-accent)" : "3px solid transparent",
-                          fontWeight: 800,
+                          fontWeight: isActive ? 800 : 600,
                           justifyContent: compact ? "center" : (dir === "rtl" ? "flex-end" : "flex-start"),
                           flexDirection: dir === "rtl" && !compact ? "row-reverse" : "row",
-                          boxShadow: isActive ? "0 8px 20px var(--erp-glow)" : "none",
                           whiteSpace: "nowrap",
                           width: "100%",
                         })}
                       >
-                        <Icon size={19} />
+                        <Icon size={19} className="sidebar-menu-icon" />
                         <span
                           style={{
                             opacity: compact ? 0 : 1,
@@ -381,17 +444,17 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
           </div>
         )}
 
-        <button
-          onClick={() => { logout(); navigate("/login"); }}
-          className="mt-2 p-3 rounded-2xl border-0 text-white font-black cursor-pointer"
-          style={{ background: "linear-gradient(90deg,#ef4444,#fb7185)" }}
-          title={compact ? t("logout") : undefined}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <LogOut size={18} />
+        <Tooltip side="end" label={compact ? t("logout") : null}>
+          <Button
+            variant="danger"
+            icon={LogOut}
+            onClick={() => { logout(); navigate("/login"); }}
+            className="mt-2 w-full"
+            aria-label={t("logout")}
+          >
             {!compact && t("logout")}
-          </div>
-        </button>
+          </Button>
+        </Tooltip>
       </nav>
     </aside>
   );

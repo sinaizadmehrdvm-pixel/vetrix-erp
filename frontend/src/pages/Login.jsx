@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2,
   KeyRound,
@@ -283,22 +283,26 @@ export default function Login() {
     }
   }
 
+  // Tailwind v4 composes shadow-[...] and focus:ring-* into one box-shadow
+  // declaration via layered CSS variables, so the resting inset depth and
+  // the focus ring correctly show together (an inline boxShadow style
+  // would instead silently replace the ring entirely at focus time).
   const inputClass =
-    "w-full mb-4 py-4 ps-12 pe-4 rounded-[var(--erp-radius-sm)] bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none border border-transparent focus:border-[var(--erp-accent)] focus:ring-2 focus:ring-[var(--erp-glow)] transition-all duration-200";
+    "w-full mb-4 py-4 ps-12 pe-4 rounded-[var(--erp-radius-sm)] bg-[var(--erp-panel-solid)] text-[var(--erp-text)] outline-none border border-transparent shadow-[var(--erp-inset-shadow)] focus:border-[var(--erp-accent)] focus:ring-2 focus:ring-[var(--erp-glow)] transition-all duration-200";
 
   return (
     <div dir={dir} className="relative min-h-screen overflow-hidden bg-[var(--erp-bg)] text-[var(--erp-text)] flex items-center justify-center px-4 py-10">
       <AnimatedBackground />
 
-      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.4fr_1fr] gap-10 xl:gap-16 items-center">
+      <div className="relative z-10 w-full max-w-7xl grid lg:grid-cols-[1.6fr_1fr] gap-10 xl:gap-16 items-center">
         <BrandPanel fa={fa} language={language} />
 
         <motion.section
           initial={{ opacity: 0, y: 28, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.65, ease: EASE }}
-          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[24px] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-7 sm:p-9 overflow-hidden"
-          style={{ boxShadow: "0 30px 90px -25px var(--erp-glow), 0 1px 0 0 var(--erp-border)" }}
+          className="relative w-full max-w-md mx-auto lg:mx-0 lg:justify-self-start rounded-[24px] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-2xl p-6 sm:p-8 overflow-hidden"
+          style={{ boxShadow: "0 30px 90px -25px var(--erp-glow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}
         >
           <div
             aria-hidden="true"
@@ -330,7 +334,7 @@ export default function Login() {
             </h1>
             <Badge tone="info">v{version}</Badge>
           </div>
-          <p className="relative text-[var(--erp-muted)] mb-7 text-sm">
+          <p className="relative text-[var(--erp-muted)] mb-6 text-sm">
             {mode === "setup"
               ? fa
                 ? "راه‌اندازی امن و ساخت مدیر اولیه"
@@ -448,7 +452,12 @@ export default function Login() {
                 </IconInput>
 
                 {error && <Notice tone="danger">{error}</Notice>}
-                <SubmitButton submitting={submitting} from="#34d399" to="#22d3ee">
+                <SubmitButton
+                  submitting={submitting}
+                  from="var(--erp-success-solid)"
+                  to="var(--erp-success-solid)"
+                  textColor="var(--erp-success-solid-text)"
+                >
                   <CheckCircle2 size={19} />
                   {submitting
                     ? fa
@@ -515,7 +524,12 @@ export default function Login() {
                 </IconInput>
 
                 {error && <Notice tone="danger">{error}</Notice>}
-                <SubmitButton submitting={submitting} from="#fbbf24" to="#f59e0b">
+                <SubmitButton
+                  submitting={submitting}
+                  from="var(--erp-warning-solid)"
+                  to="var(--erp-warning-solid)"
+                  textColor="var(--erp-warning-solid-text)"
+                >
                   {submitting
                     ? fa
                       ? "در حال تغییر رمز..."
@@ -685,17 +699,19 @@ function IconInput({ icon: Icon, children }) {
   );
 }
 
-function SubmitButton({ submitting, from, to, children }) {
+function SubmitButton({ submitting, from, to, textColor = "var(--erp-on-accent)", children }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.button
       type="submit"
       disabled={submitting}
-      whileHover={submitting ? {} : { scale: 1.015, y: -1 }}
-      whileTap={submitting ? {} : { scale: 0.98 }}
-      className="w-full text-black font-black py-4 rounded-[var(--erp-radius-md)] disabled:opacity-60 flex items-center justify-center gap-2 transition-shadow"
+      whileHover={submitting || reduceMotion ? {} : { scale: 1.015, y: -1 }}
+      whileTap={submitting || reduceMotion ? {} : { scale: 0.98 }}
+      className="w-full font-black py-4 rounded-[var(--erp-radius-md)] disabled:opacity-60 flex items-center justify-center gap-2 transition-shadow"
       style={{
         background: `linear-gradient(110deg, ${from}, ${to})`,
-        boxShadow: `0 12px 30px -10px ${from === "var(--erp-accent)" ? "var(--erp-glow)" : `${from}55`}`,
+        color: textColor,
+        boxShadow: `0 12px 30px -10px color-mix(in srgb, ${from} 45%, transparent)`,
       }}
     >
       {submitting && <Loader2 size={18} className="animate-spin" />}
@@ -715,14 +731,34 @@ function BrandPanel({ fa, language }) {
 
   return (
     <div className="hidden lg:flex flex-col justify-center relative z-10 px-4">
+      {/* Brand stage - the logo is the hero here, not a small square lockup:
+          a large mark on the same vignette/ambient halo treatment the
+          Sidebar's brand zone uses, plus a static cyan-to-gold reflection
+          line beneath it for a "lit stage" feel instead of dead space. */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: EASE }}
-        className="mb-8 max-w-sm"
+        className="vitalix-brand-halo mb-8 max-w-lg -ms-4 ps-4 py-6"
+        style={{ position: "relative" }}
       >
-        <BrandLogo variant="full" size={280} />
-        <div className="mt-4 text-[var(--erp-muted)] text-xs font-black tracking-[0.25em] uppercase">
+        {/* Extra Login-only glow behind the mark - a page-scoped boost on
+            top of the shared halo (not a change to .vitalix-brand-halo
+            itself, so the Sidebar's smaller brand zone is unaffected). */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{
+            inset: "-8%",
+            zIndex: -1,
+            background:
+              "radial-gradient(circle at 42% 45%, color-mix(in srgb, var(--erp-accent) 14%, transparent), transparent 62%), radial-gradient(circle at 62% 60%, color-mix(in srgb, var(--erp-accent-2) 12%, transparent), transparent 58%)",
+            filter: "blur(32px)",
+          }}
+        />
+        <BrandLogo variant="full" size={400} />
+        <div className="vitalix-brand-reflection mt-5 mb-4 max-w-xs" />
+        <div className="text-[var(--erp-muted)] text-xs font-black tracking-[0.25em] uppercase">
           {tagline}
         </div>
       </motion.div>
@@ -731,7 +767,7 @@ function BrandPanel({ fa, language }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
-        className="text-2xl xl:text-3xl font-black leading-snug mb-8 max-w-md"
+        className="text-2xl xl:text-3xl font-black leading-snug mb-5 max-w-md"
       >
         {fa
           ? "همه‌چیز برای اداره‌ی هوشمند کسب‌وکار شما، در یک‌جا."
@@ -742,19 +778,22 @@ function BrandPanel({ fa, language }) {
           : "Everything to run your business intelligently, in one place."}
       </motion.h2>
 
-      <div className="space-y-3 max-w-md">
+      {/* Compact premium proof-points - small chips, not four oversized
+          horizontal blocks, so the hero logo above keeps the visual
+          weight of the page. */}
+      <div className="grid grid-cols-2 gap-2 max-w-md">
         {FEATURES.map((feature, index) => (
           <motion.div
             key={feature.en}
             initial={{ opacity: 0, x: fa ? 20 : -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 + index * 0.1, ease: EASE }}
-            className="flex items-center gap-3 rounded-[var(--erp-radius-lg)] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-xl px-4 py-3"
+            className="flex items-center gap-2.5 rounded-[var(--erp-radius-md)] border border-[var(--erp-border)] bg-[var(--erp-panel)] backdrop-blur-xl px-3 py-2.5"
           >
-            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] shrink-0">
-              <feature.icon size={19} />
+            <span className="flex items-center justify-center w-7 h-7 rounded-[var(--erp-radius-sm)] bg-[var(--erp-glow)] text-[var(--erp-accent)] shrink-0">
+              <feature.icon size={14} />
             </span>
-            <span className="text-sm font-bold text-[var(--erp-text)]">
+            <span className="text-xs font-bold text-[var(--erp-text)] leading-tight">
               {fa ? feature.fa : language === "ar" ? feature.ar : language === "tr" ? feature.tr : feature.en}
             </span>
           </motion.div>
@@ -765,25 +804,26 @@ function BrandPanel({ fa, language }) {
 }
 
 function AnimatedBackground() {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       <motion.div
         className="absolute w-[36rem] h-[36rem] rounded-full blur-3xl opacity-30"
         style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)", top: "-12rem", insetInlineStart: "-10rem" }}
-        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        animate={reduceMotion ? undefined : { x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={reduceMotion ? undefined : { duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute w-[30rem] h-[30rem] rounded-full blur-3xl opacity-25"
         style={{ background: "radial-gradient(circle, var(--erp-accent-2), transparent 70%)", bottom: "-10rem", insetInlineEnd: "-8rem" }}
-        animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+        animate={reduceMotion ? undefined : { x: [0, -30, 0], y: [0, -20, 0] }}
+        transition={reduceMotion ? undefined : { duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute w-[24rem] h-[24rem] rounded-full blur-3xl opacity-20"
         style={{ background: "radial-gradient(circle, var(--erp-accent), transparent 70%)", top: "40%", insetInlineStart: "40%" }}
-        animate={{ scale: [1, 1.15, 1] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        animate={reduceMotion ? undefined : { scale: [1, 1.15, 1] }}
+        transition={reduceMotion ? undefined : { duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
       <div
         className="absolute inset-0 opacity-[0.05]"
