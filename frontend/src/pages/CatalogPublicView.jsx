@@ -8,7 +8,7 @@ import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localizat
 
 export default function CatalogPublicView() {
   const { token } = useParams();
-  const { language, dir, money } = useLanguage();
+  const { language, dir, money, n } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [title, setTitle] = useState("");
@@ -136,13 +136,13 @@ export default function CatalogPublicView() {
             </div>
             <div>
               <h1 className="text-lg font-black" style={{ color: "var(--erp-accent)" }}>{title}</h1>
-              <p className="text-xs text-[var(--erp-muted)]">{tr(`${items.length} کالا`, `${items.length} منتج`, `${items.length} ürün`, `${items.length} products`)}</p>
+              <p className="text-xs text-[var(--erp-muted)]">{tr(`${n(items.length)} کالا`, `${n(items.length)} منتج`, `${n(items.length)} ürün`, `${n(items.length)} products`)}</p>
             </div>
           </div>
           {selectedItems.length > 0 && (
             <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>
               <ShoppingCart size={16} />
-              <span className="text-sm font-black">{selectedItems.length}</span>
+              <span className="text-sm font-black">{n(selectedItems.length)}</span>
               <span className="text-xs font-bold hidden sm:inline">{money(cartTotal)}</span>
             </div>
           )}
@@ -171,7 +171,7 @@ export default function CatalogPublicView() {
                   )}
                   {hasDiscount && (
                     <span className="absolute top-2 inset-inline-start-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-black bg-rose-500 text-white">
-                      <BadgePercent size={12} /> {tr(`${item.discount_percent.toFixed(0)}٪`, `${item.discount_percent.toFixed(0)}٪`, `%${item.discount_percent.toFixed(0)}`, `-${item.discount_percent.toFixed(0)}%`)}
+                      <BadgePercent size={12} /> {tr(`${n(item.discount_percent.toFixed(0))}٪`, `${n(item.discount_percent.toFixed(0))}٪`, `%${n(item.discount_percent.toFixed(0))}`, `-${n(item.discount_percent.toFixed(0))}%`)}
                     </span>
                   )}
                   {item.in_stock === false && (

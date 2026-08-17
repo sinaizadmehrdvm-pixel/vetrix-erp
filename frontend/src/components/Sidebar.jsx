@@ -188,9 +188,9 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
           toolbar. The toolbar is a dedicated end-aligned row underneath -
           it never sits beside the logo, so it can't crowd or overlap it. */}
       <div
-        className="vitalix-brand-halo flex flex-col items-center gap-3 mb-3"
+        className="vitalix-brand-halo flex flex-col items-center gap-2.5 mb-3"
         style={{
-          paddingBlock: compact ? 10 : 18,
+          paddingBlock: compact ? 10 : 14,
           paddingInline: 6,
           marginInline: -6,
           // A fading (not full-width solid) rule so the brand zone reads as
@@ -292,7 +292,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
           <CompanySwitcher />
 
           <label
-            className="flex items-center gap-2.5"
+            className="vitalix-input-group vitalix-input-group--flush flex items-center gap-2.5"
             style={{
               padding: "8px 12px",
               color: "var(--erp-text)",
@@ -320,7 +320,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
                   ? "Uygulama menüsünde ara"
                   : "Search application menu"
               }
-              className="min-w-0 flex-1 border-0 bg-transparent outline-none"
+              className="min-w-0 flex-1"
               style={{ color: "var(--erp-text)" }}
             />
             {query && (
@@ -365,9 +365,11 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
               <button
                 type="button"
                 onClick={() => toggleGroup(group.id)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+                className="w-full flex items-center justify-between sidebar-group-toggle"
                 style={{
-                  color: "var(--erp-muted)",
+                  padding: "8px 13px",
+                  borderRadius: "var(--erp-radius-md)",
+                  color: expanded[group.id] ? "var(--erp-text)" : "var(--erp-muted)",
                   background: "transparent",
                   fontSize: 11,
                   fontWeight: 800,

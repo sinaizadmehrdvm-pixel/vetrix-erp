@@ -1207,10 +1207,10 @@ export default function Invoices() {
               <div className="mt-2 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full w-fit" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>
                 <Award size={12} />
                 {tr(
-                  `سطح ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (${selectedCustomerLoyalty.discount_percent}٪ تخفیف)` : ""}`,
-                  `مستوى ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (خصم ${selectedCustomerLoyalty.discount_percent}٪)` : ""}`,
-                  `${selectedCustomerLoyalty.level} seviyesi${selectedCustomerLoyalty.discount_percent ? ` (%${selectedCustomerLoyalty.discount_percent} indirim)` : ""}`,
-                  `${selectedCustomerLoyalty.level} tier${selectedCustomerLoyalty.discount_percent ? ` (${selectedCustomerLoyalty.discount_percent}% discount)` : ""}`
+                  `سطح ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (${n(selectedCustomerLoyalty.discount_percent)}٪ تخفیف)` : ""}`,
+                  `مستوى ${selectedCustomerLoyalty.level}${selectedCustomerLoyalty.discount_percent ? ` (خصم ${n(selectedCustomerLoyalty.discount_percent)}٪)` : ""}`,
+                  `${selectedCustomerLoyalty.level} seviyesi${selectedCustomerLoyalty.discount_percent ? ` (%${n(selectedCustomerLoyalty.discount_percent)} indirim)` : ""}`,
+                  `${selectedCustomerLoyalty.level} tier${selectedCustomerLoyalty.discount_percent ? ` (${n(selectedCustomerLoyalty.discount_percent)}% discount)` : ""}`
                 )}
               </div>
             )}

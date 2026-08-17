@@ -3,6 +3,8 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import moment from "moment-jalaali";
 import { toJalali, todayJalali, fromJalali, toHijriText, todayHijri, fromHijriText, toPersianDigits } from "../../utils/date";
 import { toHijri, hijriToGregorian, daysInHijriMonth, addHijriMonths, HIJRI_MONTHS_AR } from "../../utils/hijri";
+import { holidayFor, holidayCoverage } from "../../localization/holidays";
+import Tooltip from "../ui/Tooltip";
 
 function calendarSystemFor(lang, fa) {
   if (lang === "fa" || (!lang && fa)) return "jalali";
@@ -26,10 +28,11 @@ function isoOf(year, month1Based, day) {
   return `${year}-${String(month1Based).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-// Builds a lightweight month grid (no holiday/occasion lookups - this is
-// a date *picker*, not the dashboard calendar widget) for whichever
-// calendar system the active language uses.
-function buildGrid(calendarSystem, cursor, language) {
+// Builds a lightweight month grid - not the dashboard calendar widget's
+// heavier occasion feed, just this picker's own day cells, each tagged
+// with the shared holiday lookup (see localization/holidays.js) - for
+// whichever calendar system the active language uses.
+function buildGrid(calendarSystem, cursor, language, country) {
   if (calendarSystem === "jalali") {
     const year = cursor.jYear();
     const month = cursor.jMonth();
@@ -39,7 +42,7 @@ function buildGrid(calendarSystem, cursor, language) {
     const cells = Array(offset).fill(null);
     for (let day = 1; day <= daysInMonth; day += 1) {
       const g = cursor.clone().jDate(day).toDate();
-      cells.push({ day, label: toPersianDigits(day), iso: isoOf(g.getFullYear(), g.getMonth() + 1, g.getDate()), isToday: today.jYear() === year && today.jMonth() === month && today.jDate() === day });
+      cells.push({ day, label: toPersianDigits(day), iso: isoOf(g.getFullYear(), g.getMonth() + 1, g.getDate()), isToday: today.jYear() === year && today.jMonth() === month && today.jDate() === day, holiday: holidayFor("jalali", month + 1, day, language, country) });
     }
     return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_FA, cells };
   }
@@ -55,7 +58,7 @@ function buildGrid(calendarSystem, cursor, language) {
     const cells = Array(offset).fill(null);
     for (let day = 1; day <= daysInMonth; day += 1) {
       const g = hijriToGregorian(year, month, day);
-      cells.push({ day, label: day, iso: isoOf(g.year, g.month, g.day), isToday: todayHijriYmd.year === year && todayHijriYmd.month === month && todayHijriYmd.day === day });
+      cells.push({ day, label: day, iso: isoOf(g.year, g.month, g.day), isToday: todayHijriYmd.year === year && todayHijriYmd.month === month && todayHijriYmd.day === day, holiday: holidayFor("hijri", month, day, language, country) });
     }
     return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_AR, cells, hijriYearMonth: { year, month } };
   }
@@ -69,7 +72,7 @@ function buildGrid(calendarSystem, cursor, language) {
   const monthNames = GREGORIAN_MONTHS[language] || GREGORIAN_MONTHS.en;
   const cells = Array(offset).fill(null);
   for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push({ day, label: day, iso: isoOf(year, month + 1, day), isToday: today.getFullYear() === year && today.getMonth() === month && today.getDate() === day });
+    cells.push({ day, label: day, iso: isoOf(year, month + 1, day), isToday: today.getFullYear() === year && today.getMonth() === month && today.getDate() === day, holiday: holidayFor("gregorian", month + 1, day, language, country) });
   }
   return { title: `${monthNames[month]} ${year}`, weekdays: WEEKDAYS_EN, cells };
 }
@@ -90,7 +93,14 @@ function cursorFromIso(iso) {
 // "Today" button fill a value that contradicted the field's own
 // placeholder. There was also no way to *pick* a day visually - only
 // type one - so this adds a small popup grid matching the same calendar.
-export default function JalaliDateField({ value, onChange, fa, language, className, placeholder, style }) {
+// `country` (optional) is the active company's configured country
+// (LanguageProvider's `country`, from Settings) - the authoritative
+// holiday-jurisdiction signal when the caller passes it;
+// localization/holidays.js falls back to a calendar-system-only table
+// when it's omitted. Kept as a plain prop (like `language`/`fa`) rather
+// than calling useLanguage() internally, so this component stays usable
+// - and testable - outside a LanguageProvider tree.
+export default function JalaliDateField({ value, onChange, fa, language, country, className, placeholder, style, minDate, maxDate }) {
   const lang = language || (fa ? "fa" : "en");
   const calendarSystem = calendarSystemFor(lang, fa);
   const tr = (faText, arText, trText, enText) =>
@@ -206,7 +216,8 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
   // keystroke in forms that hold it alongside other fields in one state
   // object, and recomputing the grid unconditionally on each of those
   // renders was the source of visible typing lag.
-  const grid = open ? buildGrid(calendarSystem, cursor, lang) : null;
+  const grid = open ? buildGrid(calendarSystem, cursor, lang, country) : null;
+  const coverage = open ? holidayCoverage(country, calendarSystem) : null;
 
   return (
     <div ref={wrapperRef} style={{ position: "relative", display: "flex", gap: 8, ...style }}>
@@ -228,15 +239,17 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
         className={className}
         style={{ width: "100%", minWidth: "9.5em" }}
       />
-      <button
-        type="button"
-        onClick={() => (open ? setOpen(false) : openPopup())}
-        aria-label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}
-        className="rounded-2xl bg-[var(--erp-accent)] text-slate-950 flex items-center justify-center"
-        style={{ width: 44, height: 44, flexShrink: 0 }}
-      >
-        <CalendarDays size={18} />
-      </button>
+      <Tooltip side="top" label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}>
+        <button
+          type="button"
+          onClick={() => (open ? setOpen(false) : openPopup())}
+          aria-label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}
+          className="bg-[var(--erp-accent)] flex items-center justify-center"
+          style={{ width: 44, height: 44, flexShrink: 0, borderRadius: "var(--erp-radius-lg)", color: "var(--erp-on-accent)" }}
+        >
+          <CalendarDays size={18} />
+        </button>
+      </Tooltip>
 
       {open && (
         <div
@@ -245,7 +258,7 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
             position: "absolute",
             ...(openUpward ? { bottom: "100%", marginBottom: 6 } : { top: "100%", marginTop: 6 }),
             zIndex: 50, width: 260, insetInlineEnd: 0,
-            borderRadius: "var(--erp-radius-lg)", boxShadow: "var(--erp-shadow)",
+            borderRadius: "var(--erp-radius-lg)", boxShadow: "var(--erp-elevation-3), inset 0 1px 0 0 var(--erp-surface-highlight)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -265,34 +278,68 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-            {grid.cells.map((cell, index) => (
-              <button
-                key={index}
-                type="button"
-                disabled={!cell}
-                onClick={() => cell && pickDay(cell.iso)}
-                className={cell?.isToday ? "bg-[var(--erp-accent)]" : "bg-transparent hover:bg-[var(--erp-glow)]"}
-                style={{
-                  aspectRatio: "1 / 1",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  padding: 0,
-                  borderRadius: 8,
-                  border: "none",
-                  fontSize: 12,
-                  lineHeight: 1,
-                  fontFamily: "inherit",
-                  fontWeight: cell?.isToday ? 900 : 600,
-                  color: cell ? (cell.isToday ? "#071028" : "var(--erp-text)") : "transparent",
-                  cursor: cell ? "pointer" : "default",
-                }}
-              >
-                {cell ? cell.label : ""}
-              </button>
-            ))}
+            {grid.cells.map((cell, index) => {
+              const outOfRange = cell && ((minDate && cell.iso < minDate) || (maxDate && cell.iso > maxDate));
+              const isDisabled = !cell || outOfRange;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => cell && !outOfRange && pickDay(cell.iso)}
+                  aria-label={cell?.holiday ? `${cell.day} — ${cell.holiday.name}` : undefined}
+                  data-side={cell?.holiday ? "top" : undefined}
+                  className={[
+                    cell?.isToday ? "bg-[var(--erp-accent)]" : "bg-transparent hover:enabled:bg-[var(--erp-glow)]",
+                    cell?.holiday ? "vitalix-tooltip" : "",
+                  ].filter(Boolean).join(" ")}
+                  style={{
+                    position: "relative",
+                    aspectRatio: "1 / 1",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "visible",
+                    boxSizing: "border-box",
+                    padding: 0,
+                    borderRadius: "var(--erp-radius-sm)",
+                    border: "none",
+                    fontSize: 12,
+                    lineHeight: 1,
+                    fontFamily: "inherit",
+                    fontWeight: cell?.isToday ? 900 : 600,
+                    color: !cell ? "transparent" : cell.isToday ? "var(--erp-on-accent)" : outOfRange ? "var(--erp-muted)" : cell.holiday ? "var(--erp-accent-2)" : "var(--erp-text)",
+                    opacity: outOfRange ? 0.4 : 1,
+                    cursor: cell && !outOfRange ? "pointer" : "default",
+                  }}
+                >
+                  {cell ? cell.label : ""}
+                  {cell?.holiday && (
+                    <span role="tooltip" className="vitalix-tooltip-bubble">{cell.holiday.name}</span>
+                  )}
+                  {cell?.holiday && !cell.isToday && (
+                    // Centered via inset-inline-start/end + margin-inline:auto
+                    // (not translateX, which is physical and doesn't flip for
+                    // RTL - see the brand-logo-shimmer fix for the same class
+                    // of bug) so it stays centered in both directions.
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        bottom: 2,
+                        insetInlineStart: 0,
+                        insetInlineEnd: 0,
+                        marginInline: "auto",
+                        width: 3,
+                        height: 3,
+                        borderRadius: "50%",
+                        background: "var(--erp-accent-2)",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <button
@@ -303,6 +350,25 @@ export default function JalaliDateField({ value, onChange, fa, language, classNa
           >
             {tr("امروز", "اليوم", "Bugün", "Today")}
           </button>
+
+          {/* Honest coverage note - an absence of holiday dots here isn't
+              proof this jurisdiction has none; it means this calendar
+              combination has no curated official-holiday data yet (see
+              localization/holidays.js). Only shown when that's actually
+              the case, so it never clutters a covered calendar. */}
+          {coverage && !coverage.supported && (
+            <div
+              className="text-[var(--erp-muted)]"
+              style={{ marginTop: 6, fontSize: 10, textAlign: "center", lineHeight: 1.4 }}
+            >
+              {tr(
+                "تعطیلات رسمی این تقویم هنوز پوشش داده نشده است.",
+                "تغطية العطلات الرسمية لهذا التقويم غير متوفرة بعد.",
+                "Bu takvim için resmi tatil verisi henüz mevcut değil.",
+                "Official holiday coverage isn't available for this calendar yet."
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

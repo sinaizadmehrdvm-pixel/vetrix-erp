@@ -208,7 +208,7 @@ function buildSmartAnalysis({ customer, summary, invoices, ai }) {
   };
 }
 
-function suggestionList(analysis, language) {
+function suggestionList(analysis, language, n) {
   const list = [];
   const tr = (fa, ar, tr, en) =>
     language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? tr : en;
@@ -274,10 +274,10 @@ function suggestionList(analysis, language) {
       icon: <Sparkles size={18} />,
       title: tr("تخفیف پیشنهادی", "الخصم المقترح", "Önerilen indirim", "Suggested discount"),
       text: tr(
-        `برای این مشتری تخفیف پیشنهادی ${analysis.suggestedDiscount}% است.`,
-        `الخصم المقترح لهذا العميل هو ${analysis.suggestedDiscount}%.`,
-        `Bu müşteri için önerilen indirim %${analysis.suggestedDiscount}.`,
-        `Suggested discount for this customer is ${analysis.suggestedDiscount}%.`
+        `برای این مشتری تخفیف پیشنهادی ${n(analysis.suggestedDiscount)}% است.`,
+        `الخصم المقترح لهذا العميل هو ${n(analysis.suggestedDiscount)}%.`,
+        `Bu müşteri için önerilen indirim %${n(analysis.suggestedDiscount)}.`,
+        `Suggested discount for this customer is ${n(analysis.suggestedDiscount)}%.`
       ),
       tone: "cyan",
     });
@@ -319,7 +319,7 @@ export default function CustomerAI({
     lang === "fa" ? faText : lang === "ar" ? arText : lang === "tr" ? trText : enText;
 
   const analysis = useMemo(() => buildSmartAnalysis({ customer, summary, invoices, ai }), [customer, summary, invoices, ai]);
-  const suggestions = useMemo(() => suggestionList(analysis, lang), [analysis, lang]);
+  const suggestions = useMemo(() => suggestionList(analysis, lang, n), [analysis, lang, n]);
 
   async function createFollowupTask() {
     if (!onCreateTask) return;
@@ -430,9 +430,9 @@ export default function CustomerAI({
               {tr("تحلیل RFM", "تحليل RFM", "RFM Analizi", "RFM Analysis")}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <RfmBox title={tr("تازگی خرید", "الحداثة", "Yenilik", "Recency")} score={analysis.rfm.recencyScore} detail={analysis.rfm.recencyDays == null ? "-" : tr(`${n(analysis.rfm.recencyDays)} روز`, `${n(analysis.rfm.recencyDays)} يوم`, `${n(analysis.rfm.recencyDays)} gün`, `${analysis.rfm.recencyDays} days`)} tr={tr} />
-              <RfmBox title={tr("تکرار خرید", "التكرار", "Sıklık", "Frequency")} score={analysis.rfm.frequencyScore} detail={n(analysis.rfm.frequency)} tr={tr} />
-              <RfmBox title={tr("ارزش خرید", "القيمة", "Parasal değer", "Monetary")} score={analysis.rfm.monetaryScore} detail={money(analysis.rfm.monetary)} tr={tr} />
+              <RfmBox title={tr("تازگی خرید", "الحداثة", "Yenilik", "Recency")} score={analysis.rfm.recencyScore} detail={analysis.rfm.recencyDays == null ? "-" : tr(`${n(analysis.rfm.recencyDays)} روز`, `${n(analysis.rfm.recencyDays)} يوم`, `${n(analysis.rfm.recencyDays)} gün`, `${analysis.rfm.recencyDays} days`)} tr={tr} n={n} />
+              <RfmBox title={tr("تکرار خرید", "التكرار", "Sıklık", "Frequency")} score={analysis.rfm.frequencyScore} detail={n(analysis.rfm.frequency)} tr={tr} n={n} />
+              <RfmBox title={tr("ارزش خرید", "القيمة", "Parasal değer", "Monetary")} score={analysis.rfm.monetaryScore} detail={money(analysis.rfm.monetary)} tr={tr} n={n} />
             </div>
           </div>
 
@@ -498,11 +498,11 @@ function AiMetric({ icon, title, value, progress, tone = "cyan" }) {
   );
 }
 
-function RfmBox({ title, score, detail, tr }) {
+function RfmBox({ title, score, detail, tr, n = (v) => String(v ?? "") }) {
   return (
     <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5">
       <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
-      <div className="text-3xl font-black text-[var(--erp-accent)] mt-2">{Math.round(score)}</div>
+      <div className="text-3xl font-black text-[var(--erp-accent)] mt-2">{n(Math.round(score))}</div>
       <div className="h-2 rounded-full bg-[var(--erp-panel-solid)] mt-3 overflow-hidden">
         <div className="h-full bg-cyan-400" style={{ width: `${clamp(score)}%` }} />
       </div>

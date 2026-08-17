@@ -5,7 +5,7 @@ export default function DashboardHeader({ search, setSearch }) {
   return (
     <div className="dashboard-header">
       <div>
-        <h1>Vetrix ERP Dashboard</h1>
+        <h1>VITALIX Dashboard</h1>
         <p>Real-time accounting, inventory and financial intelligence</p>
       </div>
 

@@ -126,7 +126,7 @@ const unitOptionsTr = [
 ];
 
 const inputClass =
-  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all w-full";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-[var(--erp-accent)] rounded-2xl p-4 outline-none transition-all w-full";
 
 function toNumber(value) {
   const cleaned = toEnglishDigits(String(value ?? ""))

@@ -48,7 +48,7 @@ const emptyForm = {
 };
 
 const inputClass =
-  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all min-h-[58px]";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-[var(--erp-accent)] rounded-2xl p-4 outline-none transition-all min-h-[58px]";
 
 const REASON_LABELS = {
   fa: {
@@ -161,7 +161,7 @@ function normalizeTransaction(item = {}) {
 }
 
 export default function Transactions() {
-  const { t, money, language, dir, date, n } = useLanguage();
+  const { t, money, language, dir, date, n, country } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
@@ -589,6 +589,7 @@ export default function Transactions() {
             onChange={(isoDate) => setForm({ ...form, date: isoDate })}
             fa={language === "fa"}
             language={language}
+            country={country}
             className={inputClass}
           />
         </div>

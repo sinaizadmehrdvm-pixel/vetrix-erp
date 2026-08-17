@@ -20,10 +20,12 @@ import {
 } from "../services/api";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
+import Button from "../components/ui/Button";
+import { Input } from "../components/ui/Field";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
-const inputClass = "w-full mb-3 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
+const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-[var(--erp-glow)] focus:border-[var(--erp-accent)]";
 
 const SCOPE_TYPES = ["all", "product", "category", "brand"];
 const CUSTOMER_SCOPE_TYPES = ["any", "group", "loyalty_tier", "customer"];
@@ -37,7 +39,7 @@ const emptyRuleDraft = {
 };
 
 export default function PricingTiers() {
-  const { dir, language, money, n } = useLanguage();
+  const { dir, language, money, n, country } = useLanguage();
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
   const pd = (value) => (fa ? toPersianDigits(value) : value);
@@ -265,7 +267,7 @@ export default function PricingTiers() {
           {language === "fa" ? "انتخاب کالا" : language === "ar" ? "اختيار المنتج" : language === "tr" ? "Ürün Seç" : "Select product"}
         </label>
         <Select
-          className="w-full mb-3"
+          className="w-full"
           value={productId}
           onChange={(value) => setProductId(value)}
           disabled={loading}
@@ -285,18 +287,16 @@ export default function PricingTiers() {
         {productId && (
           <>
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-              <input
+              <Input
                 type="text"
                 inputMode="numeric"
-                className={inputClass + " mb-0"}
                 placeholder={fa ? "حداقل تعداد" : language === "ar" ? "الحد الأدنى للكمية" : language === "tr" ? "Asgari miktar" : "Min quantity"}
                 value={language === "fa" ? toPersianDigits(minQuantity) : minQuantity}
                 onChange={(e) => setMinQuantity(cleanNumberInput(e.target.value))}
               />
-              <input
+              <Input
                 type="text"
                 inputMode="numeric"
-                className={inputClass + " mb-0"}
                 placeholder={fa ? "قیمت واحد" : language === "ar" ? "سعر الوحدة" : language === "tr" ? "Birim fiyat" : "Unit price"}
                 value={language === "fa" ? toPersianDigits(unitPrice) : unitPrice}
                 onChange={(e) => setUnitPrice(cleanNumberInput(e.target.value))}
@@ -311,14 +311,9 @@ export default function PricingTiers() {
                   { value: "wholesale", label: fa ? "فقط عمده‌فروشی" : language === "ar" ? "بيع بالجملة فقط" : language === "tr" ? "Sadece toptan" : "Wholesale only" },
                 ]}
               />
-              <button
-                type="submit"
-                disabled={creating}
-                className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                <Plus size={16} />
+              <Button type="submit" loading={creating} icon={Plus}>
                 {fa ? "افزودن پله" : language === "ar" ? "إضافة شريحة" : language === "tr" ? "Kademe ekle" : "Add tier"}
-              </button>
+              </Button>
             </form>
 
             <div className="space-y-2">
@@ -417,7 +412,7 @@ export default function PricingTiers() {
         </h2>
         <form onSubmit={runSimulation} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Select
-            className="w-full mb-3"
+            className="w-full"
             value={sim.product_id}
             onChange={(value) => setSim({ ...sim, product_id: value })}
             options={[
@@ -426,7 +421,7 @@ export default function PricingTiers() {
             ]}
           />
           <Select
-            className="w-full mb-3"
+            className="w-full"
             value={sim.customer_id}
             onChange={(value) => setSim({ ...sim, customer_id: value })}
             options={[
@@ -434,14 +429,14 @@ export default function PricingTiers() {
               ...customers.map((c) => ({ value: c.id, label: pd(c.name) })),
             ]}
           />
-          <input
-            type="text" inputMode="numeric" className={inputClass}
+          <Input
+            type="text" inputMode="numeric"
             placeholder={tr("تعداد", "الكمية", "Miktar", "Quantity")}
             value={fa ? toPersianDigits(String(sim.quantity)) : sim.quantity}
             onChange={(e) => setSim({ ...sim, quantity: cleanNumberInput(e.target.value) })}
           />
           <Select
-            className="w-full mb-3"
+            className="w-full"
             value={sim.branch_id}
             onChange={(value) => setSim({ ...sim, branch_id: value })}
             options={[
@@ -449,7 +444,7 @@ export default function PricingTiers() {
               ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
             ]}
           />
-          <JalaliDateField className={inputClass} value={sim.on_date} onChange={(iso) => setSim({ ...sim, on_date: iso })} fa={fa} language={language} />
+          <JalaliDateField className={inputClass} value={sim.on_date} onChange={(iso) => setSim({ ...sim, on_date: iso })} fa={fa} language={language} country={country} />
           <button type="submit" disabled={simLoading} className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60">
             {simLoading ? "…" : tr("محاسبه", "احتساب", "Hesapla", "Calculate")}
           </button>
@@ -495,11 +490,11 @@ export default function PricingTiers() {
             {editingRuleId ? tr("ویرایش قانون قیمت‌گذاری", "تعديل قاعدة التسعير", "Fiyatlandırma kuralını düzenle", "Edit pricing rule") : tr("قانون قیمت‌گذاری جدید", "قاعدة تسعير جديدة", "Yeni fiyatlandırma kuralı", "New pricing rule")}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={pd(ruleDraft.name)} onChange={(e) => setRuleDraft({ ...ruleDraft, name: pd(e.target.value) })} />
-            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={pd(ruleDraft.priority)} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: cleanNumberInput(e.target.value) })} />
+            <Input placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={pd(ruleDraft.name)} onChange={(e) => setRuleDraft({ ...ruleDraft, name: pd(e.target.value) })} />
+            <Input type="text" inputMode="numeric" placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={pd(ruleDraft.priority)} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: cleanNumberInput(e.target.value) })} />
 
             <Select
-              className="w-full mb-3"
+              className="w-full"
               value={ruleDraft.scope_type}
               onChange={(value) => setRuleDraft({ ...ruleDraft, scope_type: value, scope_value: "" })}
               options={SCOPE_TYPES.map((t) => ({ value: t, label: scopeTypeLabel(t) }))}
@@ -508,7 +503,7 @@ export default function PricingTiers() {
               <div />
             ) : ruleDraft.scope_type === "product" ? (
               <Select
-                className="w-full mb-3"
+                className="w-full"
                 value={ruleDraft.scope_value}
                 onChange={(value) => setRuleDraft({ ...ruleDraft, scope_value: value })}
                 options={[
@@ -517,11 +512,11 @@ export default function PricingTiers() {
                 ]}
               />
             ) : (
-              <input className={inputClass} placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={pd(ruleDraft.scope_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: pd(e.target.value) })} />
+              <Input placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={pd(ruleDraft.scope_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: pd(e.target.value) })} />
             )}
 
             <Select
-              className="w-full mb-3"
+              className="w-full"
               value={ruleDraft.customer_scope_type}
               onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_type: value, customer_scope_value: "" })}
               options={CUSTOMER_SCOPE_TYPES.map((t) => ({ value: t, label: customerScopeTypeLabel(t) }))}
@@ -530,7 +525,7 @@ export default function PricingTiers() {
               <div />
             ) : ruleDraft.customer_scope_type === "group" ? (
               <Select
-                className="w-full mb-3"
+                className="w-full"
                 value={ruleDraft.customer_scope_value}
                 onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
                 options={[
@@ -541,7 +536,7 @@ export default function PricingTiers() {
               />
             ) : ruleDraft.customer_scope_type === "loyalty_tier" ? (
               <Select
-                className="w-full mb-3"
+                className="w-full"
                 value={ruleDraft.customer_scope_value}
                 onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
                 options={[
@@ -551,7 +546,7 @@ export default function PricingTiers() {
               />
             ) : (
               <Select
-                className="w-full mb-3"
+                className="w-full"
                 value={ruleDraft.customer_scope_value}
                 onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
                 options={[
@@ -562,7 +557,7 @@ export default function PricingTiers() {
             )}
 
             <Select
-              className="w-full mb-3"
+              className="w-full"
               value={ruleDraft.branch_id}
               onChange={(value) => setRuleDraft({ ...ruleDraft, branch_id: value })}
               options={[
@@ -570,30 +565,30 @@ export default function PricingTiers() {
                 ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
               ]}
             />
-            <input className={inputClass} placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={ruleDraft.channel} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: e.target.value })} />
+            <Input placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={ruleDraft.channel} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: e.target.value })} />
 
-            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={pd(ruleDraft.min_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: cleanNumberInput(e.target.value) })} />
-            <input type="text" inputMode="numeric" className={inputClass} placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={pd(ruleDraft.max_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: cleanNumberInput(e.target.value) })} />
+            <Input type="text" inputMode="numeric" placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={pd(ruleDraft.min_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: cleanNumberInput(e.target.value) })} />
+            <Input type="text" inputMode="numeric" placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={pd(ruleDraft.max_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: cleanNumberInput(e.target.value) })} />
 
             <Select
-              className="w-full mb-3"
+              className="w-full"
               value={ruleDraft.price_mode}
               onChange={(value) => setRuleDraft({ ...ruleDraft, price_mode: value })}
               options={PRICE_MODES.map((m) => ({ value: m, label: priceModeLabel(m) }))}
             />
-            <input type="text" inputMode="decimal" className={inputClass} placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={pd(ruleDraft.price_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: cleanNumberInput(e.target.value) })} />
+            <Input type="text" inputMode="decimal" placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={pd(ruleDraft.price_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: cleanNumberInput(e.target.value) })} />
 
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ شروع (اختیاری)", "تاريخ البدء (اختياري)", "Başlangıç tarihi (isteğe bağlı)", "Start date (optional)")}</span>
-              <JalaliDateField className={inputClass} value={ruleDraft.start_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, start_date: iso })} fa={fa} language={language} />
+              <JalaliDateField className={inputClass} value={ruleDraft.start_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, start_date: iso })} fa={fa} language={language} country={country} />
             </label>
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ پایان (اختیاری)", "تاريخ الانتهاء (اختياري)", "Bitiş tarihi (isteğe bağlı)", "End date (optional)")}</span>
-              <JalaliDateField className={inputClass} value={ruleDraft.end_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, end_date: iso })} fa={fa} language={language} />
+              <JalaliDateField className={inputClass} value={ruleDraft.end_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, end_date: iso })} fa={fa} language={language} country={country} />
             </label>
 
             <Select
-              className="w-full mb-3"
+              className="w-full"
               value={ruleDraft.status}
               onChange={(value) => setRuleDraft({ ...ruleDraft, status: value })}
               options={[
@@ -601,15 +596,15 @@ export default function PricingTiers() {
                 { value: "inactive", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
               ]}
             />
-            <input className={inputClass} placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={pd(ruleDraft.notes)} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: pd(e.target.value) })} />
+            <Input placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={pd(ruleDraft.notes)} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: pd(e.target.value) })} />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setRuleModalOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]">
+            <Button type="button" variant="secondary" onClick={() => setRuleModalOpen(false)}>
               {tr("انصراف", "إلغاء", "İptal", "Cancel")}
-            </button>
-            <button type="submit" disabled={savingRule} className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60">
+            </Button>
+            <Button type="submit" loading={savingRule}>
               {savingRule ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

@@ -23,22 +23,24 @@ const CONTROL_STYLE = {
 // forced down to a one-line box.
 const SINGLE_LINE_STYLE = { ...CONTROL_STYLE, minHeight: 44 };
 
-export const Input = forwardRef(function Input({ className = "", style, ...rest }, ref) {
+export const Input = forwardRef(function Input({ className = "", style, error, ...rest }, ref) {
   return (
     <input
       ref={ref}
-      className={[CONTROL_CLASSES, className].join(" ")}
+      aria-invalid={error || undefined}
+      className={[CONTROL_CLASSES, error ? "vitalix-control-error" : "", className].join(" ")}
       style={{ ...SINGLE_LINE_STYLE, ...style }}
       {...rest}
     />
   );
 });
 
-export const Select = forwardRef(function Select({ className = "", style, children, ...rest }, ref) {
+export const Select = forwardRef(function Select({ className = "", style, error, children, ...rest }, ref) {
   return (
     <select
       ref={ref}
-      className={[CONTROL_CLASSES, className].join(" ")}
+      aria-invalid={error || undefined}
+      className={[CONTROL_CLASSES, error ? "vitalix-control-error" : "", className].join(" ")}
       style={{ ...SINGLE_LINE_STYLE, ...style }}
       {...rest}
     >
@@ -47,11 +49,12 @@ export const Select = forwardRef(function Select({ className = "", style, childr
   );
 });
 
-export const Textarea = forwardRef(function Textarea({ className = "", style, ...rest }, ref) {
+export const Textarea = forwardRef(function Textarea({ className = "", style, error, ...rest }, ref) {
   return (
     <textarea
       ref={ref}
-      className={[CONTROL_CLASSES, className].join(" ")}
+      aria-invalid={error || undefined}
+      className={[CONTROL_CLASSES, error ? "vitalix-control-error" : "", className].join(" ")}
       style={{ ...CONTROL_STYLE, ...style }}
       {...rest}
     />

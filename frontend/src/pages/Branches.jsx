@@ -6,12 +6,15 @@ import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { activateBranch, createBranch, deactivateBranch, getBranches, getWarehouses, updateBranch } from "../services/api";
 import Modal from "../components/ui/Modal";
-import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import Select from "../components/ui/Select";
-
-const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
-const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
-const buttonClass = "rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60 flex items-center gap-2";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Tooltip from "../components/ui/Tooltip";
+import PageHeader from "../components/ui/PageHeader";
+import { Input } from "../components/ui/Field";
+import Skeleton from "../components/ui/Skeleton";
 
 const BRANCH_TYPES = ["headquarters", "retail_store", "warehouse_only", "office", "other"];
 // Every free-text field gets its digits Persianized on entry except email/website,
@@ -188,28 +191,36 @@ export default function Branches() {
   ]), [language]);
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-6 text-[var(--erp-text)]">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-black flex items-center gap-2">
-          <Building2 className="text-[var(--erp-accent)]" />
-          {tr("شعبه‌ها", "الفروع", "Şubeler", "Branches")}
-        </h1>
-        <button onClick={openCreate} className={buttonClass}>
-          <Plus size={16} /> {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
-        </button>
-      </header>
+    <div dir={dir} className="p-4 md:p-6 space-y-5 text-[var(--erp-text)]">
+      <PageHeader
+        icon={Building2}
+        title={tr("شعبه‌ها", "الفروع", "Şubeler", "Branches")}
+        description={tr(
+          "مدیریت شعبه‌ها، آدرس، اطلاعات تماس و انبار پیش‌فرض هرکدام",
+          "إدارة الفروع والعناوين ومعلومات الاتصال والمستودع الافتراضي لكل فرع",
+          "Şubeleri, adreslerini, iletişim bilgilerini ve varsayılan depolarını yönetin",
+          "Manage branches, addresses, contact info and each one's default warehouse"
+        )}
+        primaryAction={
+          <Button icon={Plus} onClick={openCreate}>
+            {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
+          </Button>
+        }
+      />
 
-      <section className={cardClass}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="relative">
-            <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3 text-[var(--erp-muted)]" />
+      <Card padding={false}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3" style={{ padding: 20 }}>
+          <label className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 12px" }}>
+            <Search size={16} className="text-[var(--erp-muted)] shrink-0" />
             <input
-              className={inputClass + " ps-9"}
               placeholder={tr("جستجوی نام، کد یا شهر...", "بحث بالاسم أو الرمز أو المدينة...", "Ad, kod veya şehre göre ara...", "Search name, code, or city...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label={tr("جستجوی شعبه", "بحث الفروع", "Şube ara", "Search branches")}
+              className="min-w-0 flex-1"
+              style={{ color: "var(--erp-text)", padding: "10px 0" }}
             />
-          </div>
+          </label>
           <Select
             value={typeFilter}
             onChange={setTypeFilter}
@@ -228,11 +239,23 @@ export default function Branches() {
             ]}
           />
         </div>
-      </section>
+      </Card>
 
-      <section className={cardClass}>
+      <Card padding={false}>
         {loading ? (
-          <p className="text-[var(--erp-muted)]">{tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</p>
+          <div className="space-y-2" style={{ padding: 20 }}>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} height={44} radius="var(--erp-radius-md)" />
+            ))}
+          </div>
+        ) : branches.length === 0 ? (
+          <div className="text-center text-[var(--erp-muted)]" style={{ padding: "48px 20px" }}>
+            <Building2 size={28} className="mx-auto mb-3 opacity-60" />
+            <p className="text-sm">{tr("هنوز شعبه‌ای ثبت نشده است.", "لم يتم تسجيل أي فرع بعد.", "Henüz şube kaydedilmedi.", "No branches registered yet.")}</p>
+            <Button className="mt-4" size="sm" icon={Plus} onClick={openCreate}>
+              {tr("ساخت اولین شعبه", "إنشاء أول فرع", "İlk şubeyi oluştur", "Create your first branch")}
+            </Button>
+          </div>
         ) : (
           <Table>
             <Thead>
@@ -246,9 +269,7 @@ export default function Branches() {
               <Th align="end">{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
             </Thead>
             <Tbody>
-              {branches.length === 0 ? (
-                <EmptyRow colSpan={8}>{tr("شعبه‌ای یافت نشد.", "لا توجد فروع.", "Şube bulunamadı.", "No branches found.")}</EmptyRow>
-              ) : branches.map((b, index) => (
+              {branches.map((b, index) => (
                 <Tr key={b.id}>
                   <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
                   <Td className="font-bold">{pd(b.name)}{b.code ? <span className="ms-2 text-xs text-[var(--erp-muted)]">{pd(b.code)}</span> : null}</Td>
@@ -257,20 +278,24 @@ export default function Branches() {
                   <Td>{b.manager_name ? pd(b.manager_name) : "—"}</Td>
                   <Td>{b.phone || b.mobile ? pd(b.phone || b.mobile) : "—"}</Td>
                   <Td>
-                    {b.active ? (
-                      <span className="text-xs px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300">{tr("فعال", "نشط", "Aktif", "Active")}</span>
-                    ) : (
-                      <span className="text-xs px-2 py-1 rounded-lg bg-red-500/15 text-red-200">{tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}</span>
-                    )}
+                    <Badge tone={b.active ? "success" : "neutral"}>
+                      {b.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
+                    </Badge>
                   </Td>
                   <Td align="end">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(b)} className="p-2 rounded-lg bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]" title={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleToggleActive(b)} className="p-2 rounded-lg bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]" title={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}>
-                        {b.active ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
-                      </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Tooltip side="top" label={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
+                        <Button variant="secondary" size="sm" icon={Pencil} aria-label={tr("ویرایش", "تعديل", "Düzenle", "Edit")} onClick={() => openEdit(b)} />
+                      </Tooltip>
+                      <Tooltip side="top" label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}>
+                        <Button
+                          variant={b.active ? "secondary" : "success"}
+                          size="sm"
+                          icon={b.active ? ShieldOff : ShieldCheck}
+                          aria-label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
+                          onClick={() => handleToggleActive(b)}
+                        />
+                      </Tooltip>
                     </div>
                   </Td>
                 </Tr>
@@ -278,7 +303,7 @@ export default function Branches() {
             </Tbody>
           </Table>
         )}
-      </section>
+      </Card>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} maxWidthClassName="max-w-3xl" labelledBy="branch-modal-title">
         <form onSubmit={handleSave} className="p-5 space-y-5">
@@ -308,16 +333,14 @@ export default function Branches() {
                         ]}
                       />
                     ) : type === "number" ? (
-                      <input
-                        className={inputClass}
+                      <Input
                         type="text"
                         inputMode="decimal"
                         value={pd(draft[key])}
                         onChange={(e) => setDraft({ ...draft, [key]: cleanNumberInput(e.target.value) })}
                       />
                     ) : (
-                      <input
-                        className={inputClass}
+                      <Input
                         type="text"
                         value={!LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(draft[key]) : draft[key]}
                         onChange={(e) => setDraft({ ...draft, [key]: !LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(e.target.value) : e.target.value })}
@@ -329,12 +352,12 @@ export default function Branches() {
             </div>
           ))}
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)]">
+            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
               {tr("انصراف", "إلغاء", "İptal", "Cancel")}
-            </button>
-            <button type="submit" disabled={saving} className={buttonClass}>
+            </Button>
+            <Button type="submit" loading={saving}>
               {saving ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

@@ -15,7 +15,7 @@ import { Check, ChevronDown } from "lucide-react";
 // that chrome (Sidebar's context zone) - the floating popup keeps its own
 // full "erp-surface" treatment either way, since it's absolutely
 // positioned and needs to read as its own elevated surface regardless.
-export default function Select({ value, onChange, options, placeholder, className = "", disabled = false, variant = "default" }) {
+export default function Select({ value, onChange, options, placeholder, className = "", disabled = false, variant = "default", error = false }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const wrapperRef = useRef(null);
@@ -81,7 +81,8 @@ export default function Select({ value, onChange, options, placeholder, classNam
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`w-full flex items-center justify-between gap-2 ${variant === "flush" ? "" : "vitalix-control-inset"}`}
+        aria-invalid={error || undefined}
+        className={`w-full flex items-center justify-between gap-2 ${variant === "flush" ? "" : "vitalix-control-inset"} ${error ? "vitalix-control-error" : ""}`}
         style={
           variant === "flush"
             ? { background: "transparent", color: "var(--erp-text)", border: "1px solid transparent", padding: 0, opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer" }

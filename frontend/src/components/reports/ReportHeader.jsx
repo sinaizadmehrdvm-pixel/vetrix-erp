@@ -15,12 +15,15 @@ export default function ReportHeader({ title, subtitle, period, filterSummary })
   const { dir, language, time } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
 
-  const [branding, setBranding] = useState({ company_name: "Vetrix ERP", logo_data: "", show_logo: true });
+  // No legacy brand-name fallback - the report title below already
+  // establishes application context, so an unconfigured/loading company
+  // name simply renders nothing rather than a placeholder brand string.
+  const [branding, setBranding] = useState({ company_name: "", logo_data: "", show_logo: true });
 
   useEffect(() => {
     const timer = setTimeout(() => {
       getSettings().then((data) => setBranding({
-        company_name: data.company_name || "Vetrix ERP",
+        company_name: data.company_name || "",
         logo_data: data.logo_data || "",
         show_logo: data.show_logo !== false,
       })).catch(() => {});
@@ -35,7 +38,9 @@ export default function ReportHeader({ title, subtitle, period, filterSummary })
           {branding.show_logo && branding.logo_data && (
             <img src={`data:image/png;base64,${branding.logo_data}`} alt="" style={{ height: 42, width: "auto" }} />
           )}
-          <div style={{ fontWeight: 900, fontSize: 16, color: "var(--erp-text)" }}>{branding.company_name}</div>
+          {branding.company_name && (
+            <div style={{ fontWeight: 900, fontSize: 16, color: "var(--erp-text)" }}>{branding.company_name}</div>
+          )}
         </div>
         <div style={{ textAlign: dir === "rtl" ? "left" : "right", fontSize: 12, color: "var(--erp-muted)" }}>
           <div>{tr("تولید شده در: ", "أُنشئ في: ", "Oluşturma: ", "Generated: ")}{time(new Date())}</div>

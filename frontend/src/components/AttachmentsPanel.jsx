@@ -12,7 +12,7 @@ import { getAccountingAttachments, uploadAccountingAttachment, deleteAccountingA
  * all four record types without any per-page backend wiring.
  */
 export default function AttachmentsPanel({ entityType, entityId, compact = false }) {
-  const { language } = useLanguage();
+  const { language, n } = useLanguage();
   const fa = language === "fa";
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export default function AttachmentsPanel({ entityType, entityId, compact = false
     <div className={compact ? "" : "bg-[var(--erp-panel-solid)] rounded-2xl p-4 border border-[var(--erp-border)]"}>
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 text-sm font-bold text-[var(--erp-accent)]">
-          <Paperclip size={16} />{label.title} {items.length > 0 && `(${items.length})`}
+          <Paperclip size={16} />{label.title} {items.length > 0 && `(${n(items.length)})`}
         </div>
         <label className="text-xs px-2.5 py-1.5 rounded-lg bg-[var(--erp-glow)] text-[var(--erp-accent)] cursor-pointer inline-flex items-center gap-1">
           <Upload size={13} />{label.upload}

@@ -274,7 +274,7 @@ export default function DataImportCenter() {
                           />
                         </td>
                         <td style={{ padding: 8, fontSize: 12, fontWeight: 800, color: confidenceColor }}>
-                          {confidence !== undefined && confidence !== null ? `${confidence}%` : "—"}
+                          {confidence !== undefined && confidence !== null ? `${n(confidence)}%` : "—"}
                         </td>
                         <td style={{ padding: 8, color: "var(--erp-muted)", fontSize: 13 }}>{String(sampleForField(field) ?? "")}</td>
                       </tr>

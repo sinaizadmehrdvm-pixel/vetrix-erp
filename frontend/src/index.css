@@ -454,6 +454,11 @@ button:hover, a:hover { transform:translateY(-1px); }
 .sidebar-menu-item.is-active .sidebar-menu-icon {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--erp-accent-2) 45%, transparent));
 }
+/* Group-title toggle - subtle hover response, distinct from a nav item's
+   own hover (no translateX lift; this is a section header, not a
+   destination). */
+.sidebar-group-toggle { transition: background-color var(--erp-duration-fast) var(--erp-ease), color var(--erp-duration-fast) var(--erp-ease); }
+.sidebar-group-toggle:hover { background: var(--erp-glow) !important; color: var(--erp-accent) !important; }
 [dir="ltr"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(3px); }
 [dir="rtl"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(-3px); }
 @media (prefers-reduced-motion: reduce) {
@@ -498,10 +503,76 @@ button:hover, a:hover { transform:translateY(-1px); }
   box-shadow: var(--erp-inset-shadow);
   transition: box-shadow var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease);
 }
+.vitalix-control-inset:hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--erp-border) 55%, var(--erp-accent) 45%);
+}
 .vitalix-control-inset:focus {
   outline: none;
   border-color: var(--erp-accent);
   box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-glow);
+}
+/* Semantic error state - a danger-toned ring instead of the accent one,
+   available to any control (or .vitalix-input-group below) that needs it
+   via the `error` prop on Field.jsx's Input/Select/Textarea. */
+.vitalix-control-error {
+  border-color: var(--erp-danger) !important;
+}
+.vitalix-control-error:focus {
+  border-color: var(--erp-danger) !important;
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-danger-soft);
+}
+
+/* Composite "icon + input [+ clear button]" controls (search bars, date
+   fields, prefix/suffix groups) - the OUTER wrapper carries the rounded
+   chrome and gets the focus ring via :focus-within, since clicking
+   anywhere in the group focuses the inner input; styling only the bare
+   <input> would leave the icon/button areas looking unfocused. Reuses
+   the same inset-depth language as .vitalix-control-inset. */
+.vitalix-input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-md);
+  background: var(--erp-panel-solid);
+  box-shadow: var(--erp-inset-shadow);
+  transition: box-shadow var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease);
+}
+.vitalix-input-group:hover:not(:focus-within) {
+  border-color: color-mix(in srgb, var(--erp-border) 55%, var(--erp-accent) 45%);
+}
+.vitalix-input-group:focus-within {
+  border-color: var(--erp-accent);
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-glow);
+}
+.vitalix-input-group.vitalix-control-error { box-shadow: var(--erp-inset-shadow); }
+.vitalix-input-group.vitalix-control-error:focus-within {
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-danger-soft);
+}
+/* Flush modifier - for a group already embedded inside a parent that
+   supplies its own border/panel chrome (e.g. Sidebar's context zone),
+   so nesting doesn't produce a visible "box inside a box". The resting
+   state is fully transparent; the focus ring still appears on
+   :focus-within since that's a separate, higher-specificity rule, not
+   an inline override that would have suppressed it in every state. */
+.vitalix-input-group.vitalix-input-group--flush {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: var(--erp-radius-sm);
+}
+.vitalix-input-group.vitalix-input-group--flush:focus-within {
+  border-color: var(--erp-accent);
+  box-shadow: 0 0 0 3px var(--erp-glow);
+}
+/* The inner input/textarea gives up its own chrome entirely - the group
+   owns background/border/radius/focus so there's never a double ring. */
+.vitalix-input-group > input,
+.vitalix-input-group > textarea {
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  min-width: 0;
 }
 
 
@@ -527,10 +598,26 @@ body { overflow: hidden; }
   scrollbar-gutter: stable;
 }
 .erp-mobile-menu, .erp-sidebar-backdrop { display: none; }
+/* Global focus ring - box-shadow, not outline. `outline` does not reliably
+   clip to an element's border-radius across browsers/element types (text
+   inputs/selects in particular), which is exactly what produced "square
+   ring on a rounded control" everywhere. box-shadow always follows the
+   shadowed element's own border-radius, so a single blanket rule here
+   fixes every rounded control in the app at once - Field/Select/Button
+   and every still-hand-rolled input alike - without per-page patches.
+   The `outline` is kept transparent (not removed) so layout/spacing is
+   identical to a real outline, and forced-colors mode below restores a
+   real one for high-contrast accessibility, where box-shadow is ignored. */
 :where(button, a, input, select, textarea):focus-visible {
-  outline: 3px solid var(--erp-accent);
+  outline: 2px solid transparent;
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--erp-glow);
+  box-shadow: 0 0 0 2px var(--erp-accent), 0 0 0 5px var(--erp-glow);
+}
+@media (forced-colors: active) {
+  :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid CanvasText;
+    box-shadow: none;
+  }
 }
 button:disabled { cursor: not-allowed; transform: none !important; }
 table { max-width: 100%; }
@@ -712,8 +799,15 @@ img, svg { max-width: 100%; }
   -webkit-overflow-scrolling: touch;
 }
 .erp-main :where(.overflow-x-auto, .erp-table-scroll):focus-visible {
-  outline: 3px solid var(--erp-accent);
+  outline: 2px solid transparent;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--erp-accent), 0 0 0 5px var(--erp-glow);
+}
+@media (forced-colors: active) {
+  .erp-main :where(.overflow-x-auto, .erp-table-scroll):focus-visible {
+    outline: 2px solid CanvasText;
+    box-shadow: none;
+  }
 }
 .erp-main :where(.tabular-nums, [data-numeric]) { font-variant-numeric: tabular-nums; }
 .erp-main :where([dir="ltr"]) { unicode-bidi: isolate; }

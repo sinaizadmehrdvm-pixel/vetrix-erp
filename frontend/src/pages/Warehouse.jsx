@@ -15,7 +15,7 @@ function Field({ label, children }) { return <div className="space-y-2"><label c
 function defaultWarehouseLabel(language) { return language === "fa" ? "انبار اصلی" : language === "ar" ? "المستودع الرئيسي" : language === "tr" ? "Ana Depo" : "Main Warehouse"; }
 
 export default function Warehouse() {
-  const { language, n, dir, date } = useLanguage();
+  const { language, n, dir, date, country } = useLanguage();
   const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -93,7 +93,7 @@ export default function Warehouse() {
       <Field label={label.product}><div className="flex gap-2"><Select className="flex-1" value={form.product_id} onChange={(value)=>setForm({...form, product_id:value})} options={[{ value: "", label: label.product }, ...products.map(p=>({ value: p.id, label: `${pd(p.name)} | ${language === "fa" ? "موجودی" : language === "ar" ? "المخزون" : language === "tr" ? "Stok" : "Stock"}: ${n(p.stock||0)}` }))]} /><button type="button" onClick={()=>setScannerOpen(true)} className="px-3 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center" title={language === "fa" ? "اسکن بارکد" : language === "ar" ? "مسح الباركود" : language === "tr" ? "Barkod tara" : "Scan barcode"}><ScanBarcode size={18}/></button></div></Field>
       <Field label={label.quantity}><input type="text" inputMode="numeric" className={inputClass} value={language === "fa" ? toPersianDigits(form.quantity) : form.quantity} onChange={e=>setForm({...form, quantity:cleanNumberInput(e.target.value)})} placeholder={language === "fa" ? "۰" : "0"}/></Field>
       <Field label={label.type}><Select value={form.movement_type} onChange={(value)=>setForm({...form, movement_type:value})} options={[{ value: "in", label: label.in }, { value: "out", label: label.out }, { value: "adjustment", label: label.adjustment }]} /></Field>
-      <Field label={label.date}><JalaliDateField className={inputClass} value={form.movement_date} onChange={(iso)=>setForm({...form, movement_date:iso})} fa={language === "fa"} language={language}/></Field>
+      <Field label={label.date}><JalaliDateField className={inputClass} value={form.movement_date} onChange={(iso)=>setForm({...form, movement_date:iso})} fa={language === "fa"} language={language} country={country}/></Field>
       <Field label={label.note}><input className={inputClass} value={form.note} onChange={e=>setForm({...form, note: language === "fa" ? toPersianDigits(e.target.value) : e.target.value})} placeholder={label.note}/></Field>
     </div><button onClick={addMovement} className="mt-5 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18}/>{label.save}</button>
     <BarcodeScannerModal open={scannerOpen} onClose={()=>setScannerOpen(false)} onDetected={handleBarcodeDetected} fa={language === "fa"} />

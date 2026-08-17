@@ -28,7 +28,7 @@ import PaymentProvidersCard from "../components/settings/PaymentProvidersCard";
 import ExecutiveAgentSettingsCard from "../components/settings/ExecutiveAgentSettingsCard";
 
 const emptySettings = {
-  company_name: "Vetrix ERP",
+  company_name: "",
   manager_name: "",
   phone: "",
   mobile: "",

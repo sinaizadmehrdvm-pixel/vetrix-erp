@@ -129,10 +129,10 @@ export default function ImprovementCenter() {
     try {
       const result = await recalculateBiFindings();
       toast.success(tr(
-        `${result.created.length} یافته جدید، ${result.updated.length} به‌روزرسانی، ${result.resolved.length} حل‌شده`,
-        `${result.created.length} نتيجة جديدة، ${result.updated.length} محدثة، ${result.resolved.length} تم حلها`,
-        `${result.created.length} yeni, ${result.updated.length} güncellendi, ${result.resolved.length} çözüldü`,
-        `${result.created.length} new, ${result.updated.length} updated, ${result.resolved.length} resolved`,
+        `${n(result.created.length)} یافته جدید، ${n(result.updated.length)} به‌روزرسانی، ${n(result.resolved.length)} حل‌شده`,
+        `${n(result.created.length)} نتيجة جديدة، ${n(result.updated.length)} محدثة، ${n(result.resolved.length)} تم حلها`,
+        `${n(result.created.length)} yeni, ${n(result.updated.length)} güncellendi, ${n(result.resolved.length)} çözüldü`,
+        `${n(result.created.length)} new, ${n(result.updated.length)} updated, ${n(result.resolved.length)} resolved`,
       ));
       await load();
     } catch (err) {

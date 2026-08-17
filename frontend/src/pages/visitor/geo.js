@@ -18,7 +18,10 @@ export function haversineMeters(lat1, lon1, lat2, lon2) {
 
 export function formatDistance(meters, language) {
   if (meters === null || meters === undefined) return null;
-  if (meters < 1000) return `${Math.round(meters)} m`;
+  if (meters < 1000) {
+    const m = String(Math.round(meters));
+    return `${language === "fa" ? m.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]) : m} m`;
+  }
   const km = (meters / 1000).toFixed(1);
   return `${language === "fa" ? km.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]) : km} km`;
 }
