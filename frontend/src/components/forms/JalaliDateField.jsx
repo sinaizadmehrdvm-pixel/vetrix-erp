@@ -100,7 +100,19 @@ function cursorFromIso(iso) {
 // when it's omitted. Kept as a plain prop (like `language`/`fa`) rather
 // than calling useLanguage() internally, so this component stays usable
 // - and testable - outside a LanguageProvider tree.
-export default function JalaliDateField({ value, onChange, fa, language, country, className, placeholder, style, minDate, maxDate }) {
+// `variant="grouped"` (default "default", unchanged from before this
+// prop existed) renders the text input and the calendar-trigger button
+// as ONE rounded `.vitalix-input-group` composite instead of two
+// separately-boxed siblings - the accent-filled square button used to
+// sit visually detached from the input, and the input's own focus ring
+// (from whatever `className` the caller supplied) could show a
+// rectangular box instead of following the pill shape. Opt-in and
+// additive so the ~30 existing callers keep their current pixel output;
+// a page adopting "grouped" passes `groupClassName` (mirrors Select.jsx's
+// `triggerClassName`) to override the group's own radius/height instead
+// of `className`, which in this variant targets the input alone.
+export default function JalaliDateField({ value, onChange, fa, language, country, className, groupClassName = "", placeholder, style, minDate, maxDate, variant = "default" }) {
+  const grouped = variant === "grouped";
   const lang = language || (fa ? "fa" : "en");
   const calendarSystem = calendarSystemFor(lang, fa);
   const tr = (faText, arText, trText, enText) =>
@@ -220,7 +232,11 @@ export default function JalaliDateField({ value, onChange, fa, language, country
   const coverage = open ? holidayCoverage(country, calendarSystem) : null;
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", display: "flex", gap: 8, ...style }}>
+    <div
+      ref={wrapperRef}
+      className={grouped ? ["vitalix-input-group", groupClassName].join(" ").trim() : undefined}
+      style={{ position: "relative", ...(grouped ? {} : { display: "flex", gap: 8 }), ...style }}
+    >
       <input
         type="text"
         inputMode="numeric"
@@ -236,16 +252,24 @@ export default function JalaliDateField({ value, onChange, fa, language, country
             ? "1448/02/11"
             : tr("", "", "2026-05-30", "2026-05-30"))
         }
-        className={className}
-        style={{ width: "100%", minWidth: "9.5em" }}
+        className={grouped ? "min-w-0 flex-1" : className}
+        style={
+          grouped
+            ? { border: 0, background: "transparent", outline: "none", boxShadow: "none", paddingInlineStart: 12, minWidth: "8em", color: "var(--erp-text)" }
+            : { width: "100%", minWidth: "9.5em" }
+        }
       />
       <Tooltip side="top" label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}>
         <button
           type="button"
           onClick={() => (open ? setOpen(false) : openPopup())}
           aria-label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}
-          className="bg-[var(--erp-accent)] flex items-center justify-center"
-          style={{ width: 44, height: 44, flexShrink: 0, borderRadius: "var(--erp-radius-lg)", color: "var(--erp-on-accent)" }}
+          className={grouped ? "flex items-center justify-center shrink-0" : "bg-[var(--erp-accent)] flex items-center justify-center"}
+          style={
+            grouped
+              ? { width: 36, height: 36, margin: 4, flexShrink: 0, borderRadius: "var(--erp-radius-sm)", background: "var(--erp-glow)", color: "var(--erp-accent)" }
+              : { width: 44, height: 44, flexShrink: 0, borderRadius: "var(--erp-radius-lg)", color: "var(--erp-on-accent)" }
+          }
         >
           <CalendarDays size={18} />
         </button>

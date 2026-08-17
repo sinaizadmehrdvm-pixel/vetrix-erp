@@ -27,6 +27,7 @@ export default function Card({
   accent = false,
   tone,
   level = 2,
+  clip = true,
   className = "",
   children,
   ...rest
@@ -50,7 +51,12 @@ export default function Card({
         borderRadius: "var(--erp-radius-lg)",
         borderImage: accent ? "linear-gradient(120deg, var(--erp-accent), var(--erp-accent-2)) 1" : undefined,
         borderBlockStart: toneEdge ? `2px solid ${toneEdge}` : undefined,
-        overflow: "hidden",
+        // Clipping to the rounded corners is the right default (matches
+        // every other card), but it also clips any absolutely-positioned
+        // popup a child renders (a Select's option list, in particular) -
+        // a page whose card body hosts a Select needs `clip={false}` to
+        // let that popup escape the card instead of being cut off.
+        overflow: clip ? "hidden" : "visible",
       }}
       {...rest}
     >

@@ -18,7 +18,6 @@ const ProductCategories = lazy(() => import("./pages/ProductCategories"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const InvoicePrint = lazy(() => import("./pages/InvoicePrint"));
 const InvoicePrintChoose = lazy(() => import("./pages/InvoicePrintChoose"));
-const Warehouse = lazy(() => import("./pages/Warehouse"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Payments = lazy(() => import("./pages/Payments"));
 const Receipts = lazy(() => import("./pages/Receipts"));
@@ -33,6 +32,7 @@ const CrmDashboard = lazy(() => import("./pages/CrmDashboard"));
 const SmartInventory = lazy(() => import("./pages/SmartInventory"));
 const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
 const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
+const BranchesWarehouses = lazy(() => import("./pages/BranchesWarehouses"));
 const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
 const ImprovementCenter = lazy(() => import("./pages/ImprovementCenter"));
 const AccountingCore = lazy(() => import("./pages/AccountingCore"));
@@ -68,8 +68,6 @@ const PaymentReminders = lazy(() => import("./pages/PaymentReminders"));
 const MessageTemplates = lazy(() => import("./pages/MessageTemplates"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const DesignStudio = lazy(() => import("./pages/DesignStudio"));
-const Warehouses = lazy(() => import("./pages/Warehouses"));
-const Branches = lazy(() => import("./pages/Branches"));
 const ExecutiveAlerts = lazy(() => import("./pages/ExecutiveAlerts"));
 const CatalogManager = lazy(() => import("./pages/CatalogManager"));
 const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
@@ -205,7 +203,13 @@ function AppContent() {
           <Route path="invoices" element={<Invoices />} />
           <Route path="invoice-print/:id" element={<InvoicePrintChoose />} />
           <Route path="invoice-print/:id/edit" element={<InvoicePrint />} />
-          <Route path="warehouse" element={<Warehouse />} />
+          {/* Branches (/branches), single-warehouse stock movement
+              (/warehouse) and multi-warehouse management (/warehouses)
+              merged into one tabbed page - old links redirect straight to
+              the matching tab instead of a bare landing page, so deep
+              links/bookmarks keep working. */}
+          <Route path="branches-warehouses" element={<BranchesWarehouses />} />
+          <Route path="warehouse" element={<Navigate to="/branches-warehouses?tab=stock-movement" replace />} />
           <Route path="smart-inventory" element={<SmartInventory />} />
           <Route path="purchase-orders" element={<PurchaseOrders />} />
           <Route path="sales-pipeline" element={<SalesPipeline />} />
@@ -257,8 +261,8 @@ function AppContent() {
           <Route path="message-templates" element={<MessageTemplates />} />
           <Route path="help" element={<HelpCenter />} />
           <Route path="design-studio" element={<DesignStudio />} />
-          <Route path="warehouses" element={<Warehouses />} />
-          <Route path="branches" element={<Branches />} />
+          <Route path="warehouses" element={<Navigate to="/branches-warehouses?tab=warehouses" replace />} />
+          <Route path="branches" element={<Navigate to="/branches-warehouses?tab=branches" replace />} />
           <Route path="executive-alerts" element={<ExecutiveAlerts />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

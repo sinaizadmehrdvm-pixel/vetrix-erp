@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 // Native <select> popups are rendered by the OS/browser itself (Windows
@@ -15,9 +15,24 @@ import { Check, ChevronDown } from "lucide-react";
 // that chrome (Sidebar's context zone) - the floating popup keeps its own
 // full "erp-surface" treatment either way, since it's absolutely
 // positioned and needs to read as its own elevated surface regardless.
-export default function Select({ value, onChange, options, placeholder, className = "", disabled = false, variant = "default", error = false }) {
+// `className` sizes/positions the outer wrapper (width, shrink, grid
+// placement); it does NOT reach the trigger `<button>`, which owns its
+// own radius/padding/height as inline styles for `variant="default"`.
+// A caller that needs to override the trigger's own chrome (matching a
+// page-local control convention) should use `triggerClassName` with
+// Tailwind's `!important` modifier instead - passing radius/padding
+// utilities via `className` would land on the wrapper only and do
+// nothing to the button while silently adding unwanted wrapper padding.
+export default function Select({ value, onChange, options, placeholder, className = "", triggerClassName = "", disabled = false, variant = "default", error = false }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Popup normally hugs the trigger's inline-start edge (matches text
+  // direction). A trigger sitting near the viewport's inline-end edge
+  // (e.g. the last item in a wrapped filter row) can push a wide popup
+  // (long option labels grow it via width:max-content) past the screen
+  // edge - this flips it to anchor from the opposite edge instead, so it
+  // grows back on-screen rather than being clipped by the viewport.
+  const [popupFlip, setPopupFlip] = useState(false);
   const wrapperRef = useRef(null);
   const listRef = useRef(null);
 
@@ -32,9 +47,18 @@ export default function Select({ value, onChange, options, placeholder, classNam
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = listRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth || rect.left < 0) setPopupFlip(true);
+  }, [open]);
+
   function openList() {
     const index = options.findIndex((o) => String(o.value) === String(value));
     setActiveIndex(index >= 0 ? index : 0);
+    setPopupFlip(false);
     setOpen(true);
   }
 
@@ -82,7 +106,7 @@ export default function Select({ value, onChange, options, placeholder, classNam
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-invalid={error || undefined}
-        className={`w-full flex items-center justify-between gap-2 ${variant === "flush" ? "" : "vitalix-control-inset"} ${error ? "vitalix-control-error" : ""}`}
+        className={`w-full flex items-center justify-between gap-2 ${variant === "flush" ? "" : "vitalix-control-inset"} ${error ? "vitalix-control-error" : ""} ${triggerClassName}`}
         style={
           variant === "flush"
             ? { background: "transparent", color: "var(--erp-text)", border: "1px solid transparent", padding: 0, opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer" }
@@ -109,7 +133,8 @@ export default function Select({ value, onChange, options, placeholder, classNam
           className="absolute z-30 erp-surface"
           style={{
             top: "calc(100% + 6px)",
-            insetInlineStart: 0,
+            insetInlineStart: popupFlip ? undefined : 0,
+            insetInlineEnd: popupFlip ? 0 : undefined,
             minWidth: "100%",
             width: "max-content",
             maxWidth: "min(480px, 90vw)",

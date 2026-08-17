@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, UsersRound, Package, Receipt, Wallet, BarChart3, Settings,
-  LogOut, ArrowRightLeft, Boxes, Warehouse as WarehouseIcon, BrainCircuit,
+  LogOut, ArrowRightLeft, Boxes, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
@@ -39,9 +39,16 @@ const groups = [
     id: "inventory", labelKey: "groupInventory",
     items: [
       { key: "productCategories", icon: Boxes, path: "/product-categories" },
-      { key: "branches", icon: Building2, path: "/branches", roles: ["admin", "warehouse"] },
-      { key: "warehouse", icon: WarehouseIcon, path: "/warehouse", roles: ["admin", "warehouse", "viewer", "user"] },
-      { key: "multiWarehouse", icon: WarehouseIcon, path: "/warehouses", roles: ["admin", "warehouse"] },
+      // Branches (admin/warehouse), single-warehouse stock movement
+      // (admin/warehouse/viewer/user) and multi-warehouse management
+      // (admin/warehouse) used to be three separate entries/routes - now
+      // one entry pointing at the unified tabbed page. Its `roles` is the
+      // union of the three so viewer/user can still reach the Stock
+      // Movement tab (matching the old /warehouse entry's broader access);
+      // the page itself hides the Branches/Warehouses/Transfers tabs from
+      // roles that couldn't reach those routes before, so the narrower
+      // per-tab access is preserved, not just moved to a single gate.
+      { key: "branchesWarehouses", icon: Building2, path: "/branches-warehouses", roles: ["admin", "warehouse", "viewer", "user"] },
       { key: "smartInventory", icon: Brain, path: "/smart-inventory", roles: ["admin", "warehouse", "accountant"] },
       { key: "purchaseOrders", icon: Factory, path: "/purchase-orders", roles: ["admin", "warehouse", "accountant"] },
       { key: "pricingTiers", icon: Layers, path: "/pricing-tiers", roles: ["admin", "accountant", "warehouse"] },

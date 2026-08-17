@@ -22,7 +22,6 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Tooltip from "../components/ui/Tooltip";
-import PageHeader from "../components/ui/PageHeader";
 import { Input, Textarea } from "../components/ui/Field";
 import Skeleton from "../components/ui/Skeleton";
 
@@ -33,7 +32,14 @@ const emptyEditDraft = {
   responsible_person: "", warehouse_type: "main", description: "", capacity: "", capacity_unit: "",
 };
 
-export default function Warehouses() {
+// `section` lets this component serve two distinct tabs of the unified
+// Branches & Warehouses page without duplicating its data-fetching/CRUD
+// logic: "list" (create + list + edit + breakdown/browse - the former
+// standalone /warehouses page) or "transfers" (just the inter-warehouse
+// transfer form). All state/effects stay unconditional regardless of
+// which section is asked for, since `products`/`warehouses`/`branches`
+// are shared inputs to both; only the returned Cards are gated.
+export default function Warehouses({ section = "list" }) {
   const { dir, language, n } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
   const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
@@ -239,22 +245,19 @@ export default function Warehouses() {
   }
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-5 text-[var(--erp-text)]">
-      <PageHeader
-        icon={WarehouseIcon}
-        title={language === "fa" ? "شعبه‌ها و انبارهای متعدد" : language === "ar" ? "الفروع والمستودعات المتعددة" : language === "tr" ? "Çoklu şube ve depolar" : "Multi-branch warehouses"}
-        description={
-          language === "fa"
-            ? "ساخت، ویرایش و انتقال موجودی بین انبارها و شعبه‌ها"
-            : language === "ar"
-            ? "إنشاء المستودعات وتعديلها ونقل المخزون بينها"
-            : language === "tr"
-            ? "Depo/şube oluşturma, düzenleme ve depolar arası stok transferi"
-            : "Create, edit and transfer stock across warehouses and branches"
-        }
-      />
-
-      <Card icon={Plus} title={language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}>
+    <div dir={dir} className="space-y-5 text-[var(--erp-text)]">
+      {section === "list" && (
+      <>
+      {/* clip={false} + relative z-40: same stacking-context trap as
+          Branches.jsx's filter card - .erp-surface's backdrop-filter gives
+          every Card its own paint layer, so this card's Select popups
+          (createBranchId/createType) would otherwise be painted over by
+          the "Warehouses list" Card right below once opened. Elevated
+          higher than the later cards in this section (z-30/z-20 below)
+          since only one Select popup is ever open at a time but an
+          earlier card's popup can extend down into a later card's space -
+          never the reverse - so earlier cards need to outrank later ones. */}
+      <Card icon={Plus} clip={false} className="relative z-40" title={language === "fa" ? "ساخت انبار/شعبه جدید" : language === "ar" ? "إنشاء مستودع/فرع جديد" : language === "tr" ? "Yeni depo/şube oluştur" : "Create a new warehouse/branch"}>
         <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Input
             placeholder={language === "fa" ? "نام انبار (مثلاً «شعبه شمال»)" : language === "ar" ? "اسم المستودع (مثال: «الفرع الشمالي»)" : language === "tr" ? "Depo adı (örn. \"Kuzey şubesi\")" : "Warehouse name (e.g. \"North branch\")"}
@@ -348,7 +351,14 @@ export default function Warehouses() {
           </div>
         )}
       </Card>
+      </>
+      )}
 
+      {/* Modal stays mounted unconditionally regardless of `section` (per
+          the shared Modal's own correctness rule - open toggles visibility,
+          it's never conditionally mounted) - its trigger (the Edit button
+          above) only exists when section="list" is rendered, so `editOpen`
+          can never become true from the "transfers" section anyway. */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} maxWidthClassName="max-w-2xl" labelledBy="warehouse-edit-title">
         <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
           <h2 id="warehouse-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش انبار", "تعديل المستودع", "Depoyu düzenle", "Edit warehouse")}</h2>
@@ -389,7 +399,8 @@ export default function Warehouses() {
         </form>
       </Modal>
 
-      <Card icon={ArrowRightLeft} title={language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}>
+      {section === "transfers" && (
+      <Card icon={ArrowRightLeft} clip={false} className="relative z-40" title={language === "fa" ? "انتقال موجودی بین انبارها" : language === "ar" ? "نقل المخزون بين المستودعات" : language === "tr" ? "Depolar arası stok transferi" : "Transfer stock between warehouses"}>
         <form onSubmit={handleTransfer} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Select
             value={transferProductId}
@@ -424,8 +435,11 @@ export default function Warehouses() {
           </Button>
         </form>
       </Card>
+      )}
 
-      <Card title={language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}>
+      {section === "list" && (
+      <>
+      <Card clip={false} className="relative z-30" title={language === "fa" ? "موجودی هر کالا به تفکیک انبار" : language === "ar" ? "توزيع المخزون حسب المستودع لكل منتج" : language === "tr" ? "Ürün bazında depo stok dağılımı" : "Stock breakdown per product"}>
         <Select
           className="mb-3"
           value={breakdownProductId}
@@ -447,7 +461,7 @@ export default function Warehouses() {
         )}
       </Card>
 
-      <Card title={language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}>
+      <Card clip={false} className="relative z-20" title={language === "fa" ? "کالاهای هر انبار" : language === "ar" ? "منتجات كل مستودع" : language === "tr" ? "Depoya göre ürünler" : "Products by warehouse"}>
         <Select
           className="mb-3"
           value={browseWarehouseId}
@@ -469,6 +483,8 @@ export default function Warehouses() {
           )
         )}
       </Card>
+      </>
+      )}
     </div>
   );
 }

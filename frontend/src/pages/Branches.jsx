@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Pencil, Plus, Search, ShieldCheck, ShieldOff } from "lucide-react";
+import { Building2, Pencil, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
@@ -12,9 +12,39 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Tooltip from "../components/ui/Tooltip";
-import PageHeader from "../components/ui/PageHeader";
 import { Input } from "../components/ui/Field";
 import Skeleton from "../components/ui/Skeleton";
+import { confirmAction } from "../components/ui/confirmService";
+
+// Compact cell padding for this page's table only (Table.jsx's Th/Td
+// accept a `style` prop that merges over their own default padding, so
+// this doesn't need any !important override or a shared-component
+// change) - shrinks the per-column horizontal footprint enough that the
+// 8-column layout fits typical desktop/laptop widths without falling
+// back to the table wrapper's overflow-x-auto scroll.
+const cellPad = { padding: "10px 10px" };
+// `table-layout` defaults to `auto`, under which a `width:100%` table is
+// only a MINIMUM, not a cap - the browser sizes every column from its
+// widest cell content (and Th forces `white-space:nowrap`), so once that
+// content sum exceeds the available width the table simply grows past
+// its container regardless of `w-full`, which is what was still forcing
+// the wrapper's horizontal scrollbar even after compacting padding and
+// hiding two columns. `table-layout:fixed` makes the browser respect the
+// table's own width as a hard cap instead - column widths are then taken
+// ONLY from the first row's cells (Thead's `Th`s, since Thead is first
+// in DOM), so every `Th` below is given an explicit width except Name,
+// left unset so it's the one column that absorbs whatever space remains.
+const thFixed = { ...cellPad, overflow: "hidden", textOverflow: "ellipsis" };
+// Manager/phone are secondary metadata (still one click away via Edit) -
+// hidden below xl so the remaining 6 columns' fixed-width budget (510px)
+// comfortably fits laptop/tablet widths down to 1024px. `lg` (1024px)
+// was tried first, but at exactly that width - with the sidebar in its
+// default expanded state - the full 8-column budget (740px) doesn't
+// reliably fit the available content area, reintroducing the very
+// scrollbar this column-hiding exists to prevent right at the
+// breakpoint where the extra columns turn on. `xl` (1280px) is safely
+// above that crossover.
+const secondaryColClass = "hidden xl:table-cell";
 
 const BRANCH_TYPES = ["headquarters", "retail_store", "warehouse_only", "office", "other"];
 // Every free-text field gets its digits Persianized on entry except email/website,
@@ -145,6 +175,33 @@ export default function Branches() {
     }
   }
 
+  // Branches are never hard-deleted on the backend (app/branches.py has no
+  // DELETE route by design - warehouses/stock/accounting history may
+  // reference a branch through its warehouses) - the safe, real system
+  // behavior is deactivation. This "delete" action is a clearly-labeled,
+  // explicitly-confirmed entry point onto that same safe path, instead of
+  // silently reusing the quick status toggle for what a user thinks of as
+  // "removing" a branch.
+  async function handleDeleteBranch(branch) {
+    const confirmed = await confirmAction(
+      tr(
+        `شعبه‌ها هرگز به‌طور کامل حذف نمی‌شوند، چون ممکن است انبارها، موجودی یا سوابق حسابداری به آن‌ها ارجاع داده باشند. با تأیید، شعبه «${branch.name}» غیرفعال (بایگانی) می‌شود و سوابق آن حفظ خواهد شد.`,
+        `لا تُحذف الفروع نهائيًا أبدًا لأنها قد تكون مرتبطة بمستودعات أو مخزون أو سجلات محاسبية. عند التأكيد، سيتم إلغاء تفعيل (أرشفة) الفرع «${branch.name}» مع الحفاظ على سجلاته.`,
+        `Şubeler; depolar, stok veya muhasebe kayıtları tarafından referans alınabileceğinden asla kalıcı olarak silinmez. Onaylarsanız «${branch.name}» şubesi devre dışı bırakılır (arşivlenir) ve geçmişi korunur.`,
+        `Branches are never permanently deleted, since warehouses, stock, or accounting records may reference them. Confirming will deactivate (archive) "${branch.name}" and preserve its history.`
+      ),
+      { danger: true }
+    );
+    if (!confirmed) return;
+    try {
+      await deactivateBranch(branch.id);
+      toast.success(tr("شعبه بایگانی شد.", "تمت أرشفة الفرع.", "Şube arşivlendi.", "Branch archived."));
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
   const fieldGroups = useMemo(() => ([
     {
       title: tr("اطلاعات پایه", "المعلومات الأساسية", "Temel bilgiler", "Basic info"),
@@ -191,24 +248,31 @@ export default function Branches() {
   ]), [language]);
 
   return (
-    <div dir={dir} className="p-4 md:p-6 space-y-5 text-[var(--erp-text)]">
-      <PageHeader
-        icon={Building2}
-        title={tr("شعبه‌ها", "الفروع", "Şubeler", "Branches")}
-        description={tr(
-          "مدیریت شعبه‌ها، آدرس، اطلاعات تماس و انبار پیش‌فرض هرکدام",
-          "إدارة الفروع والعناوين ومعلومات الاتصال والمستودع الافتراضي لكل فرع",
-          "Şubeleri, adreslerini, iletişim bilgilerini ve varsayılan depolarını yönetin",
-          "Manage branches, addresses, contact info and each one's default warehouse"
-        )}
-        primaryAction={
-          <Button icon={Plus} onClick={openCreate}>
-            {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
-          </Button>
-        }
-      />
+    <div dir={dir} className="space-y-5 text-[var(--erp-text)]">
+      {/* No own PageHeader here - this component is now only ever embedded
+          as the "Branches" tab of the unified Branches & Warehouses page,
+          which owns the single shared PageHeader for all its tabs. The
+          create action stays local to this tab, same handler as before. */}
+      <div className="flex items-center justify-end">
+        <Button icon={Plus} onClick={openCreate}>
+          {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
+        </Button>
+      </div>
 
-      <Card padding={false}>
+      {/* clip={false} lets the Select popups escape this card's box instead
+          of being cropped - but `.erp-surface` (Card's own class) sets
+          `backdrop-filter: blur(16px)`, which creates an isolated stacking
+          context on EVERY Card. Without an explicit z-index, that context
+          sits at the same implicit stacking level as the table Card below
+          it, and the later-in-DOM table Card (also `.erp-surface`) then
+          paints its own layer over whatever the popup renders outside the
+          filter card's box - clip=false alone stops the crop but not this
+          layering, which is what made the open dropdown look like it was
+          rendering "into"/behind the table. `relative z-20` lifts this
+          card's whole stacking context above that implicit level so the
+          popup - and anything else that overflows this card - correctly
+          paints on top of the table Card, not behind it. */}
+      <Card padding={false} clip={false} className="relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3" style={{ padding: 20 }}>
           <label className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 12px" }}>
             <Search size={16} className="text-[var(--erp-muted)] shrink-0" />
@@ -257,33 +321,51 @@ export default function Branches() {
             </Button>
           </div>
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <Thead>
-              <Th>#</Th>
-              <Th>{tr("نام", "الاسم", "Ad", "Name")}</Th>
-              <Th>{tr("نوع", "النوع", "Tür", "Type")}</Th>
-              <Th>{tr("شهر", "المدينة", "Şehir", "City")}</Th>
-              <Th>{tr("مدیر", "المدير", "Müdür", "Manager")}</Th>
-              <Th>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
-              <Th>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
-              <Th align="end">{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
+              <Th style={{ ...thFixed, width: 40 }}>#</Th>
+              <Th style={cellPad}>{tr("نام", "الاسم", "Ad", "Name")}</Th>
+              <Th style={{ ...thFixed, width: 100 }}>{tr("نوع", "النوع", "Tür", "Type")}</Th>
+              <Th style={{ ...thFixed, width: 100 }}>{tr("شهر", "المدينة", "Şehir", "City")}</Th>
+              <Th className={secondaryColClass} style={{ ...thFixed, width: 120 }}>{tr("مدیر", "المدير", "Müdür", "Manager")}</Th>
+              <Th className={secondaryColClass} style={{ ...thFixed, width: 110 }}>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
+              <Th style={{ ...thFixed, width: 110 }}>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+              <Th align="end" style={{ ...thFixed, width: 160 }}>{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
             </Thead>
             <Tbody>
               {branches.map((b, index) => (
                 <Tr key={b.id}>
-                  <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
-                  <Td className="font-bold">{pd(b.name)}{b.code ? <span className="ms-2 text-xs text-[var(--erp-muted)]">{pd(b.code)}</span> : null}</Td>
-                  <Td>{branchTypeLabel(b.branch_type)}</Td>
-                  <Td>{b.city ? pd(b.city) : "—"}</Td>
-                  <Td>{b.manager_name ? pd(b.manager_name) : "—"}</Td>
-                  <Td>{b.phone || b.mobile ? pd(b.phone || b.mobile) : "—"}</Td>
-                  <Td>
+                  <Td className="text-[var(--erp-muted)] font-bold" style={cellPad}>{n(index + 1)}</Td>
+                  <Td className="font-bold" style={cellPad}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Tooltip side="top" label={pd(b.name)}>
+                        <span className="truncate block min-w-0" style={{ maxWidth: 200 }}>{pd(b.name)}</span>
+                      </Tooltip>
+                      {/* "#" prefix makes this unmistakably a separate
+                          identifier, not a continuation of the name above -
+                          matters most when the two happen to share a value
+                          (e.g. placeholder/test data), which is exactly what
+                          previously read as a duplicated "name name". */}
+                      {b.code && <Badge tone="neutral" className="shrink-0">{`#${pd(b.code)}`}</Badge>}
+                    </div>
+                  </Td>
+                  <Td style={cellPad}>{branchTypeLabel(b.branch_type)}</Td>
+                  <Td style={cellPad}>
+                    {b.city ? (
+                      <Tooltip side="top" label={pd(b.city)}>
+                        <span className="truncate block min-w-0" style={{ maxWidth: 76 }}>{pd(b.city)}</span>
+                      </Tooltip>
+                    ) : "—"}
+                  </Td>
+                  <Td className={secondaryColClass} style={cellPad}>{b.manager_name ? pd(b.manager_name) : "—"}</Td>
+                  <Td className={secondaryColClass} style={cellPad}>{b.phone || b.mobile ? pd(b.phone || b.mobile) : "—"}</Td>
+                  <Td style={cellPad}>
                     <Badge tone={b.active ? "success" : "neutral"}>
                       {b.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
                     </Badge>
                   </Td>
-                  <Td align="end">
-                    <div className="flex items-center justify-end gap-1.5">
+                  <Td align="end" style={cellPad}>
+                    <div className="flex items-center justify-end gap-1">
                       <Tooltip side="top" label={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
                         <Button variant="secondary" size="sm" icon={Pencil} aria-label={tr("ویرایش", "تعديل", "Düzenle", "Edit")} onClick={() => openEdit(b)} />
                       </Tooltip>
@@ -296,6 +378,17 @@ export default function Branches() {
                           onClick={() => handleToggleActive(b)}
                         />
                       </Tooltip>
+                      {b.active && (
+                        <Tooltip side="top" label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            icon={Trash2}
+                            aria-label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}
+                            onClick={() => handleDeleteBranch(b)}
+                          />
+                        </Tooltip>
+                      )}
                     </div>
                   </Td>
                 </Tr>
