@@ -16,14 +16,18 @@ export function haversineMeters(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export function formatDistance(meters, language) {
+// `n` is the shared number formatter from useLanguage() (Intl.NumberFormat
+// under the hood) - passed in rather than a bare `language` string so this
+// renders through the exact same locale/digit convention as every other
+// number in the app (Persian digits for fa, the app's established
+// convention for ar, Latin for tr/en) instead of a hand-rolled regex that
+// only ever handled the fa case.
+export function formatDistance(meters, n) {
   if (meters === null || meters === undefined) return null;
   if (meters < 1000) {
-    const m = String(Math.round(meters));
-    return `${language === "fa" ? m.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]) : m} m`;
+    return `${n(Math.round(meters))} m`;
   }
-  const km = (meters / 1000).toFixed(1);
-  return `${language === "fa" ? km.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]) : km} km`;
+  return `${n(meters / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 }
 
 export function getCurrentPosition(options = { enableHighAccuracy: true, timeout: 10000 }) {

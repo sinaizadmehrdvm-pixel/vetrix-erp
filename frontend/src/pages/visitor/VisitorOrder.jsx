@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2, Send, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../../localization/useLanguage";
+import { toEnglishDigits } from "../../localization/helpers";
 import { getCustomer, getProducts, createInvoice, isNetworkError } from "../../services/api";
 import { translateApiError } from "../../localization/apiErrors";
 import { getCache, setCache } from "../../storage/db";
 import { syncPendingRecords, useOnlineSync } from "../../storage/offlineSync";
+import MoneyDisplay from "../../components/ui/MoneyDisplay";
 import VisitorLayout from "./VisitorLayout";
 
 const PRODUCTS_CACHE_KEY = "visitor_products";
@@ -29,7 +31,7 @@ async function createOrderForSync(payload) {
 }
 
 export default function VisitorOrder() {
-  const { language } = useLanguage();
+  const { language, n } = useLanguage();
   const { customerId } = useParams();
   const navigate = useNavigate();
   const fa = language === "fa";
@@ -78,7 +80,7 @@ export default function VisitorOrder() {
     await setCache(PENDING_ORDERS_CACHE_KEY, updated.filter((item) => item.pending_sync));
     if (syncedCount > 0) {
       toast.success(
-        fa ? `${syncedCount} سفارش آفلاین همگام‌سازی شد.` : `${syncedCount} offline order(s) synced.`
+        fa ? `${n(syncedCount)} سفارش آفلاین همگام‌سازی شد.` : `${n(syncedCount)} offline order(s) synced.`
       );
     }
   }
@@ -86,7 +88,10 @@ export default function VisitorOrder() {
   useOnlineSync(syncPendingOrders);
 
   const filteredProducts = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase(language);
+    // Digit-normalize only the typed query (Persian/Arabic-Indic -> Latin)
+    // so a Persian-digit product code/barcode search matches the
+    // already-Latin stored code/barcode without touching product data.
+    const needle = toEnglishDigits(query.trim()).toLocaleLowerCase(language);
     if (!needle) return products.slice(0, 30);
     return products.filter((product) =>
       `${product.name || ""} ${product.code || ""} ${product.barcode || ""}`.toLocaleLowerCase(language).includes(needle)
@@ -163,13 +168,13 @@ export default function VisitorOrder() {
 
   return (
     <VisitorLayout title={customer?.name || tr("سفارش جدید", "طلب جديد", "Yeni sipariş", "New order")}>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--erp-panel-solid)", borderRadius: 14, padding: "10px 12px", border: "1px solid var(--erp-border)", marginBottom: 12 }}>
+      <label className="vitalix-input-group" style={{ gap: 8, padding: "0 12px", marginBottom: 12 }}>
         <Search size={16} color="var(--erp-muted)" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={tr("جستجوی کالا...", "ابحث عن منتج...", "Ürün ara...", "Search product...")}
-          style={{ flex: 1, background: "transparent", border: 0, outline: "none", color: "var(--erp-text)" }}
+          style={{ flex: 1, minWidth: 0, color: "var(--erp-text)", padding: "10px 0" }}
         />
       </label>
 
@@ -224,7 +229,7 @@ export default function VisitorOrder() {
 
       <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900, marginBottom: 14 }}>
         <span>{tr("جمع کل", "الإجمالي", "Toplam", "Total")}</span>
-        <span>{total.toLocaleString(language)}</span>
+        <MoneyDisplay value={total} fontSize={16} />
       </div>
 
       <button

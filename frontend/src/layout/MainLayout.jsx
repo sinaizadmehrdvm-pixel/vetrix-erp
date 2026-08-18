@@ -11,6 +11,16 @@ export default function MainLayout() {
   const { dir, language } = useLanguage();
   const location = useLocation();
   const reduceMotion = useReducedMotion();
+  // The whole Field Sales module (/visitor, /visitor/visits) shares one
+  // FieldSalesProvider mounted by the nested "visitor" layout route in
+  // App.jsx, specifically so the active visit's timer/draft/recorded
+  // orders survive switching between its two routes. Keying this
+  // transition by the full pathname would force React to unmount/remount
+  // everything below <Outlet/> - including that provider - on every such
+  // switch, silently resetting the in-progress visit. Collapsing both
+  // routes to one transition key keeps every other route's per-page
+  // animation exactly as it was.
+  const transitionKey = location.pathname.startsWith("/visitor") ? "/visitor" : location.pathname;
   const [navigationOpen, setNavigationOpen] = useState(false);
   const menuButtonRef = useRef(null);
   const menuLabel =
@@ -94,7 +104,7 @@ export default function MainLayout() {
         <OfflineStatusBanner />
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={location.pathname}
+            key={transitionKey}
             initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}

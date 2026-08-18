@@ -77,6 +77,7 @@ const RecurringInvoices = lazy(() => import("./pages/RecurringInvoices"));
 const VisitorHome = lazy(() => import("./pages/visitor/VisitorHome"));
 const VisitorOrder = lazy(() => import("./pages/visitor/VisitorOrder"));
 const VisitorVisits = lazy(() => import("./pages/visitor/VisitorVisits"));
+const FieldSalesLayout = lazy(() => import("./pages/visitor/FieldSalesLayout"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
@@ -157,30 +158,19 @@ function AppContent() {
           }
         />
 
-        {/* Visitor (field sales rep) module: a separate, minimal,
-            mobile-first shell outside the desktop Sidebar/MainLayout - see
-            pages/visitor/VisitorLayout.jsx. */}
-        <Route
-          path="/visitor"
-          element={
-            <ProtectedRoute>
-              <VisitorHome />
-            </ProtectedRoute>
-          }
-        />
+        {/* Visitor (field sales rep) order screen only - still the
+            separate, minimal, mobile-first shell outside the desktop
+            Sidebar/MainLayout (pages/visitor/VisitorLayout.jsx). /visitor
+            and /visitor/visits themselves moved inside MainLayout below:
+            the Field Sales Phase 1 redesign needs the real app Sidebar at
+            desktop widths, which MainLayout already provides responsively
+            (an off-canvas drawer on mobile via its own hamburger button),
+            so there was no need for a second, parallel responsive shell. */}
         <Route
           path="/visitor/order/:customerId"
           element={
             <ProtectedRoute>
               <VisitorOrder />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/visitor/visits"
-          element={
-            <ProtectedRoute>
-              <VisitorVisits />
             </ProtectedRoute>
           }
         />
@@ -195,6 +185,10 @@ function AppContent() {
         >
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="visitor" element={<FieldSalesLayout />}>
+            <Route index element={<VisitorHome />} />
+            <Route path="visits" element={<VisitorVisits />} />
+          </Route>
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetails />} />
           <Route path="customers/:id/360" element={<Customer360 />} />
