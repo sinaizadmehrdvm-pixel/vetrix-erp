@@ -2885,18 +2885,90 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(admin_login.status_code, 200, admin_login.text)
         token = admin_login.json()["access_token"]
+        admin_company_id = admin_login.json()["user"]["company_id"]
 
-        with self.client.websocket_connect(f"/ws/notifications?token={token}") as websocket:
-            broadcaster.publish(
-                "low_stock", product_id=999, product_name="Websocket Test Product", stock=1, min_stock=5
-            )
-            message = websocket.receive_json()
-            self.assertEqual(message["type"], "low_stock")
-            self.assertEqual(message["product_id"], 999)
+        # SECURITY PHASE C: a second, unrelated company's connection must
+        # never receive the first company's events - the broadcaster used
+        # to fan out every event to every connected socket regardless of
+        # which tenant authenticated it.
+        second_company = self.client.post(
+            "/api/companies", headers={"Authorization": f"Bearer {token}"},
+            json={"name": "WS Isolation Co"},
+        )
+        self.assertEqual(second_company.status_code, 200, second_company.text)
+        second_company_id = second_company.json()["id"]
+        second_admin = self.client.post(
+            "/users", headers={"Authorization": f"Bearer {token}"},
+            json={"full_name": "WS Isolation Admin", "username": "ws-isolation-admin",
+                  "password": "StrongWsIsolation!42", "role": "admin", "company_id": second_company_id},
+        )
+        self.assertEqual(second_admin.status_code, 200, second_admin.text)
+        foreign_login = self.client.post(
+            "/login", json={"username": "ws-isolation-admin", "password": "StrongWsIsolation!42"},
+        )
+        self.assertEqual(foreign_login.status_code, 200, foreign_login.text)
+        foreign_token = foreign_login.json()["access_token"]
+
+        with self.client.websocket_connect(f"/ws/notifications?token={foreign_token}") as foreign_ws:
+            with self.client.websocket_connect(f"/ws/notifications?token={token}") as websocket:
+                broadcaster.publish(
+                    "low_stock", admin_company_id,
+                    product_id=999, product_name="Websocket Test Product", stock=1, min_stock=5,
+                )
+                message = websocket.receive_json()
+                self.assertEqual(message["type"], "low_stock")
+                self.assertEqual(message["product_id"], 999)
+
+                # A second, foreign-company-scoped event must reach ONLY
+                # the foreign socket - proving it's actually connected and
+                # listening (not silently receiving nothing for some
+                # unrelated reason), while never seeing company A's event.
+                broadcaster.publish(
+                    "low_stock", second_company_id,
+                    product_id=888, product_name="Foreign Product", stock=1, min_stock=5,
+                )
+                foreign_message = foreign_ws.receive_json()
+                self.assertEqual(foreign_message["product_id"], 888)
 
         with self.assertRaises(Exception):
             with self.client.websocket_connect("/ws/notifications?token=not-a-real-token"):
                 pass
+
+    def test_zzzzzzzzza_websocket_token_revalidation_and_connection_cap(self):
+        from unittest.mock import patch
+        from app.notifications import broadcaster as broadcaster_module
+        from app.notifications import ws_routes as ws_routes_module
+
+        admin_login = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(admin_login.status_code, 200, admin_login.text)
+        token = admin_login.json()["access_token"]
+
+        # Periodic re-validation: once the token is revoked (logout bumps
+        # token_generation), a long-lived connection must be force-closed
+        # on its next re-check, not stay "authenticated" indefinitely.
+        with patch.object(ws_routes_module, "TOKEN_RECHECK_INTERVAL_SECONDS", 0.05):
+            with self.client.websocket_connect(f"/ws/notifications?token={token}") as websocket:
+                revoke = self.client.post("/logout", headers={"Authorization": f"Bearer {token}"})
+                self.assertEqual(revoke.status_code, 200, revoke.text)
+                with self.assertRaises(Exception):
+                    websocket.receive_json()
+
+        # logout bumped token_generation, so re-login for a fresh token.
+        relogin = self.client.post(
+            "/login", json={"username": "ci-admin", "password": "StrongAdminPassword!42"},
+        )
+        self.assertEqual(relogin.status_code, 200, relogin.text)
+        fresh_token = relogin.json()["access_token"]
+
+        # Connection cap: one account cannot open unlimited sockets.
+        with patch.object(broadcaster_module, "MAX_CONNECTIONS_PER_USER", 2):
+            with self.client.websocket_connect(f"/ws/notifications?token={fresh_token}"):
+                with self.client.websocket_connect(f"/ws/notifications?token={fresh_token}"):
+                    with self.assertRaises(Exception):
+                        with self.client.websocket_connect(f"/ws/notifications?token={fresh_token}"):
+                            pass
 
     def test_zzzzzzzzzz_ai_bi_anomaly_detection_endpoint(self):
         admin_login = self.client.post(
@@ -6042,6 +6114,10 @@ class ApiAccessControlTests(unittest.TestCase):
         secure_download = self.client.get(f"/api/backup-delivery/secure-download?token={download_token}")
         self.assertEqual(secure_download.status_code, 200, secure_download.text)
         self.assertGreater(len(secure_download.content), 0)
+        # SECURITY PHASE C: an intermediate/shared cache must never be able
+        # to serve this file to a second requester after the token has
+        # already been consumed - the response must say so explicitly.
+        self.assertEqual(secure_download.headers.get("cache-control"), "no-store")
 
         # One-time use: the SAME token can never be replayed (Task 07 Section 4/G).
         replayed_download = self.client.get(f"/api/backup-delivery/secure-download?token={download_token}")
@@ -7336,6 +7412,174 @@ class ApiAccessControlTests(unittest.TestCase):
                 "/api/payments/session/simulate", json={"authority": "does-not-matter", "outcome": "success"},
             )
         self.assertEqual(prod_blocked.status_code, 403, prod_blocked.text)
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_security_phase_c_hardening_regressions(self):
+        """SECURITY PHASE C: proves the confirmed hardening findings stay
+        fixed - /login times out consistently for a nonexistent username,
+        /export/invoices-{pdf,excel} require an export role, repeated
+        payment-session requests for the same invoice reuse the pending
+        session instead of growing unboundedly, the desktop build's
+        VETRIX_ENV value can't bypass the payment-simulate guard, and the
+        ai_bi payload cache never crosses tenants."""
+        admin_headers, admin_login = self._login("ci-admin", "StrongAdminPassword!42")
+
+        # --- /login: nonexistent username still 401s with the same shape,
+        # no crash, proving the constant-time dummy-hash path works. ---
+        nonexistent = self.client.post(
+            "/login", json={"username": "phasec-does-not-exist", "password": "whatever-password-value"},
+        )
+        self.assertEqual(nonexistent.status_code, 401, nonexistent.text)
+        self.assertEqual(nonexistent.json()["detail"], "Invalid username or password")
+
+        # --- /export/invoices-pdf, /export/invoices-excel require an export role ---
+        company_a = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase C Tenant Co"})
+        self.assertEqual(company_a.status_code, 200, company_a.text)
+        company_a_id = company_a.json()["id"]
+        warehouse_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase C Warehouse User", "username": "phasec-warehouse-user",
+                  "password": "StrongPhaseCWarehouse!42", "role": "warehouse", "company_id": company_a_id},
+        )
+        self.assertEqual(warehouse_user.status_code, 200, warehouse_user.text)
+        warehouse_headers, _ = self._login("phasec-warehouse-user", "StrongPhaseCWarehouse!42")
+
+        self.assertEqual(self.client.get("/export/invoices-pdf", headers=warehouse_headers).status_code, 403)
+        self.assertEqual(self.client.get("/export/invoices-excel", headers=warehouse_headers).status_code, 403)
+        self.assertEqual(self.client.get("/export/invoices-pdf", headers=admin_headers).status_code, 200)
+        self.assertEqual(self.client.get("/export/invoices-excel", headers=admin_headers).status_code, 200)
+
+        # --- payment session reuse: two quick requests for the same invoice
+        # reuse the pending session instead of creating a new row each time ---
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            customer = self.client.post("/customers", headers=admin_headers, json={"name": "Phase C Payment Customer"})
+            self.assertEqual(customer.status_code, 200, customer.text)
+            product = self.client.post(
+                "/products", headers=admin_headers, json={"name": "Phase C Widget", "sell_price": 1000, "stock": 10},
+            )
+            self.assertEqual(product.status_code, 200, product.text)
+            invoice = self.client.post(
+                "/invoices", headers=admin_headers,
+                json={
+                    "invoice_type": "sale", "customer_id": customer.json()["id"],
+                    "items": [{"product_id": product.json()["id"], "quantity": 1, "unit_price": 1000}],
+                },
+            )
+            self.assertEqual(invoice.status_code, 200, invoice.text)
+            invoice_id = invoice.json()["invoice_id"]
+
+            first_request = self.client.post(f"/api/payments/invoices/{invoice_id}/request", headers=admin_headers)
+            self.assertEqual(first_request.status_code, 200, first_request.text)
+            second_request = self.client.post(f"/api/payments/invoices/{invoice_id}/request", headers=admin_headers)
+            self.assertEqual(second_request.status_code, 200, second_request.text)
+            self.assertEqual(first_request.json()["authority"], second_request.json()["authority"])
+
+            from app.payment_gateway import PaymentSession
+            from app.database import SessionLocal as PaymentSessionLocal
+            db = PaymentSessionLocal()
+            try:
+                session_count = db.query(PaymentSession).filter(PaymentSession.invoice_id == invoice_id).count()
+            finally:
+                db.close()
+            self.assertEqual(session_count, 1)
+
+        # --- desktop build's VETRIX_ENV value cannot bypass the payment-simulate guard ---
+        with patch.dict(os.environ, {"VETRIX_ENV": "desktop"}, clear=False):
+            desktop_blocked = self.client.post(
+                "/api/payments/session/simulate", json={"authority": "does-not-matter", "outcome": "success"},
+            )
+        self.assertEqual(desktop_blocked.status_code, 403, desktop_blocked.text)
+
+        # --- ai_bi payload cache is tenant-scoped, never crosses companies ---
+        company_b = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase C Tenant Co B"})
+        self.assertEqual(company_b.status_code, 200, company_b.text)
+        company_b_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase C Co B Admin", "username": "phasec-co-b-admin",
+                  "password": "StrongPhaseCCoBAdmin!42", "role": "admin", "company_id": company_b.json()["id"]},
+        )
+        self.assertEqual(company_b_admin.status_code, 200, company_b_admin.text)
+        b_headers, _ = self._login("phasec-co-b-admin", "StrongPhaseCCoBAdmin!42")
+
+        summary_a = self.client.get("/api/ai-bi/summary", headers=admin_headers)
+        self.assertEqual(summary_a.status_code, 200, summary_a.text)
+        summary_b = self.client.get("/api/ai-bi/summary", headers=b_headers)
+        self.assertEqual(summary_b.status_code, 200, summary_b.text)
+        # Company B is brand new with zero invoices/customers - if the cache
+        # key were ever wrong (e.g. a global cache instead of per-company),
+        # it would see company A's non-empty figures instead of its own.
+        self.assertEqual(summary_b.json()["top_customers"], [])
+        self.assertEqual(summary_b.json()["top_products"], [])
+
+        # --- graceful degradation: a transient failure in one BI/inventory
+        # computation must not 500 the whole aggregation endpoint that
+        # depends on it (a regression an earlier version of this same
+        # security pass introduced by making _build_payload/
+        # smart_inventory_overview raise instead of returning an
+        # {"status":"error"} sentinel some callers still checked for) ---
+        from app.ai_bi import router as ai_bi_router_module
+        from app import executive_alerts as executive_alerts_module
+
+        with patch.object(ai_bi_router_module, "_build_payload", side_effect=RuntimeError("forced failure")):
+            recalc = self.client.post("/api/bi-improvement/recalculate", headers=admin_headers)
+            self.assertEqual(recalc.status_code, 200, recalc.text)
+
+        with patch.object(executive_alerts_module, "smart_inventory_overview", side_effect=RuntimeError("forced failure")):
+            alerts_summary = self.client.get("/api/executive-alerts/summary", headers=admin_headers)
+            self.assertEqual(alerts_summary.status_code, 200, alerts_summary.text)
+
+        # --- uploads: two endpoints missed by the initial size-limit sweep ---
+        oversized = b"x" * (26 * 1024 * 1024)
+        oversized_doc = self.client.post(
+            "/api/company-profile/documents", headers=admin_headers,
+            files={"file": ("big.bin", oversized, "application/octet-stream")},
+        )
+        self.assertEqual(oversized_doc.status_code, 413, oversized_doc.text)
+
+        bank_account = self.client.post(
+            "/api/accounting/bank-reconciliation/accounts", headers=admin_headers,
+            json={"name": "Phase C Bank Account", "account_number": "PHASEC-001", "bank_name": "Phase C Bank"},
+        )
+        self.assertEqual(bank_account.status_code, 200, bank_account.text)
+        oversized_csv = self.client.post(
+            f"/api/accounting/bank-reconciliation/accounts/{bank_account.json()['id']}/statement/import",
+            headers=admin_headers,
+            files={"file": ("statement.csv", oversized, "text/csv")},
+        )
+        self.assertEqual(oversized_csv.status_code, 413, oversized_csv.text)
+
+        # --- payment session reuse never charges a stale amount after a
+        # partial payment lands on the invoice within the reuse window ---
+        with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
+            stale_customer = self.client.post(
+                "/customers", headers=admin_headers, json={"name": "Phase C Stale Amount Customer"},
+            )
+            stale_product = self.client.post(
+                "/products", headers=admin_headers, json={"name": "Phase C Stale Widget", "sell_price": 2000, "stock": 10},
+            )
+            stale_invoice = self.client.post(
+                "/invoices", headers=admin_headers,
+                json={
+                    "invoice_type": "sale", "customer_id": stale_customer.json()["id"],
+                    "items": [{"product_id": stale_product.json()["id"], "quantity": 1, "unit_price": 2000}],
+                },
+            )
+            stale_invoice_id = stale_invoice.json()["invoice_id"]
+
+            first = self.client.post(f"/api/payments/invoices/{stale_invoice_id}/request", headers=admin_headers)
+            self.assertEqual(first.status_code, 200, first.text)
+            self.assertEqual(first.json()["amount"], 2000)
+
+            partial_payment = self.client.post(
+                "/transactions", headers=admin_headers,
+                json={"customer_id": stale_customer.json()["id"], "invoice_id": stale_invoice_id,
+                      "transaction_type": "receipt", "amount": 500, "method": "cash"},
+            )
+            self.assertEqual(partial_payment.status_code, 200, partial_payment.text)
+
+            second = self.client.post(f"/api/payments/invoices/{stale_invoice_id}/request", headers=admin_headers)
+            self.assertEqual(second.status_code, 200, second.text)
+            self.assertEqual(second.json()["amount"], 1500)
+            self.assertNotEqual(first.json()["authority"], second.json()["authority"])
 
 
 if __name__ == "__main__":

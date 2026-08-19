@@ -16,11 +16,17 @@ from app.mfa import consume_recovery_code, verify_totp_code
 from app.models.company import Company
 from app.models.user import User
 from app.rbac import ROLE_LABELS, normalize_role, is_valid_role_code
-from app.security import login_attempt_key, login_retry_after, record_login_result
+from app.security import account_attempt_key, login_attempt_key, login_retry_after, record_login_result
 from app.super_admin import is_super_admin, require_super_admin
 from jwt import PyJWTError
 
 router = APIRouter()
+
+# Computed once at import so /login always pays the same PBKDF2 cost for a
+# nonexistent username as for a real one with a wrong password - without
+# this, "user is None" short-circuits before verify_password ever runs,
+# giving an attacker a reliable timing oracle to enumerate valid usernames.
+_DUMMY_PASSWORD_HASH = hash_password("not-a-real-password-used-only-for-constant-time-login-checks")
 
 
 class UserCreate(BaseModel):
@@ -403,7 +409,8 @@ def update_user_super_admin(user_id: int, data: UserSuperAdminUpdate, request: R
 def login(data: LoginRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
     attempt_key = login_attempt_key(client_ip, data.username)
-    retry_after = login_retry_after(attempt_key)
+    acct_key = account_attempt_key(data.username)
+    retry_after = login_retry_after(attempt_key) or login_retry_after(acct_key)
     if retry_after:
         raise HTTPException(
             status_code=429,
@@ -414,8 +421,10 @@ def login(data: LoginRequest, request: Request):
     db: Session = SessionLocal()
     try:
         user = db.query(User).filter(User.username == data.username).first()
-        if not user or not verify_password(data.password, user.password):
+        password_ok = verify_password(data.password, user.password if user else _DUMMY_PASSWORD_HASH)
+        if not user or not password_ok:
             record_login_result(attempt_key, False)
+            record_login_result(acct_key, False)
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
         if password_needs_upgrade(user.password):
@@ -432,6 +441,7 @@ def login(data: LoginRequest, request: Request):
             }
 
         record_login_result(attempt_key, True)
+        record_login_result(acct_key, True)
         token = create_access_token(
             user.id, user.username, normalize_role(user.role), user.token_generation,
             company_id=user.company_id, is_super_admin=bool(user.is_super_admin),
@@ -465,7 +475,8 @@ def login_totp(data: MfaLoginRequest, request: Request):
             raise HTTPException(status_code=401, detail="Invalid or expired two-factor challenge")
 
         attempt_key = login_attempt_key(client_ip, user.username)
-        retry_after = login_retry_after(attempt_key)
+        acct_key = account_attempt_key(user.username)
+        retry_after = login_retry_after(attempt_key) or login_retry_after(acct_key)
         if retry_after:
             raise HTTPException(
                 status_code=429,
@@ -481,9 +492,11 @@ def login_totp(data: MfaLoginRequest, request: Request):
 
         if not code_ok:
             record_login_result(attempt_key, False)
+            record_login_result(acct_key, False)
             raise HTTPException(status_code=401, detail="Invalid authenticator or recovery code")
 
         record_login_result(attempt_key, True)
+        record_login_result(acct_key, True)
         if updated_recovery_codes is not None:
             user.totp_recovery_codes = updated_recovery_codes
             db.commit()

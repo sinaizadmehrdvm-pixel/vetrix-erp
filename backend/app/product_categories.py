@@ -94,9 +94,13 @@ def create_category(data: ProductCategoryCreate, request: Request):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        # Anything not already a deliberate ValueError above (e.g. a raw
+        # DB/constraint error) must not echo str(error) to the caller -
+        # bare-raise and let main.py's global handler return a sanitized
+        # message instead of leaking internals.
+        raise
     finally:
         db.close()
 
@@ -150,9 +154,13 @@ def update_category(category_id: int, data: ProductCategoryUpdate, request: Requ
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        # Anything not already a deliberate ValueError above (e.g. a raw
+        # DB/constraint error) must not echo str(error) to the caller -
+        # bare-raise and let main.py's global handler return a sanitized
+        # message instead of leaking internals.
+        raise
     finally:
         db.close()
 
@@ -167,8 +175,12 @@ def delete_category(category_id: int, request: Request):
         db.delete(category)
         db.commit()
         return {"status": "deleted", "id": category_id}
-    except Exception as error:
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        # Anything not already a deliberate ValueError above (e.g. a raw
+        # DB/constraint error) must not echo str(error) to the caller -
+        # bare-raise and let main.py's global handler return a sanitized
+        # message instead of leaking internals.
+        raise
     finally:
         db.close()

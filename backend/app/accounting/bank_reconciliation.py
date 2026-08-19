@@ -11,6 +11,10 @@ from app.company_scope import current_company_id
 from app.database import engine
 
 router = APIRouter(prefix="/api/accounting/bank-reconciliation", tags=["Bank Reconciliation"])
+
+# Same bound/reasoning as app/data_import.py's MAX_BYTES - a CSV statement
+# import previously buffered the whole upload into memory with no cap.
+MAX_STATEMENT_CSV_BYTES = 25 * 1024 * 1024
 MONEY_STEP = Decimal("0.01")
 
 
@@ -238,7 +242,9 @@ async def import_statement_csv(account_id: int, request: Request, file: UploadFi
     with engine.begin() as conn:
         _account(conn, account_id, company_id)
 
-    raw = await file.read()
+    raw = await file.read(MAX_STATEMENT_CSV_BYTES + 1)
+    if len(raw) > MAX_STATEMENT_CSV_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds {MAX_STATEMENT_CSV_BYTES // (1024 * 1024)} MB limit")
     try:
         text_content = raw.decode("utf-8-sig")
     except UnicodeDecodeError:

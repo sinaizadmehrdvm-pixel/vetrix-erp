@@ -115,6 +115,21 @@ READ_RULES = (
     # still gated to admin/warehouse below.
     ("/api/branches", ALL_ROLES),
     ("/reports", ALL_ROLES),
+    # More specific /export/* prefixes below must be listed BEFORE this
+    # catch-all - is_authorized() returns on the first prefix match, so a
+    # generic "/export" entry ahead of them would make the specific rules
+    # dead code (this had already silently happened to /export/customers
+    # and /export/import-report before this fix - both still enforced
+    # their own role check in-handler, so it wasn't independently
+    # exploitable, but the RBAC layer wasn't actually doing anything).
+    # Exact paths, not a "/export/invoices/..." sub-path prefix - the real
+    # routes are /export/invoices-pdf and /export/invoices-excel (a dash
+    # suffix, not a slash), which is_authorized()'s prefix match would
+    # otherwise fall through past.
+    ("/export/invoices-pdf", {"admin", "accountant", "sales"}),
+    ("/export/invoices-excel", {"admin", "accountant", "sales"}),
+    ("/export/customers", {"admin", "accountant", "sales"}),
+    ("/export/import-report", {"admin", "accountant", "warehouse"}),
     ("/export", ALL_ROLES),
     ("/print", ALL_ROLES),
     ("/activity", ALL_ROLES),
@@ -252,8 +267,6 @@ MUTATION_RULES = (
     # check (_require_preview_role/_require_admin), since this prefix-based
     # table can't distinguish sub-paths under the same POST prefix.
     ("/api/data-import", {"admin", "accountant", "warehouse"}),
-    ("/export/customers", {"admin", "accountant", "sales"}),
-    ("/export/import-report", {"admin", "accountant", "warehouse"}),
     ("/api/report-delivery", {"admin", "accountant"}),
     ("/api/einvoice", {"admin", "accountant"}),
     ("/api/document-ocr", {"admin", "accountant", "sales", "warehouse"}),

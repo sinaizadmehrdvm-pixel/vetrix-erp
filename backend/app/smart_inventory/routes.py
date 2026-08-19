@@ -289,11 +289,9 @@ def smart_inventory_overview(
                 ),
             },
         }
-        db.close()
         return result
-    except Exception as e:
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @router.get("/reorder-plan")
@@ -311,14 +309,11 @@ def product_inventory_insight(product_id: int, request: Request, days: int = 90,
     try:
         product = db.query(Product).filter(Product.id == product_id, Product.company_id == company_id).first()
         if not product:
-            db.close()
             return {"status": "error", "message": "Product not found"}
         scoped_stock = _scoped_stock_map(db, company_id, [product.id], branch_id, warehouse_id)
         base = _product_dict(product, scoped_stock.get(product.id) if scoped_stock else None)
         metrics = _sales_metrics(db, product.id, days=days)
         risk = _risk_for_product(base, metrics, lead_time_days=lead_time_days)
-        db.close()
         return {"product": {**base, **metrics, **risk}}
-    except Exception as e:
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}

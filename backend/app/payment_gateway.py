@@ -26,7 +26,7 @@ import os
 import re
 import secrets
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
@@ -212,6 +212,9 @@ def _finalize_failure(db: Session, session: PaymentSession, reason: str):
     db.commit()
 
 
+SESSION_REUSE_WINDOW_SECONDS = 60
+
+
 def request_payment_for_invoice(invoice_id: int) -> dict:
     """Shared entry point for both the staff-facing and customer-portal
     routes; the caller is responsible for verifying the requester may act
@@ -225,13 +228,43 @@ def request_payment_for_invoice(invoice_id: int) -> dict:
             raise HTTPException(status_code=400, detail="Only sale invoices can be paid online")
 
         provider = _active_provider(invoice.company_id)
-        session = _create_session(db, invoice, provider)
 
-        if provider == "sandbox":
-            redirect_url = f"{_frontend_base()}/pay/{session.authority}"
+        # Reuse a very recent still-pending session for this exact invoice
+        # instead of unconditionally creating a new row and (for a real
+        # gateway) firing another outbound payment-request call every time -
+        # without this, repeatedly opening/reloading one shared portal-pay
+        # link could grow payment_sessions unboundedly and spam the real
+        # gateway on the merchant's behalf.
+        recent_cutoff = datetime.utcnow() - timedelta(seconds=SESSION_REUSE_WINDOW_SECONDS)
+        reusable_query = db.query(PaymentSession).filter(
+            PaymentSession.invoice_id == invoice.id,
+            PaymentSession.status == "pending",
+            PaymentSession.provider == provider,
+            PaymentSession.created_at >= recent_cutoff,
+        )
+        if provider != "sandbox":
+            reusable_query = reusable_query.filter(PaymentSession.gateway_ref.isnot(None))
+        session = reusable_query.order_by(PaymentSession.id.desc()).first()
+
+        # Never reuse a session whose stored amount has gone stale (e.g. a
+        # partial payment landed on this invoice in between two requests) -
+        # falls through to create a fresh session at the correct amount.
+        if session and session.amount != _remaining_amount(db, invoice):
+            session = None
+
+        if session:
+            redirect_url = (
+                f"{_frontend_base()}/pay/{session.authority}"
+                if provider == "sandbox"
+                else ZARINPAL_STARTPAY_URL.format(authority=session.gateway_ref)
+            )
         else:
-            redirect_url = _zarinpal_request_payment(session, f"Invoice #{invoice.id}")
-            db.commit()
+            session = _create_session(db, invoice, provider)
+            if provider == "sandbox":
+                redirect_url = f"{_frontend_base()}/pay/{session.authority}"
+            else:
+                redirect_url = _zarinpal_request_payment(session, f"Invoice #{invoice.id}")
+                db.commit()
 
         return {
             "status": "created",
@@ -402,10 +435,14 @@ def simulate_payment(data: SimulatePayload):
         raise HTTPException(status_code=400, detail="outcome must be 'success' or 'failure'")
     # Defense-in-depth: even if a deployment mistakenly enables the sandbox
     # provider on a production-capable environment, this public endpoint
-    # must never be able to mark a real invoice paid - same VETRIX_ENV
-    # convention _jwt_secret() already fails closed on in app/auth.py.
-    if os.getenv("VETRIX_ENV", "development").strip().lower() == "production":
-        raise HTTPException(status_code=403, detail="Payment simulation is disabled in production")
+    # must never be able to mark a real invoice paid. Allowlist-based
+    # (only the known-safe "development" value passes) rather than
+    # denylist-based ("!= production") - the packaged desktop build sets
+    # VETRIX_ENV=desktop (see desktop_launcher.py) and can process real
+    # payments too, so a denylist checking only for "production" would
+    # have left every desktop deployment exposed.
+    if os.getenv("VETRIX_ENV", "development").strip().lower() != "development":
+        raise HTTPException(status_code=403, detail="Payment simulation is only available in development")
     db: Session = SessionLocal()
     try:
         session = db.query(PaymentSession).filter(PaymentSession.authority == data.authority).first()

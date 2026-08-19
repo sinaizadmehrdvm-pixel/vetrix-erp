@@ -114,7 +114,7 @@ from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, route
 from app.branches import router as branches_router
 from app.executive_alerts import router as executive_alerts_router
 from app.purchase_orders import router as purchase_orders_router
-from app.customers_export import router as customers_export_router
+from app.customers_export import MAX_EXPORT_ROWS, _require_export_role, router as customers_export_router
 from app.marketing_consent import router as marketing_consent_router
 from app.import_report_export import router as import_report_export_router
 from app.companies import router as companies_router
@@ -1097,6 +1097,7 @@ def publish_low_stock_if_needed(product: Product):
     if min_stock > 0 and stock <= min_stock:
         broadcaster.publish(
             "low_stock",
+            product.company_id,
             product_id=product.id,
             product_name=product.name,
             stock=stock,
@@ -2053,6 +2054,7 @@ def _create_invoice_impl(data: InvoiceCreate, company_id: int, created_by: Optio
         if invoice.invoice_type == "sale":
             broadcaster.publish(
                 "new_invoice",
+                company_id,
                 invoice_id=invoice.id,
                 customer_id=invoice.customer_id,
                 total_amount=invoice.total_amount,
@@ -2209,6 +2211,7 @@ def convert_proforma_invoice(invoice_id: int, request: Request):
         db.refresh(invoice)
         broadcaster.publish(
             "new_invoice",
+            company_id,
             invoice_id=invoice.id,
             customer_id=invoice.customer_id,
             total_amount=invoice.total_amount,
@@ -2506,6 +2509,7 @@ def _create_payment_or_receipt_impl(data: PaymentCreate, company_id: int):
         if data.transaction_type == "receipt":
             broadcaster.publish(
                 "payment_received",
+                company_id,
                 customer_id=data.customer_id,
                 amount=float(entry.credit or entry.debit or 0),
                 invoice_id=data.invoice_id,
@@ -4512,10 +4516,11 @@ def export_pdf(
     orientation: str = "portrait",
     language: str = "fa",
 ):
+    _require_export_role(request)
     company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).limit(MAX_EXPORT_ROWS).all()
         settings = get_or_create_settings(db, company_id)
 
         customer_ids = [i.customer_id for i in invoices if getattr(i, "customer_id", None)]
@@ -4535,16 +4540,13 @@ def export_pdf(
             filename="vetrix_invoices.pdf",
         )
 
-        db.close()
         return FileResponse(
             path,
             media_type="application/pdf",
             filename=f"vetrix_invoices_{page_size}_{template}.pdf",
         )
-
-    except Exception as e:
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 
@@ -4552,11 +4554,12 @@ def export_pdf(
 
 @app.get("/export/invoices-excel")
 def export_excel(request: Request, language: str = "en"):
+    _require_export_role(request)
     company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
         language = "fa" if language == "fa" else "en"
-        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).limit(MAX_EXPORT_ROWS).all()
         settings = get_or_create_settings(db, company_id)
         customer_ids = [item.customer_id for item in invoices if item.customer_id]
         customer_rows = (

@@ -456,7 +456,14 @@ def secure_download(token: str):
     path = (backup_directory() / filename).resolve()
     if path.parent != backup_directory() or not path.exists():
         raise HTTPException(status_code=404, detail="Backup no longer available")
-    return FileResponse(path, filename=filename, media_type="application/octet-stream")
+    # The token is single-use server-side (jti uniqueness above), but the
+    # URL itself is cacheable-looking to an intermediate/shared cache - an
+    # explicit no-store keeps a cache from serving a second requester the
+    # same bytes after the server has already invalidated this jti.
+    return FileResponse(
+        path, filename=filename, media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/log")

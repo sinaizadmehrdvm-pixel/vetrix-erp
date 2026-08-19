@@ -1,13 +1,21 @@
+import asyncio
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jwt import PyJWTError
 from starlette.concurrency import run_in_threadpool
 
 from app.auth import decode_access_token
+from app.company_scope import company_id_from_auth
 from app.database import SessionLocal
 from app.models.user import User
 from app.notifications.broadcaster import broadcaster
 
 router = APIRouter()
+
+# How often a long-lived connection's token is re-checked for expiry/
+# revocation - without this, a token that expires or is revoked mid-
+# connection stayed "authenticated" for the rest of the socket's life.
+TOKEN_RECHECK_INTERVAL_SECONDS = 60
 
 
 def _token_is_current(claims: dict) -> bool:
@@ -23,6 +31,18 @@ def _token_is_current(claims: dict) -> bool:
         db.close()
 
 
+async def _watch_token_validity(websocket: WebSocket, token: str):
+    while True:
+        await asyncio.sleep(TOKEN_RECHECK_INTERVAL_SECONDS)
+        try:
+            claims = decode_access_token(token)
+            if not await run_in_threadpool(_token_is_current, claims):
+                raise ValueError("revoked token")
+        except (PyJWTError, ValueError):
+            await websocket.close(code=4401)
+            return
+
+
 @router.websocket("/ws/notifications")
 async def notifications_socket(websocket: WebSocket):
     token = websocket.query_params.get("token")
@@ -36,7 +56,14 @@ async def notifications_socket(websocket: WebSocket):
         await websocket.close(code=4401)
         return
 
-    await broadcaster.connect(websocket)
+    company_id = company_id_from_auth(claims)
+    user_id = claims.get("sub")
+
+    if not await broadcaster.connect(websocket, company_id, user_id=user_id):
+        await websocket.close(code=4429)
+        return
+
+    watcher = asyncio.create_task(_watch_token_validity(websocket, token))
     try:
         while True:
             # This channel is server-push only; block on any client frame
@@ -45,4 +72,5 @@ async def notifications_socket(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
+        watcher.cancel()
         await broadcaster.disconnect(websocket)

@@ -1,3 +1,6 @@
+import threading
+import time
+
 from fastapi import APIRouter, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -13,6 +16,18 @@ from app.ai_bi.cashflow_forecast import build_cashflow_forecast
 from app.settings_routes import get_or_create_settings
 
 router = APIRouter(prefix="/api/ai-bi", tags=["AI Business Intelligence"])
+
+# _build_payload does an unbounded, uncached full-table scan plus one extra
+# query per open invoice and per customer (N+1) - any authenticated user
+# can trigger it repeatedly with no rate limit, and every one of its
+# several callers (this router's own 3 routes, bi_improvement.py's 4
+# detectors, executive_agent, online_commerce) recomputes it independently.
+# This is read-only dashboard/BI data (not authoritative transactional
+# state), so a short per-company cache is a safe, narrow bound on repeated-
+# call cost without restructuring the underlying queries.
+_PAYLOAD_CACHE_TTL_SECONDS = 30
+_payload_cache: dict = {}
+_payload_cache_lock = threading.Lock()
 
 
 def _num(value):
@@ -91,6 +106,19 @@ def _customer_balance(db: Session, company_id: int, customer_id: int):
 
 
 def _build_payload(company_id: int):
+    with _payload_cache_lock:
+        cached = _payload_cache.get(company_id)
+        if cached and time.monotonic() - cached[0] < _PAYLOAD_CACHE_TTL_SECONDS:
+            return cached[1]
+
+    payload = _build_payload_uncached(company_id)
+
+    with _payload_cache_lock:
+        _payload_cache[company_id] = (time.monotonic(), payload)
+    return payload
+
+
+def _build_payload_uncached(company_id: int):
     db = SessionLocal()
     try:
         invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
@@ -262,11 +290,9 @@ def _build_payload(company_id: int):
             "open_invoices": sorted(open_invoices, key=lambda x: x["remaining_amount"], reverse=True)[:20],
             "narrative": _build_narrative_data(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash),
         }
-        db.close()
         return payload
-    except Exception as e:
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 def _build_narrative_data(health_score, current_amounts, prev_amounts, low_stock, overdue_like, net_cash):

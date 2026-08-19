@@ -3,7 +3,6 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from datetime import datetime
 import json
-import shutil
 import uuid
 
 from app.database import SessionLocal
@@ -41,6 +40,22 @@ def _safe_name(name: str) -> str:
     cleaned = "".join(ch for ch in str(name or "file") if ch.isalnum() or ch in allowed)
     cleaned = cleaned.strip().replace(" ", "_")
     return cleaned or "file"
+
+
+# Same bound/reasoning as app/accounting/attachments.py's MAX_UPLOAD_SIZE_BYTES.
+MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
+
+
+def _copy_with_size_limit(source, destination, max_bytes=MAX_UPLOAD_SIZE_BYTES):
+    total = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            return
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File too large (max {max_bytes // (1024 * 1024)} MB)")
+        destination.write(chunk)
 
 
 def _require_customer_in_company(customer_id: int, company_id: int):
@@ -83,8 +98,12 @@ async def upload_customer_file(
     stored_name = f"{file_id}_{original_name}"
     stored_path = customer_dir / stored_name
 
-    with stored_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with stored_path.open("wb") as buffer:
+            _copy_with_size_limit(file.file, buffer)
+    except HTTPException:
+        stored_path.unlink(missing_ok=True)
+        raise
 
     row = {
         "id": file_id,

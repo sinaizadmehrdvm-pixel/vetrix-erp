@@ -41,6 +41,17 @@ def login_attempt_key(client_ip, username):
     return f"{safe_ip}:{safe_username}"
 
 
+def account_attempt_key(username):
+    """IP-independent backstop alongside login_attempt_key's per-IP bucket -
+    without this, an attacker rotating source IPs (proxy pool/botnet) never
+    accumulates a cumulative failure count against one account, since each
+    new IP starts a fresh allowance. Reuses the same LoginThrottle table/
+    thresholds under a distinct key prefix so it can never collide with a
+    real "ip:username" key."""
+    safe_username = str(username or "").strip().casefold()[:150]
+    return f"account:{safe_username}"
+
+
 def login_retry_after(key, now=None):
     now = time.time() if now is None else float(now)
     with _lock:

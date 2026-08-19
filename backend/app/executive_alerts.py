@@ -217,15 +217,22 @@ def _low_stock_alerts(company_id: int) -> list:
         ).mappings().all()
 
     alerts = []
-    if len(branches) > 1:
-        for branch in branches:
-            result = smart_inventory_overview(_shim_request(company_id), branch_id=branch["id"])
+    try:
+        if len(branches) > 1:
+            for branch in branches:
+                result = smart_inventory_overview(_shim_request(company_id), branch_id=branch["id"])
+                for item in result.get("low_stock", []):
+                    alerts.append(_low_stock_item_alert(item, branch))
+        else:
+            result = smart_inventory_overview(_shim_request(company_id))
             for item in result.get("low_stock", []):
-                alerts.append(_low_stock_item_alert(item, branch))
-    else:
-        result = smart_inventory_overview(_shim_request(company_id))
-        for item in result.get("low_stock", []):
-            alerts.append(_low_stock_item_alert(item))
+                alerts.append(_low_stock_item_alert(item))
+    except Exception:
+        # A transient smart-inventory failure must not abort the whole
+        # executive alerts summary - degrade to "no low-stock alerts this
+        # round" instead of a 500, matching this function's pre-existing
+        # graceful-degradation contract with its caller.
+        return []
     return alerts
 
 

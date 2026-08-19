@@ -42,6 +42,23 @@ class RbacDefaultDenyTests(unittest.TestCase):
         self.assertFalse(is_authorized("accountant", "GET", "/api/companies", is_super_admin=False))
         self.assertFalse(is_authorized("viewer", "GET", "/api/companies"))
 
+    def test_export_invoices_routes_are_not_shadowed_by_the_generic_export_catchall(self):
+        # SECURITY PHASE C: /export/invoices-pdf and /export/invoices-excel
+        # must resolve against their own specific rule, not fall through to
+        # ("/export", ALL_ROLES) - a dash suffix (not a "/" sub-path), so a
+        # prefix entry of merely "/export/invoices" would never actually
+        # match either literal path.
+        for role in ("admin", "accountant", "sales"):
+            self.assertTrue(is_authorized(role, "GET", "/export/invoices-pdf"))
+            self.assertTrue(is_authorized(role, "GET", "/export/invoices-excel"))
+        for role in ("warehouse", "viewer", "user"):
+            self.assertFalse(is_authorized(role, "GET", "/export/invoices-pdf"))
+            self.assertFalse(is_authorized(role, "GET", "/export/invoices-excel"))
+        # The generic /export prefix still stays open to every role for
+        # whatever else lives under it (e.g. /print-adjacent report exports
+        # not individually classified).
+        self.assertTrue(is_authorized("viewer", "GET", "/export/something-else"))
+
     def test_field_visits_open_to_sales_and_admin_roles_only(self):
         for role in ("admin", "accountant", "sales"):
             self.assertTrue(is_authorized(role, "GET", "/api/field-visits"))

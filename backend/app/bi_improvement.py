@@ -244,8 +244,16 @@ def _detect_receivables_aging(company_id):
 
 def _detect_sales_decline(company_id):
     from app.ai_bi.router import _build_payload
-    payload = _build_payload(company_id)
-    if payload.get("status") == "error":
+    try:
+        payload = _build_payload(company_id)
+    except Exception:
+        # A transient failure in this one BI computation must not abort the
+        # whole recalculation sweep - the other detector categories still
+        # need to run. _build_payload now raises on internal errors instead
+        # of returning an {"status":"error"} sentinel (security fix: the
+        # sentinel path used to leak str(exception) to any direct caller of
+        # the payload), so this detector must catch it itself instead of
+        # checking a return-value shape that can no longer occur.
         return None
     kpis = payload["kpis"]
     growth = kpis.get("sales_growth_percent")
@@ -267,8 +275,16 @@ def _detect_sales_decline(company_id):
 
 def _detect_dead_stock(company_id):
     from app.ai_bi.router import _build_payload
-    payload = _build_payload(company_id)
-    if payload.get("status") == "error":
+    try:
+        payload = _build_payload(company_id)
+    except Exception:
+        # A transient failure in this one BI computation must not abort the
+        # whole recalculation sweep - the other detector categories still
+        # need to run. _build_payload now raises on internal errors instead
+        # of returning an {"status":"error"} sentinel (security fix: the
+        # sentinel path used to leak str(exception) to any direct caller of
+        # the payload), so this detector must catch it itself instead of
+        # checking a return-value shape that can no longer occur.
         return None
     kpis = payload["kpis"]
     count = int(kpis.get("dead_stock_count") or 0)
@@ -291,8 +307,16 @@ def _detect_dead_stock(company_id):
 
 def _detect_low_stock(company_id):
     from app.ai_bi.router import _build_payload
-    payload = _build_payload(company_id)
-    if payload.get("status") == "error":
+    try:
+        payload = _build_payload(company_id)
+    except Exception:
+        # A transient failure in this one BI computation must not abort the
+        # whole recalculation sweep - the other detector categories still
+        # need to run. _build_payload now raises on internal errors instead
+        # of returning an {"status":"error"} sentinel (security fix: the
+        # sentinel path used to leak str(exception) to any direct caller of
+        # the payload), so this detector must catch it itself instead of
+        # checking a return-value shape that can no longer occur.
         return None
     kpis = payload["kpis"]
     count = int(kpis.get("low_stock_count") or 0)
@@ -313,8 +337,16 @@ def _detect_low_stock(company_id):
 
 def _detect_customer_risk(company_id):
     from app.ai_bi.router import _build_payload
-    payload = _build_payload(company_id)
-    if payload.get("status") == "error":
+    try:
+        payload = _build_payload(company_id)
+    except Exception:
+        # A transient failure in this one BI computation must not abort the
+        # whole recalculation sweep - the other detector categories still
+        # need to run. _build_payload now raises on internal errors instead
+        # of returning an {"status":"error"} sentinel (security fix: the
+        # sentinel path used to leak str(exception) to any direct caller of
+        # the payload), so this detector must catch it itself instead of
+        # checking a return-value shape that can no longer occur.
         return None
     risky = payload.get("risky_customers", [])
     count = len(risky)

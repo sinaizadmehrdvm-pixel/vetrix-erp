@@ -216,13 +216,9 @@ def get_settings(request: Request):
     db: Session = SessionLocal()
     try:
         settings = get_or_create_settings(db, current_company_id(request))
-        result = settings_to_dict(settings)
+        return settings_to_dict(settings)
+    finally:
         db.close()
-        return result
-    except Exception as e:
-        db.rollback()
-        db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @router.post("/settings")
@@ -244,13 +240,12 @@ def save_settings(data: AppSettingsUpdate, request: Request):
         db.commit()
         db.refresh(settings)
 
-        result = {"status": "saved", "settings": settings_to_dict(settings)}
-        db.close()
-        return result
-    except Exception as e:
+        return {"status": "saved", "settings": settings_to_dict(settings)}
+    except Exception:
         db.rollback()
+        raise
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 @router.put("/settings")

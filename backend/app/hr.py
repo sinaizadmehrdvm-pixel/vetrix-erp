@@ -45,7 +45,6 @@ field_visits.py, this module does its own per-endpoint scoping in SQL/
 Python rather than inventing a second generic mechanism.
 """
 import json
-import shutil
 import uuid
 from datetime import date as date_cls, datetime, timezone
 from pathlib import Path
@@ -772,6 +771,22 @@ def _safe_name(name: str) -> str:
     return cleaned or "file"
 
 
+# Same bound/reasoning as app/accounting/attachments.py's MAX_UPLOAD_SIZE_BYTES.
+MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
+
+
+def _copy_with_size_limit(source, destination, max_bytes=MAX_UPLOAD_SIZE_BYTES):
+    total = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            return
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File too large (max {max_bytes // (1024 * 1024)} MB)")
+        destination.write(chunk)
+
+
 @router.get("/{employee_id}/documents")
 def list_employee_documents(employee_id: int, request: Request):
     company_id = current_company_id(request)
@@ -804,8 +819,12 @@ async def upload_employee_document(
     employee_dir.mkdir(parents=True, exist_ok=True)
     original_name = _safe_name(file.filename)
     stored_path = employee_dir / f"{file_id}_{original_name}"
-    with stored_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with stored_path.open("wb") as buffer:
+            _copy_with_size_limit(file.file, buffer)
+    except HTTPException:
+        stored_path.unlink(missing_ok=True)
+        raise
 
     row = {
         "id": file_id, "employee_id": employee_id, "company_id": company_id, "document_type": document_type,

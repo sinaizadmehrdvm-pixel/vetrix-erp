@@ -9,7 +9,6 @@ CRM customer files (see app/crm/files.py) rather than introducing a new
 storage convention.
 """
 import json
-import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +27,23 @@ UPLOAD_ROOT = BASE_DIR / "uploads" / "accounting_attachments"
 INDEX_FILE = UPLOAD_ROOT / "index.json"
 
 ALLOWED_ENTITY_TYPES = {"voucher", "expense", "cheque", "fixed_asset"}
+
+# Generous for scanned receipts/PDFs, still bounded - unlimited upload size
+# let any authenticated user fill the shared disk (degrading every other
+# tenant on this backend), one request at a time.
+MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
+
+
+def _copy_with_size_limit(source, destination, max_bytes=MAX_UPLOAD_SIZE_BYTES):
+    total = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            return
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File too large (max {max_bytes // (1024 * 1024)} MB)")
+        destination.write(chunk)
 
 # The real source-of-truth table for each entity_type, used to verify a
 # referenced record actually belongs to the caller's company before any
@@ -129,8 +145,12 @@ async def upload_attachment(entity_type: str, entity_id: int, request: Request, 
     stored_name = f"{file_id}_{original_name}"
     stored_path = entity_dir / stored_name
 
-    with stored_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with stored_path.open("wb") as buffer:
+            _copy_with_size_limit(file.file, buffer)
+    except HTTPException:
+        stored_path.unlink(missing_ok=True)
+        raise
 
     row = {
         "id": file_id,
