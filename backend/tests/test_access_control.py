@@ -7581,6 +7581,83 @@ class ApiAccessControlTests(unittest.TestCase):
             self.assertEqual(second.json()["amount"], 1500)
             self.assertNotEqual(first.json()["authority"], second.json()["authority"])
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_security_phase_d_hardening_regressions(self):
+        """SECURITY PHASE D: proves the confirmed findings stay fixed -
+        authentication (401) and authorization (403) failures are audited
+        even for non-mutating (GET) requests, the backup-delivery policy
+        list surfaces the unencrypted-backup disclosure, and WebSocket
+        auth/cap rejections are logged."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        # The failure-audit dedupe (same client_ip+status_code within
+        # FAILURE_AUDIT_DEDUPE_SECONDS collapses to one write) is keyed on
+        # TestClient's fixed IP, shared across this whole sequential suite -
+        # clear it so an earlier, unrelated 401/403 elsewhere in the file
+        # can't suppress the write this test is about to verify.
+        from app.audit import _recent_failure_writes
+        _recent_failure_writes.clear()
+
+        # --- a GET with no token at all now leaves an audit trail ---
+        no_token = self.client.get("/customers")
+        self.assertEqual(no_token.status_code, 401, no_token.text)
+
+        events = self.client.get("/api/audit/events?path=/customers&limit=50", headers=admin_headers)
+        self.assertEqual(events.status_code, 200, events.text)
+        unauthenticated_rows = [
+            row for row in events.json()["items"]
+            if row["path"] == "/customers" and row["method"] == "GET" and row["status_code"] == 401
+        ]
+        self.assertTrue(unauthenticated_rows, "expected an audited 401 for GET /customers with no token")
+        self.assertEqual(unauthenticated_rows[0]["action"], "read")
+
+        # --- a GET with a valid token but an unauthorized role also leaves
+        # an audit trail (previously silently dropped for non-mutating
+        # methods) ---
+        company_d = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase D Tenant Co"})
+        self.assertEqual(company_d.status_code, 200, company_d.text)
+        viewer_user = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase D Viewer", "username": "phased-viewer",
+                  "password": "StrongPhaseDViewer!42", "role": "viewer", "company_id": company_d.json()["id"]},
+        )
+        self.assertEqual(viewer_user.status_code, 200, viewer_user.text)
+        viewer_headers, _ = self._login("phased-viewer", "StrongPhaseDViewer!42")
+
+        denied = self.client.get("/users", headers=viewer_headers)
+        self.assertEqual(denied.status_code, 403, denied.text)
+
+        denied_events = self.client.get("/api/audit/events?path=/users&actor=phased-viewer&limit=50", headers=admin_headers)
+        self.assertEqual(denied_events.status_code, 200, denied_events.text)
+        denied_rows = [
+            row for row in denied_events.json()["items"]
+            if row["path"] == "/users" and row["method"] == "GET" and row["status_code"] == 403
+        ]
+        self.assertTrue(denied_rows, "expected an audited 403 for GET /users by a viewer")
+        self.assertEqual(denied_rows[0]["action"], "read")
+
+        # A successful, authorized GET still stays unaudited (no flooding
+        # the log with ordinary reads).
+        allowed = self.client.get("/customers", headers=admin_headers)
+        self.assertEqual(allowed.status_code, 200, allowed.text)
+        all_customer_events = self.client.get("/api/audit/events?path=/customers&limit=200", headers=admin_headers)
+        # POST /customers 200s are expected (unrelated pre-existing mutation
+        # auditing) - only a successful GET must stay unaudited.
+        self.assertFalse(any(
+            row["method"] == "GET" and row["status_code"] == 200
+            for row in all_customer_events.json()["items"]
+        ))
+
+        # --- backup delivery policy list discloses the unencrypted-backup risk ---
+        policies = self.client.get("/api/backup-delivery/policies", headers=admin_headers)
+        self.assertEqual(policies.status_code, 200, policies.text)
+        self.assertIn("not encrypted", policies.json()["encryption_note"].lower())
+
+        # --- WebSocket auth/cap rejections are now logged ---
+        with self.assertLogs("app.notifications.ws_routes", level="WARNING"):
+            with self.assertRaises(Exception):
+                with self.client.websocket_connect("/ws/notifications?token=not-a-real-token"):
+                    pass
+
 
 if __name__ == "__main__":
     unittest.main()

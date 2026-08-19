@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jwt import PyJWTError
@@ -11,6 +12,7 @@ from app.models.user import User
 from app.notifications.broadcaster import broadcaster
 
 router = APIRouter()
+_logger = logging.getLogger(__name__)
 
 # How often a long-lived connection's token is re-checked for expiry/
 # revocation - without this, a token that expires or is revoked mid-
@@ -39,6 +41,7 @@ async def _watch_token_validity(websocket: WebSocket, token: str):
             if not await run_in_threadpool(_token_is_current, claims):
                 raise ValueError("revoked token")
         except (PyJWTError, ValueError):
+            _logger.warning("WebSocket connection closed on token re-check failure from %s", websocket.client)
             await websocket.close(code=4401)
             return
 
@@ -53,6 +56,7 @@ async def notifications_socket(websocket: WebSocket):
         if not await run_in_threadpool(_token_is_current, claims):
             raise ValueError("revoked token")
     except (PyJWTError, ValueError):
+        _logger.warning("WebSocket connection rejected (invalid/missing/revoked token) from %s", websocket.client)
         await websocket.close(code=4401)
         return
 
@@ -60,6 +64,7 @@ async def notifications_socket(websocket: WebSocket):
     user_id = claims.get("sub")
 
     if not await broadcaster.connect(websocket, company_id, user_id=user_id):
+        _logger.warning("WebSocket connection rejected (per-user connection cap) for user_id=%s", user_id)
         await websocket.close(code=4429)
         return
 

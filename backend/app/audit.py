@@ -1,5 +1,7 @@
 import hashlib
 import json
+import threading
+import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,6 +14,28 @@ from app.super_admin import is_super_admin
 
 router = APIRouter(prefix="/api/audit", tags=["Audit Trail"])
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+# Now that 401/403 responses are audited regardless of HTTP method (see
+# record_audit_event below), an unauthenticated flood of GETs with no/
+# garbage tokens would otherwise write one DB row per request - unbounded
+# growth and, on SQLite's default (non-WAL) journal mode, write-lock
+# contention with every other request. Collapse repeat failures from the
+# same client into a single row per short window instead: enough to know
+# "this IP started probing," not one row per attempt.
+FAILURE_AUDIT_DEDUPE_SECONDS = 5
+_recent_failure_writes: dict = {}
+_recent_failure_writes_lock = threading.Lock()
+
+
+def _should_write_failure_event(client_ip, status_code):
+    key = f"{status_code}:{client_ip or 'unknown'}"
+    now = time.monotonic()
+    with _recent_failure_writes_lock:
+        last = _recent_failure_writes.get(key)
+        if last is not None and now - last < FAILURE_AUDIT_DEDUPE_SECONDS:
+            return False
+        _recent_failure_writes[key] = now
+        return True
 
 
 def _require_admin(request: Request):
@@ -75,6 +99,11 @@ def classify_action(method, path):
         return "delete"
     if method in {"PUT", "PATCH"}:
         return "update"
+    if method in {"GET", "HEAD"}:
+        # Only ever reached for an authentication/authorization failure now
+        # (record_audit_event still skips successful, non-mutating reads) -
+        # "create" would be a misleading label for a blocked read attempt.
+        return "read"
     if final_segment in {"close", "reopen", "post", "cancel", "convert", "toggle"}:
         return final_segment
     return "create"
@@ -92,8 +121,23 @@ def _event_hash(payload):
 
 def record_audit_event(request, status_code):
     method = request.method.upper()
-    if method not in MUTATING_METHODS:
+    # Authentication/authorization failures are security-relevant regardless
+    # of HTTP method - a GET probe against a resource the caller isn't
+    # authorized for (or with a stolen/expired/revoked token) must leave a
+    # trace the same way a blocked mutation already does. Successful,
+    # non-mutating requests (ordinary reads) stay unaudited to avoid
+    # flooding the log with routine business traffic.
+    is_mutating = method in MUTATING_METHODS
+    if not is_mutating and status_code not in (401, 403):
         return
+    if not is_mutating:
+        # This request would have been skipped entirely before failure
+        # events started being audited - dedupe it (mutating failures were
+        # already unconditionally audited pre-fix, so their volume/DB-write
+        # behavior is unchanged here).
+        client_ip = request.client.host if request.client else ""
+        if not _should_write_failure_event(client_ip, status_code):
+            return
 
     auth = getattr(request.state, "auth", {}) or {}
     username = str(auth.get("username") or "bootstrap")

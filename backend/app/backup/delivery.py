@@ -74,6 +74,17 @@ SCHEDULER_NOTE = (
     "cron) calls POST /api/backup-delivery/trigger-due on a real timer."
 )
 
+ENCRYPTION_NOTE = (
+    "Backup files are NOT encrypted. Each backup is a raw copy of the "
+    "entire shared database file (every company's data, including hashed "
+    "passwords). The 'download' channel only ever hands the file to "
+    "whoever holds the short-lived, single-use secure link - but the "
+    "'email'/'telegram'/'whatsapp' channels send that same unencrypted "
+    "file through a third-party provider outside this deployment's "
+    "control. Only enable those channels for a recipient you'd trust with "
+    "the full plaintext database."
+)
+
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
@@ -174,6 +185,7 @@ def _policy_to_dict(row):
     item = dict(row)
     item["recipients"] = json.loads(item.pop("recipients_json") or "[]")
     item["scheduler_note"] = SCHEDULER_NOTE
+    item["encryption_note"] = ENCRYPTION_NOTE
     return item
 
 
@@ -186,7 +198,11 @@ def list_policies(request: Request):
         rows = conn.execute(text(
             "SELECT * FROM backup_delivery_policies WHERE company_id=:company_id ORDER BY id DESC"
         ), {"company_id": company_id}).mappings().all()
-        return {"items": [_policy_to_dict(r) for r in rows], "scheduler_note": SCHEDULER_NOTE}
+        return {
+            "items": [_policy_to_dict(r) for r in rows],
+            "scheduler_note": SCHEDULER_NOTE,
+            "encryption_note": ENCRYPTION_NOTE,
+        }
 
 
 @router.post("/policies")

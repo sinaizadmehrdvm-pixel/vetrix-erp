@@ -603,39 +603,37 @@ async def require_authenticated_api(request: Request, call_next):
         finally:
             db.close()
 
+    async def _audited_401(detail):
+        try:
+            await run_in_threadpool(record_audit_event, request, 401)
+        except Exception:
+            pass
+        return JSONResponse(status_code=401, content={"detail": detail})
+
     token = extract_bearer_token(request.headers.get("Authorization"))
     if not token:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Authentication required"},
-        )
+        return await _audited_401("Authentication required")
 
     try:
         request.state.auth = decode_access_token(token)
     except PyJWTError:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Invalid or expired token"},
-        )
+        return await _audited_401("Invalid or expired token")
 
     try:
         authenticated_user_id = int(request.state.auth.get("sub"))
     except (TypeError, ValueError):
-        return JSONResponse(status_code=401, content={"detail": "Invalid authentication context"})
+        return await _audited_401("Invalid authentication context")
 
     auth_db: Session = SessionLocal()
     try:
         authenticated_user = auth_db.query(User).filter(User.id == authenticated_user_id).first()
         if not authenticated_user:
-            return JSONResponse(status_code=401, content={"detail": "User no longer exists"})
+            return await _audited_401("User no longer exists")
 
         current_generation = int(getattr(authenticated_user, "token_generation", 0) or 0)
         token_generation = int(request.state.auth.get("gen", 0) or 0)
         if token_generation != current_generation:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Session has been revoked, please log in again"},
-            )
+            return await _audited_401("Session has been revoked, please log in again")
 
         request.state.auth["username"] = authenticated_user.username
         request.state.auth["role"] = normalize_role(authenticated_user.role)
@@ -679,14 +677,19 @@ _cors_kwargs = dict(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-if os.getenv("VETRIX_ENV", "development").strip().lower() != "production":
+if os.getenv("VETRIX_ENV", "development").strip().lower() == "development":
     # Dev convenience only (Vite may pick an arbitrary port beyond the
     # 5173/5174 defaults) - Task 08 Section 18: this previously applied
     # unconditionally, meaning any browser tab presenting an
     # "Origin: http://localhost:<any port>" header got a credentialed CORS
     # pass in production too, regardless of VETRIX_ALLOWED_ORIGINS. A real
     # deployment must list its exact origin(s) via VETRIX_ALLOWED_ORIGINS
-    # instead of relying on this pattern.
+    # instead of relying on this pattern. Allowlist-based ("== development"),
+    # not denylist-based ("!= production") - the packaged desktop build
+    # (VETRIX_ENV=desktop, same class of gap already closed once for
+    # payment-simulate) already sets its own exact VETRIX_ALLOWED_ORIGINS
+    # via desktop_launcher.py's network config, so it never needed this
+    # loose fallback and shouldn't carry its extra surface either.
     _cors_kwargs["allow_origin_regex"] = r"^http://(localhost|127\.0\.0\.1):\d+$"
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
