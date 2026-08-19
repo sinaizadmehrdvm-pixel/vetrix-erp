@@ -46,7 +46,6 @@ from app.notifications.broadcaster import broadcaster
 from app.notifications.ws_routes import router as notifications_ws_router
 from app.ai.finance_ai import generate_financial_insight
 from app.analytics.profit_engine import build_profit_analysis
-from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
 from app.export.pdf_export import build_invoice_pdf
 from app.export.excel_export import build_invoice_excel
 from app.export.localization import format_report_date, format_report_money, localized_digits

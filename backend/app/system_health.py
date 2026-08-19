@@ -13,6 +13,7 @@ from app.backup.auto_backup import (
     verify_database_backup,
 )
 from app.database import engine
+from app.super_admin import require_super_admin
 
 router = APIRouter(prefix="/api/system", tags=["System Health"])
 
@@ -351,13 +352,13 @@ def build_system_health(language="en"):
 
 @router.get("/health")
 def system_health(request: Request, language: str = "en"):
-    _require_admin(request)
+    require_super_admin(request)
     return build_system_health(language)
 
 
 @router.get("/readiness")
 def system_readiness(request: Request, language: str = "en"):
-    _require_admin(request)
+    require_super_admin(request)
     payload = build_system_health(language)
     return JSONResponse(
         status_code=503 if payload["status"] == "critical" else 200,

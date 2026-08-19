@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
 from app.database import engine
+from app.super_admin import require_super_admin
 from app.system_health import build_system_health
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
@@ -176,7 +177,7 @@ def build_release_preflight(app=None):
 
 @router.get("/release-preflight")
 def release_preflight(request: Request):
-    _require_admin(request)
+    require_super_admin(request)
     return build_release_preflight(request.app)
 
 

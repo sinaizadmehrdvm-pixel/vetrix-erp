@@ -341,8 +341,11 @@ def delete_account(account_id: int, request: Request):
     company_id = current_company_id(request)
     _ensure_tables(company_id)
     with engine.connect() as conn:
-        child = conn.execute(text("SELECT id FROM chart_accounts WHERE parent_id=:id LIMIT 1"), {"id": account_id}).fetchone()
-        used = conn.execute(text("SELECT id FROM accounting_voucher_lines WHERE account_id=:id LIMIT 1"), {"id": account_id}).fetchone()
+        owned = conn.execute(text("SELECT id FROM chart_accounts WHERE id=:id AND company_id=:company_id"), {"id": account_id, "company_id": company_id}).fetchone()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Account not found")
+        child = conn.execute(text("SELECT id FROM chart_accounts WHERE parent_id=:id AND company_id=:company_id LIMIT 1"), {"id": account_id, "company_id": company_id}).fetchone()
+        used = conn.execute(text("SELECT id FROM accounting_voucher_lines WHERE account_id=:id AND company_id=:company_id LIMIT 1"), {"id": account_id, "company_id": company_id}).fetchone()
         if child:
             raise HTTPException(status_code=400, detail="Cannot delete account with children")
         if used:

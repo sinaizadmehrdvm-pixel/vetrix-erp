@@ -265,7 +265,10 @@ def grant_editor(data: EditorGrant, request: Request):
     company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        exists = conn.execute(text("SELECT 1 FROM users WHERE id=:id"), {"id": data.user_id}).first()
+        exists = conn.execute(
+            text("SELECT 1 FROM users WHERE id=:id AND company_id=:company_id"),
+            {"id": data.user_id, "company_id": company_id},
+        ).first()
         if not exists:
             raise HTTPException(status_code=404, detail="User not found")
         conn.execute(text("""

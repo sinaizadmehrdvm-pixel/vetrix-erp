@@ -174,7 +174,7 @@ def get_template(id: int, request: Request):
     try:
         template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
         if not template:
-            return {"status": "error", "message": "Template not found"}
+            raise HTTPException(status_code=404, detail="Template not found")
         return normalize_template(template)
     finally:
         db.close()
@@ -189,7 +189,7 @@ def rename_template(id: int, data: dict, request: Request):
     try:
         template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
         if not template:
-            return {"status": "error", "message": "Template not found"}
+            raise HTTPException(status_code=404, detail="Template not found")
         template.name = new_name
         db.commit()
         db.refresh(template)
@@ -205,7 +205,7 @@ def delete_template(id: int, request: Request):
         template = db.query(PdfTemplate).filter(PdfTemplate.id == id, PdfTemplate.company_id == current_company_id(request)).first()
 
         if not template:
-            return {"status": "error", "message": "Template not found"}
+            raise HTTPException(status_code=404, detail="Template not found")
 
         db.delete(template)
         db.commit()

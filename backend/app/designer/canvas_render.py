@@ -13,6 +13,7 @@ so what you design is what prints); this module flips Y once for
 reportlab's bottom-left origin.
 """
 import base64
+import os
 import tempfile
 
 from reportlab.pdfgen import canvas as pdfcanvas
@@ -44,27 +45,44 @@ def _safe_color(value, default="#000000"):
 
 
 def _draw_image(c, data_url, x, y, w, h):
+    temp_path = None
     try:
         raw = data_url.split(",", 1)[1] if "," in data_url else data_url
         decoded = base64.b64decode(raw)
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         temp.write(decoded)
         temp.close()
-        c.drawImage(temp.name, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+        temp_path = temp.name
+        c.drawImage(temp_path, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
     except Exception:
         pass
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 
 def _draw_qr(c, payload, x, y, size):
+    temp_path = None
     try:
         import qrcode
 
         img = qrcode.make(payload or " ")
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         img.save(temp.name)
-        c.drawImage(temp.name, x, y, width=size, height=size)
+        temp.close()
+        temp_path = temp.name
+        c.drawImage(temp_path, x, y, width=size, height=size)
     except Exception:
         pass
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 
 def render_config_to_pdf(config, width_pt, height_pt, output_path, qr_payload="", logo_data=""):

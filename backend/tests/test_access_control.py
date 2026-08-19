@@ -7203,6 +7203,140 @@ class ApiAccessControlTests(unittest.TestCase):
         self.assertTrue(any(row["id"] == role_id for row in listing.json()))
         self.assertEqual(self.client.delete(f"/api/auth/custom-roles/{role_id}", headers=admin_headers).status_code, 200)
 
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_security_phase_b_fixes_regressions(self):
+        """SECURITY PHASE B: proves the 3 confirmed findings stay fixed -
+        system-health/release-preflight now require true super-admin (not
+        just per-company admin), chart-of-accounts delete no longer leaks
+        cross-tenant existence/usage info via child/used checks, and the
+        dormant unscoped dashboard-widget helpers are gone entirely - plus
+        the accompanying MINOR fixes (message-template editor grants,
+        financial-policy events, designer template 404s, sandbox-payment
+        production guard)."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        company_a = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase B Tenant Co A"})
+        self.assertEqual(company_a.status_code, 200, company_a.text)
+        company_a_id = company_a.json()["id"]
+        company_b = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase B Tenant Co B"})
+        self.assertEqual(company_b.status_code, 200, company_b.text)
+        company_b_id = company_b.json()["id"]
+
+        manager_a = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase B Manager A", "username": "phaseb-manager-a",
+                  "password": "StrongPhaseBManagerA!42", "role": "admin", "company_id": company_a_id},
+        )
+        self.assertEqual(manager_a.status_code, 200, manager_a.text)
+        a_headers, a_login = self._login("phaseb-manager-a", "StrongPhaseBManagerA!42")
+        self.assertFalse(a_login["user"]["is_super_admin"])
+
+        manager_b = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase B Manager B", "username": "phaseb-manager-b",
+                  "password": "StrongPhaseBManagerB!42", "role": "admin", "company_id": company_b_id},
+        )
+        self.assertEqual(manager_b.status_code, 200, manager_b.text)
+        b_headers, b_login = self._login("phaseb-manager-b", "StrongPhaseBManagerB!42")
+        self.assertFalse(b_login["user"]["is_super_admin"])
+
+        # --- 1) system_health.py / release_preflight.py: super-admin only ---
+        for path in ("/api/system/health", "/api/system/readiness", "/api/system/release-preflight"):
+            self.assertEqual(self.client.get(path, headers=a_headers).status_code, 403, path)
+            self.assertEqual(self.client.get(path, headers=b_headers).status_code, 403, path)
+
+        health = self.client.get("/api/system/health", headers=admin_headers)
+        self.assertEqual(health.status_code, 200, health.text)
+        readiness = self.client.get("/api/system/readiness", headers=admin_headers)
+        self.assertIn(readiness.status_code, (200, 503), readiness.text)
+        preflight = self.client.get("/api/system/release-preflight", headers=admin_headers)
+        self.assertEqual(preflight.status_code, 200, preflight.text)
+
+        # --- 2) accounting/entries_router.py delete_account: no cross-tenant oracle ---
+        account_a = self.client.post(
+            "/api/accounting/entries/chart", headers=a_headers,
+            json={"code": "9001", "name": "Phase B Test Account A", "account_type": "asset",
+                  "level": "detail", "normal_balance": "debit"},
+        )
+        self.assertEqual(account_a.status_code, 200, account_a.text)
+        account_a_id = account_a.json()["id"]
+
+        # Cross-tenant: company B gets a plain 404, not a 400 revealing
+        # whether the (foreign) account has children/usage.
+        foreign_delete = self.client.delete(f"/api/accounting/entries/chart/{account_a_id}", headers=b_headers)
+        self.assertEqual(foreign_delete.status_code, 404, foreign_delete.text)
+        # A genuinely nonexistent id must be indistinguishable from a real
+        # foreign id - both 404, no oracle to tell them apart.
+        nonexistent_delete = self.client.delete("/api/accounting/entries/chart/999999999", headers=b_headers)
+        self.assertEqual(nonexistent_delete.status_code, 404, nonexistent_delete.text)
+
+        # Same-tenant: company A can still delete its own unused, childless account.
+        same_delete = self.client.delete(f"/api/accounting/entries/chart/{account_a_id}", headers=a_headers)
+        self.assertEqual(same_delete.status_code, 200, same_delete.text)
+        self.assertTrue(same_delete.json()["ok"])
+
+        # Deleting it again correctly 404s (truly gone), never a false-success 200.
+        redelete = self.client.delete(f"/api/accounting/entries/chart/{account_a_id}", headers=a_headers)
+        self.assertEqual(redelete.status_code, 404, redelete.text)
+
+        # --- 3) widgets/dashboard_widgets.py: fully removed, not left as a
+        # reusable unscoped tenant-data helper ---
+        from pathlib import Path
+        dashboard_widgets_path = Path(__file__).resolve().parents[1] / "app" / "widgets" / "dashboard_widgets.py"
+        self.assertFalse(dashboard_widgets_path.exists())
+
+        # --- MINOR: message_templates.py grant_editor rejects a foreign-company user ---
+        manager_b_id = manager_b.json()["id"]
+        foreign_grant = self.client.post(
+            "/api/message-templates/editors", headers=a_headers, json={"user_id": manager_b_id},
+        )
+        self.assertEqual(foreign_grant.status_code, 404, foreign_grant.text)
+        manager_a_id = manager_a.json()["id"]
+        same_grant = self.client.post(
+            "/api/message-templates/editors", headers=a_headers, json={"user_id": manager_a_id},
+        )
+        self.assertEqual(same_grant.status_code, 200, same_grant.text)
+
+        # --- MINOR: financial_policy.py policy_events - same-tenant regression + still 404s cross-tenant ---
+        policy_a = self.client.post(
+            "/api/financial-policy", headers=a_headers,
+            json={"version": "phaseb-v1", "country_code": "IR", "currency_code": "IRR",
+                  "decimal_places": 0, "effective_from": "2026-01-01"},
+        )
+        self.assertEqual(policy_a.status_code, 200, policy_a.text)
+        policy_a_id = policy_a.json()["policy_id"]
+        events_a = self.client.get(f"/api/financial-policy/{policy_a_id}/events", headers=a_headers)
+        self.assertEqual(events_a.status_code, 200, events_a.text)
+        self.assertGreaterEqual(len(events_a.json()), 1)
+        foreign_events = self.client.get(f"/api/financial-policy/{policy_a_id}/events", headers=b_headers)
+        self.assertEqual(foreign_events.status_code, 404, foreign_events.text)
+
+        # --- MINOR: designer template not-found now returns a real 404 ---
+        designer_missing = self.client.get("/designer/template/999999999", headers=a_headers)
+        self.assertEqual(designer_missing.status_code, 404, designer_missing.text)
+
+        template_a = self.client.post("/designer/template", headers=a_headers, json={"name": "Phase B Template A"})
+        self.assertEqual(template_a.status_code, 200, template_a.text)
+        template_a_id = template_a.json()["id"]
+
+        foreign_template_get = self.client.get(f"/designer/template/{template_a_id}", headers=b_headers)
+        self.assertEqual(foreign_template_get.status_code, 404, foreign_template_get.text)
+        foreign_template_rename = self.client.put(
+            f"/designer/template/{template_a_id}/rename", headers=b_headers, json={"name": "Hijacked"},
+        )
+        self.assertEqual(foreign_template_rename.status_code, 404, foreign_template_rename.text)
+        foreign_template_delete = self.client.delete(f"/designer/template/{template_a_id}", headers=b_headers)
+        self.assertEqual(foreign_template_delete.status_code, 404, foreign_template_delete.text)
+
+        same_template_get = self.client.get(f"/designer/template/{template_a_id}", headers=a_headers)
+        self.assertEqual(same_template_get.status_code, 200, same_template_get.text)
+
+        # --- MINOR: payment_gateway.py simulate_payment is disabled in production ---
+        with patch.dict(os.environ, {"VETRIX_ENV": "production"}, clear=False):
+            prod_blocked = self.client.post(
+                "/api/payments/session/simulate", json={"authority": "does-not-matter", "outcome": "success"},
+            )
+        self.assertEqual(prod_blocked.status_code, 403, prod_blocked.text)
+
 
 if __name__ == "__main__":
     unittest.main()

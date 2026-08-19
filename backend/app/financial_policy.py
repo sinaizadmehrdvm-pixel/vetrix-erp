@@ -282,6 +282,6 @@ def policy_events(policy_id: int, request: Request):
             SELECT e.*, u.full_name actor_name, u.username actor_username
             FROM financial_policy_events e
             LEFT JOIN users u ON u.id=e.actor_user_id
-            WHERE e.policy_id=:id ORDER BY e.id
-        """), {"id": policy_id}).mappings().all()
+            WHERE e.policy_id=:id AND e.company_id=:company_id ORDER BY e.id
+        """), {"id": policy_id, "company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]

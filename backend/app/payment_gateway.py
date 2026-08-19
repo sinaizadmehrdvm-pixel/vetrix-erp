@@ -400,6 +400,12 @@ def get_session(authority: str):
 def simulate_payment(data: SimulatePayload):
     if data.outcome not in {"success", "failure"}:
         raise HTTPException(status_code=400, detail="outcome must be 'success' or 'failure'")
+    # Defense-in-depth: even if a deployment mistakenly enables the sandbox
+    # provider on a production-capable environment, this public endpoint
+    # must never be able to mark a real invoice paid - same VETRIX_ENV
+    # convention _jwt_secret() already fails closed on in app/auth.py.
+    if os.getenv("VETRIX_ENV", "development").strip().lower() == "production":
+        raise HTTPException(status_code=403, detail="Payment simulation is disabled in production")
     db: Session = SessionLocal()
     try:
         session = db.query(PaymentSession).filter(PaymentSession.authority == data.authority).first()
