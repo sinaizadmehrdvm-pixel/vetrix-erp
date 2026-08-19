@@ -14,8 +14,12 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy import text
+
+from app.company_scope import current_company_id
+from app.database import engine
 
 router = APIRouter(prefix="/api/accounting/attachments", tags=["Accounting Attachments"])
 
@@ -24,6 +28,44 @@ UPLOAD_ROOT = BASE_DIR / "uploads" / "accounting_attachments"
 INDEX_FILE = UPLOAD_ROOT / "index.json"
 
 ALLOWED_ENTITY_TYPES = {"voucher", "expense", "cheque", "fixed_asset"}
+
+# The real source-of-truth table for each entity_type, used to verify a
+# referenced record actually belongs to the caller's company before any
+# attachment operation touches it - never trust entity_type/entity_id alone.
+_ENTITY_TABLES = {
+    "voucher": "accounting_vouchers",
+    "expense": "expenses",
+    "cheque": "treasury_cheques",
+    "fixed_asset": "fixed_assets",
+}
+
+
+def _entity_company_id(entity_type, entity_id):
+    table = _ENTITY_TABLES.get(entity_type)
+    if not table:
+        return None
+    with engine.connect() as conn:
+        return conn.execute(
+            text(f"SELECT company_id FROM {table} WHERE id=:id"),
+            {"id": entity_id},
+        ).scalar()
+
+
+def _require_entity_owned_by_company(entity_type, entity_id, company_id):
+    owner = _entity_company_id(entity_type, entity_id)
+    if owner is None or int(owner) != int(company_id):
+        raise HTTPException(status_code=404, detail="Record not found")
+
+
+def _row_company_id(row):
+    """Company that owns an index row. Rows written before this fix have no
+    stored `company_id` - for those, resolve it live from the entity they
+    point to instead of ever treating "no company_id on the row" as
+    "accessible to everyone"."""
+    company_id = row.get("company_id")
+    if company_id is not None:
+        return int(company_id)
+    return _entity_company_id(row.get("entity_type"), row.get("entity_id"))
 
 
 def _ensure_storage():
@@ -58,18 +100,23 @@ def _check_entity_type(entity_type: str):
 
 
 @router.get("/{entity_type}/{entity_id}")
-def list_attachments(entity_type: str, entity_id: int):
+def list_attachments(entity_type: str, entity_id: int, request: Request):
     _check_entity_type(entity_type)
+    company_id = current_company_id(request)
+    _require_entity_owned_by_company(entity_type, entity_id, company_id)
     rows = _load_index()
     return [
         row for row in rows
         if row.get("entity_type") == entity_type and int(row.get("entity_id", 0)) == int(entity_id)
+        and _row_company_id(row) == company_id
     ]
 
 
 @router.post("/{entity_type}/{entity_id}")
-async def upload_attachment(entity_type: str, entity_id: int, file: UploadFile = File(...), title: str = Form("")):
+async def upload_attachment(entity_type: str, entity_id: int, request: Request, file: UploadFile = File(...), title: str = Form("")):
     _check_entity_type(entity_type)
+    company_id = current_company_id(request)
+    _require_entity_owned_by_company(entity_type, entity_id, company_id)
     if not file.filename:
         raise HTTPException(status_code=400, detail="File name is required")
 
@@ -89,6 +136,7 @@ async def upload_attachment(entity_type: str, entity_id: int, file: UploadFile =
         "id": file_id,
         "entity_type": entity_type,
         "entity_id": entity_id,
+        "company_id": company_id,
         "title": title or file.filename,
         "file_name": file.filename,
         "path": str(stored_path),
@@ -104,10 +152,11 @@ async def upload_attachment(entity_type: str, entity_id: int, file: UploadFile =
 
 
 @router.get("/file/{attachment_id}/download")
-def download_attachment(attachment_id: str):
+def download_attachment(attachment_id: str, request: Request):
+    company_id = current_company_id(request)
     rows = _load_index()
     row = next((item for item in rows if str(item.get("id")) == str(attachment_id)), None)
-    if not row:
+    if not row or _row_company_id(row) != company_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
     path = Path(row.get("path", ""))
     if not path.exists():
@@ -116,10 +165,11 @@ def download_attachment(attachment_id: str):
 
 
 @router.delete("/file/{attachment_id}")
-def delete_attachment(attachment_id: str):
+def delete_attachment(attachment_id: str, request: Request):
+    company_id = current_company_id(request)
     rows = _load_index()
     row = next((item for item in rows if str(item.get("id")) == str(attachment_id)), None)
-    if not row:
+    if not row or _row_company_id(row) != company_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
     path = Path(row.get("path", ""))
     if path.exists():

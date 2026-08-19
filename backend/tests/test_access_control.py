@@ -11,6 +11,7 @@ TEST_BACKUP_DIR = Path(tempfile.gettempdir()) / f"vetrix-backups-{os.getpid()}"
 os.environ["VETRIX_DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ["VETRIX_BACKUP_DIR"] = str(TEST_BACKUP_DIR)
 os.environ["VETRIX_JWT_SECRET"] = "integration-test-secret-not-for-production"
+os.environ["VETRIX_STOREFRONT_SYNC_SECRET"] = "integration-test-storefront-root-secret-42"
 
 import pyotp
 from fastapi.testclient import TestClient
@@ -6996,6 +6997,211 @@ class ApiAccessControlTests(unittest.TestCase):
         me = self.client.get("/me", headers=admin_headers)
         self.assertEqual(me.status_code, 200, me.text)
         return me.json()["user"]["company_id"]
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_security_phase_a_tenant_isolation_regressions(self):
+        """SECURITY PHASE A: proves the 6 confirmed cross-tenant findings from
+        the Phase 1 read-only audit stay fixed - customer-portal/supplier-portal
+        staff endpoints, accounting attachments, storefront sync, audit events,
+        and custom roles. Uses two brand-new companies (not company 1, which by
+        this point in the suite has accumulated unrelated audit history from
+        every earlier test) so assertions on exact event/attachment sets stay
+        reliable."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        company_a = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase A Tenant Co A"})
+        self.assertEqual(company_a.status_code, 200, company_a.text)
+        company_a_id = company_a.json()["id"]
+        company_b = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase A Tenant Co B"})
+        self.assertEqual(company_b.status_code, 200, company_b.text)
+        company_b_id = company_b.json()["id"]
+
+        manager_a = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase A Manager A", "username": "phasea-manager-a",
+                  "password": "StrongPhaseAManagerA!42", "role": "admin", "company_id": company_a_id},
+        )
+        self.assertEqual(manager_a.status_code, 200, manager_a.text)
+        a_headers, a_login = self._login("phasea-manager-a", "StrongPhaseAManagerA!42")
+        self.assertFalse(a_login["user"]["is_super_admin"])
+
+        manager_b = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase A Manager B", "username": "phasea-manager-b",
+                  "password": "StrongPhaseAManagerB!42", "role": "admin", "company_id": company_b_id},
+        )
+        self.assertEqual(manager_b.status_code, 200, manager_b.text)
+        b_headers, b_login = self._login("phasea-manager-b", "StrongPhaseAManagerB!42")
+        self.assertFalse(b_login["user"]["is_super_admin"])
+
+        # --- 1) customer_portal.py staff endpoints ------------------------
+        customer = self.client.post("/customers", headers=a_headers, json={"name": "Phase A Customer"})
+        self.assertEqual(customer.status_code, 200, customer.text)
+        customer_id = customer.json()["id"]
+
+        same_create = self.client.post(f"/api/customer-portal/{customer_id}/access-link", headers=a_headers)
+        self.assertEqual(same_create.status_code, 200, same_create.text)
+        self.assertTrue(self.client.get(f"/api/customer-portal/{customer_id}/status", headers=a_headers).json()["enabled"])
+
+        self.assertEqual(self.client.post(f"/api/customer-portal/{customer_id}/access-link", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/customer-portal/{customer_id}/status", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.post(f"/api/customer-portal/{customer_id}/revoke", headers=b_headers).status_code, 404)
+        # Sequential ID substitution: neighboring ids still 404 for company B.
+        self.assertEqual(self.client.get(f"/api/customer-portal/{customer_id - 1}/status", headers=b_headers).status_code, 404)
+        # Company A's own access wasn't disturbed by the failed foreign revoke.
+        self.assertTrue(self.client.get(f"/api/customer-portal/{customer_id}/status", headers=a_headers).json()["enabled"])
+
+        # --- 2) supplier_portal.py staff endpoints ------------------------
+        supplier = self.client.post(
+            "/customers", headers=a_headers, json={"name": "Phase A Supplier", "customer_type": "supplier"},
+        )
+        self.assertEqual(supplier.status_code, 200, supplier.text)
+        supplier_id = supplier.json()["id"]
+        self.assertEqual(self.client.post(f"/api/supplier-portal/{supplier_id}/access-link", headers=a_headers).status_code, 200)
+        self.assertEqual(self.client.post(f"/api/supplier-portal/{supplier_id}/access-link", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/supplier-portal/{supplier_id}/status", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.post(f"/api/supplier-portal/{supplier_id}/revoke", headers=b_headers).status_code, 404)
+
+        # --- 3) accounting/attachments.py ----------------------------------
+        expense_a = self.client.post("/expenses", headers=a_headers, json={"title": "Phase A Expense", "amount": 1000})
+        self.assertEqual(expense_a.status_code, 200, expense_a.text)
+        expense_a_id = expense_a.json()["id"]
+
+        upload = self.client.post(
+            f"/api/accounting/attachments/expense/{expense_a_id}", headers=a_headers,
+            files={"file": ("receipt.txt", b"receipt-contents", "text/plain")},
+        )
+        self.assertEqual(upload.status_code, 200, upload.text)
+        attachment_id = upload.json()["id"]
+
+        same_list = self.client.get(f"/api/accounting/attachments/expense/{expense_a_id}", headers=a_headers)
+        self.assertEqual(same_list.status_code, 200, same_list.text)
+        # Membership, not exact count: the disk-backed attachment index is
+        # real shared storage (not reset per test run), so asserting an
+        # exact row count would be fragile across repeated local runs.
+        self.assertIn(attachment_id, {item["id"] for item in same_list.json()})
+        self.assertTrue(all(item["entity_id"] == expense_a_id for item in same_list.json()))
+        self.assertEqual(
+            self.client.get(f"/api/accounting/attachments/file/{attachment_id}/download", headers=a_headers).status_code, 200,
+        )
+
+        foreign_upload = self.client.post(
+            f"/api/accounting/attachments/expense/{expense_a_id}", headers=b_headers,
+            files={"file": ("evil.txt", b"x", "text/plain")},
+        )
+        self.assertEqual(foreign_upload.status_code, 404, foreign_upload.text)
+        self.assertEqual(self.client.get(f"/api/accounting/attachments/expense/{expense_a_id}", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/accounting/attachments/file/{attachment_id}/download", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.delete(f"/api/accounting/attachments/file/{attachment_id}", headers=b_headers).status_code, 404)
+
+        # Legacy metadata: a row written before this fix (no company_id key
+        # at all) must still resolve live from its owning expense, never
+        # fall open to every tenant.
+        from app.accounting import attachments as attachments_module
+        legacy_rows = attachments_module._load_index()
+        for row in legacy_rows:
+            if row["id"] == attachment_id:
+                row.pop("company_id", None)
+        attachments_module._save_index(legacy_rows)
+        self.assertEqual(self.client.get(f"/api/accounting/attachments/file/{attachment_id}/download", headers=b_headers).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/accounting/attachments/file/{attachment_id}/download", headers=a_headers).status_code, 200)
+
+        # --- 4) storefront_sync.py -----------------------------------------
+        import time
+        from app import storefront_sync as storefront_sync_module
+
+        product_a = self.client.post("/products", headers=a_headers, json={"name": "Phase A Widget", "sell_price": 100, "stock": 10})
+        self.assertEqual(product_a.status_code, 200, product_a.text)
+        product_a_id = product_a.json()["id"]
+        self.assertEqual(
+            self.client.put(
+                f"/api/online-commerce/products/{product_a_id}", headers=a_headers,
+                json={"is_published": True, "sync_stock": True},
+            ).status_code,
+            200,
+        )
+        product_b = self.client.post("/products", headers=b_headers, json={"name": "Phase A Widget B", "sell_price": 200, "stock": 5})
+        self.assertEqual(product_b.status_code, 200, product_b.text)
+        product_b_id = product_b.json()["id"]
+        self.assertEqual(
+            self.client.put(
+                f"/api/online-commerce/products/{product_b_id}", headers=b_headers,
+                json={"is_published": True, "sync_stock": True},
+            ).status_code,
+            200,
+        )
+
+        readiness_a = self.client.get("/api/storefront-sync/readiness", headers=a_headers)
+        self.assertEqual(readiness_a.status_code, 200, readiness_a.text)
+        self.assertEqual(readiness_a.json()["published_products"], 1)
+
+        def signed_get(signing_company_id, claimed_company_id, timestamp=None):
+            if timestamp is None:
+                timestamp = str(int(time.time()))
+            secret = storefront_sync_module.company_sync_secret(signing_company_id)
+            path = "/api/storefront-sync/products"
+            signature = storefront_sync_module.sign_request(timestamp, "GET", path, secret)
+            return self.client.get(
+                path, params={"company_id": claimed_company_id},
+                headers={"X-Vetrix-Timestamp": timestamp, "X-Vetrix-Signature": signature},
+            )
+
+        feed_a = signed_get(company_a_id, company_a_id)
+        self.assertEqual(feed_a.status_code, 200, feed_a.text)
+        feed_a_ids = {item["id"] for item in feed_a.json()["products"]}
+        self.assertIn(product_a_id, feed_a_ids)
+        self.assertNotIn(product_b_id, feed_a_ids)
+
+        # Forged client company_id: signed with A's derived key but claims
+        # to be company B - the derived keys differ, so the signature fails.
+        forged = signed_get(company_a_id, company_b_id)
+        self.assertEqual(forged.status_code, 401, forged.text)
+
+        # --- 5) audit.py -----------------------------------------------------
+        marker_a = self.client.post("/expenses", headers=a_headers, json={"title": "Phase A Audit Marker", "amount": 1})
+        self.assertEqual(marker_a.status_code, 200, marker_a.text)
+        marker_b = self.client.post("/expenses", headers=b_headers, json={"title": "Phase A Audit Marker B", "amount": 1})
+        self.assertEqual(marker_b.status_code, 200, marker_b.text)
+
+        events_a = self.client.get("/api/audit/events?limit=500", headers=a_headers)
+        self.assertEqual(events_a.status_code, 200, events_a.text)
+        actors_a = {item["actor_username"] for item in events_a.json()["items"]}
+        self.assertIn("phasea-manager-a", actors_a)
+        self.assertNotIn("phasea-manager-b", actors_a)
+
+        events_b = self.client.get("/api/audit/events?limit=500", headers=b_headers)
+        self.assertEqual(events_b.status_code, 200, events_b.text)
+        actors_b = {item["actor_username"] for item in events_b.json()["items"]}
+        self.assertIn("phasea-manager-b", actors_b)
+        self.assertNotIn("phasea-manager-a", actors_b)
+
+        events_super = self.client.get("/api/audit/events?limit=500", headers=admin_headers)
+        self.assertEqual(events_super.status_code, 200, events_super.text)
+        actors_super = {item["actor_username"] for item in events_super.json()["items"]}
+        self.assertIn("phasea-manager-a", actors_super)
+        self.assertIn("phasea-manager-b", actors_super)
+
+        # --- 6) CustomRole (app/rbac.py) --------------------------------------
+        for headers in (a_headers, b_headers):
+            self.assertEqual(self.client.get("/api/auth/custom-roles", headers=headers).status_code, 403)
+            self.assertEqual(
+                self.client.post(
+                    "/api/auth/custom-roles", headers=headers,
+                    json={"code": "phasea_should_fail", "label": "Should Fail", "base_role": "viewer"},
+                ).status_code,
+                403,
+            )
+            self.assertEqual(self.client.delete("/api/auth/custom-roles/1", headers=headers).status_code, 403)
+
+        created_role = self.client.post(
+            "/api/auth/custom-roles", headers=admin_headers,
+            json={"code": "phasea_regional_viewer", "label": "Phase A Regional Viewer", "base_role": "viewer"},
+        )
+        self.assertEqual(created_role.status_code, 200, created_role.text)
+        role_id = created_role.json()["id"]
+        listing = self.client.get("/api/auth/custom-roles", headers=admin_headers)
+        self.assertEqual(listing.status_code, 200, listing.text)
+        self.assertTrue(any(row["id"] == role_id for row in listing.json()))
+        self.assertEqual(self.client.delete(f"/api/auth/custom-roles/{role_id}", headers=admin_headers).status_code, 200)
 
 
 if __name__ == "__main__":

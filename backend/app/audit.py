@@ -6,7 +6,9 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
+from app.company_scope import current_company_id, ensure_company_id_column
 from app.database import engine
+from app.super_admin import is_super_admin
 
 router = APIRouter(prefix="/api/audit", tags=["Audit Trail"])
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -48,6 +50,16 @@ def ensure_audit_schema(conn):
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_audit_events_path
         ON audit_events(path)
+    """))
+    # company_id is intentionally NOT part of the hash-chain payload below -
+    # it's tenant-scoping metadata, not a tamper-evident field, so adding it
+    # (and backfilling legacy rows to DEFAULT_COMPANY_ID, same convention as
+    # every other retrofit in company_scope.py) can't invalidate any
+    # previously-computed event_hash/previous_hash.
+    ensure_company_id_column(conn, "audit_events")
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_audit_events_company_id
+        ON audit_events(company_id)
     """))
 
 
@@ -97,6 +109,7 @@ def record_audit_event(request, status_code):
     created_at = datetime.now(timezone.utc).isoformat()
     request_id = str(uuid4())
     action = classify_action(method, request.url.path)
+    company_id = current_company_id(request)
 
     with engine.begin() as conn:
         ensure_audit_schema(conn)
@@ -122,12 +135,12 @@ def record_audit_event(request, status_code):
             INSERT INTO audit_events
             (request_id, actor_user_id, actor_username, actor_role, method, path,
              action, status_code, client_ip, user_agent, created_at,
-             previous_hash, event_hash)
+             previous_hash, event_hash, company_id)
             VALUES
             (:request_id, :actor_user_id, :actor_username, :actor_role, :method,
              :path, :action, :status_code, :client_ip, :user_agent, :created_at,
-             :previous_hash, :event_hash)
-        """), {**hash_payload, "event_hash": event_hash})
+             :previous_hash, :event_hash, :company_id)
+        """), {**hash_payload, "event_hash": event_hash, "company_id": company_id})
 
 
 def verify_audit_chain(conn):
@@ -180,11 +193,15 @@ def list_audit_events(
     offset: int = 0,
 ):
     _require_admin(request)
+    auth = getattr(request.state, "auth", {})
     where = []
     params = {
         "limit": max(1, min(int(limit or 100), 500)),
         "offset": max(0, int(offset or 0)),
     }
+    if not is_super_admin(auth):
+        where.append("company_id=:scoped_company_id")
+        params["scoped_company_id"] = current_company_id(request)
     if actor:
         where.append("actor_username LIKE :actor")
         params["actor"] = f"%{actor}%"

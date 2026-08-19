@@ -8,6 +8,7 @@ from app.auth import (
     decode_supplier_portal_token,
     extract_bearer_token,
 )
+from app.company_scope import current_company_id
 from app.database import SessionLocal
 from app.models.accounting_entry import AccountingEntry
 from app.models.customer import Customer
@@ -128,10 +129,11 @@ def portal_ledger(request: Request):
 
 
 @router.post("/{customer_id}/access-link")
-def create_access_link(customer_id: int):
+def create_access_link(customer_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        supplier = db.query(Customer).filter(Customer.id == customer_id).first()
+        company_id = current_company_id(request)
+        supplier = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
         if not supplier:
             raise HTTPException(status_code=404, detail="Party not found")
         if supplier.customer_type not in {"supplier", "both"}:
@@ -150,10 +152,11 @@ def create_access_link(customer_id: int):
 
 
 @router.post("/{customer_id}/revoke")
-def revoke_access(customer_id: int):
+def revoke_access(customer_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        supplier = db.query(Customer).filter(Customer.id == customer_id).first()
+        company_id = current_company_id(request)
+        supplier = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
         if not supplier:
             raise HTTPException(status_code=404, detail="Party not found")
         supplier.supplier_portal_access_enabled = False
@@ -165,10 +168,11 @@ def revoke_access(customer_id: int):
 
 
 @router.get("/{customer_id}/status")
-def access_status(customer_id: int):
+def access_status(customer_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        supplier = db.query(Customer).filter(Customer.id == customer_id).first()
+        company_id = current_company_id(request)
+        supplier = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
         if not supplier:
             raise HTTPException(status_code=404, detail="Party not found")
         return {"enabled": bool(supplier.supplier_portal_access_enabled)}

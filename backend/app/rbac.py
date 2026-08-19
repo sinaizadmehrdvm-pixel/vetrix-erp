@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from app.database import Base, SessionLocal, engine
+from app.super_admin import require_super_admin
 
 router = APIRouter(prefix="/api/auth", tags=["Authorization"])
 
@@ -391,7 +392,7 @@ def _require_admin(request: Request):
 
 @router.get("/custom-roles")
 def list_custom_roles(request: Request):
-    _require_admin(request)
+    require_super_admin(request)
     db = SessionLocal()
     try:
         rows = db.query(CustomRole).order_by(CustomRole.id.desc()).all()
@@ -412,7 +413,7 @@ def list_custom_roles(request: Request):
 
 @router.post("/custom-roles")
 def create_custom_role(data: CustomRoleCreate, request: Request):
-    _require_admin(request)
+    require_super_admin(request)
     code = data.code.strip().lower().replace(" ", "_")
     if not code:
         raise HTTPException(status_code=400, detail="code is required")
@@ -447,7 +448,7 @@ def create_custom_role(data: CustomRoleCreate, request: Request):
 
 @router.delete("/custom-roles/{role_id}")
 def delete_custom_role(role_id: int, request: Request):
-    _require_admin(request)
+    require_super_admin(request)
     db = SessionLocal()
     try:
         role = db.query(CustomRole).filter(CustomRole.id == role_id).first()

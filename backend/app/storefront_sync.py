@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
+from app.company_scope import current_company_id
 from app.database import engine
 from app.online_commerce import _ensure_schema as _ensure_commerce_schema
 
@@ -18,7 +19,7 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def _sync_secret():
+def _root_secret():
     secret = os.getenv("VETRIX_STOREFRONT_SYNC_SECRET", "").strip()
     if not secret:
         raise HTTPException(
@@ -33,6 +34,19 @@ def _sync_secret():
     return secret
 
 
+def company_sync_secret(company_id):
+    """Per-tenant signing key derived from the deployment root secret, so a
+    signature valid for one company's feed can never be replayed against
+    another company's - the request is verified against the derived key for
+    the company_id it claims, and only the root secret (server-side only,
+    never returned by any endpoint) can derive it."""
+    return hmac.new(
+        _root_secret().encode("utf-8"),
+        f"storefront-sync:{company_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def _canonical(timestamp, method, path):
     return f"{timestamp}\n{method.upper()}\n{path}".encode("utf-8")
 
@@ -45,7 +59,7 @@ def sign_request(timestamp, method, path, secret):
     ).hexdigest()
 
 
-def _verify_request(request, now=None):
+def _verify_request(request, company_id, now=None):
     timestamp_text = request.headers.get("X-Vetrix-Timestamp", "").strip()
     supplied = request.headers.get("X-Vetrix-Signature", "").strip().lower()
     try:
@@ -59,13 +73,13 @@ def _verify_request(request, now=None):
         timestamp_text,
         request.method,
         request.url.path,
-        _sync_secret(),
+        company_sync_secret(company_id),
     )
     if not supplied or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Invalid synchronization signature")
 
 
-def _feed(updated_since=""):
+def _feed(company_id, updated_since=""):
     with engine.begin() as conn:
         _ensure_commerce_schema(conn)
         settings = conn.execute(text("""
@@ -79,9 +93,11 @@ def _feed(updated_since=""):
             FROM online_product_settings s
             JOIN products p ON p.id=s.product_id
             WHERE s.is_published=1
+              AND p.company_id=:company_id
+              AND s.company_id=:company_id
               AND (:updated_since='' OR s.updated_at>:updated_since)
             ORDER BY s.updated_at, p.id
-        """), {"updated_since": updated_since}).mappings().all()
+        """), {"company_id": company_id, "updated_since": updated_since}).mappings().all()
     products = []
     for row in rows:
         price = row["online_price"]
@@ -115,11 +131,11 @@ def _feed(updated_since=""):
 
 
 @router.get("/products")
-def storefront_products(request: Request, updated_since: str = ""):
-    _verify_request(request)
+def storefront_products(request: Request, company_id: int, updated_since: str = ""):
+    _verify_request(request, company_id)
     if len(updated_since) > 80:
         raise HTTPException(status_code=400, detail="Invalid synchronization cursor")
-    return _feed(updated_since.strip())
+    return _feed(company_id, updated_since.strip())
 
 
 @router.get("/readiness")
@@ -127,23 +143,24 @@ def storefront_readiness(request: Request):
     auth = getattr(request.state, "auth", {})
     if str(auth.get("role") or "").lower() not in {"admin", "accountant"}:
         raise HTTPException(status_code=403, detail="Manager access is required")
+    company_id = current_company_id(request)
     secret = os.getenv("VETRIX_STOREFRONT_SYNC_SECRET", "").strip()
     with engine.begin() as conn:
         _ensure_commerce_schema(conn)
         published = conn.execute(text("""
-            SELECT COUNT(*) FROM online_product_settings WHERE is_published=1
-        """)).scalar() or 0
+            SELECT COUNT(*) FROM online_product_settings WHERE is_published=1 AND company_id=:company_id
+        """), {"company_id": company_id}).scalar() or 0
         stock_synced = conn.execute(text("""
             SELECT COUNT(*) FROM online_product_settings
-            WHERE is_published=1 AND sync_stock=1
-        """)).scalar() or 0
+            WHERE is_published=1 AND sync_stock=1 AND company_id=:company_id
+        """), {"company_id": company_id}).scalar() or 0
     return {
         "ready": len(secret) >= 24,
         "secret_configured": bool(secret),
         "secret_length_valid": len(secret) >= 24,
         "published_products": int(published),
         "stock_synced_products": int(stock_synced),
-        "feed_path": "/api/storefront-sync/products",
+        "feed_path": f"/api/storefront-sync/products?company_id={company_id}",
         "signature_algorithm": "HMAC-SHA256",
         "max_clock_skew_seconds": MAX_CLOCK_SKEW_SECONDS,
         "secrets_exposed": False,
