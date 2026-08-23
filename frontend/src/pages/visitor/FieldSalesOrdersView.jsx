@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Receipt, Search, ShoppingCart } from "lucide-react";
 import { useLanguage } from "../../localization/useLanguage";
 import { useDebounce } from "../../hooks/useDebounce";
-import { paymentStatusLabel, toEnglishDigits } from "../../localization/helpers";
+import { paymentStatusLabel, toEnglishDigits, toPersianDigits } from "../../localization/helpers";
 import { useFieldSales } from "./useFieldSales";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
@@ -58,8 +58,8 @@ export default function FieldSalesOrdersView() {
       <label className="vitalix-input-group flex items-center gap-2 mb-3" style={{ padding: "0 12px" }}>
         <Search size={16} color="var(--erp-muted)" />
         <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={fa ? toPersianDigits(query) : query}
+          onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
           placeholder={tr("جستجوی مشتری...", "ابحث عن عميل...", "Müşteri ara...", "Search customer...")}
           className="flex-1 min-w-0"
           style={{ color: "var(--erp-text)", padding: "10px 0" }}

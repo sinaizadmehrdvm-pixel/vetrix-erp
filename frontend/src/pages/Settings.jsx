@@ -200,6 +200,7 @@ export default function Settings() {
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
   const { theme, themes, setTheme } = useTheme();
 
   const [settings, setSettings] = useState(emptySettings);
@@ -539,11 +540,11 @@ export default function Settings() {
       <Card icon={Building2} title={label.company}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <Field label={tr("نام شرکت", "اسم الشركة", "Şirket Adı", "Company Name")}>
-            <Input value={settings.company_name || ""} onChange={(e) => setField("company_name", e.target.value)} />
+            <Input value={pd(settings.company_name || "")} onChange={(e) => setField("company_name", toEnglishDigits(e.target.value))} />
           </Field>
 
           <Field label={tr("نام مدیر", "اسم المدير", "Yönetici Adı", "Manager Name")}>
-            <Input value={settings.manager_name || ""} onChange={(e) => setField("manager_name", e.target.value)} />
+            <Input value={pd(settings.manager_name || "")} onChange={(e) => setField("manager_name", toEnglishDigits(e.target.value))} />
           </Field>
 
           <Field
@@ -581,7 +582,7 @@ export default function Settings() {
           </Field>
 
           <Field label={tr("آدرس", "العنوان", "Adres", "Address")}>
-            <Textarea rows={2} value={settings.address || ""} onChange={(e) => setField("address", fa ? toPersianDigits(e.target.value) : e.target.value)} />
+            <Textarea rows={2} value={pd(settings.address || "")} onChange={(e) => setField("address", toEnglishDigits(e.target.value))} />
           </Field>
         </div>
       </Card>
@@ -603,7 +604,7 @@ export default function Settings() {
 
         <div className="mt-4">
           <Field label={tr("متن پایین فاکتور", "نص أسفل الفاتورة", "Fatura Alt Metni", "Invoice Footer")}>
-            <Textarea rows={3} value={settings.invoice_footer || ""} onChange={(e) => setField("invoice_footer", fa ? toPersianDigits(e.target.value) : e.target.value)} />
+            <Textarea rows={3} value={pd(settings.invoice_footer || "")} onChange={(e) => setField("invoice_footer", toEnglishDigits(e.target.value))} />
           </Field>
         </div>
       </Card>
@@ -684,7 +685,7 @@ export default function Settings() {
           <Toggle label={tr("بکاپ خودکار", "نسخ احتياطي تلقائي", "Otomatik Yedekleme", "Auto Backup")} checked={settings.auto_backup} onChange={(v) => setField("auto_backup", v)} />
 
           <Field label={tr("پنل پیامک", "لوحة الرسائل النصية", "SMS Paneli", "SMS Panel")}>
-            <Input value={settings.sms_panel || ""} onChange={(e) => setField("sms_panel", e.target.value)} />
+            <Input value={pd(settings.sms_panel || "")} onChange={(e) => setField("sms_panel", toEnglishDigits(e.target.value))} />
           </Field>
 
           <Field label={tr("کلید API پیامک", "مفتاح API للرسائل النصية", "SMS API Anahtarı", "SMS API Key")}>
@@ -778,6 +779,7 @@ export default function Settings() {
 }
 
 function ReminderChannelsEditor({ channels, onChange, label, fa }) {
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
   const [draft, setDraft] = useState({ name: "", link_template: "" });
 
   function addChannel() {
@@ -794,7 +796,7 @@ function ReminderChannelsEditor({ channels, onChange, label, fa }) {
     <div dir={fa ? "rtl" : undefined}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <Field label={label.channelName}>
-          <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder={fa ? "مثلاً: بله" : "e.g. Bale"} />
+          <Input value={pd(draft.name)} onChange={(e) => setDraft({ ...draft, name: toEnglishDigits(e.target.value) })} placeholder={fa ? "مثلاً: بله" : "e.g. Bale"} />
         </Field>
         <Field label={label.channelLink} className="md:col-span-2">
           <Input value={draft.link_template} onChange={(e) => setDraft({ ...draft, link_template: e.target.value })} placeholder="https://ble.ir/share/{phone}?text={message}" dir="ltr" />
@@ -816,7 +818,7 @@ function ReminderChannelsEditor({ channels, onChange, label, fa }) {
         {channels.map((channel) => (
           <div key={channel.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border" style={{ borderColor: "var(--erp-border)", background: "var(--erp-panel-solid)" }}>
             <div>
-              <div className="font-bold" style={{ color: "var(--erp-text)" }}>{channel.name}</div>
+              <div className="font-bold" style={{ color: "var(--erp-text)" }}>{pd(channel.name)}</div>
               <div className="text-xs" style={{ color: "var(--erp-muted)", direction: "ltr" }}>{channel.link_template}</div>
             </div>
             <button type="button" onClick={() => removeChannel(channel.id)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(239,68,68,.12)", color: "#f87171" }}>

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatCalendarDate } from "../../../utils/date";
-import { toPersianDigits } from "../../../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../../../localization/helpers";
 import Select from "../../../components/ui/Select";
 
 function toNumber(value) {
@@ -237,8 +237,8 @@ export default function CustomerTimeline({
         <div className="relative">
           <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
           <input
-            value={query}
-            onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+            value={lang === "fa" ? toPersianDigits(query) : query}
+            onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
             placeholder={tr("جستجو در تایم‌لاین...", "بحث في الجدول الزمني...", "Zaman çizelgesinde ara...", "Search timeline...")}
             className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]"
           />
@@ -263,8 +263,8 @@ export default function CustomerTimeline({
       {onAddNote && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_140px] gap-3 mb-5">
           <input
-            value={quickNote}
-            onChange={(e) => setQuickNote(e.target.value)}
+            value={lang === "fa" ? toPersianDigits(quickNote) : quickNote}
+            onChange={(e) => setQuickNote(toEnglishDigits(e.target.value))}
             placeholder={tr("یادداشت سریع برای این مشتری...", "ملاحظة سريعة لهذا العميل...", "Bu müşteri için hızlı not...", "Quick note for this customer...")}
             className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl px-4 py-3 outline-none border border-[var(--erp-border)]"
           />

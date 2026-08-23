@@ -3,6 +3,7 @@ import { Building2, Download, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import {
   getCompanyProfile, updateCompanyProfile, getCompanyGoals, createCompanyGoal, updateCompanyGoal, deleteCompanyGoal,
   getCompanyDocuments, uploadCompanyDocument, deleteCompanyDocument, fetchAuthenticatedResource,
@@ -31,6 +32,7 @@ const PROFILE_FIELDS = [
 export default function CompanyProfile() {
   const { dir, language, n, date } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [tab, setTab] = useState("identity");
   const [profile, setProfile] = useState(null);
@@ -96,7 +98,7 @@ export default function CompanyProfile() {
           {tr("پروفایل کامل شرکت", "الملف الشامل للشركة", "Tam Şirket Profili", "Complete Company Profile")}
         </h1>
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-[var(--erp-muted)]">{profile.trading_name}</span>
+          <span className="text-[var(--erp-muted)]">{pd(profile.trading_name)}</span>
           <span className={`px-2 py-1 rounded-lg font-black ${profile.is_active ? "bg-emerald-500/15 text-emerald-200" : "bg-zinc-500/15 text-zinc-300"}`}>
             {profile.is_active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
           </span>
@@ -119,9 +121,9 @@ export default function CompanyProfile() {
         <form onSubmit={save} className={cardClass + " space-y-4"}>
           {tab === "identity" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className={labelClass}><span className={labelTextClass}>{tr("نام تجاری (از تنظیمات)", "الاسم التجاري (من الإعدادات)", "Ticari ad (Ayarlardan)", "Trading name (from Settings)")}</span><input className={inputClass} value={profile.trading_name} disabled /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("نام حقوقی", "الاسم القانوني", "Yasal ad", "Legal name")}</span><input className={inputClass} value={draft.legal_name} onChange={(e) => set("legal_name", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("کد شرکت", "رمز الشركة", "Şirket kodu", "Company code")}</span><input className={inputClass} value={draft.company_code} onChange={(e) => set("company_code", e.target.value)} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("نام تجاری (از تنظیمات)", "الاسم التجاري (من الإعدادات)", "Ticari ad (Ayarlardan)", "Trading name (from Settings)")}</span><input className={inputClass} value={pd(profile.trading_name)} disabled /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("نام حقوقی", "الاسم القانوني", "Yasal ad", "Legal name")}</span><input className={inputClass} value={pd(draft.legal_name)} onChange={(e) => set("legal_name", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("کد شرکت", "رمز الشركة", "Şirket kodu", "Company code")}</span><input className={inputClass} value={pd(draft.company_code)} onChange={(e) => set("company_code", toEnglishDigits(e.target.value))} /></label>
               <label className={labelClass}>
                 <span className={labelTextClass}>{tr("نوع شرکت", "نوع الشركة", "Şirket türü", "Company type")}</span>
                 <Select
@@ -134,58 +136,58 @@ export default function CompanyProfile() {
                   ]}
                 />
               </label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("شکل حقوقی", "الشكل القانوني", "Yasal şekil", "Legal form")}</span><input className={inputClass} value={draft.legal_form} onChange={(e) => set("legal_form", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("شماره ثبت", "رقم التسجيل", "Tescil no", "Registration number")}</span><input className={inputClass} value={draft.registration_number} onChange={(e) => set("registration_number", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("شماره مالیات بر ارزش‌افزوده", "الرقم الضريبي (VAT)", "KDV no", "VAT number")}</span><input className={inputClass} value={draft.vat_number} onChange={(e) => set("vat_number", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("شناسه ملی (از تنظیمات)", "الهوية الوطنية (من الإعدادات)", "Ulusal kimlik (Ayarlardan)", "National ID (from Settings)")}</span><input className={inputClass} value={profile.national_id} disabled /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("شکل حقوقی", "الشكل القانوني", "Yasal şekil", "Legal form")}</span><input className={inputClass} value={pd(draft.legal_form)} onChange={(e) => set("legal_form", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("شماره ثبت", "رقم التسجيل", "Tescil no", "Registration number")}</span><input className={inputClass} value={pd(draft.registration_number)} onChange={(e) => set("registration_number", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("شماره مالیات بر ارزش‌افزوده", "الرقم الضريبي (VAT)", "KDV no", "VAT number")}</span><input className={inputClass} value={pd(draft.vat_number)} onChange={(e) => set("vat_number", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("شناسه ملی (از تنظیمات)", "الهوية الوطنية (من الإعدادات)", "Ulusal kimlik (Ayarlardan)", "National ID (from Settings)")}</span><input className={inputClass} value={pd(profile.national_id)} disabled /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("تاریخ ثبت", "تاريخ التسجيل", "Tescil tarihi", "Registration date")}</span><JalaliDateField className={inputClass} value={draft.registration_date || ""} onChange={(iso) => set("registration_date", iso)} language={language} /></label>
             </div>
           )}
 
           {tab === "activity" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className={labelClass}><span className={labelTextClass}>{tr("فعالیت اصلی", "النشاط الرئيسي", "Ana faaliyet", "Main activity")}</span><input className={inputClass} value={draft.main_activity} onChange={(e) => set("main_activity", e.target.value)} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("فعالیت اصلی", "النشاط الرئيسي", "Ana faaliyet", "Main activity")}</span><input className={inputClass} value={pd(draft.main_activity)} onChange={(e) => set("main_activity", toEnglishDigits(e.target.value))} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("صنعت (از تنظیمات)", "الصناعة (من الإعدادات)", "Sektör (Ayarlardan)", "Industry (from Settings)")}</span><input className={inputClass} value={profile.industry} disabled /></label>
-              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("توضیح فعالیت", "وصف النشاط", "Faaliyet açıklaması", "Activity description")}</span><textarea rows={2} className={inputClass} value={draft.activity_description} onChange={(e) => set("activity_description", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("دسته‌های کسب‌وکار", "فئات الأعمال", "İş kategorileri", "Business categories")}</span><input className={inputClass} value={draft.business_categories} onChange={(e) => set("business_categories", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("محصولات/خدمات", "المنتجات/الخدمات", "Ürün/Hizmetler", "Products/Services")}</span><input className={inputClass} value={draft.products_services} onChange={(e) => set("products_services", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("بازارهای هدف", "الأسواق المستهدفة", "Hedef pazarlar", "Target markets")}</span><input className={inputClass} value={draft.target_markets} onChange={(e) => set("target_markets", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("محدوده جغرافیایی", "النطاق الجغرافي", "Coğrafi kapsam", "Geographic scope")}</span><input className={inputClass} value={draft.geographic_scope} onChange={(e) => set("geographic_scope", e.target.value)} /></label>
-              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("مدل کسب‌وکار", "نموذج العمل", "İş modeli", "Business model")}</span><textarea rows={2} className={inputClass} value={draft.business_model} onChange={(e) => set("business_model", e.target.value)} /></label>
+              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("توضیح فعالیت", "وصف النشاط", "Faaliyet açıklaması", "Activity description")}</span><textarea rows={2} className={inputClass} value={pd(draft.activity_description)} onChange={(e) => set("activity_description", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("دسته‌های کسب‌وکار", "فئات الأعمال", "İş kategorileri", "Business categories")}</span><input className={inputClass} value={pd(draft.business_categories)} onChange={(e) => set("business_categories", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("محصولات/خدمات", "المنتجات/الخدمات", "Ürün/Hizmetler", "Products/Services")}</span><input className={inputClass} value={pd(draft.products_services)} onChange={(e) => set("products_services", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("بازارهای هدف", "الأسواق المستهدفة", "Hedef pazarlar", "Target markets")}</span><input className={inputClass} value={pd(draft.target_markets)} onChange={(e) => set("target_markets", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("محدوده جغرافیایی", "النطاق الجغرافي", "Coğrafi kapsam", "Geographic scope")}</span><input className={inputClass} value={pd(draft.geographic_scope)} onChange={(e) => set("geographic_scope", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("مدل کسب‌وکار", "نموذج العمل", "İş modeli", "Business model")}</span><textarea rows={2} className={inputClass} value={pd(draft.business_model)} onChange={(e) => set("business_model", toEnglishDigits(e.target.value))} /></label>
             </div>
           )}
 
           {tab === "mission" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className={labelClass}><span className={labelTextClass}>{tr("مأموریت", "المهمة", "Misyon", "Mission")}</span><textarea rows={3} className={inputClass} value={draft.mission} onChange={(e) => set("mission", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("چشم‌انداز", "الرؤية", "Vizyon", "Vision")}</span><textarea rows={3} className={inputClass} value={draft.vision} onChange={(e) => set("vision", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("اهداف راهبردی", "الأهداف الاستراتيجية", "Stratejik hedefler", "Strategic objectives")}</span><textarea rows={3} className={inputClass} value={draft.strategic_objectives} onChange={(e) => set("strategic_objectives", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("اهداف سالانه", "الأهداف السنوية", "Yıllık hedefler", "Annual objectives")}</span><textarea rows={3} className={inputClass} value={draft.annual_objectives} onChange={(e) => set("annual_objectives", e.target.value)} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("مأموریت", "المهمة", "Misyon", "Mission")}</span><textarea rows={3} className={inputClass} value={pd(draft.mission)} onChange={(e) => set("mission", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("چشم‌انداز", "الرؤية", "Vizyon", "Vision")}</span><textarea rows={3} className={inputClass} value={pd(draft.vision)} onChange={(e) => set("vision", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("اهداف راهبردی", "الأهداف الاستراتيجية", "Stratejik hedefler", "Strategic objectives")}</span><textarea rows={3} className={inputClass} value={pd(draft.strategic_objectives)} onChange={(e) => set("strategic_objectives", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("اهداف سالانه", "الأهداف السنوية", "Yıllık hedefler", "Annual objectives")}</span><textarea rows={3} className={inputClass} value={pd(draft.annual_objectives)} onChange={(e) => set("annual_objectives", toEnglishDigits(e.target.value))} /></label>
             </div>
           )}
 
           {tab === "contact" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className={labelClass}><span className={labelTextClass}>{tr("استان", "المحافظة", "İl", "Province")}</span><input className={inputClass} value={draft.province} onChange={(e) => set("province", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("شهر", "المدينة", "Şehir", "City")}</span><input className={inputClass} value={draft.city} onChange={(e) => set("city", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("منطقه", "المنطقة", "İlçe", "District")}</span><input className={inputClass} value={draft.district} onChange={(e) => set("district", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")}</span><input className={inputClass} value={draft.postal_code} onChange={(e) => set("postal_code", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("تلفن (از تنظیمات)", "الهاتف (من الإعدادات)", "Telefon (Ayarlardan)", "Phone (from Settings)")}</span><input className={inputClass} value={profile.phone} disabled /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("استان", "المحافظة", "İl", "Province")}</span><input className={inputClass} value={pd(draft.province)} onChange={(e) => set("province", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("شهر", "المدينة", "Şehir", "City")}</span><input className={inputClass} value={pd(draft.city)} onChange={(e) => set("city", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("منطقه", "المنطقة", "İlçe", "District")}</span><input className={inputClass} value={pd(draft.district)} onChange={(e) => set("district", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("کد پستی", "الرمز البريدي", "Posta kodu", "Postal code")}</span><input className={inputClass} value={pd(draft.postal_code)} onChange={(e) => set("postal_code", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("تلفن (از تنظیمات)", "الهاتف (من الإعدادات)", "Telefon (Ayarlardan)", "Phone (from Settings)")}</span><input className={inputClass} value={pd(profile.phone)} disabled /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("ایمیل (از تنظیمات)", "البريد (من الإعدادات)", "E-posta (Ayarlardan)", "Email (from Settings)")}</span><input className={inputClass} value={profile.email} disabled /></label>
-              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس صورتحساب", "عنوان الفوترة", "Fatura adresi", "Billing address")}</span><textarea rows={2} className={inputClass} value={draft.billing_address} onChange={(e) => set("billing_address", e.target.value)} /></label>
-              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس قانونی", "العنوان القانوني", "Yasal adres", "Legal address")}</span><textarea rows={2} className={inputClass} value={draft.legal_address} onChange={(e) => set("legal_address", e.target.value)} /></label>
-              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس عملیاتی", "العنوان التشغيلي", "Operasyonel adres", "Operational address")}</span><textarea rows={2} className={inputClass} value={draft.operational_address} onChange={(e) => set("operational_address", e.target.value)} /></label>
+              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس صورتحساب", "عنوان الفوترة", "Fatura adresi", "Billing address")}</span><textarea rows={2} className={inputClass} value={pd(draft.billing_address)} onChange={(e) => set("billing_address", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس قانونی", "العنوان القانوني", "Yasal adres", "Legal address")}</span><textarea rows={2} className={inputClass} value={pd(draft.legal_address)} onChange={(e) => set("legal_address", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass + " md:col-span-3"}><span className={labelTextClass}>{tr("آدرس عملیاتی", "العنوان التشغيلي", "Operasyonel adres", "Operational address")}</span><textarea rows={2} className={inputClass} value={pd(draft.operational_address)} onChange={(e) => set("operational_address", toEnglishDigits(e.target.value))} /></label>
             </div>
           )}
 
           {tab === "banking" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className={labelClass}><span className={labelTextClass}>{tr("نام بانک", "اسم البنك", "Banka adı", "Bank name")}</span><input className={inputClass} value={draft.bank_name} onChange={(e) => set("bank_name", e.target.value)} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("صاحب حساب", "صاحب الحساب", "Hesap sahibi", "Account holder")}</span><input className={inputClass} value={draft.bank_account_holder} onChange={(e) => set("bank_account_holder", e.target.value)} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("نام بانک", "اسم البنك", "Banka adı", "Bank name")}</span><input className={inputClass} value={pd(draft.bank_name)} onChange={(e) => set("bank_name", toEnglishDigits(e.target.value))} /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("صاحب حساب", "صاحب الحساب", "Hesap sahibi", "Account holder")}</span><input className={inputClass} value={pd(draft.bank_account_holder)} onChange={(e) => set("bank_account_holder", toEnglishDigits(e.target.value))} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("شماره شبا/آیبان", "IBAN", "IBAN", "IBAN")}</span><input className={inputClass} value={draft.bank_iban} onChange={(e) => set("bank_iban", e.target.value)} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("رنگ اصلی برند", "لون العلامة الأساسي", "Ana marka rengi", "Brand primary color")}</span><input type="color" className={inputClass + " h-11"} value={draft.brand_primary_color || "#22d3ee"} onChange={(e) => set("brand_primary_color", e.target.value)} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("رنگ ثانویه برند", "لون العلامة الثانوي", "İkincil marka rengi", "Brand secondary color")}</span><input type="color" className={inputClass + " h-11"} value={draft.brand_secondary_color || "#0f172a"} onChange={(e) => set("brand_secondary_color", e.target.value)} /></label>
-              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("دستورالعمل پرداخت", "تعليمات الدفع", "Ödeme talimatı", "Payment instructions")}</span><textarea rows={2} className={inputClass} value={draft.payment_instructions} onChange={(e) => set("payment_instructions", e.target.value)} /></label>
+              <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("دستورالعمل پرداخت", "تعليمات الدفع", "Ödeme talimatı", "Payment instructions")}</span><textarea rows={2} className={inputClass} value={pd(draft.payment_instructions)} onChange={(e) => set("payment_instructions", toEnglishDigits(e.target.value))} /></label>
               <p className="text-xs text-[var(--erp-muted)] md:col-span-2">{tr("لوگو از تنظیمات اصلی استفاده می‌شود؛ اینجا فقط رنگ برند و لوگوی ثانویه ذخیره می‌شود (هنوز در استودیوی طراحی مصرف نمی‌شود).", "يُستخدم الشعار من الإعدادات الرئيسية؛ هنا فقط لون العلامة والشعار الثانوي (لم يُستخدم بعد في استوديو التصميم).", "Logo, ana Ayarlar'dan kullanılır; burada yalnızca marka rengi ve ikincil logo saklanır (henüz Tasarım Stüdyosu'nda kullanılmıyor).", "Logo is reused from Settings; only brand color and a secondary logo are stored here (not yet consumed by Design Studio).")}</p>
             </div>
           )}
@@ -214,6 +216,7 @@ export default function CompanyProfile() {
 }
 
 function GoalsPanel({ tr, n, date, language }) {
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({ title: "", measurable_target: "", start_date: "", target_date: "" });
@@ -259,8 +262,8 @@ function GoalsPanel({ tr, n, date, language }) {
   return (
     <div className={cardClass + " space-y-4"}>
       <form onSubmit={addGoal} className="flex flex-wrap gap-2">
-        <input className={inputClass + " flex-1 min-w-[200px]"} placeholder={tr("عنوان هدف", "عنوان الهدف", "Hedef başlığı", "Goal title")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-        <input className={inputClass + " w-52"} placeholder={tr("شاخص قابل‌اندازه‌گیری", "مؤشر قابل للقياس", "Ölçülebilir hedef", "Measurable target")} value={draft.measurable_target} onChange={(e) => setDraft({ ...draft, measurable_target: e.target.value })} />
+        <input className={inputClass + " flex-1 min-w-[200px]"} placeholder={tr("عنوان هدف", "عنوان الهدف", "Hedef başlığı", "Goal title")} value={pd(draft.title)} onChange={(e) => setDraft({ ...draft, title: toEnglishDigits(e.target.value) })} />
+        <input className={inputClass + " w-52"} placeholder={tr("شاخص قابل‌اندازه‌گیری", "مؤشر قابل للقياس", "Ölçülebilir hedef", "Measurable target")} value={pd(draft.measurable_target)} onChange={(e) => setDraft({ ...draft, measurable_target: toEnglishDigits(e.target.value) })} />
         <JalaliDateField className={inputClass + " w-40"} value={draft.target_date} onChange={(iso) => setDraft({ ...draft, target_date: iso })} language={language} />
         <button type="submit" disabled={saving} className={btnClass}><Plus size={16} /></button>
       </form>
@@ -279,8 +282,8 @@ function GoalsPanel({ tr, n, date, language }) {
             {items.length === 0 ? <EmptyRow colSpan={7}>{tr("هدفی ثبت نشده.", "لا توجد أهداف.", "Hedef yok.", "No goals yet.")}</EmptyRow> : items.map((g, i) => (
               <Tr key={g.id}>
                 <Td className="text-[var(--erp-muted)] font-bold">{n(i + 1)}</Td>
-                <Td className="font-bold">{g.title}</Td>
-                <Td>{g.measurable_target || "—"}</Td>
+                <Td className="font-bold">{pd(g.title)}</Td>
+                <Td>{pd(g.measurable_target) || "—"}</Td>
                 <Td>{n(g.progress_percent)}%</Td>
                 <Td>
                   <Select
@@ -301,6 +304,7 @@ function GoalsPanel({ tr, n, date, language }) {
 }
 
 function DocumentsPanel({ tr, n, date, language }) {
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState(null);
@@ -365,7 +369,7 @@ function DocumentsPanel({ tr, n, date, language }) {
           onChange={(value) => setDocumentType(value)}
           options={["registration", "tax", "license", "contract", "certification", "other"].map((t) => ({ value: t, label: t }))}
         />
-        <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={pd(title)} onChange={(e) => setTitle(toEnglishDigits(e.target.value))} />
         <JalaliDateField className={inputClass + " w-40"} value={expiryDate} onChange={(iso) => setExpiryDate(iso)} language={language} placeholder={tr("تاریخ انقضا", "تاريخ الانتهاء", "Son geçerlilik", "Expiry date")} />
         <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
         <button type="submit" disabled={uploading || !file} className={btnClass}>{tr("بارگذاری", "رفع", "Yükle", "Upload")}</button>
@@ -384,7 +388,7 @@ function DocumentsPanel({ tr, n, date, language }) {
               <Tr key={d.id}>
                 <Td className="text-[var(--erp-muted)] font-bold">{n(i + 1)}</Td>
                 <Td>{d.document_type}</Td>
-                <Td className="font-bold">{d.title}</Td>
+                <Td className="font-bold">{pd(d.title)}</Td>
                 <Td>{d.expiry_date ? date(d.expiry_date) : "—"}</Td>
                 <Td align="end" className="flex gap-2 justify-end">
                   <button onClick={() => download(d)} className="text-[var(--erp-accent)]"><Download size={16} /></button>

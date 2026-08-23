@@ -176,7 +176,7 @@ export default function FieldOrderDrawer({ customerId, customerName, open, onClo
 
         <label className="vitalix-input-group flex items-center gap-2 mb-3" style={{ padding: "0 12px" }}>
           <Search size={16} color="var(--erp-muted)" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("جستجوی کالا...", "ابحث عن منتج...", "Ürün ara...", "Search product...")} className="flex-1 min-w-0" style={{ color: "var(--erp-text)", padding: "10px 0" }} />
+          <input value={fa ? toPersianDigits(query) : query} onChange={(e) => setQuery(toEnglishDigits(e.target.value))} placeholder={tr("جستجوی کالا...", "ابحث عن منتج...", "Ürün ara...", "Search product...")} className="flex-1 min-w-0" style={{ color: "var(--erp-text)", padding: "10px 0" }} />
         </label>
 
         <div className="grid gap-1.5 mb-4" style={{ maxHeight: 180, overflowY: "auto" }}>

@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo } from "react";
+import { toPersianDigits } from "../../../localization/helpers";
 
 function toNumber(value) {
   return Number(
@@ -402,7 +403,7 @@ export default function CustomerAI({
           <div className="grid grid-cols-2 gap-3 mt-5">
             <MiniKpi title={tr("سطح وفاداری", "مستوى الولاء", "Sadakat seviyesi", "Loyalty")} value={levelLabel(analysis.loyaltyLevel, lang)} />
             <MiniKpi title={tr("مصرف اعتبار", "استخدام الائتمان", "Kredi kullanımı", "Credit usage")} value={`${n(Math.round(analysis.creditUsage))}%`} />
-            <MiniKpi title={tr("بهترین زمان تماس", "أفضل وقت للاتصال", "En iyi arama zamanı", "Best call time")} value={analysis.bestContactTime} wide />
+            <MiniKpi title={tr("بهترین زمان تماس", "أفضل وقت للاتصال", "En iyi arama zamanı", "Best call time")} value={lang === "fa" ? toPersianDigits(analysis.bestContactTime) : analysis.bestContactTime} wide />
           </div>
 
           <div className="grid grid-cols-1 gap-3 mt-5">

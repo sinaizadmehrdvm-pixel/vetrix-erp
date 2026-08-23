@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CreditCard, Gift, Mail, MessageCircle, Phone, Plus, RefreshCw, ShieldAlert, Sparkles, Target, TrendingUp, Trophy, UserRound, Wallet } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useLanguage } from "../../localization/useLanguage";
-import { toPersianDigits } from "../../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../../localization/helpers";
 import { confirmAction } from "../../components/ui/confirmService";
 import Select from "../../components/ui/Select";
 import {
@@ -467,8 +467,8 @@ async function fetchCustomerFiles(customerId) {
             <input
               className="crm-input"
               placeholder={fa ? "مثلاً ۱۰۰ امتیاز" : language === "ar" ? "مثال: 100 نقطة" : language === "tr" ? "Örn. 100 puan" : "Points"}
-              value={redeemPointsValue}
-              onChange={(e) => setRedeemPointsValue(e.target.value)}
+              value={fa ? toPersianDigits(redeemPointsValue) : redeemPointsValue}
+              onChange={(e) => setRedeemPointsValue(toEnglishDigits(e.target.value))}
             />
             <button onClick={handleRedeemPoints} className="crm-btn" style={{ background: "#fde047" }}>
               <Gift size={16} />
@@ -532,8 +532,8 @@ async function fetchCustomerFiles(customerId) {
             </div>
 
             <CrmForm title={fa ? "ثبت یادداشت" : language === "ar" ? "إضافة ملاحظة" : language === "tr" ? "Not ekle" : "Add note"} icon={<MessageCircle />}>
-              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} />
-              <textarea className="crm-input" rows={3} placeholder={fa ? "متن یادداشت" : language === "ar" ? "نص الملاحظة" : language === "tr" ? "Not metni" : "Note"} value={noteForm.text} onChange={(e) => setNoteForm({ ...noteForm, text: fa ? toPersianDigits(e.target.value) : e.target.value })} />
+              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={fa ? toPersianDigits(noteForm.title) : noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: toEnglishDigits(e.target.value) })} />
+              <textarea className="crm-input" rows={3} placeholder={fa ? "متن یادداشت" : language === "ar" ? "نص الملاحظة" : language === "tr" ? "Not metni" : "Note"} value={fa ? toPersianDigits(noteForm.text) : noteForm.text} onChange={(e) => setNoteForm({ ...noteForm, text: toEnglishDigits(e.target.value) })} />
               <button onClick={() => addNote()} className="crm-btn">
                 <Plus size={16} />
                 {fa ? "ثبت یادداشت" : language === "ar" ? "حفظ الملاحظة" : language === "tr" ? "Notu kaydet" : "Save note"}
@@ -551,8 +551,8 @@ async function fetchCustomerFiles(customerId) {
                   { value: "whatsapp", label: fa ? "واتساپ" : language === "ar" ? "واتساب" : language === "tr" ? "WhatsApp" : "WhatsApp" },
                 ]}
               />
-              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={interactionForm.title} onChange={(e) => setInteractionForm({ ...interactionForm, title: e.target.value })} />
-              <textarea className="crm-input" rows={2} placeholder={fa ? "توضیح تعامل" : language === "ar" ? "وصف التفاعل" : language === "tr" ? "Etkileşim açıklaması" : "Interaction description"} value={interactionForm.description} onChange={(e) => setInteractionForm({ ...interactionForm, description: fa ? toPersianDigits(e.target.value) : e.target.value })} />
+              <input className="crm-input" placeholder={fa ? "عنوان" : language === "ar" ? "العنوان" : language === "tr" ? "Başlık" : "Title"} value={fa ? toPersianDigits(interactionForm.title) : interactionForm.title} onChange={(e) => setInteractionForm({ ...interactionForm, title: toEnglishDigits(e.target.value) })} />
+              <textarea className="crm-input" rows={2} placeholder={fa ? "توضیح تعامل" : language === "ar" ? "وصف التفاعل" : language === "tr" ? "Etkileşim açıklaması" : "Interaction description"} value={fa ? toPersianDigits(interactionForm.description) : interactionForm.description} onChange={(e) => setInteractionForm({ ...interactionForm, description: toEnglishDigits(e.target.value) })} />
               <button onClick={() => addInteraction()} className="crm-btn">
                 <Plus size={16} />
                 {fa ? "ثبت تعامل" : language === "ar" ? "حفظ التفاعل" : language === "tr" ? "Etkileşimi kaydet" : "Save interaction"}

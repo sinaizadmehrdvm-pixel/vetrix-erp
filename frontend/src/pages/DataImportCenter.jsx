@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, History, LayoutTemplate, Save, Trash2, Upload } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { confirmAction } from "../components/ui/confirmService";
 import {
   applyImport, deleteImportBatch, downloadImportTemplate, getImportBatches, previewImport,
@@ -24,6 +25,7 @@ export default function DataImportCenter() {
   const { language, dir, n, date } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const [entity, setEntity] = useState("customers");
   const [file, setFile] = useState(null);
   const [openingDate, setOpeningDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -65,9 +67,9 @@ export default function DataImportCenter() {
     history: tr("تاریخچه ورود اطلاعات", "سجل استيراد البيانات", "Veri içe aktarma geçmişi", "Import history"),
     status: tr("وضعیت", "الحالة", "Durum", "Status"),
     file: tr("فایل", "الملف", "Dosya", "File"),
-    no: tr("هنوز Batch ثبت نشده است.", "لم يتم تسجيل أي دفعة بعد.", "Henüz içe aktarma grubu yok.", "No import batches yet."),
+    no: tr("هنوز دسته‌ای ثبت نشده است.", "لم يتم تسجيل أي دفعة بعد.", "Henüz içe aktarma grubu yok.", "No import batches yet."),
     deleteBatch: tr("حذف این سابقه", "حذف هذا السجل", "Bu kaydı sil", "Delete this record"),
-    deleteBatchConfirm: tr("این سابقه Import حذف شود؟ داده‌های واقعاً ثبت‌شده تغییری نمی‌کند.", "هل تريد حذف سجل الاستيراد هذا؟ البيانات المُسجَّلة فعليًا لن تتغير.", "Bu içe aktarma kaydı silinsin mi? Gerçekten yazılan veriler değişmez.", "Delete this import record? Data that was actually written is unaffected."),
+    deleteBatchConfirm: tr("این سابقه ورود اطلاعات حذف شود؟ داده‌های واقعاً ثبت‌شده تغییری نمی‌کند.", "هل تريد حذف سجل الاستيراد هذا؟ البيانات المُسجَّلة فعليًا لن تتغير.", "Bu içe aktarma kaydı silinsin mi? Gerçekten yazılan veriler değişmez.", "Delete this import record? Data that was actually written is unaffected."),
     deleteBatchDone: tr("سابقه حذف شد", "تم حذف السجل", "Kayıt silindi", "Record deleted"),
     mappingTitle: tr(
       "مدل انتقال (نگاشت ستون‌ها)",
@@ -287,8 +289,8 @@ export default function DataImportCenter() {
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <input
                 placeholder={t.saveTemplateName}
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
+                value={pd(profileName)}
+                onChange={(e) => setProfileName(toEnglishDigits(e.target.value))}
                 style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 11, background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" }}
               />
               <button onClick={saveCurrentMapping} style={{ padding: "10px 16px", borderRadius: 11, fontWeight: 800, background: "var(--erp-panel-solid)", color: "var(--erp-accent)", border: "1px solid var(--erp-border)" }}>

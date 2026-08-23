@@ -19,6 +19,7 @@ import { confirmAction } from "../components/ui/confirmService";
 import { useAuth } from "../auth/AuthContext";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import {
   closeFiscalPeriod,
   createFiscalPeriod,
@@ -27,10 +28,15 @@ import {
   reopenFiscalPeriod,
 } from "../services/fiscalPeriodsApi";
 
-function currentYearForm() {
+// The suggested default name only - the admin can freely retype it, but it
+// shouldn't start out as a hardcoded English word ("Fiscal") + Latin digits
+// on an RTL Persian page.
+function currentYearForm(language) {
   const year = new Date().getFullYear();
+  const label = language === "fa" ? "سال مالی" : language === "ar" ? "السنة المالية" : language === "tr" ? "Mali Yıl" : "Fiscal";
+  const yearText = language === "fa" ? toPersianDigits(String(year)) : String(year);
   return {
-    name: `Fiscal ${year}`,
+    name: `${label} ${yearText}`,
     start_date: `${year}-01-01`,
     end_date: `${year}-12-31`,
   };
@@ -41,9 +47,10 @@ export default function FiscalPeriods() {
   const { language, dir, date, money, n } = useLanguage();
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const isAdmin = user?.role === "admin";
   const [periods, setPeriods] = useState([]);
-  const [form, setForm] = useState(currentYearForm);
+  const [form, setForm] = useState(() => currentYearForm(language));
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -143,7 +150,7 @@ export default function FiscalPeriods() {
     try {
       await createFiscalPeriod({ ...form, name: form.name.trim() });
       toast.success(tr("دوره مالی ایجاد شد.", "تم إنشاء الفترة المالية.", "Mali dönem oluşturuldu.", "Fiscal period created."));
-      setForm(currentYearForm());
+      setForm(currentYearForm(language));
       await load();
     } catch (requestError) {
       toast.error(requestError.message);
@@ -259,7 +266,7 @@ export default function FiscalPeriods() {
           <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,2fr) minmax(170px,1fr) minmax(170px,1fr) auto", gap: 12, alignItems: "end" }}>
             <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.name}
-              <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} style={{ ...input, marginTop: 7 }} />
+              <input value={pd(form.name)} onChange={(event) => setForm({ ...form, name: toEnglishDigits(event.target.value) })} style={{ ...input, marginTop: 7 }} />
             </label>
             <label style={{ color: "var(--erp-muted)", fontSize: 13 }}>
               {copy.start}
@@ -289,7 +296,7 @@ export default function FiscalPeriods() {
               <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <h2 style={{ margin: 0, color: "var(--erp-text)", fontSize: 24 }}>{period.name}</h2>
+                    <h2 style={{ margin: 0, color: "var(--erp-text)", fontSize: 24 }}>{pd(period.name)}</h2>
                     <span className={isOpen ? "text-green-200" : undefined} style={{ display: "inline-flex", gap: 6, alignItems: "center", borderRadius: 999, padding: "6px 11px", fontSize: 12, fontWeight: 900, ...(isOpen ? null : { color: "var(--erp-muted)" }), background: isOpen ? "rgba(34,197,94,.14)" : "var(--erp-glow)" }}>
                       {isOpen ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
                       {isOpen ? copy.open : copy.closed}

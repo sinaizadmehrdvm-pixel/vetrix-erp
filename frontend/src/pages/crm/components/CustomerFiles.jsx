@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { openAuthenticatedDocument } from "../../../services/api";
 import { formatCalendarDate } from "../../../utils/date";
-import { toPersianDigits } from "../../../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../../../localization/helpers";
 import Select from "../../../components/ui/Select";
 
 function fileIcon(file) {
@@ -110,7 +110,7 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <input value={uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })} placeholder={tr("عنوان فایل", "عنوان الملف", "Dosya başlığı", "File title")} className="crm-input" />
+          <input value={lang === "fa" ? toPersianDigits(uploadForm.title) : uploadForm.title} onChange={(e) => setUploadForm({ ...uploadForm, title: toEnglishDigits(e.target.value) })} placeholder={tr("عنوان فایل", "عنوان الملف", "Dosya başlığı", "File title")} className="crm-input" />
           <Select
             value={uploadForm.category}
             onChange={(value) => setUploadForm({ ...uploadForm, category: value })}
@@ -126,7 +126,7 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
               { value: "other", label: tr("سایر", "أخرى", "Diğer", "Other") },
             ]}
           />
-          <textarea value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات فایل", "وصف الملف", "Dosya açıklaması", "File description")} rows={3} className="crm-input lg:col-span-2" />
+          <textarea value={lang === "fa" ? toPersianDigits(uploadForm.description) : uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: toEnglishDigits(e.target.value) })} placeholder={tr("توضیحات فایل", "وصف الملف", "Dosya açıklaması", "File description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
 
         <button type="button" onClick={submitUpload} disabled={!selectedFile} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2 disabled:opacity-50">
@@ -137,7 +137,7 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3 mb-4">
         <div className="relative">
           <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
-          <input value={query} onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={tr("جستجو در فایل‌ها...", "بحث في الملفات...", "Dosyalarda ara...", "Search files...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" />
+          <input value={lang === "fa" ? toPersianDigits(query) : query} onChange={(e) => setQuery(toEnglishDigits(e.target.value))} placeholder={tr("جستجو در فایل‌ها...", "بحث في الملفات...", "Dosyalarda ara...", "Search files...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" />
         </div>
         <Select
           value={categoryFilter}

@@ -3,6 +3,7 @@ import { Building2, Check, Pencil, Plus, RefreshCw, Users, X } from "lucide-reac
 import toast from "react-hot-toast";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { createCompany, getCompanies, updateCompany } from "../services/companiesApi";
 import { translateApiError } from "../localization/apiErrors";
 
@@ -13,6 +14,7 @@ export default function CompanyManagement() {
   const ar = language === "ar";
   const trk = language === "tr";
   const tr = (a, b, c, d) => (fa ? a : ar ? b : trk ? c : d);
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
   const isSuperAdmin = !!user?.is_super_admin;
 
   const [companies, setCompanies] = useState([]);
@@ -132,8 +134,8 @@ export default function CompanyManagement() {
       <section style={{ ...card, padding: 18, marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={pd(name)}
+            onChange={(e) => setName(toEnglishDigits(e.target.value))}
             placeholder={t.name}
             style={{ flex: 1, minWidth: 220, padding: 12, borderRadius: 13, background: "var(--erp-bg)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" }}
           />
@@ -168,8 +170,8 @@ export default function CompanyManagement() {
                 {isEditing ? (
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flex: 1 }}>
                     <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
+                      value={pd(editName)}
+                      onChange={(e) => setEditName(toEnglishDigits(e.target.value))}
                       style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 12, background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)" }}
                       autoFocus
                     />
@@ -195,7 +197,7 @@ export default function CompanyManagement() {
                   <>
                     <div>
                       <div style={{ fontWeight: 900, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                        {company.name}
+                        {pd(company.name)}
                         {!company.is_active && (
                           <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 999, background: "rgba(244,63,94,.15)", color: "#fb7185" }}>
                             {t.inactive}

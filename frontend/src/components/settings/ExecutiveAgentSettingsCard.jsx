@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MessagesSquare, Save, KeyRound, Trash2, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../../localization/useLanguage";
+import { toPersianDigits } from "../../localization/helpers";
 import {
   getExecutiveAgentSettings, updateExecutiveAgentSettings, getExecutiveAgentCategories,
   createExecutiveAgentBindingCode, listExecutiveAgentTelegramBindings, revokeExecutiveAgentTelegramBinding,
@@ -28,8 +29,9 @@ const CATEGORY_LABELS = {
 };
 
 export default function ExecutiveAgentSettingsCard() {
-  const { language, n } = useLanguage();
+  const { language, n, date } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [settings, setSettings] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -175,12 +177,16 @@ export default function ExecutiveAgentSettingsCard() {
             </Button>
             {generatedCode ? (
               <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>
+                {/* Not digit-localized on purpose: this code is typed
+                    verbatim into Telegram and matched byte-exact against
+                    what the backend generated - same exception class as
+                    an API key. */}
                 <span className="font-mono font-black tracking-wider">{generatedCode.code}</span>
                 <button type="button" onClick={copyCode} className="text-[var(--erp-muted)] hover:text-[var(--erp-accent)]">
                   <Copy size={14} />
                 </button>
                 <span className="text-xs text-[var(--erp-muted)]">
-                  {tr(`اعتبار ${generatedCode.expires_in_minutes} دقیقه`, `صالح لمدة ${generatedCode.expires_in_minutes} دقيقة`, `${generatedCode.expires_in_minutes} dakika geçerli`, `Valid for ${generatedCode.expires_in_minutes} minutes`)}
+                  {tr(`اعتبار ${n(generatedCode.expires_in_minutes)} دقیقه`, `صالح لمدة ${n(generatedCode.expires_in_minutes)} دقيقة`, `${n(generatedCode.expires_in_minutes)} dakika geçerli`, `Valid for ${n(generatedCode.expires_in_minutes)} minutes`)}
                 </span>
               </div>
             ) : null}
@@ -200,8 +206,8 @@ export default function ExecutiveAgentSettingsCard() {
                 bindings.map((b, index) => (
                   <Tr key={b.id}>
                     <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
-                    <Td>{b.full_name}</Td>
-                    <Td className="text-[var(--erp-muted)]">{b.verified_at}</Td>
+                    <Td>{pd(b.full_name)}</Td>
+                    <Td className="text-[var(--erp-muted)]">{b.verified_at ? date(b.verified_at) : "—"}</Td>
                     <Td>
                       <Button variant="ghost" size="sm" icon={Trash2} onClick={() => revokeBinding(b.id)}>
                         {tr("لغو دسترسی", "إلغاء", "İptal et", "Revoke")}

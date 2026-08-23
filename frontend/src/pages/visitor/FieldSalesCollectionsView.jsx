@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Wallet, Search } from "lucide-react";
 import { useLanguage } from "../../localization/useLanguage";
-import { toEnglishDigits } from "../../localization/helpers";
+import { toEnglishDigits, toPersianDigits } from "../../localization/helpers";
 import { useDebounce } from "../../hooks/useDebounce";
 import { toNumber } from "../../utils/crmHeuristics";
 import { useFieldSales } from "./useFieldSales";
@@ -48,8 +48,8 @@ export default function FieldSalesCollectionsView() {
       <label className="vitalix-input-group flex items-center gap-2 mb-3" style={{ padding: "0 12px" }}>
         <Search size={16} color="var(--erp-muted)" />
         <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={fa ? toPersianDigits(query) : query}
+          onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
           placeholder={tr("جستجوی مشتری...", "ابحث عن عميل...", "Müşteri ara...", "Search customer...")}
           className="flex-1 min-w-0"
           style={{ color: "var(--erp-text)", padding: "10px 0" }}

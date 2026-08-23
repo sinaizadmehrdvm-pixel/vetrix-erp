@@ -127,8 +127,8 @@ export default function FieldSalesCustomerList({ id }) {
         <label className="vitalix-input-group flex items-center gap-2 flex-1 min-w-0" style={{ padding: "0 12px" }}>
           <Search size={16} color="var(--erp-muted)" />
           <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={fa ? toPersianDigits(query) : query}
+            onChange={(event) => setQuery(toEnglishDigits(event.target.value))}
             placeholder={tr("جستجوی نام، تلفن، کد یا آدرس...", "بحث بالاسم أو الهاتف أو الرمز أو العنوان...", "Ad, telefon, kod veya adres ara...", "Search name, phone, code, or address...")}
             className="min-w-0 flex-1"
             style={{ color: "var(--erp-text)", padding: "10px 0" }}

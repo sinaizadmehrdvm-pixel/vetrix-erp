@@ -2,7 +2,7 @@ import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, Clock, Plus, Refr
 import { useMemo, useState } from "react";
 import JalaliDateField from "../../../components/forms/JalaliDateField";
 import { toJalali, toHijriText } from "../../../utils/date";
-import { toPersianDigits } from "../../../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../../../localization/helpers";
 import Select from "../../../components/ui/Select";
 
 function todayKey() {
@@ -158,9 +158,9 @@ export default function CustomerTasks({
       <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5 mb-5">
         <h3 className="text-[var(--erp-accent)] font-black mb-4 flex items-center gap-2"><Plus size={20} />{tr("ثبت وظیفه جدید", "إضافة مهمة جديدة", "Yeni görev ekle", "Add new task")}</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("عنوان وظیفه؛ مثال: تماس برای پیگیری پرداخت", "عنوان المهمة؛ مثال: اتصال لمتابعة الدفع", "Görev başlığı; örn: Ödeme takibi için arama", "Task title")} className="crm-input" />
+          <input value={lang === "fa" ? toPersianDigits(form.title) : form.title} onChange={(e) => setForm({ ...form, title: toEnglishDigits(e.target.value) })} placeholder={tr("عنوان وظیفه؛ مثال: تماس برای پیگیری پرداخت", "عنوان المهمة؛ مثال: اتصال لمتابعة الدفع", "Görev başlığı; örn: Ödeme takibi için arama", "Task title")} className="crm-input" />
           <JalaliDateField value={form.due_date} onChange={(isoDate) => setForm({ ...form, due_date: isoDate })} fa={lang === "fa"} language={lang} className="crm-input" style={{ gap: 8 }} />
-          <input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} placeholder={tr("مسئول انجام", "المسؤول", "Sorumlu", "Assignee")} className="crm-input" />
+          <input value={lang === "fa" ? toPersianDigits(form.assignee) : form.assignee} onChange={(e) => setForm({ ...form, assignee: toEnglishDigits(e.target.value) })} placeholder={tr("مسئول انجام", "المسؤول", "Sorumlu", "Assignee")} className="crm-input" />
           <div className="grid grid-cols-2 gap-3">
             <Select
               value={form.priority}
@@ -186,13 +186,13 @@ export default function CustomerTasks({
               ]}
             />
           </div>
-          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: lang === "fa" ? toPersianDigits(e.target.value) : e.target.value })} placeholder={tr("توضیحات وظیفه", "وصف المهمة", "Görev açıklaması", "Task description")} rows={3} className="crm-input lg:col-span-2" />
+          <textarea value={lang === "fa" ? toPersianDigits(form.description) : form.description} onChange={(e) => setForm({ ...form, description: toEnglishDigits(e.target.value) })} placeholder={tr("توضیحات وظیفه", "وصف المهمة", "Görev açıklaması", "Task description")} rows={3} className="crm-input lg:col-span-2" />
         </div>
         <button type="button" onClick={submitTask} className="mt-4 px-5 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"><Plus size={18} />{tr("ثبت وظیفه", "حفظ المهمة", "Görevi kaydet", "Save task")}</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_190px_190px] gap-3 mb-4">
-        <div className="relative"><Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" /><input value={query} onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)} placeholder={tr("جستجو در وظایف...", "بحث في المهام...", "Görevlerde ara...", "Search tasks...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" /></div>
+        <div className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 14px" }}><Search size={18} className="text-[var(--erp-muted)] shrink-0" /><input value={lang === "fa" ? toPersianDigits(query) : query} onChange={(e) => setQuery(toEnglishDigits(e.target.value))} placeholder={tr("جستجو در وظایف...", "بحث في المهام...", "Görevlerde ara...", "Search tasks...")} className="min-w-0 flex-1 text-[var(--erp-text)]" style={{ padding: "11px 0" }} /></div>
         <Select
           value={statusFilter}
           onChange={(value) => setStatusFilter(value)}

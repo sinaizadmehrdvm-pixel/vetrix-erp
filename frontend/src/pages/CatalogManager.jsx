@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import QRCodeLib from "qrcode";
 
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import Modal from "../components/ui/Modal";
 import Select from "../components/ui/Select";
 import JalaliDateField from "../components/forms/JalaliDateField";
@@ -117,6 +117,7 @@ function CatalogQrModal({ catalog, language, onClose }) {
 export default function CatalogManager() {
   const { dir, language, money, n } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [products, setProducts] = useState([]);
   const [catalogs, setCatalogs] = useState([]);
@@ -378,8 +379,8 @@ export default function CatalogManager() {
           <input
             className={inputClass}
             placeholder={language === "fa" ? "عنوان کاتالوگ (مثلاً «مجموعه تابستانی»)" : language === "ar" ? "عنوان الكتالوج (مثلاً «تشكيلة الصيف»)" : language === "tr" ? "Katalog başlığı (örn. \"Yaz koleksiyonu\")" : "Catalog title (e.g. \"Summer collection\")"}
-            value={title}
-            onChange={(e) => setTitle(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+            value={pd(title)}
+            onChange={(e) => setTitle(toEnglishDigits(e.target.value))}
           />
 
           <div className="flex gap-2 mb-3">
@@ -414,8 +415,8 @@ export default function CatalogManager() {
               <input
                 className={inputClass}
                 placeholder={language === "fa" ? "جستجوی کالا..." : language === "ar" ? "بحث عن منتجات..." : language === "tr" ? "Ürün ara..." : "Search products..."}
-                value={search}
-                onChange={(e) => setSearch(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+                value={pd(search)}
+                onChange={(e) => setSearch(toEnglishDigits(e.target.value))}
               />
               <div className="max-h-48 overflow-auto space-y-1 rounded-xl bg-[var(--erp-panel-solid)] p-2">
                 {filteredProducts.map((product) => (
@@ -458,7 +459,7 @@ export default function CatalogManager() {
           <h2 className="text-lg font-bold">{language === "fa" ? "کاتالوگ‌های ساخته‌شده" : language === "ar" ? "كتالوجاتك" : language === "tr" ? "Kataloglarınız" : "Your catalogs"}</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <input className={inputClass + " mb-0"} placeholder={tr("جستجوی عنوان...", "بحث بالعنوان...", "Başlığa göre ara...", "Search by title...")} value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+          <input className={inputClass + " mb-0"} placeholder={tr("جستجوی عنوان...", "بحث بالعنوان...", "Başlığa göre ara...", "Search by title...")} value={pd(listSearch)} onChange={(e) => setListSearch(toEnglishDigits(e.target.value))} />
           <Select
             className="w-full mb-0"
             value={typeFilter}
@@ -574,7 +575,7 @@ export default function CatalogManager() {
         <form onSubmit={handleSaveEdit} className="p-5 space-y-3">
           <h2 id="catalog-edit-title" className="text-lg font-bold mb-2">{tr("ویرایش کاتالوگ", "تعديل الكتالوج", "Kataloğu düzenle", "Edit catalog")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className={inputClass} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={editDraft.title} onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })} />
+            <input className={inputClass} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={pd(editDraft.title)} onChange={(e) => setEditDraft({ ...editDraft, title: toEnglishDigits(e.target.value) })} />
             <Select
               className="w-full mb-3"
               value={editDraft.catalog_type}

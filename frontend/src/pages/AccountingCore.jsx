@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ListTree, Layers, CheckCircle2, RefreshCw, Sparkles, Plus, ShieldCheck, ShieldOff, Trash2, Search } from "lucide-react";
 import { getAccountingChart, getAccountingMeta, seedAccountingChart, createAccountingAccount, updateAccountingAccount, toggleAccountingAccount, deleteAccountingAccount } from "../services/accountingApi";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { confirmAction } from "../components/ui/confirmService";
 import PageHeader from "../components/ui/PageHeader";
 import Card from "../components/ui/Card";
@@ -32,6 +33,7 @@ function label(obj, key, language) {
 export default function AccountingCore() {
   const { language, dir, n } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
   const [accounts, setAccounts] = useState([]);
   const [meta, setMeta] = useState({});
   const [form, setForm] = useState(emptyForm);
@@ -56,7 +58,15 @@ export default function AccountingCore() {
     return () => clearTimeout(timer);
   }, [language]);
 
-  const filtered = useMemo(() => accounts.filter(a => !q || String(a.code).includes(q) || String(a.name).toLowerCase().includes(q.toLowerCase())), [accounts, q]);
+  // `a.code`/`a.name` are always stored/matched as canonical Latin digits
+  // (the form's `code`/`name` fields normalize on input, same as `q`
+  // below) - normalizing `q` here just guards against a value passed in
+  // some other way (e.g. a future caller), so "۱۱۰۱" still finds a code
+  // stored as "1101" even if that guarantee is ever broken upstream.
+  const filtered = useMemo(() => {
+    const qNormalized = toEnglishDigits(q).toLowerCase();
+    return accounts.filter(a => !q || String(a.code).includes(toEnglishDigits(q)) || toEnglishDigits(String(a.name)).toLowerCase().includes(qNormalized));
+  }, [accounts, q]);
   const stats = { total: accounts.length, active: accounts.filter(a => a.is_active !== false && a.is_active !== 0).length };
   const accountTypes = meta.account_types || types, accountLevels = meta.levels || levels;
   function patch(k, v) { setForm(prev => ({ ...prev, [k]: v })); }
@@ -117,7 +127,7 @@ export default function AccountingCore() {
               <Search size={16} aria-hidden="true" style={{ color: "var(--erp-accent)", flexShrink: 0 }} />
               <input
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => setQ(toEnglishDigits(e.target.value))}
                 placeholder={tr("جستجو در کد یا نام حساب...", "بحث بالرمز أو الاسم...", "Kod veya ada göre ara...", "Search by code or name...")}
                 aria-label={tr("جستجوی حساب", "بحث الحساب", "Hesap ara", "Search accounts")}
                 className="min-w-0 flex-1"
@@ -149,7 +159,13 @@ export default function AccountingCore() {
                     <button type="button" onClick={() => select(a)} className="flex-1 text-start bg-transparent border-0 p-0 cursor-pointer erp-focus" style={{ minWidth: 0 }}>
                       <div className="font-bold flex items-center gap-2 flex-wrap">
                         <span aria-hidden="true" style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: a.color || "var(--erp-accent)", flexShrink: 0 }} />
-                        <span className="truncate">{a.code} — {a.name}</span>
+                        {/* `<bdi>` isolates the code's own bidi run from
+                            the dash and the name that follows - without
+                            it, a Latin/English account name sitting next
+                            to Persian-digit-glyph code can get reordered
+                            unpredictably by the browser's bidi algorithm
+                            at the boundary between them. */}
+                        <span className="truncate"><bdi>{pd(a.code)}</bdi> — {pd(a.name)}</span>
                         {!a.is_active && (
                           <Badge tone="neutral">{tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}</Badge>
                         )}
@@ -188,8 +204,8 @@ export default function AccountingCore() {
 
         <Card title={selected ? tr("ویرایش حساب", "تعديل الحساب", "Hesabı düzenle", "Edit account") : tr("حساب جدید", "حساب جديد", "Yeni hesap", "New account")}>
           <div className="grid gap-3">
-            <Input value={form.code} onChange={(e) => patch("code", e.target.value)} placeholder={tr("کد حساب", "رمز الحساب", "Hesap kodu", "Code")} />
-            <Input value={form.name} onChange={(e) => patch("name", e.target.value)} placeholder={tr("نام حساب", "اسم الحساب", "Hesap adı", "Name")} />
+            <Input inputMode="numeric" value={pd(form.code)} onChange={(e) => patch("code", toEnglishDigits(e.target.value))} placeholder={tr("کد حساب", "رمز الحساب", "Hesap kodu", "Code")} />
+            <Input value={pd(form.name)} onChange={(e) => patch("name", toEnglishDigits(e.target.value))} placeholder={tr("نام حساب", "اسم الحساب", "Hesap adı", "Name")} />
             <Select
               value={form.account_type}
               onChange={(value) => patch("account_type", value)}
@@ -205,7 +221,11 @@ export default function AccountingCore() {
               onChange={(value) => patch("parent_id", value)}
               options={[
                 { value: "", label: tr("بدون والد", "بدون حساب أب", "Üst hesap yok", "No parent") },
-                ...accounts.filter((a) => a.id !== selected?.id).map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` })),
+                // Select's option.label is plain text, not JSX, so a real
+                // <bdi> element isn't available here - ⁦/⁩
+                // (Unicode FSI/PDI) are the plain-text equivalent, giving
+                // the code the same bidi isolation as the row list above.
+                ...accounts.filter((a) => a.id !== selected?.id).map((a) => ({ value: a.id, label: `⁦${pd(a.code)}⁩ - ${pd(a.name)}` })),
               ]}
             />
             <Select
@@ -226,7 +246,7 @@ export default function AccountingCore() {
                 style={{ width: "100%", height: 44, padding: 4, borderRadius: "var(--erp-radius-sm)", borderColor: "var(--erp-border)" }}
               />
             </label>
-            <Textarea rows={3} value={form.description} onChange={(e) => patch("description", e.target.value)} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} />
+            <Textarea rows={3} value={pd(form.description)} onChange={(e) => patch("description", toEnglishDigits(e.target.value))} placeholder={tr("توضیحات", "الوصف", "Açıklama", "Description")} />
             <label className="flex items-center justify-between erp-level-1 rounded-[var(--erp-radius-sm)]" style={{ padding: "10px 12px" }}>
               <span className="font-bold text-sm">{tr("فعال", "نشط", "Aktif", "Active")}</span>
               <input type="checkbox" checked={!!form.is_active} onChange={(e) => patch("is_active", e.target.checked)} />

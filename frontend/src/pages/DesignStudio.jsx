@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LayoutTemplate, IdCard, FileSignature, Image as ImageIcon, Search, Eye, Pencil, Copy, Trash2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import { confirmAction } from "../components/ui/confirmService";
 import { getPdfTemplates, savePdfTemplate, deletePdfTemplate, renamePdfTemplate, downloadAuthenticatedFile } from "../services/api";
 import { translateApiError } from "../localization/apiErrors";
@@ -26,6 +27,7 @@ export default function DesignStudio() {
   const navigate = useNavigate();
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,10 +60,14 @@ export default function DesignStudio() {
   // desc (the backend's own default order) is exactly that ordering -
   // no extra updated_at column needed.
   const filtered = useMemo(() => {
-    const needle = search.trim().toLocaleLowerCase(language);
+    // Normalized to Latin digits on both sides - `search` may contain
+    // Persian glyphs typed via `pd()` below, while `item.name` may have
+    // been saved with either script depending on when/how it was named,
+    // matching the established pattern for digit-bearing search fields.
+    const needle = toEnglishDigits(search.trim()).toLocaleLowerCase(language);
     return templates.filter((item) => {
       const matchesKind = kindFilter === "all" || item.kind === kindFilter;
-      const matchesSearch = !needle || (item.name || "").toLocaleLowerCase(language).includes(needle);
+      const matchesSearch = !needle || toEnglishDigits(item.name || "").toLocaleLowerCase(language).includes(needle);
       return matchesKind && matchesSearch;
     });
   }, [templates, search, kindFilter, language]);
@@ -170,8 +176,8 @@ export default function DesignStudio() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 w-4 h-4 text-[var(--erp-muted)]" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={pd(search)}
+            onChange={(e) => setSearch(toEnglishDigits(e.target.value))}
             placeholder={tr("جست‌وجوی قالب...", "بحث عن قالب...", "Şablon ara...", "Search templates...")}
             className="w-full ps-9 pe-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--erp-accent)]"
           />
@@ -214,8 +220,8 @@ export default function DesignStudio() {
                   <div className="flex items-center gap-1">
                     <input
                       autoFocus
-                      value={renameDraft}
-                      onChange={(e) => setRenameDraft(e.target.value)}
+                      value={pd(renameDraft)}
+                      onChange={(e) => setRenameDraft(toEnglishDigits(e.target.value))}
                       className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm"
                     />
                     <button type="button" onClick={() => confirmRename(item)} disabled={isBusy} className="text-[var(--erp-accent)] shrink-0">
@@ -226,7 +232,7 @@ export default function DesignStudio() {
                     </button>
                   </div>
                 ) : (
-                  <div className="font-black truncate" title={item.name}>{item.name}</div>
+                  <div className="font-black truncate" title={pd(item.name)}>{pd(item.name)}</div>
                 )}
 
                 <div className="flex items-center gap-2 flex-wrap mt-auto pt-2 border-t border-[var(--erp-border)]">

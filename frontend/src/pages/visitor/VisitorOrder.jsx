@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2, Send, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../../localization/useLanguage";
-import { toEnglishDigits } from "../../localization/helpers";
+import { toEnglishDigits, toPersianDigits } from "../../localization/helpers";
 import { getCustomer, getProducts, createInvoice, isNetworkError } from "../../services/api";
 import { translateApiError } from "../../localization/apiErrors";
 import { getCache, setCache } from "../../storage/db";
@@ -171,8 +171,8 @@ export default function VisitorOrder() {
       <label className="vitalix-input-group" style={{ gap: 8, padding: "0 12px", marginBottom: 12 }}>
         <Search size={16} color="var(--erp-muted)" />
         <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          value={fa ? toPersianDigits(query) : query}
+          onChange={(event) => setQuery(toEnglishDigits(event.target.value))}
           placeholder={tr("جستجوی کالا...", "ابحث عن منتج...", "Ürün ara...", "Search product...")}
           style={{ flex: 1, minWidth: 0, color: "var(--erp-text)", padding: "10px 0" }}
         />
@@ -207,17 +207,17 @@ export default function VisitorOrder() {
           <div key={line.product_id} style={{ display: "grid", gridTemplateColumns: "1fr 70px 90px auto", gap: 8, alignItems: "center", background: "var(--erp-panel-solid)", borderRadius: 12, padding: 10 }}>
             <span style={{ fontSize: 13 }}>{line.name}</span>
             <input
-              type="number"
-              min="0"
-              value={line.quantity}
-              onChange={(event) => updateLine(line.product_id, { quantity: event.target.value })}
+              type="text"
+              inputMode="decimal"
+              value={fa ? toPersianDigits(line.quantity) : line.quantity}
+              onChange={(event) => updateLine(line.product_id, { quantity: toEnglishDigits(event.target.value).replace(/[^0-9.]/g, "") })}
               style={{ width: "100%", background: "var(--erp-bg)", border: "1px solid var(--erp-border)", borderRadius: 8, padding: 6, color: "var(--erp-text)" }}
             />
             <input
-              type="number"
-              min="0"
-              value={line.unit_price}
-              onChange={(event) => updateLine(line.product_id, { unit_price: event.target.value })}
+              type="text"
+              inputMode="decimal"
+              value={fa ? toPersianDigits(line.unit_price) : line.unit_price}
+              onChange={(event) => updateLine(line.product_id, { unit_price: toEnglishDigits(event.target.value).replace(/[^0-9.]/g, "") })}
               style={{ width: "100%", background: "var(--erp-bg)", border: "1px solid var(--erp-border)", borderRadius: 8, padding: 6, color: "var(--erp-text)" }}
             />
             <button type="button" onClick={() => removeLine(line.product_id)} style={{ border: 0, background: "transparent", color: "#fca5a5" }}>

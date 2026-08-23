@@ -21,6 +21,7 @@ import { confirmAction, promptAction } from "../components/ui/confirmService";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import {
   createBackup,
   createBackupDeliveryPolicy,
@@ -360,6 +361,7 @@ export default function BackupRecovery() {
 
 function DeliveryPolicies({ card, language, dir, n, date }) {
   const tr = (fa_, ar_, tr_, en_) => (language === "fa" ? fa_ : language === "ar" ? ar_ : language === "tr" ? tr_ : en_);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   function frequencyLabel(value) {
     return {
@@ -465,7 +467,7 @@ function DeliveryPolicies({ card, language, dir, n, date }) {
 
       {formOpen && (
         <form onSubmit={createPolicy} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-          <input required placeholder={tr("نام سیاست", "اسم السياسة", "Politika adı", "Policy name")} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          <input required placeholder={tr("نام سیاست", "اسم السياسة", "Politika adı", "Policy name")} value={pd(draft.name)} onChange={(e) => setDraft({ ...draft, name: toEnglishDigits(e.target.value) })}
             style={{ flex: "1 1 180px", padding: 10, borderRadius: 10, background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)", color: "var(--erp-text)" }} />
           <Select
             value={draft.frequency}
@@ -514,7 +516,7 @@ function DeliveryPolicies({ card, language, dir, n, date }) {
               {policies.map((p, i) => (
                 <tr key={p.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
                   <td style={{ padding: 11, color: "var(--erp-muted)", fontWeight: 700 }}>{n(i + 1)}</td>
-                  <td style={{ padding: 11, fontWeight: 700 }}>{p.name}{!p.enabled ? ` (${tr("غیرفعال", "معطل", "devre dışı", "disabled")})` : ""}</td>
+                  <td style={{ padding: 11, fontWeight: 700 }}>{pd(p.name)}{!p.enabled ? ` (${tr("غیرفعال", "معطل", "devre dışı", "disabled")})` : ""}</td>
                   <td style={{ padding: 11 }}>{frequencyLabel(p.frequency)}</td>
                   <td style={{ padding: 11 }}>{(p.recipients || []).map((r) => channelLabel(r.channel)).join(", ") || "—"}</td>
                   <td style={{ padding: 11 }}>{p.last_run_at ? date(p.last_run_at) : "—"}</td>

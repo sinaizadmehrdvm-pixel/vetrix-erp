@@ -3,6 +3,7 @@ import { MessagesSquare, Send, RotateCcw, ChevronDown, ChevronUp, Info, AlertTri
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../localization/helpers";
 import {
   askExecutiveAgent, listExecutiveAgentConversations, getExecutiveAgentConversation,
   resetExecutiveAgentConversation, getExecutiveAgentSuggestions, getExecutiveAgentStatus,
@@ -23,6 +24,7 @@ const STATUS_TONE = {
 export default function ExecutiveAgent() {
   const { language, dir, n, date } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -261,8 +263,8 @@ export default function ExecutiveAgent() {
             onSubmit={(event) => { event.preventDefault(); sendQuestion(); }}
           >
             <input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
+              value={pd(input)}
+              onChange={(event) => setInput(toEnglishDigits(event.target.value))}
               placeholder={tr("سوال خود را بنویسید...", "اكتب سؤالك...", "Sorunuzu yazın...", "Type your question...")}
               className="flex-1 p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400"
             />

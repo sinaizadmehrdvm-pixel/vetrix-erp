@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatCalendarDate } from "../../../utils/date";
-import { toPersianDigits } from "../../../localization/helpers";
+import { toPersianDigits, toEnglishDigits } from "../../../localization/helpers";
 import Select from "../../../components/ui/Select";
 
 function toNumber(value) {
@@ -236,8 +236,8 @@ export default function CustomerFinancial({
             <div className="relative">
               <Search size={17} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
               <input
-                value={query}
-                onChange={(e) => setQuery(lang === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+                value={lang === "fa" ? toPersianDigits(query) : query}
+                onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
                 placeholder={tr("جستجوی فاکتور...", "بحث في الفواتير...", "Fatura ara...", "Search invoices...")}
                 className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-10 pl-4 py-3 outline-none border border-[var(--erp-border)]"
               />

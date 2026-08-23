@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CreditCard, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits } from "../../localization/helpers";
 import { getPaymentProviders, savePaymentProvider } from "../../services/api";
 import { translateApiError } from "../../localization/apiErrors";
 import Card from "../ui/Card";
@@ -19,6 +20,7 @@ export default function PaymentProvidersCard() {
   const { language } = useLanguage();
   const fa = language === "fa";
   const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
 
   const [items, setItems] = useState([]);
   const [availableKeys, setAvailableKeys] = useState([]);
@@ -108,7 +110,7 @@ export default function PaymentProvidersCard() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label={tr("نام نمایشی", "الاسم المعروض", "Görünen ad", "Display name")}>
-                <Input value={draft.display_name} onChange={(e) => setDraftField(key, "display_name", e.target.value)} />
+                <Input value={pd(draft.display_name)} onChange={(e) => setDraftField(key, "display_name", toEnglishDigits(e.target.value))} />
               </Field>
               <Field label={tr("محیط", "البيئة", "Ortam", "Environment")}>
                 <Select
@@ -120,6 +122,11 @@ export default function PaymentProvidersCard() {
                   ]}
                 />
               </Field>
+              {/* merchant_id/api_key are provider-issued credentials sent
+                  byte-exact to the payment gateway - localizing their
+                  digit glyphs would corrupt a real key, not just cosmetically
+                  relabel it, so these intentionally stay untouched (same
+                  exception class as IBAN/email elsewhere in the app). */}
               <Field label={isPos ? tr("شناسه ترمینال", "معرّف الجهاز", "Terminal kimliği", "Terminal ID") : tr("شناسه پذیرنده (Merchant ID)", "معرّف التاجر", "Merchant ID", "Merchant ID")}>
                 <Input value={draft.merchant_id} onChange={(e) => setDraftField(key, "merchant_id", e.target.value)} />
               </Field>
