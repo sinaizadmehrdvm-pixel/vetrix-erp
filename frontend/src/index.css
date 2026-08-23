@@ -84,6 +84,18 @@
   --erp-warning-solid: #78350f;
   --erp-warning-solid-text: #fef3c7;
 
+  /* Identity-color palette for UserAvatar's initials fallback (GitHub/
+     Slack-style: a person's color stays the same regardless of theme, so
+     it stays recognizable) - deliberately constant across every theme
+     preset/light mode below, like the solid action-button colors above. */
+  --erp-avatar-1: #00d6d0; --erp-avatar-2: #7c5cff; --erp-avatar-3: #ff6b6b; --erp-avatar-4: #ffb020;
+  --erp-avatar-5: #22c55e; --erp-avatar-6: #3b82f6; --erp-avatar-7: #ec4899; --erp-avatar-8: #14b8a6;
+  --erp-avatar-initials-text: #fff;
+  /* Photo-overlay scrim for AvatarUploadButton's hover camera icon -
+     mirrors Modal.jsx's own bg-black/70 backdrop reasoning: a translucent
+     scrim over a photo, not page chrome, so it stays constant across themes. */
+  --erp-avatar-overlay: rgba(0, 0, 0, 0.45);
+
   /* Elevation tiers - --erp-shadow (above) stays the resting-card depth
      everything already used; these two add a raised/hover step and a
      floating/modal step on top of it, so "premium" surfaces (Modal, a

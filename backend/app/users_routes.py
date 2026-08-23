@@ -42,6 +42,11 @@ class UserCreate(BaseModel):
     is_super_admin: bool = False
 
 
+class ProfileUpdate(BaseModel):
+    full_name: str | None = None
+    avatar_data: str | None = None
+
+
 class UserRoleUpdate(BaseModel):
     role: str
 
@@ -179,6 +184,7 @@ def user_to_auth_dict(user: User):
         "must_change_password": bool(getattr(user, "must_change_password", False)),
         "company_id": getattr(user, "company_id", None),
         "is_super_admin": bool(getattr(user, "is_super_admin", False)),
+        "avatar_data": getattr(user, "avatar_data", "") or "",
     }
 
 
@@ -238,6 +244,35 @@ def change_own_password(data: PasswordChangeRequest, request: Request):
             ),
             "token_type": "Bearer",
         }
+    finally:
+        db.close()
+
+
+@router.put("/users/me")
+def update_own_profile(data: ProfileUpdate, request: Request):
+    # Self-service identity edit (display name + avatar picture) only -
+    # deliberately separate from admin user-management CRUD and from
+    # change_own_password above: this never touches role/username/password,
+    # so it needs no re-authentication and never revokes the caller's token.
+    try:
+        user_id = int(request.state.auth["sub"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid authentication context")
+
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        if data.full_name is not None:
+            if not data.full_name.strip():
+                raise HTTPException(status_code=400, detail="Full name cannot be empty")
+            user.full_name = data.full_name.strip()
+        if data.avatar_data is not None:
+            user.avatar_data = data.avatar_data
+        db.commit()
+        db.refresh(user)
+        return {"status": "updated", "user": user_to_auth_dict(user)}
     finally:
         db.close()
 

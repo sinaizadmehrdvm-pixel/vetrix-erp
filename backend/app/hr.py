@@ -421,6 +421,7 @@ class EmployeeUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     display_name: str | None = None
+    photo_data: str | None = None
     status: str | None = None
     employment_type: str | None = None
     job_title: str | None = None

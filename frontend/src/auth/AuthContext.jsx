@@ -170,6 +170,24 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  async function updateProfile(patch) {
+    const response = await fetch(`${API_URL}/users/me`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem(TOKEN_STORAGE_KEY)}`,
+      },
+      body: JSON.stringify(patch),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.status !== "updated" || !data?.user) {
+      throw new Error(data?.detail || data?.message || "Unable to update profile");
+    }
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  }
+
   function applyRefreshedToken(newToken) {
     if (!newToken) return;
     localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
@@ -264,6 +282,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         changePassword,
+        updateProfile,
         refreshCurrentUser,
         applyRefreshedToken,
         switchCompanyContext,

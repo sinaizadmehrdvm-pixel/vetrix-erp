@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, UsersRound, Package, Receipt, Wallet, BarChart3, Settings,
-  LogOut, ArrowRightLeft, Boxes, BrainCircuit,
+  ArrowRightLeft, Boxes, BrainCircuit,
   BookOpenCheck, CalendarClock, History, UserCog, DatabaseBackup, HeartPulse,
   BadgePercent, CalendarRange, Landmark, Factory, Target, Coins, ShieldCheck, ShieldAlert,
   WalletCards, ChevronDown, PanelLeftClose, PanelLeftOpen, BriefcaseBusiness, Globe2, Scale, FileSpreadsheet, Search, X,
   BookOpen, Layers, BellRing, Sun, Moon, LayoutTemplate, Building2, Smartphone, MessageSquareText, LifeBuoy,
   TrendingUp, Users, MessagesSquare, ListTree, Brain, HeartHandshake,
 } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
 import { useTheme } from "../theme/useTheme";
@@ -16,7 +16,7 @@ import CompanySwitcher from "./CompanySwitcher";
 import LanguageSwitcher from "./language/LanguageSwitcher";
 import BrandLogo from "./brand/BrandLogo";
 import Tooltip from "./ui/Tooltip";
-import Button from "./ui/Button";
+import ProfileMenu from "./ProfileMenu";
 
 const groups = [
   {
@@ -111,9 +111,8 @@ const groups = [
 ];
 
 export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
-  const navigate = useNavigate();
   const location = useLocation();
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const { t, dir, language } = useLanguage();
   const { theme, setTheme } = useTheme();
   const fa = language === "fa";
@@ -281,7 +280,14 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
         </div>
       </div>
 
-      {/* CONTEXT/UTILITY ZONE - language, company and search are rows of
+      {/* PROFILE - its own section directly below brand, deliberately
+          separate from the theme/collapse toolbar above. Full identity
+          card when expanded, avatar-only rail icon when compact. */}
+      <div className={compact ? "flex justify-center mb-3" : "mb-3"}>
+        <ProfileMenu compact={compact} />
+      </div>
+
+      {/* CONTEXT/UTILITY ZONE - search, language and company are rows of
           ONE bordered panel (hairline dividers between them via
           .vitalix-context-zone) instead of three separately-carded
           controls, and each row is compact (~36px) rather than a full
@@ -452,18 +458,6 @@ export default function Sidebar({ mobileOpen = false, onNavigate = () => {} }) {
               : "Open groups only when needed; every feature remains available."}
           </div>
         )}
-
-        <Tooltip side="end" label={compact ? t("logout") : null}>
-          <Button
-            variant="danger"
-            icon={LogOut}
-            onClick={() => { logout(); navigate("/login"); }}
-            className="mt-2 w-full"
-            aria-label={t("logout")}
-          >
-            {!compact && t("logout")}
-          </Button>
-        </Tooltip>
       </nav>
     </aside>
   );

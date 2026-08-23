@@ -8,11 +8,12 @@ import {
   getEmployee, getEmployeeSummary, getEmployeeHistory, getEmployeeCompensation, createEmployeeCompensation,
   getEmployeeLeaveBalances, setEmployeeLeaveBalance, getEmployeeLeaveRequests, createEmployeeLeaveRequest, cancelEmployeeLeaveRequest,
   getEmployeeAttendance, recordEmployeeAttendance, getEmployeeDocuments, uploadEmployeeDocument, deleteEmployeeDocument,
-  getEmployeePerformanceReviews, createEmployeePerformanceReview, fetchAuthenticatedResource,
+  getEmployeePerformanceReviews, createEmployeePerformanceReview, fetchAuthenticatedResource, updateEmployee,
 } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import Select from "../components/ui/Select";
+import AvatarUploadButton from "../components/AvatarUploadButton";
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -51,6 +52,15 @@ export default function EmployeeProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  async function handlePhotoChange(dataUrl) {
+    try {
+      await updateEmployee(id, { photo_data: dataUrl });
+      setEmployee((current) => ({ ...current, photo_data: dataUrl }));
+    } catch (err) {
+      toast.error(err.message);
+    }
+  }
+
   const tabLabel = (t) => ({
     overview: tr("نمای کلی", "نظرة عامة", "Genel bakış", "Overview"),
     history: tr("تاریخچه شغلی", "السجل الوظيفي", "İstihdam geçmişi", "Employment history"),
@@ -70,6 +80,13 @@ export default function EmployeeProfile() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate("/hr/employees")} className={ghostBtnClass}><ArrowLeft size={16} /></button>
+          <AvatarUploadButton
+            name={employee.display_name || `${employee.first_name} ${employee.last_name}`}
+            avatarData={employee.photo_data}
+            size={48}
+            onChange={handlePhotoChange}
+            tr={tr}
+          />
           <h1 className="text-2xl font-black flex items-center gap-2">
             <User className="text-[var(--erp-accent)]" />
             {employee.display_name || `${employee.first_name} ${employee.last_name}`}

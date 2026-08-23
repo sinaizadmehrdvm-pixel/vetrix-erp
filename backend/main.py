@@ -301,6 +301,7 @@ def ensure_database_schema():
         "totp_recovery_codes": "totp_recovery_codes TEXT",
         "company_id": "company_id INTEGER",
         "is_super_admin": "is_super_admin BOOLEAN DEFAULT 0 NOT NULL",
+        "avatar_data": "avatar_data TEXT DEFAULT ''",
     }
     for name, sql in user_columns.items():
         ensure_sqlite_column("users", name, sql)

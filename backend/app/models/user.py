@@ -34,3 +34,6 @@ class User(Base):
     totp_secret = Column(String, nullable=True)
     totp_enabled = Column(Boolean, default=False, nullable=False)
     totp_recovery_codes = Column(Text, nullable=True)
+    # Self-service profile picture - a base64 data URL (same small-image-in-DB
+    # pattern as app_settings.logo_data), never a filesystem/S3 path.
+    avatar_data = Column(Text, nullable=True)

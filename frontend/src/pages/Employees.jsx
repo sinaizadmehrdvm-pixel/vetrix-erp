@@ -7,6 +7,7 @@ import { useLanguage } from "../localization/useLanguage";
 import { getEmployees, createEmployee, getBranches } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
+import UserAvatar from "../components/ui/UserAvatar";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import Select from "../components/ui/Select";
 
@@ -134,7 +135,12 @@ export default function Employees() {
               ) : items.map((e, i) => (
                 <Tr key={e.id} className="cursor-pointer" onClick={() => navigate(`/hr/employees/${e.id}`)}>
                   <Td className="text-[var(--erp-muted)] font-bold">{n(i + 1)}</Td>
-                  <Td className="font-bold">{e.display_name || `${e.first_name} ${e.last_name}`}</Td>
+                  <Td className="font-bold">
+                    <span className="flex items-center gap-2">
+                      <UserAvatar name={e.display_name || `${e.first_name} ${e.last_name}`} avatarData={e.photo_data} size={28} />
+                      {e.display_name || `${e.first_name} ${e.last_name}`}
+                    </span>
+                  </Td>
                   <Td>{e.job_title || "—"}</Td>
                   <Td>{e.department || "—"}</Td>
                   <Td>{e.branch_name || "—"}</Td>

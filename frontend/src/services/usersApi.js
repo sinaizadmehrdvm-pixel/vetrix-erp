@@ -39,6 +39,8 @@ export const resetUserPassword = (id, data) =>
   request(`/users/${id}/password`, { method: "PUT", body: JSON.stringify(data) });
 export const changeOwnPassword = (data) =>
   request("/users/me/password", { method: "PUT", body: JSON.stringify(data) });
+export const updateMyProfile = (data) =>
+  request("/users/me", { method: "PUT", body: JSON.stringify(data) });
 
 export const getCustomRoles = () => request("/api/auth/custom-roles");
 export const createCustomRole = (data) =>
