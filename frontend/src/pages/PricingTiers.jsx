@@ -3,7 +3,7 @@ import { Layers, ListTree, Pencil, Plus, SlidersHorizontal, Trash2 } from "lucid
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import {
   createPriceTier,
@@ -58,9 +58,12 @@ export default function PricingTiers() {
   const [customers, setCustomers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
-  const [editingRuleId, setEditingRuleId] = useState(null);
-  const [ruleDraft, setRuleDraft] = useState(emptyRuleDraft);
-  const [savingRule, setSavingRule] = useState(false);
+  const [editingRule, setEditingRule] = useState(null);
+  // Bumped on every open so PricingRuleModal remounts (and its local
+  // `draft` state re-initializes from scratch) each time, including
+  // reopening the same rule twice in a row - without needing an effect
+  // (same pattern as Branches.jsx's BranchFormModal).
+  const [formKey, setFormKey] = useState(0);
 
   const [sim, setSim] = useState({ product_id: "", customer_id: "", quantity: 1, branch_id: "", channel: "", on_date: "" });
   const [simResult, setSimResult] = useState(null);
@@ -104,41 +107,26 @@ export default function PricingTiers() {
   }[m] || m);
 
   function openCreateRule() {
-    setEditingRuleId(null);
-    setRuleDraft(emptyRuleDraft);
+    setEditingRule(null);
+    setFormKey((k) => k + 1);
     setRuleModalOpen(true);
   }
 
   function openEditRule(rule) {
-    setEditingRuleId(rule.id);
-    setRuleDraft({
-      ...emptyRuleDraft, ...rule,
-      branch_id: rule.branch_id ?? "", max_quantity: rule.max_quantity ?? "",
-      start_date: rule.start_date || "", end_date: rule.end_date || "",
-    });
+    setEditingRule(rule);
+    setFormKey((k) => k + 1);
     setRuleModalOpen(true);
   }
 
-  async function handleSaveRule(event) {
-    event.preventDefault();
-    if (ruleDraft.scope_type !== "all" && !ruleDraft.scope_value) {
-      toast.error(tr("مقدار محدوده را وارد کنید.", "أدخل قيمة النطاق.", "Kapsam değerini girin.", "Enter a scope value."));
-      return;
-    }
-    setSavingRule(true);
+  // Lives here (not in the modal) because it needs `loadRulesData()` -
+  // the modal only owns its own field-editing state and calls this once,
+  // on submit, so keystroke-by-keystroke typing never touches this
+  // component's state and can't force the rules table below to re-render
+  // (same pattern as Branches.jsx's handleSaveBranch).
+  async function handleSaveRule(ruleId, payload) {
     try {
-      const payload = {
-        ...ruleDraft,
-        priority: Number(ruleDraft.priority) || 100,
-        branch_id: ruleDraft.branch_id === "" ? null : Number(ruleDraft.branch_id),
-        min_quantity: Number(ruleDraft.min_quantity) || 0,
-        max_quantity: ruleDraft.max_quantity === "" ? null : Number(ruleDraft.max_quantity),
-        price_value: Number(ruleDraft.price_value) || 0,
-        start_date: ruleDraft.start_date || null,
-        end_date: ruleDraft.end_date || null,
-      };
-      if (editingRuleId) {
-        await updatePricingRule(editingRuleId, payload);
+      if (ruleId) {
+        await updatePricingRule(ruleId, payload);
         toast.success(tr("قانون قیمت‌گذاری ویرایش شد.", "تم تعديل قاعدة التسعير.", "Fiyatlandırma kuralı güncellendi.", "Pricing rule updated."));
       } else {
         await createPricingRule(payload);
@@ -148,8 +136,6 @@ export default function PricingTiers() {
       await loadRulesData();
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setSavingRule(false);
     }
   }
 
@@ -484,130 +470,228 @@ export default function PricingTiers() {
         )}
       </section>
 
-      <Modal open={ruleModalOpen} onClose={() => setRuleModalOpen(false)} maxWidthClassName="max-w-2xl" labelledBy="pricing-rule-title">
-        <form onSubmit={handleSaveRule} className="p-5 space-y-3">
-          <h2 id="pricing-rule-title" className="text-lg font-bold mb-2">
-            {editingRuleId ? tr("ویرایش قانون قیمت‌گذاری", "تعديل قاعدة التسعير", "Fiyatlandırma kuralını düzenle", "Edit pricing rule") : tr("قانون قیمت‌گذاری جدید", "قاعدة تسعير جديدة", "Yeni fiyatlandırma kuralı", "New pricing rule")}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={pd(ruleDraft.name)} onChange={(e) => setRuleDraft({ ...ruleDraft, name: pd(e.target.value) })} />
-            <Input type="text" inputMode="numeric" placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={pd(ruleDraft.priority)} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: cleanNumberInput(e.target.value) })} />
-
-            <Select
-              className="w-full"
-              value={ruleDraft.scope_type}
-              onChange={(value) => setRuleDraft({ ...ruleDraft, scope_type: value, scope_value: "" })}
-              options={SCOPE_TYPES.map((t) => ({ value: t, label: scopeTypeLabel(t) }))}
-            />
-            {ruleDraft.scope_type === "all" ? (
-              <div />
-            ) : ruleDraft.scope_type === "product" ? (
-              <Select
-                className="w-full"
-                value={ruleDraft.scope_value}
-                onChange={(value) => setRuleDraft({ ...ruleDraft, scope_value: value })}
-                options={[
-                  { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
-                  ...products.map((p) => ({ value: p.id, label: pd(p.name) })),
-                ]}
-              />
-            ) : (
-              <Input placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={pd(ruleDraft.scope_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: pd(e.target.value) })} />
-            )}
-
-            <Select
-              className="w-full"
-              value={ruleDraft.customer_scope_type}
-              onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_type: value, customer_scope_value: "" })}
-              options={CUSTOMER_SCOPE_TYPES.map((t) => ({ value: t, label: customerScopeTypeLabel(t) }))}
-            />
-            {ruleDraft.customer_scope_type === "any" ? (
-              <div />
-            ) : ruleDraft.customer_scope_type === "group" ? (
-              <Select
-                className="w-full"
-                value={ruleDraft.customer_scope_value}
-                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
-                options={[
-                  { value: "", label: tr("انتخاب گروه...", "اختر مجموعة...", "Grup seçin...", "Select group...") },
-                  { value: "retail", label: tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail") },
-                  { value: "wholesale", label: tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale") },
-                ]}
-              />
-            ) : ruleDraft.customer_scope_type === "loyalty_tier" ? (
-              <Select
-                className="w-full"
-                value={ruleDraft.customer_scope_value}
-                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
-                options={[
-                  { value: "", label: tr("انتخاب سطح...", "اختر مستوى...", "Seviye seçin...", "Select tier...") },
-                  ...LOYALTY_LEVELS.map((l) => ({ value: l, label: l })),
-                ]}
-              />
-            ) : (
-              <Select
-                className="w-full"
-                value={ruleDraft.customer_scope_value}
-                onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
-                options={[
-                  { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
-                  ...customers.map((c) => ({ value: c.id, label: pd(c.name) })),
-                ]}
-              />
-            )}
-
-            <Select
-              className="w-full"
-              value={ruleDraft.branch_id}
-              onChange={(value) => setRuleDraft({ ...ruleDraft, branch_id: value })}
-              options={[
-                { value: "", label: tr("همه شعب", "كل الفروع", "Tüm şubeler", "All branches") },
-                ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
-              ]}
-            />
-            <Input placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={ruleDraft.channel} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: e.target.value })} />
-
-            <Input type="text" inputMode="numeric" placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={pd(ruleDraft.min_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: cleanNumberInput(e.target.value) })} />
-            <Input type="text" inputMode="numeric" placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={pd(ruleDraft.max_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: cleanNumberInput(e.target.value) })} />
-
-            <Select
-              className="w-full"
-              value={ruleDraft.price_mode}
-              onChange={(value) => setRuleDraft({ ...ruleDraft, price_mode: value })}
-              options={PRICE_MODES.map((m) => ({ value: m, label: priceModeLabel(m) }))}
-            />
-            <Input type="text" inputMode="decimal" placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={pd(ruleDraft.price_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: cleanNumberInput(e.target.value) })} />
-
-            <label className="text-sm">
-              <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ شروع (اختیاری)", "تاريخ البدء (اختياري)", "Başlangıç tarihi (isteğe bağlı)", "Start date (optional)")}</span>
-              <JalaliDateField className={inputClass} value={ruleDraft.start_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, start_date: iso })} fa={fa} language={language} country={country} />
-            </label>
-            <label className="text-sm">
-              <span className="block mb-1 text-[var(--erp-muted)]">{tr("تاریخ پایان (اختیاری)", "تاريخ الانتهاء (اختياري)", "Bitiş tarihi (isteğe bağlı)", "End date (optional)")}</span>
-              <JalaliDateField className={inputClass} value={ruleDraft.end_date} onChange={(iso) => setRuleDraft({ ...ruleDraft, end_date: iso })} fa={fa} language={language} country={country} />
-            </label>
-
-            <Select
-              className="w-full"
-              value={ruleDraft.status}
-              onChange={(value) => setRuleDraft({ ...ruleDraft, status: value })}
-              options={[
-                { value: "active", label: tr("فعال", "نشط", "Aktif", "Active") },
-                { value: "inactive", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
-              ]}
-            />
-            <Input placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={pd(ruleDraft.notes)} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: pd(e.target.value) })} />
-          </div>
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setRuleModalOpen(false)}>
-              {tr("انصراف", "إلغاء", "İptal", "Cancel")}
-            </Button>
-            <Button type="submit" loading={savingRule}>
-              {savingRule ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <PricingRuleModal
+        key={formKey}
+        open={ruleModalOpen}
+        onClose={() => setRuleModalOpen(false)}
+        editingRule={editingRule}
+        products={products}
+        customers={customers}
+        branches={branches}
+        onSave={handleSaveRule}
+      />
     </div>
+  );
+}
+
+// Split out from PricingTiers() so every keystroke while typing only
+// re-renders this form, not the whole page (rules table + simulation
+// card + tier list) - that full-tree re-render on each keypress is what
+// made typing in this modal feel laggy when the draft state lived
+// inline. Owns its own `draft` field-editing state; the parent only
+// tracks which rule (if any) is being edited and performs the actual
+// save (same split as Branches.jsx's BranchFormModal).
+function PricingRuleModal({ open, onClose, editingRule, products, customers, branches, onSave }) {
+  const { language, country } = useLanguage();
+  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) => (fa ? faText : language === "ar" ? arText : language === "tr" ? trText : enText);
+  const pd = (value) => (fa ? toPersianDigits(value) : value);
+
+  const scopeTypeLabel = (t) => ({
+    all: tr("همه محصولات", "كل المنتجات", "Tüm ürünler", "All products"),
+    product: tr("محصول خاص", "منتج محدد", "Belirli ürün", "Specific product"),
+    category: tr("دسته‌بندی", "الفئة", "Kategori", "Category"),
+    brand: tr("برند", "العلامة التجارية", "Marka", "Brand"),
+  }[t] || t);
+
+  const customerScopeTypeLabel = (t) => ({
+    any: tr("همه مشتریان", "جميع العملاء", "Tüm müşteriler", "Any customer"),
+    group: tr("گروه مشتری", "مجموعة العملاء", "Müşteri grubu", "Customer group"),
+    loyalty_tier: tr("سطح باشگاه مشتریان", "مستوى ولاء العميل", "Sadakat seviyesi", "Loyalty tier"),
+    customer: tr("مشتری خاص", "عميل محدد", "Belirli müşteri", "Specific customer"),
+  }[t] || t);
+
+  const priceModeLabel = (m) => ({
+    fixed: tr("قیمت ثابت", "سعر ثابت", "Sabit fiyat", "Fixed price"),
+    percent_discount: tr("درصد تخفیف", "خصم بالنسبة المئوية", "Yüzde indirim", "Percent discount"),
+    fixed_discount: tr("تخفیف مبلغ ثابت", "خصم بمبلغ ثابت", "Sabit tutar indirim", "Fixed amount discount"),
+    markup: tr("افزایش قیمت (مارک‌آپ)", "هامش ربح", "Kar marjı (markup)", "Markup"),
+  }[m] || m);
+
+  // Lazy initializer runs once per mount - this component remounts (fresh
+  // `key` from the parent) every time the modal opens, so this alone
+  // keeps the form correctly seeded without an effect.
+  const [ruleDraft, setRuleDraft] = useState(() => (editingRule ? {
+    ...emptyRuleDraft, ...editingRule,
+    branch_id: editingRule.branch_id ?? "", max_quantity: editingRule.max_quantity ?? "",
+    start_date: editingRule.start_date || "", end_date: editingRule.end_date || "",
+  } : emptyRuleDraft));
+  const [savingRule, setSavingRule] = useState(false);
+
+  async function handleSaveRule(event) {
+    event.preventDefault();
+    if (ruleDraft.scope_type !== "all" && !ruleDraft.scope_value) {
+      toast.error(tr("مقدار محدوده را وارد کنید.", "أدخل قيمة النطاق.", "Kapsam değerini girin.", "Enter a scope value."));
+      return;
+    }
+    setSavingRule(true);
+    try {
+      const payload = {
+        ...ruleDraft,
+        priority: Number(ruleDraft.priority) || 100,
+        branch_id: ruleDraft.branch_id === "" ? null : Number(ruleDraft.branch_id),
+        min_quantity: Number(ruleDraft.min_quantity) || 0,
+        max_quantity: ruleDraft.max_quantity === "" ? null : Number(ruleDraft.max_quantity),
+        price_value: Number(ruleDraft.price_value) || 0,
+        start_date: ruleDraft.start_date || null,
+        end_date: ruleDraft.end_date || null,
+      };
+      await onSave(editingRule?.id ?? null, payload);
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-3xl" labelledBy="pricing-rule-title">
+      <form onSubmit={handleSaveRule} className="p-5 space-y-3">
+        <h2 id="pricing-rule-title" className="text-lg font-bold mb-2">
+          {editingRule ? tr("ویرایش قانون قیمت‌گذاری", "تعديل قاعدة التسعير", "Fiyatlandırma kuralını düzenle", "Edit pricing rule") : tr("قانون قیمت‌گذاری جدید", "قاعدة تسعير جديدة", "Yeni fiyatlandırma kuralı", "New pricing rule")}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Input placeholder={tr("نام قانون", "اسم القاعدة", "Kural adı", "Rule name")} value={pd(ruleDraft.name)} onChange={(e) => setRuleDraft({ ...ruleDraft, name: toEnglishDigits(e.target.value) })} />
+          <Input type="text" inputMode="numeric" placeholder={tr("اولویت (عدد کمتر = اولویت بالاتر در تساوی)", "الأولوية", "Öncelik", "Priority")} value={pd(ruleDraft.priority)} onChange={(e) => setRuleDraft({ ...ruleDraft, priority: cleanNumberInput(e.target.value) })} />
+
+          <Select
+            className="w-full"
+            value={ruleDraft.scope_type}
+            onChange={(value) => setRuleDraft({ ...ruleDraft, scope_type: value, scope_value: "" })}
+            options={SCOPE_TYPES.map((t) => ({ value: t, label: scopeTypeLabel(t) }))}
+          />
+          {ruleDraft.scope_type === "all" ? (
+            <div />
+          ) : ruleDraft.scope_type === "product" ? (
+            <Select
+              className="w-full"
+              value={ruleDraft.scope_value}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, scope_value: value })}
+              options={[
+                { value: "", label: tr("انتخاب کالا...", "اختر منتجًا...", "Ürün seçin...", "Select product...") },
+                ...products.map((p) => ({ value: p.id, label: pd(p.name) })),
+              ]}
+            />
+          ) : (
+            <Input placeholder={ruleDraft.scope_type === "category" ? tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name") : tr("نام برند", "اسم العلامة التجارية", "Marka adı", "Brand name")} value={pd(ruleDraft.scope_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, scope_value: toEnglishDigits(e.target.value) })} />
+          )}
+
+          <Select
+            className="w-full"
+            value={ruleDraft.customer_scope_type}
+            onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_type: value, customer_scope_value: "" })}
+            options={CUSTOMER_SCOPE_TYPES.map((t) => ({ value: t, label: customerScopeTypeLabel(t) }))}
+          />
+          {ruleDraft.customer_scope_type === "any" ? (
+            <div />
+          ) : ruleDraft.customer_scope_type === "group" ? (
+            <Select
+              className="w-full"
+              value={ruleDraft.customer_scope_value}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+              options={[
+                { value: "", label: tr("انتخاب گروه...", "اختر مجموعة...", "Grup seçin...", "Select group...") },
+                { value: "retail", label: tr("خرده‌فروشی", "تجزئة", "Perakende", "Retail") },
+                { value: "wholesale", label: tr("عمده‌فروشی", "جملة", "Toptan", "Wholesale") },
+              ]}
+            />
+          ) : ruleDraft.customer_scope_type === "loyalty_tier" ? (
+            <Select
+              className="w-full"
+              value={ruleDraft.customer_scope_value}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+              options={[
+                { value: "", label: tr("انتخاب سطح...", "اختر مستوى...", "Seviye seçin...", "Select tier...") },
+                ...LOYALTY_LEVELS.map((l) => ({ value: l, label: l })),
+              ]}
+            />
+          ) : (
+            <Select
+              className="w-full"
+              value={ruleDraft.customer_scope_value}
+              onChange={(value) => setRuleDraft({ ...ruleDraft, customer_scope_value: value })}
+              options={[
+                { value: "", label: tr("انتخاب مشتری...", "اختر عميلاً...", "Müşteri seçin...", "Select customer...") },
+                ...customers.map((c) => ({ value: c.id, label: pd(c.name) })),
+              ]}
+            />
+          )}
+
+          <Select
+            className="w-full"
+            value={ruleDraft.branch_id}
+            onChange={(value) => setRuleDraft({ ...ruleDraft, branch_id: value })}
+            options={[
+              { value: "", label: tr("همه شعب", "كل الفروع", "Tüm şubeler", "All branches") },
+              ...branches.map((b) => ({ value: b.id, label: pd(b.name) })),
+            ]}
+          />
+          <Input placeholder={tr("کانال فروش (اختیاری، مثلاً online)", "قناة البيع (اختياري)", "Satış kanalı (isteğe bağlı)", "Sales channel (optional)")} value={pd(ruleDraft.channel)} onChange={(e) => setRuleDraft({ ...ruleDraft, channel: toEnglishDigits(e.target.value) })} />
+
+          <Input type="text" inputMode="numeric" placeholder={tr("حداقل تعداد", "الحد الأدنى للكمية", "Asgari miktar", "Min quantity")} value={pd(ruleDraft.min_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, min_quantity: cleanNumberInput(e.target.value) })} />
+          <Input type="text" inputMode="numeric" placeholder={tr("حداکثر تعداد (اختیاری)", "الحد الأقصى للكمية (اختياري)", "Azami miktar (isteğe bağlı)", "Max quantity (optional)")} value={pd(ruleDraft.max_quantity)} onChange={(e) => setRuleDraft({ ...ruleDraft, max_quantity: cleanNumberInput(e.target.value) })} />
+
+          <Select
+            className="w-full"
+            value={ruleDraft.price_mode}
+            onChange={(value) => setRuleDraft({ ...ruleDraft, price_mode: value })}
+            options={PRICE_MODES.map((m) => ({ value: m, label: priceModeLabel(m) }))}
+          />
+          <Input type="text" inputMode="decimal" placeholder={tr("مقدار (مبلغ یا درصد)", "القيمة (مبلغ أو نسبة)", "Değer (tutar veya yüzde)", "Value (amount or percent)")} value={pd(ruleDraft.price_value)} onChange={(e) => setRuleDraft({ ...ruleDraft, price_value: cleanNumberInput(e.target.value) })} />
+
+          {/* `variant="grouped"` + `placeholder` (not a wrapping <label>) -
+              matches every other field in this grid, which relies on
+              placeholder text with no visible label above it; the date
+              fields were the one inconsistent pair, each carrying an
+              extra ~20px label row the rest of the form doesn't have.
+              Also gives the "one composite control" look (input + calendar
+              icon merged into a single pill) instead of two separately-
+              boxed elements. */}
+          <JalaliDateField
+            variant="grouped"
+            groupClassName="!rounded-xl !min-h-[44px]"
+            placeholder={tr("تاریخ شروع (اختیاری)", "تاريخ البدء (اختياري)", "Başlangıç tarihi (isteğe bağlı)", "Start date (optional)")}
+            value={ruleDraft.start_date}
+            onChange={(iso) => setRuleDraft({ ...ruleDraft, start_date: iso })}
+            fa={fa} language={language} country={country}
+          />
+          <JalaliDateField
+            variant="grouped"
+            groupClassName="!rounded-xl !min-h-[44px]"
+            placeholder={tr("تاریخ پایان (اختیاری)", "تاريخ الانتهاء (اختياري)", "Bitiş tarihi (isteğe bağlı)", "End date (optional)")}
+            value={ruleDraft.end_date}
+            onChange={(iso) => setRuleDraft({ ...ruleDraft, end_date: iso })}
+            fa={fa} language={language} country={country}
+          />
+
+          <Select
+            className="w-full"
+            value={ruleDraft.status}
+            onChange={(value) => setRuleDraft({ ...ruleDraft, status: value })}
+            options={[
+              { value: "active", label: tr("فعال", "نشط", "Aktif", "Active") },
+              { value: "inactive", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
+            ]}
+          />
+          <Input placeholder={tr("یادداشت (اختیاری)", "ملاحظة (اختياري)", "Not (isteğe bağlı)", "Notes (optional)")} value={pd(ruleDraft.notes)} onChange={(e) => setRuleDraft({ ...ruleDraft, notes: toEnglishDigits(e.target.value) })} />
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {tr("انصراف", "إلغاء", "İptal", "Cancel")}
+          </Button>
+          <Button type="submit" loading={savingRule}>
+            {savingRule ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

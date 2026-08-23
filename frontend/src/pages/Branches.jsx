@@ -3,7 +3,7 @@ import { Building2, Pencil, Plus, Search, ShieldCheck, ShieldOff, Trash2 } from 
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
-import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import { activateBranch, createBranch, deactivateBranch, getBranches, getWarehouses, updateBranch } from "../services/api";
 import Modal from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
@@ -19,31 +19,34 @@ import { confirmAction } from "../components/ui/confirmService";
 // Compact cell padding for this page's table only (Table.jsx's Th/Td
 // accept a `style` prop that merges over their own default padding, so
 // this doesn't need any !important override or a shared-component
-// change) - shrinks the per-column horizontal footprint enough that the
-// 8-column layout fits typical desktop/laptop widths without falling
-// back to the table wrapper's overflow-x-auto scroll.
+// change).
 const cellPad = { padding: "10px 10px" };
 // `table-layout` defaults to `auto`, under which a `width:100%` table is
 // only a MINIMUM, not a cap - the browser sizes every column from its
-// widest cell content (and Th forces `white-space:nowrap`), so once that
-// content sum exceeds the available width the table simply grows past
-// its container regardless of `w-full`, which is what was still forcing
-// the wrapper's horizontal scrollbar even after compacting padding and
-// hiding two columns. `table-layout:fixed` makes the browser respect the
-// table's own width as a hard cap instead - column widths are then taken
-// ONLY from the first row's cells (Thead's `Th`s, since Thead is first
-// in DOM), so every `Th` below is given an explicit width except Name,
-// left unset so it's the one column that absorbs whatever space remains.
+// widest cell content, so once that content sum exceeds the available
+// width the table grows past its container regardless of `w-full`.
+// `table-layout:fixed` makes the browser respect the table's own width as
+// a hard cap - BUT ONLY if every `Th` width below is a PERCENTAGE, not a
+// large unbounded pixel value: fixed-layout pixel widths are a hard floor
+// the table can't shrink below, so a pixel-width BUDGET spread across every
+// column (what this table used before) can force the scrollbar back on at
+// any narrower-than-assumed effective viewport (a laptop at 125-150%
+// OS/browser scaling, a smaller external monitor, a collapsed-vs-expanded
+// sidebar). Percentages are always relative to the actual table width, so
+// columns compress together and the table can never exceed 100% of its
+// container, at any zoom or viewport. The Actions column is the one
+// exception - it's a `clamp()` with a small, deliberate px floor (see its
+// own comment below), not an open-ended pixel budget, so it doesn't
+// reintroduce that same risk. Manager/Phone are additionally hidden below `xl` - since
+// they're unset-nowhere-else columns, `table-layout:fixed` simply lets
+// Name (the one column with no explicit width) absorb whatever width they
+// free up, at every breakpoint, with no separate per-breakpoint percentage
+// set needed. Below `md` the table itself isn't rendered at all (see the
+// card list further down) - a 1024-1279 range with 6 columns crammed in is
+// what earlier attempts at "just hide two columns" kept fighting, so this
+// drops straight to a compact card row instead of shrinking the table
+// further.
 const thFixed = { ...cellPad, overflow: "hidden", textOverflow: "ellipsis" };
-// Manager/phone are secondary metadata (still one click away via Edit) -
-// hidden below xl so the remaining 6 columns' fixed-width budget (510px)
-// comfortably fits laptop/tablet widths down to 1024px. `lg` (1024px)
-// was tried first, but at exactly that width - with the sidebar in its
-// default expanded state - the full 8-column budget (740px) doesn't
-// reliably fit the available content area, reintroducing the very
-// scrollbar this column-hiding exists to prevent right at the
-// breakpoint where the extra columns turn on. `xl` (1280px) is safely
-// above that crossover.
 const secondaryColClass = "hidden xl:table-cell";
 
 const BRANCH_TYPES = ["headquarters", "retail_store", "warehouse_only", "office", "other"];
@@ -71,9 +74,11 @@ export default function Branches() {
   const [activeFilter, setActiveFilter] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [draft, setDraft] = useState(emptyDraft);
-  const [saving, setSaving] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
+  // Bumped on every open so BranchFormModal remounts (and its local
+  // `draft` state re-initializes from scratch) each time - including
+  // reopening the same branch twice in a row - without needing an effect.
+  const [formKey, setFormKey] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -113,37 +118,23 @@ export default function Branches() {
   }[type] || type);
 
   function openCreate() {
-    setEditingId(null);
-    setDraft(emptyDraft);
+    setEditingBranch(null);
+    setFormKey((k) => k + 1);
     setModalOpen(true);
   }
 
   function openEdit(branch) {
-    setEditingId(branch.id);
-    setDraft({
-      ...emptyDraft,
-      ...branch,
-      latitude: branch.latitude ?? "",
-      longitude: branch.longitude ?? "",
-      default_warehouse_id: branch.default_warehouse_id ?? "",
-    });
+    setEditingBranch(branch);
+    setFormKey((k) => k + 1);
     setModalOpen(true);
   }
 
-  async function handleSave(event) {
-    event.preventDefault();
-    if (!draft.name.trim()) {
-      toast.error(tr("نام شعبه را وارد کنید.", "أدخل اسم الفرع.", "Şube adını girin.", "Enter a branch name."));
-      return;
-    }
-    setSaving(true);
+  // Lives here (not in the modal) because it needs `load()`/`branches`
+  // state - the modal only owns its own field-editing state and calls this
+  // once, on submit, so keystroke-by-keystroke typing never touches this
+  // component's state and can't force the branches table below to re-render.
+  async function handleSaveBranch(editingId, payload) {
     try {
-      const payload = {
-        ...draft,
-        latitude: draft.latitude === "" ? null : Number(draft.latitude),
-        longitude: draft.longitude === "" ? null : Number(draft.longitude),
-        default_warehouse_id: draft.default_warehouse_id === "" ? null : Number(draft.default_warehouse_id),
-      };
       if (editingId) {
         await updateBranch(editingId, payload);
         toast.success(tr("شعبه ویرایش شد.", "تم تعديل الفرع.", "Şube güncellendi.", "Branch updated."));
@@ -155,8 +146,6 @@ export default function Branches() {
       await load();
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -201,6 +190,277 @@ export default function Branches() {
       toast.error(err.message);
     }
   }
+
+  return (
+    <div dir={dir} className="space-y-5 text-[var(--erp-text)]">
+      {/* No own PageHeader here - this component is now only ever embedded
+          as the "Branches" tab of the unified Branches & Warehouses page,
+          which owns the single shared PageHeader for all its tabs. The
+          create action stays local to this tab, same handler as before. */}
+      <div className="flex items-center justify-end">
+        <Button icon={Plus} onClick={openCreate}>
+          {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
+        </Button>
+      </div>
+
+      {/* clip={false} lets the Select popups escape this card's box instead
+          of being cropped - but `.erp-surface` (Card's own class) sets
+          `backdrop-filter: blur(16px)`, which creates an isolated stacking
+          context on EVERY Card. Without an explicit z-index, that context
+          sits at the same implicit stacking level as the table Card below
+          it, and the later-in-DOM table Card (also `.erp-surface`) then
+          paints its own layer over whatever the popup renders outside the
+          filter card's box - clip=false alone stops the crop but not this
+          layering, which is what made the open dropdown look like it was
+          rendering "into"/behind the table. `relative z-20` lifts this
+          card's whole stacking context above that implicit level so the
+          popup - and anything else that overflows this card - correctly
+          paints on top of the table Card, not behind it. */}
+      <Card padding={false} clip={false} className="relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3" style={{ padding: 20 }}>
+          <label className="vitalix-input-group flex items-center gap-2 w-full" style={{ padding: "0 12px" }}>
+            <Search size={16} className="text-[var(--erp-muted)] shrink-0" />
+            <input
+              placeholder={tr("جستجوی نام، کد یا شهر...", "بحث بالاسم أو الرمز أو المدينة...", "Ad, kod veya şehre göre ara...", "Search name, code, or city...")}
+              value={search}
+              onChange={(e) => setSearch(toEnglishDigits(e.target.value))}
+              aria-label={tr("جستجوی شعبه", "بحث الفروع", "Şube ara", "Search branches")}
+              className="min-w-0 flex-1"
+              style={{ color: "var(--erp-text)", padding: "10px 0" }}
+            />
+          </label>
+          <Select
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { value: "", label: tr("همه انواع", "كل الأنواع", "Tüm türler", "All types") },
+              ...BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) })),
+            ]}
+          />
+          <Select
+            value={activeFilter}
+            onChange={setActiveFilter}
+            options={[
+              { value: "", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
+              { value: "true", label: tr("فعال", "نشط", "Aktif", "Active") },
+              { value: "false", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
+            ]}
+          />
+        </div>
+      </Card>
+
+      <Card padding={false}>
+        {loading ? (
+          <div className="space-y-2" style={{ padding: 20 }}>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} height={44} radius="var(--erp-radius-md)" />
+            ))}
+          </div>
+        ) : branches.length === 0 ? (
+          <div className="text-center text-[var(--erp-muted)]" style={{ padding: "48px 20px" }}>
+            <Building2 size={28} className="mx-auto mb-3 opacity-60" />
+            <p className="text-sm">{tr("هنوز شعبه‌ای ثبت نشده است.", "لم يتم تسجيل أي فرع بعد.", "Henüz şube kaydedilmedi.", "No branches registered yet.")}</p>
+            <Button className="mt-4" size="sm" icon={Plus} onClick={openCreate}>
+              {tr("ساخت اولین شعبه", "إنشاء أول فرع", "İlk şubeyi oluştur", "Create your first branch")}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Desktop/tablet (>=768px): the full table. `scrollable={false}`
+                drops Table.jsx's default overflow-x-auto wrapper - safe
+                here because every column below is percentage-width under
+                table-layout:fixed, so the table can never exceed 100% of
+                its container regardless of viewport/zoom; there's nothing
+                left for that wrapper to ever need to scroll. */}
+            <div className="hidden md:block">
+              <Table className="table-fixed" scrollable={false}>
+                <Thead>
+                  <Th style={{ ...thFixed, width: "4%" }}>#</Th>
+                  <Th style={cellPad}>{tr("نام", "الاسم", "Ad", "Name")}</Th>
+                  <Th style={{ ...thFixed, width: "10%" }}>{tr("نوع", "النوع", "Tür", "Type")}</Th>
+                  <Th style={{ ...thFixed, width: "10%" }}>{tr("شهر", "المدينة", "Şehir", "City")}</Th>
+                  <Th className={secondaryColClass} style={{ ...thFixed, width: "12%" }}>{tr("مدیر", "المدير", "Müdür", "Manager")}</Th>
+                  <Th className={secondaryColClass} style={{ ...thFixed, width: "11%" }}>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
+                  <Th style={{ ...thFixed, width: "10%" }}>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+                  {/* clamp(), not a flat percentage - up to 3 icon buttons
+                      (~40-42px each) + gaps + cellPad need ~152px of real
+                      content room, and table-layout:fixed's percentage only
+                      prevents the TABLE from overflowing, not a cell's own
+                      content from being clipped by the Card's
+                      overflow:hidden. A single flat % can't be safe at both
+                      ends of the app's supported width range: sized to
+                      survive the sidebar's own persistent-vs-off-canvas
+                      breakpoint (900px, which doesn't line up with this
+                      table's own 768/1280 breakpoints - content width
+                      actually *shrinks* just above 900px when the sidebar
+                      snaps back to persistent), a percentage large enough
+                      to be safe there wastes 100px+ of dead space before
+                      the buttons at 1440-1920px instead. The 168px floor
+                      protects every width below the crossover uniformly
+                      (not just one tuned checkpoint); the 190px ceiling
+                      stops it from over-growing at wide viewports; 20% is
+                      just the transition in between. */}
+                  <Th align="end" style={{ ...thFixed, width: "clamp(168px, 20%, 190px)" }}>{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
+                </Thead>
+                <Tbody>
+                  {branches.map((b, index) => (
+                    <Tr key={b.id}>
+                      <Td className="text-[var(--erp-muted)] font-bold" style={cellPad}>{n(index + 1)}</Td>
+                      <Td className="font-bold" style={cellPad}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Tooltip side="top" label={pd(b.name)}>
+                            <span className="truncate block min-w-0" style={{ maxWidth: 200 }}>{pd(b.name)}</span>
+                          </Tooltip>
+                          {/* "#" prefix makes this unmistakably a separate
+                              identifier, not a continuation of the name
+                              above - matters most when the two happen to
+                              share a value (e.g. placeholder/test data). */}
+                          {b.code && <Badge tone="neutral" className="shrink-0">{`#${pd(b.code)}`}</Badge>}
+                        </div>
+                      </Td>
+                      <Td style={cellPad}><span className="truncate block">{branchTypeLabel(b.branch_type)}</span></Td>
+                      <Td style={cellPad}>
+                        {b.city ? (
+                          <Tooltip side="top" label={pd(b.city)}>
+                            <span className="truncate block min-w-0">{pd(b.city)}</span>
+                          </Tooltip>
+                        ) : "—"}
+                      </Td>
+                      <Td className={secondaryColClass} style={cellPad}>
+                        {b.manager_name ? (
+                          <Tooltip side="top" label={pd(b.manager_name)}>
+                            <span className="truncate block">{pd(b.manager_name)}</span>
+                          </Tooltip>
+                        ) : "—"}
+                      </Td>
+                      <Td className={secondaryColClass} style={cellPad}>
+                        {b.phone || b.mobile ? (
+                          <Tooltip side="top" label={pd(b.phone || b.mobile)}>
+                            <span className="truncate block">{pd(b.phone || b.mobile)}</span>
+                          </Tooltip>
+                        ) : "—"}
+                      </Td>
+                      <Td style={cellPad}>
+                        <Badge tone={b.active ? "success" : "neutral"}>
+                          {b.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
+                        </Badge>
+                      </Td>
+                      <Td align="end" style={cellPad}>
+                        <BranchRowActions b={b} tr={tr} openEdit={openEdit} handleToggleActive={handleToggleActive} handleDeleteBranch={handleDeleteBranch} />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </div>
+
+            {/* Mobile (<768px): a stacked card per branch instead of the
+                wide table - the earlier approach of hiding more table
+                columns at narrow widths kept reintroducing horizontal
+                scroll one breakpoint down; a genuinely different,
+                single-column layout removes that risk instead of chasing
+                it further. */}
+            <div className="block md:hidden divide-y divide-[var(--erp-border)]">
+              {branches.map((b, index) => (
+                <div key={b.id} style={{ padding: 14 }} className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[var(--erp-muted)] font-bold text-xs shrink-0">{n(index + 1)}</span>
+                      <span className="font-bold truncate">{pd(b.name)}</span>
+                      {b.code && <Badge tone="neutral" className="shrink-0">{`#${pd(b.code)}`}</Badge>}
+                    </div>
+                    <Badge tone={b.active ? "success" : "neutral"} className="shrink-0">
+                      {b.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-[var(--erp-muted)] m-0 truncate">
+                    {branchTypeLabel(b.branch_type)}
+                    {b.city ? ` · ${pd(b.city)}` : ""}
+                  </p>
+                  <div className="flex items-center justify-end gap-1">
+                    <BranchRowActions b={b} tr={tr} openEdit={openEdit} handleToggleActive={handleToggleActive} handleDeleteBranch={handleDeleteBranch} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
+
+      <BranchFormModal
+        key={formKey}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        editingBranch={editingBranch}
+        warehouses={warehouses}
+        onSave={handleSaveBranch}
+      />
+    </div>
+  );
+}
+
+// Shared by both the desktop table row's Actions cell and the mobile card
+// footer, so the two layouts can't quietly drift out of sync on which
+// actions exist or how they're labeled.
+function BranchRowActions({ b, tr, openEdit, handleToggleActive, handleDeleteBranch }) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Tooltip side="top" label={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
+        <Button variant="secondary" size="sm" icon={Pencil} aria-label={tr("ویرایش", "تعديل", "Düzenle", "Edit")} onClick={() => openEdit(b)} />
+      </Tooltip>
+      <Tooltip side="top" label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}>
+        <Button
+          variant={b.active ? "secondary" : "success"}
+          size="sm"
+          icon={b.active ? ShieldOff : ShieldCheck}
+          aria-label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
+          onClick={() => handleToggleActive(b)}
+        />
+      </Tooltip>
+      {b.active && (
+        <Tooltip side="top" label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}>
+          <Button
+            variant="danger"
+            size="sm"
+            icon={Trash2}
+            aria-label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}
+            onClick={() => handleDeleteBranch(b)}
+          />
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+// Split out from Branches() so that every keystroke while typing only
+// re-renders this small form, not the whole page (branches table +
+// Tooltips + filter card) - that full-tree re-render on each keypress is
+// what made typing in "New branch" feel laggy when this lived inline.
+// Owns its own `draft` field-editing state; the parent only tracks which
+// branch (if any) is being edited and performs the actual save.
+function BranchFormModal({ open, onClose, editingBranch, warehouses, onSave }) {
+  const { language } = useLanguage();
+  const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
+  const branchTypeLabel = (type) => ({
+    headquarters: tr("مرکز اصلی", "المقر الرئيسي", "Genel merkez", "Headquarters"),
+    retail_store: tr("فروشگاه", "متجر", "Mağaza", "Retail store"),
+    warehouse_only: tr("فقط انبار", "مستودع فقط", "Sadece depo", "Warehouse only"),
+    office: tr("دفتر", "مكتب", "Ofis", "Office"),
+    other: tr("سایر", "أخرى", "Diğer", "Other"),
+  }[type] || type);
+
+  // Lazy initializer runs once per mount - this component remounts (fresh
+  // `key` from the parent) every time the modal opens, so this alone keeps
+  // the form correctly seeded without an effect.
+  const [draft, setDraft] = useState(() => (editingBranch ? {
+    ...emptyDraft,
+    ...editingBranch,
+    latitude: editingBranch.latitude ?? "",
+    longitude: editingBranch.longitude ?? "",
+    default_warehouse_id: editingBranch.default_warehouse_id ?? "",
+  } : emptyDraft));
+  const [saving, setSaving] = useState(false);
 
   const fieldGroups = useMemo(() => ([
     {
@@ -247,213 +507,82 @@ export default function Branches() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [language]);
 
+  async function handleSave(event) {
+    event.preventDefault();
+    if (!draft.name.trim()) {
+      toast.error(tr("نام شعبه را وارد کنید.", "أدخل اسم الفرع.", "Şube adını girin.", "Enter a branch name."));
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        ...draft,
+        latitude: draft.latitude === "" ? null : Number(draft.latitude),
+        longitude: draft.longitude === "" ? null : Number(draft.longitude),
+        default_warehouse_id: draft.default_warehouse_id === "" ? null : Number(draft.default_warehouse_id),
+      };
+      await onSave(editingBranch?.id ?? null, payload);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div dir={dir} className="space-y-5 text-[var(--erp-text)]">
-      {/* No own PageHeader here - this component is now only ever embedded
-          as the "Branches" tab of the unified Branches & Warehouses page,
-          which owns the single shared PageHeader for all its tabs. The
-          create action stays local to this tab, same handler as before. */}
-      <div className="flex items-center justify-end">
-        <Button icon={Plus} onClick={openCreate}>
-          {tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
-        </Button>
-      </div>
-
-      {/* clip={false} lets the Select popups escape this card's box instead
-          of being cropped - but `.erp-surface` (Card's own class) sets
-          `backdrop-filter: blur(16px)`, which creates an isolated stacking
-          context on EVERY Card. Without an explicit z-index, that context
-          sits at the same implicit stacking level as the table Card below
-          it, and the later-in-DOM table Card (also `.erp-surface`) then
-          paints its own layer over whatever the popup renders outside the
-          filter card's box - clip=false alone stops the crop but not this
-          layering, which is what made the open dropdown look like it was
-          rendering "into"/behind the table. `relative z-20` lifts this
-          card's whole stacking context above that implicit level so the
-          popup - and anything else that overflows this card - correctly
-          paints on top of the table Card, not behind it. */}
-      <Card padding={false} clip={false} className="relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3" style={{ padding: 20 }}>
-          <label className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 12px" }}>
-            <Search size={16} className="text-[var(--erp-muted)] shrink-0" />
-            <input
-              placeholder={tr("جستجوی نام، کد یا شهر...", "بحث بالاسم أو الرمز أو المدينة...", "Ad, kod veya şehre göre ara...", "Search name, code, or city...")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label={tr("جستجوی شعبه", "بحث الفروع", "Şube ara", "Search branches")}
-              className="min-w-0 flex-1"
-              style={{ color: "var(--erp-text)", padding: "10px 0" }}
-            />
-          </label>
-          <Select
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={[
-              { value: "", label: tr("همه انواع", "كل الأنواع", "Tüm türler", "All types") },
-              ...BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) })),
-            ]}
-          />
-          <Select
-            value={activeFilter}
-            onChange={setActiveFilter}
-            options={[
-              { value: "", label: tr("همه وضعیت‌ها", "كل الحالات", "Tüm durumlar", "All statuses") },
-              { value: "true", label: tr("فعال", "نشط", "Aktif", "Active") },
-              { value: "false", label: tr("غیرفعال", "غير نشط", "Pasif", "Inactive") },
-            ]}
-          />
-        </div>
-      </Card>
-
-      <Card padding={false}>
-        {loading ? (
-          <div className="space-y-2" style={{ padding: 20 }}>
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} height={44} radius="var(--erp-radius-md)" />
-            ))}
-          </div>
-        ) : branches.length === 0 ? (
-          <div className="text-center text-[var(--erp-muted)]" style={{ padding: "48px 20px" }}>
-            <Building2 size={28} className="mx-auto mb-3 opacity-60" />
-            <p className="text-sm">{tr("هنوز شعبه‌ای ثبت نشده است.", "لم يتم تسجيل أي فرع بعد.", "Henüz şube kaydedilmedi.", "No branches registered yet.")}</p>
-            <Button className="mt-4" size="sm" icon={Plus} onClick={openCreate}>
-              {tr("ساخت اولین شعبه", "إنشاء أول فرع", "İlk şubeyi oluştur", "Create your first branch")}
-            </Button>
-          </div>
-        ) : (
-          <Table className="table-fixed">
-            <Thead>
-              <Th style={{ ...thFixed, width: 40 }}>#</Th>
-              <Th style={cellPad}>{tr("نام", "الاسم", "Ad", "Name")}</Th>
-              <Th style={{ ...thFixed, width: 100 }}>{tr("نوع", "النوع", "Tür", "Type")}</Th>
-              <Th style={{ ...thFixed, width: 100 }}>{tr("شهر", "المدينة", "Şehir", "City")}</Th>
-              <Th className={secondaryColClass} style={{ ...thFixed, width: 120 }}>{tr("مدیر", "المدير", "Müdür", "Manager")}</Th>
-              <Th className={secondaryColClass} style={{ ...thFixed, width: 110 }}>{tr("تلفن", "الهاتف", "Telefon", "Phone")}</Th>
-              <Th style={{ ...thFixed, width: 110 }}>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
-              <Th align="end" style={{ ...thFixed, width: 160 }}>{tr("عملیات", "الإجراءات", "İşlemler", "Actions")}</Th>
-            </Thead>
-            <Tbody>
-              {branches.map((b, index) => (
-                <Tr key={b.id}>
-                  <Td className="text-[var(--erp-muted)] font-bold" style={cellPad}>{n(index + 1)}</Td>
-                  <Td className="font-bold" style={cellPad}>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Tooltip side="top" label={pd(b.name)}>
-                        <span className="truncate block min-w-0" style={{ maxWidth: 200 }}>{pd(b.name)}</span>
-                      </Tooltip>
-                      {/* "#" prefix makes this unmistakably a separate
-                          identifier, not a continuation of the name above -
-                          matters most when the two happen to share a value
-                          (e.g. placeholder/test data), which is exactly what
-                          previously read as a duplicated "name name". */}
-                      {b.code && <Badge tone="neutral" className="shrink-0">{`#${pd(b.code)}`}</Badge>}
-                    </div>
-                  </Td>
-                  <Td style={cellPad}>{branchTypeLabel(b.branch_type)}</Td>
-                  <Td style={cellPad}>
-                    {b.city ? (
-                      <Tooltip side="top" label={pd(b.city)}>
-                        <span className="truncate block min-w-0" style={{ maxWidth: 76 }}>{pd(b.city)}</span>
-                      </Tooltip>
-                    ) : "—"}
-                  </Td>
-                  <Td className={secondaryColClass} style={cellPad}>{b.manager_name ? pd(b.manager_name) : "—"}</Td>
-                  <Td className={secondaryColClass} style={cellPad}>{b.phone || b.mobile ? pd(b.phone || b.mobile) : "—"}</Td>
-                  <Td style={cellPad}>
-                    <Badge tone={b.active ? "success" : "neutral"}>
-                      {b.active ? tr("فعال", "نشط", "Aktif", "Active") : tr("غیرفعال", "غير نشط", "Pasif", "Inactive")}
-                    </Badge>
-                  </Td>
-                  <Td align="end" style={cellPad}>
-                    <div className="flex items-center justify-end gap-1">
-                      <Tooltip side="top" label={tr("ویرایش", "تعديل", "Düzenle", "Edit")}>
-                        <Button variant="secondary" size="sm" icon={Pencil} aria-label={tr("ویرایش", "تعديل", "Düzenle", "Edit")} onClick={() => openEdit(b)} />
-                      </Tooltip>
-                      <Tooltip side="top" label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}>
-                        <Button
-                          variant={b.active ? "secondary" : "success"}
-                          size="sm"
-                          icon={b.active ? ShieldOff : ShieldCheck}
-                          aria-label={b.active ? tr("غیرفعال کردن", "إلغاء التفعيل", "Devre dışı bırak", "Deactivate") : tr("فعال کردن", "تفعيل", "Etkinleştir", "Activate")}
-                          onClick={() => handleToggleActive(b)}
-                        />
-                      </Tooltip>
-                      {b.active && (
-                        <Tooltip side="top" label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            icon={Trash2}
-                            aria-label={tr("حذف (بایگانی)", "حذف (أرشفة)", "Sil (arşivle)", "Delete (archive)")}
-                            onClick={() => handleDeleteBranch(b)}
-                          />
-                        </Tooltip>
-                      )}
-                    </div>
-                  </Td>
-                </Tr>
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-3xl" labelledBy="branch-modal-title">
+      <form onSubmit={handleSave} className="p-5 space-y-5">
+        <h2 id="branch-modal-title" className="text-lg font-bold">
+          {editingBranch ? tr("ویرایش شعبه", "تعديل الفرع", "Şubeyi düzenle", "Edit branch") : tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
+        </h2>
+        {fieldGroups.map((group) => (
+          <div key={group.title}>
+            <h3 className="text-sm font-bold text-[var(--erp-muted)] mb-2">{group.title}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {group.fields.map(([key, label, type]) => (
+                <label key={key} className="text-sm">
+                  <span className="block mb-1 text-[var(--erp-muted)]">{label}</span>
+                  {type === "select" ? (
+                    <Select
+                      value={draft[key]}
+                      onChange={(value) => setDraft({ ...draft, [key]: value })}
+                      options={BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) }))}
+                    />
+                  ) : type === "warehouse" ? (
+                    <Select
+                      value={draft[key]}
+                      onChange={(value) => setDraft({ ...draft, [key]: value })}
+                      options={[
+                        { value: "", label: tr("بدون انبار پیش‌فرض", "بدون مستودع افتراضي", "Varsayılan depo yok", "No default warehouse") },
+                        ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) })),
+                      ]}
+                    />
+                  ) : type === "number" ? (
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={pd(draft[key])}
+                      onChange={(e) => setDraft({ ...draft, [key]: cleanNumberInput(e.target.value) })}
+                    />
+                  ) : (
+                    <Input
+                      type="text"
+                      value={!LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(draft[key]) : draft[key]}
+                      onChange={(e) => setDraft({ ...draft, [key]: !LATIN_ONLY_TEXT_FIELDS.has(key) ? toEnglishDigits(e.target.value) : e.target.value })}
+                    />
+                  )}
+                </label>
               ))}
-            </Tbody>
-          </Table>
-        )}
-      </Card>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} maxWidthClassName="max-w-3xl" labelledBy="branch-modal-title">
-        <form onSubmit={handleSave} className="p-5 space-y-5">
-          <h2 id="branch-modal-title" className="text-lg font-bold">
-            {editingId ? tr("ویرایش شعبه", "تعديل الفرع", "Şubeyi düzenle", "Edit branch") : tr("شعبه جدید", "فرع جديد", "Yeni şube", "New branch")}
-          </h2>
-          {fieldGroups.map((group) => (
-            <div key={group.title}>
-              <h3 className="text-sm font-bold text-[var(--erp-muted)] mb-2">{group.title}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {group.fields.map(([key, label, type]) => (
-                  <label key={key} className="text-sm">
-                    <span className="block mb-1 text-[var(--erp-muted)]">{label}</span>
-                    {type === "select" ? (
-                      <Select
-                        value={draft[key]}
-                        onChange={(value) => setDraft({ ...draft, [key]: value })}
-                        options={BRANCH_TYPES.map((t) => ({ value: t, label: branchTypeLabel(t) }))}
-                      />
-                    ) : type === "warehouse" ? (
-                      <Select
-                        value={draft[key]}
-                        onChange={(value) => setDraft({ ...draft, [key]: value })}
-                        options={[
-                          { value: "", label: tr("بدون انبار پیش‌فرض", "بدون مستودع افتراضي", "Varsayılan depo yok", "No default warehouse") },
-                          ...warehouses.map((w) => ({ value: w.id, label: pd(w.name) })),
-                        ]}
-                      />
-                    ) : type === "number" ? (
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={pd(draft[key])}
-                        onChange={(e) => setDraft({ ...draft, [key]: cleanNumberInput(e.target.value) })}
-                      />
-                    ) : (
-                      <Input
-                        type="text"
-                        value={!LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(draft[key]) : draft[key]}
-                        onChange={(e) => setDraft({ ...draft, [key]: !LATIN_ONLY_TEXT_FIELDS.has(key) ? pd(e.target.value) : e.target.value })}
-                      />
-                    )}
-                  </label>
-                ))}
-              </div>
             </div>
-          ))}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
-              {tr("انصراف", "إلغاء", "İptal", "Cancel")}
-            </Button>
-            <Button type="submit" loading={saving}>
-              {saving ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
-            </Button>
           </div>
-        </form>
-      </Modal>
-    </div>
+        ))}
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {tr("انصراف", "إلغاء", "İptal", "Cancel")}
+          </Button>
+          <Button type="submit" loading={saving}>
+            {saving ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره", "حفظ", "Kaydet", "Save")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
