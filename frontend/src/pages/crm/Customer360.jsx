@@ -53,6 +53,17 @@ function levelLabel(level, language) {
   return map[level] || level || "-";
 }
 
+function tagLabel(tag, language) {
+  if (tag === "needs_followup") {
+    return language === "fa" ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Needs follow-up";
+  }
+  if (tag === "credit_risk") {
+    return language === "fa" ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi riski" : "Credit risk";
+  }
+  if (["VIP", "Platinum", "Gold", "Silver", "Bronze"].includes(tag)) return levelLabel(tag, language);
+  return tag;
+}
+
 function actionLabel(action, language) {
   const mapFa = {
     urgent_call: "تماس فوری",
@@ -402,7 +413,7 @@ async function fetchCustomerFiles(customerId) {
               <div className="flex flex-wrap gap-2 mt-4">
                 {tags.map((tag) => (
                   <span key={tag} className="px-3 py-1 rounded-full bg-[var(--erp-glow)] text-[var(--erp-accent)] border border-[var(--erp-border)] text-xs font-bold">
-                    {tag}
+                    {tagLabel(tag, language)}
                   </span>
                 ))}
                 {!tags.length && (

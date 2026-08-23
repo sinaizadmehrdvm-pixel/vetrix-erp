@@ -233,7 +233,10 @@ def _profile(db, customer):
         "open_tasks_count": int(open_tasks),
         "lifetime_value": stats["total_sales"],
         "loyalty": loyalty,
-        "tags": ",".join([x for x in [loyalty.get("level"), "Needs Followup" if balance > 0 else "", "Credit Risk" if risk in ["high", "critical"] else ""] if x]),
+        # Raw semantic keys, never pre-formatted English text - the frontend
+        # (Customer360.jsx's tagLabel) translates these per the active UI
+        # language, the same way it already does for loyalty.level/risk_level.
+        "tags": ",".join([x for x in [loyalty.get("level"), "needs_followup" if balance > 0 else "", "credit_risk" if risk in ["high", "critical"] else ""] if x]),
     }
 
 def _invoice_dict(i):
@@ -368,9 +371,13 @@ def get_customer_timeline(customer_id: int, request: Request):
         entries = db.query(AccountingEntry).filter(AccountingEntry.customer_id == customer_id).all()
         events = []
         for i in invoices:
-            events.append({"id": f"invoice-{i.id}", "type": "invoice", "title": f"Invoice #{i.id}", "description": getattr(i, "invoice_type", ""), "amount": _safe_float(getattr(i, "total_amount", 0)), "created_at": _dt(getattr(i, "created_at", None)), "source": "invoice"})
+            # No English "Invoice #.." title baked in here - invoice_id/
+            # invoice_type are raw codes the frontend (CustomerTimeline.jsx)
+            # translates and formats per the active UI language, the same
+            # way it already does for accounting entries below.
+            events.append({"id": f"invoice-{i.id}", "type": "invoice", "invoice_id": i.id, "invoice_type": getattr(i, "invoice_type", ""), "amount": _safe_float(getattr(i, "total_amount", 0)), "created_at": _dt(getattr(i, "created_at", None)), "source": "invoice"})
         for e in entries:
-            events.append({"id": f"entry-{e.id}", "type": e.source_type or "accounting", "title": e.description or "Accounting entry", "description": e.entry_type or "", "amount": _safe_float(e.debit or e.credit), "created_at": _dt(getattr(e, "created_at", None)), "source": "accounting"})
+            events.append({"id": f"entry-{e.id}", "type": e.source_type or "accounting", "entry_type": e.entry_type or "", "title": e.description or "", "amount": _safe_float(e.debit or e.credit), "created_at": _dt(getattr(e, "created_at", None)), "source": "accounting"})
         with engine.connect() as conn:
             for source, table_name in [("note", "crm_notes"), ("task", "crm_tasks"), ("interaction", "crm_interactions")]:
                 rows = conn.execute(text(f"SELECT * FROM {table_name} WHERE customer_id=:cid"), {"cid": customer_id}).mappings().all()

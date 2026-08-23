@@ -54,24 +54,28 @@ function getEventLabel(event, language) {
   const labelSets = {
     fa: {
       invoice: "فاکتور", payment: "پرداخت", receipt: "دریافت", accounting: "حسابداری",
+      opening_balance: "مانده اول دوره",
       call: "تماس", sms: "پیامک", whatsapp: "واتساپ", email: "ایمیل", task: "وظیفه",
       note: "یادداشت", meeting: "جلسه", visit: "ویزیت", loyalty: "باشگاه مشتریان",
       customer: "مشتری", activity: "فعالیت",
     },
     ar: {
       invoice: "فاتورة", payment: "دفعة", receipt: "إيصال", accounting: "محاسبة",
+      opening_balance: "الرصيد الافتتاحي",
       call: "مكالمة", sms: "رسالة نصية", whatsapp: "واتساب", email: "بريد إلكتروني", task: "مهمة",
       note: "ملاحظة", meeting: "اجتماع", visit: "زيارة", loyalty: "برنامج الولاء",
       customer: "عميل", activity: "نشاط",
     },
     tr: {
       invoice: "Fatura", payment: "Ödeme", receipt: "Tahsilat", accounting: "Muhasebe",
+      opening_balance: "Açılış bakiyesi",
       call: "Arama", sms: "SMS", whatsapp: "WhatsApp", email: "E-posta", task: "Görev",
       note: "Not", meeting: "Toplantı", visit: "Ziyaret", loyalty: "Sadakat programı",
       customer: "Müşteri", activity: "Etkinlik",
     },
     en: {
       invoice: "Invoice", payment: "Payment", receipt: "Receipt", accounting: "Accounting",
+      opening_balance: "Opening balance",
       call: "Call", sms: "SMS", whatsapp: "WhatsApp", email: "Email", task: "Task",
       note: "Note", meeting: "Meeting", visit: "Visit", loyalty: "Loyalty",
       customer: "Customer", activity: "Activity",
@@ -93,6 +97,26 @@ function getEventTone(event) {
   if (type.includes("call") || type.includes("message") || type.includes("whatsapp")) return "border-blue-400/20 bg-blue-400/10 text-blue-200";
 
   return "border-slate-400/20 bg-slate-400/10 text-[var(--erp-text)]";
+}
+
+// The backend deliberately sends invoice_type/entry_type as raw codes
+// (never a hardcoded English title) - these turn them into this UI's
+// language, mirroring CustomerFinancial.jsx's invoiceTypeLabel/statusLabel.
+function invoiceTypeSuffix(invoiceType, tr) {
+  const map = {
+    sale: tr("فروش", "بيع", "Satış", "Sale"),
+    buy: tr("خرید", "شراء", "Alış", "Buy"),
+    proforma: tr("پیش‌فاکتور", "فاتورة أولية", "Proforma", "Proforma"),
+    return_sale: tr("مرجوعی فروش", "مرتجع بيع", "Satış iadesi", "Sale return"),
+    return_buy: tr("مرجوعی خرید", "مرتجع شراء", "Alış iadesi", "Buy return"),
+  };
+  return map[invoiceType] || "";
+}
+
+function entryTypeLabel(entryType, tr) {
+  if (entryType === "debit") return tr("بدهکار", "مدين", "Borç", "Debit");
+  if (entryType === "credit") return tr("بستانکار", "دائن", "Alacak", "Credit");
+  return "";
 }
 
 function normalizeEvents(events) {
@@ -259,7 +283,21 @@ export default function CustomerTimeline({
         <div className="absolute right-5 top-0 bottom-0 w-px bg-[var(--erp-border)] hidden md:block" />
 
         <div className="space-y-4 max-h-[650px] overflow-y-auto pr-1">
-          {filtered.map((event) => (
+          {filtered.map((event) => {
+            const raw = event.raw || {};
+            // Invoice events carry no title from the backend by design (see
+            // crm/router.py get_customer_timeline) - built here so it's
+            // always in the active UI language, never a hardcoded English
+            // "Invoice #.." string.
+            const displayTitle =
+              event.source === "invoice"
+                ? `${tr("فاکتور", "فاتورة", "Fatura", "Invoice")} #${n(raw.invoice_id ?? "")}${
+                    invoiceTypeSuffix(raw.invoice_type, tr) ? ` · ${invoiceTypeSuffix(raw.invoice_type, tr)}` : ""
+                  }`
+                : event.title;
+            const entryLabel = entryTypeLabel(raw.entry_type, tr);
+
+            return (
             <div key={event.id} className="relative md:pr-14">
               <div className={`hidden md:flex absolute right-0 top-4 w-10 h-10 rounded-2xl border items-center justify-center ${getEventTone(event)}`}>
                 {getEventIcon(event)}
@@ -273,7 +311,7 @@ export default function CustomerTimeline({
                     </div>
 
                     <div>
-                      <div className="font-black text-[var(--erp-text)]">{event.title || "-"}</div>
+                      <div className="font-black text-[var(--erp-text)]">{displayTitle || "-"}</div>
                       <div className="text-xs text-[var(--erp-muted)] mt-1">{formatDate(event.date, lang)}</div>
                     </div>
                   </div>
@@ -302,13 +340,19 @@ export default function CustomerTimeline({
                 )}
 
                 {event.amount > 0 && (
-                  <div className="mt-3 inline-flex px-3 py-2 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">
-                    {money(event.amount)}
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex px-3 py-2 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-black">
+                      {money(event.amount)}
+                    </div>
+                    {entryLabel && (
+                      <span className="text-xs text-[var(--erp-muted)] font-bold">{entryLabel}</span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {filtered.length === 0 && (
             <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-8 text-center text-[var(--erp-muted)]">
