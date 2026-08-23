@@ -91,6 +91,9 @@ def ocr_status():
     return {"available": _tesseract_available(), "command": _tesseract_command()}
 
 
+MAX_OCR_IMAGE_BYTES = 15 * 1024 * 1024
+
+
 @router.post("/extract")
 async def extract_document(file: UploadFile = File(...)):
     _require_tesseract()
@@ -98,8 +101,12 @@ async def extract_document(file: UploadFile = File(...)):
 
     pytesseract.pytesseract.tesseract_cmd = _tesseract_command()
 
-    contents = await file.read()
-    if len(contents) > 15 * 1024 * 1024:
+    # Bound the read itself (matches data_import.py/bank_reconciliation.py's
+    # convention) - reading the full body first and rejecting afterward
+    # would still let an authenticated caller force the server to buffer/
+    # spool an arbitrarily large upload before the size check ever fires.
+    contents = await file.read(MAX_OCR_IMAGE_BYTES + 1)
+    if len(contents) > MAX_OCR_IMAGE_BYTES:
         raise HTTPException(status_code=400, detail="Image is too large (max 15MB)")
 
     try:

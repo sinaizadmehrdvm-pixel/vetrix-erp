@@ -32,6 +32,7 @@ from sqlalchemy import Boolean, Column, DateTime, Integer, String, text
 from app.database import Base, SessionLocal, engine
 from app.email_utils import send_email_with_attachment, smtp_configured
 from app.export.pdf_export import _p, _register_font
+from app.export.security import sanitize_cell_value
 from app.company_scope import current_company_id
 
 FORMATS = {"pdf", "csv"}
@@ -161,7 +162,12 @@ def generate_csv(report_type: str, company_id: int) -> bytes:
     writer = csv.writer(buffer)
     writer.writerow([label for _, label in spec["columns"]])
     for row in rows:
-        writer.writerow([_format_cell(row.get(key)) for key, _ in spec["columns"]])
+        # sanitize_cell_value guards against formula/DDE injection (a cell
+        # starting with =, +, -, @) - only relevant for CSV, which a
+        # recipient typically opens directly in Excel/Sheets; generate_pdf
+        # below reuses _format_cell too but PDF text isn't executable, so
+        # sanitizing there would just visibly corrupt legitimate values.
+        writer.writerow([sanitize_cell_value(_format_cell(row.get(key))) for key, _ in spec["columns"]])
     # UTF-8 BOM so spreadsheet apps open Persian/Arabic text correctly.
     return buffer.getvalue().encode("utf-8-sig")
 

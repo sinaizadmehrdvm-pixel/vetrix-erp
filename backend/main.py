@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -1255,10 +1255,16 @@ def create_customer(data: CustomerCreate, request: Request):
         result = {"status": "created", "id": customer.id, "name": customer.name, "balance": customer_balance(db, customer.id)}
         db.close()
         return result
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
 
 
 @app.get("/customers/{customer_id}")
@@ -1397,10 +1403,16 @@ def update_customer(customer_id: int, data: CustomerCreate, request: Request):
         result = {"status": "updated", "customer": customer_to_dict(db, customer), "old_opening_balance": old_opening}
         db.close()
         return result
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
 
 
 @app.delete("/customers/{customer_id}")
@@ -1423,10 +1435,12 @@ def delete_customer(customer_id: int, request: Request):
         db.commit()
         db.close()
         return {"status": "deleted", "id": customer_id}
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/products")
@@ -1544,9 +1558,14 @@ def create_product(data: ProductCreate, request: Request):
         db.commit()
         db.refresh(product)
         return {"status": "created", **product_to_dict(product)}
-    except Exception as error:
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -1617,9 +1636,14 @@ def update_product(product_id: int, data: ProductCreate, request: Request):
         db.commit()
         db.refresh(product)
         return {"status": "updated", **product_to_dict(product)}
-    except Exception as error:
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -1662,10 +1686,17 @@ def delete_product(product_id: int, request: Request):
 
         return {"status": "deleted", "id": product_id}
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
 
 def invoice_settled_amount(db: Session, invoice: Invoice, policy=None) -> float:
     policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
@@ -2076,9 +2107,11 @@ def _create_invoice_impl(data: InvoiceCreate, company_id: int, created_by: Optio
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2168,9 +2201,11 @@ def update_invoice(invoice_id: int, data: InvoiceCreate, request: Request):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2230,9 +2265,11 @@ def convert_proforma_invoice(invoice_id: int, request: Request):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2312,9 +2349,11 @@ def convert_catalog_order_to_invoice(order_id: int, request: Request):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2371,10 +2410,12 @@ def list_invoices(request: Request):
         db.close()
         return result
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/invoices/{invoice_id}")
@@ -2451,10 +2492,12 @@ def get_invoice(invoice_id: int, request: Request):
         db.close()
         return result
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.post("/transactions")
@@ -2529,9 +2572,11 @@ def _create_payment_or_receipt_impl(data: PaymentCreate, company_id: int):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2651,9 +2696,11 @@ def update_transaction(transaction_id: int, data: PaymentCreate, request: Reques
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
@@ -2841,9 +2888,19 @@ def create_stock_movement(data: StockMovementCreate, request: Request):
             "stock_delta": stock_delta,
             "stock": updated_stock,
         }
-    except Exception as error:
+    except HTTPException:
+        db.rollback()
+        raise
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except Exception:
+        db.rollback()
+        # Anything not already a deliberate ValueError/HTTPException above
+        # must not echo str(error) to the caller - bare-raise and let the
+        # global handler return a sanitized message instead of leaking
+        # internals (SQL/schema detail etc.).
+        raise
     finally:
         db.close()
     
@@ -2910,14 +2967,18 @@ def delete_invoice(invoice_id: int, request: Request):
             "customer_id": customer_id,
         }
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {
-            "status": "error",
-            "message": str(e),
-        }
-    
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
+
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(transaction_id: int, request: Request):
     db: Session = SessionLocal()
@@ -2959,14 +3020,18 @@ def delete_transaction(transaction_id: int, request: Request):
             "source_id": source_id,
         }
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {
-            "status": "error",
-            "message": str(e),
-        }
-    
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
+
 @app.delete("/admin/reset-accounting-data")
 def reset_accounting_data(request: Request):
     db: Session = SessionLocal()
@@ -2988,14 +3053,13 @@ def reset_accounting_data(request: Request):
             "message": "All accounting data removed"
         }
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
 
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        raise
 
 
 @app.get("/dashboard-stats")
@@ -3103,9 +3167,11 @@ def dashboard_stats(request: Request):
 
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 def _entry_amount(entry):
@@ -3643,9 +3709,11 @@ def reports_overview(request: Request):
         result = build_reports_payload(db, current_company_id(request))
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/profit-loss")
@@ -3655,9 +3723,12 @@ def reports_profit_loss(request: Request):
         result = build_reports_payload(db, current_company_id(request))["profit_loss"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
+
 
 @app.get("/reports/product-profit")
 def reports_product_profit(request: Request = None):
@@ -3733,9 +3804,11 @@ def _reports_product_profit_impl(company_id: int):
 
         db.close()
         return {"items": rows}
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/customer-balances")
@@ -3805,9 +3878,11 @@ def _reports_customer_balances_impl(company_id: int):
             "debtors": debtors,
             "creditors": creditors,
         }
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/inventory-movements")
@@ -3831,9 +3906,11 @@ def reports_trial_balance(request: Request):
         result = build_reports_payload(db, current_company_id(request))["trial_balance"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/open-invoices")
@@ -3848,9 +3925,11 @@ def _reports_open_invoices_impl(company_id: int):
         result = {"summary": payload["invoice_summary"], "items": payload["open_invoices"]}
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/cashflow")
@@ -3865,9 +3944,11 @@ def reports_cashflow(request: Request):
         }
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/top-customers")
@@ -3878,9 +3959,11 @@ def reports_top_customers(request: Request):
         result = {"debtors": payload["top_debtors"], "creditors": payload["top_creditors"]}
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/inventory")
@@ -3894,9 +3977,11 @@ def _reports_inventory_impl(company_id: int):
         result = build_reports_payload(db, company_id)["inventory"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/sales")
@@ -3910,9 +3995,11 @@ def _reports_sales_impl(company_id: int):
         result = build_reports_payload(db, company_id)["sales"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/purchases")
@@ -3926,9 +4013,11 @@ def _reports_purchases_impl(company_id: int):
         result = build_reports_payload(db, company_id)["purchases"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/activity")
@@ -4433,9 +4522,18 @@ def print_invoice_preview(
         db.close()
         return _print_page(invoice_title, body, language)
 
-    except Exception as e:
+    except Exception:
         db.close()
-        return HTMLResponse(f"<h2>خطا</h2><pre>{_esc(e)}</pre>", status_code=500)
+        # Never echo the raw exception text (may contain SQL/internal detail)
+        # into this browser-rendered page - the real error is still logged
+        # server-side via the global handler's own logging path for any
+        # OTHER route; this one intentionally stays a friendly HTML page.
+        _logger.exception("Failed to render invoice print page")
+        return HTMLResponse(
+            f"<h2>{_print_label(language, 'خطا', 'Error')}</h2>"
+            f"<p>{_print_label(language, 'امکان تولید این صفحه وجود ندارد.', 'This page could not be generated.')}</p>",
+            status_code=500,
+        )
 
 @app.get("/print/transaction/{entry_id}")
 def print_transaction_receipt(entry_id: int, request: Request, language: str = "fa"):
@@ -4501,9 +4599,14 @@ def print_transaction_receipt(entry_id: int, request: Request, language: str = "
         db.close()
         return _print_page(title, body, language)
 
-    except Exception as e:
+    except Exception:
         db.close()
-        return HTMLResponse(f"<h2>Error</h2><pre>{_esc(e)}</pre>", status_code=500)
+        _logger.exception("Failed to render transaction print page")
+        return HTMLResponse(
+            f"<h2>{_print_label(language, 'خطا', 'Error')}</h2>"
+            f"<p>{_print_label(language, 'امکان تولید این صفحه وجود ندارد.', 'This page could not be generated.')}</p>",
+            status_code=500,
+        )
 
 
 @app.get("/print/receipt/{entry_id}")

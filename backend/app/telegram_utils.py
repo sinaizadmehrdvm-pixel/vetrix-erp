@@ -38,12 +38,19 @@ def send_telegram_message(company_id: int | None, chat_id: str, text: str, timeo
     if not chat_id:
         raise ValueError("This customer has no Telegram chat linked yet")
 
-    response = httpx.post(
-        TELEGRAM_API_URL.format(token=token, method="sendMessage"),
-        json={"chat_id": chat_id, "text": text},
-        timeout=timeout,
-    )
-    data = response.json()
+    try:
+        response = httpx.post(
+            TELEGRAM_API_URL.format(token=token, method="sendMessage"),
+            json={"chat_id": chat_id, "text": text},
+            timeout=timeout,
+        )
+        data = response.json()
+    except httpx.HTTPError as error:
+        # httpx's own exception message (and any connection-level error)
+        # includes the full request URL, which embeds the bot token - never
+        # let that reach a caller that might persist or display str(error)
+        # (e.g. a dispatch-log entry visible in the UI).
+        raise ValueError(f"Could not reach Telegram ({type(error).__name__})") from None
     if not data.get("ok"):
         raise ValueError(data.get("description") or "Telegram rejected the request")
     return {"status": "sent", "provider": "telegram"}
@@ -61,13 +68,16 @@ def send_telegram_document(company_id: int | None, chat_id: str, filename: str, 
     if not chat_id:
         raise ValueError("No Telegram chat is linked for this recipient")
 
-    response = httpx.post(
-        TELEGRAM_API_URL.format(token=token, method="sendDocument"),
-        data={"chat_id": chat_id, "caption": caption[:1024]},
-        files={"document": (filename, content, "application/octet-stream")},
-        timeout=timeout,
-    )
-    data = response.json()
+    try:
+        response = httpx.post(
+            TELEGRAM_API_URL.format(token=token, method="sendDocument"),
+            data={"chat_id": chat_id, "caption": caption[:1024]},
+            files={"document": (filename, content, "application/octet-stream")},
+            timeout=timeout,
+        )
+        data = response.json()
+    except httpx.HTTPError as error:
+        raise ValueError(f"Could not reach Telegram ({type(error).__name__})") from None
     if not data.get("ok"):
         raise ValueError(data.get("description") or "Telegram rejected the document")
     return {"status": "sent", "provider": "telegram"}

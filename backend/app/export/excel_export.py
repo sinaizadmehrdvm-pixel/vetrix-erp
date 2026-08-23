@@ -2,6 +2,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from app.export.security import sanitize_cell_value
+
 EXCEL_PATH = "vetrix_invoices.xlsx"
 
 
@@ -47,7 +49,7 @@ def build_invoice_excel(invoices, settings=None, customers=None, language="en", 
         total = float(_get(inv, "total_amount", 0) or 0)
         settled = float(_get(inv, "settled_amount", 0) or 0)
         remaining = float(_get(inv, "remaining_amount", total - settled) or 0)
-        ws.append([
+        ws.append([sanitize_cell_value(cell) for cell in [
             _get(inv, "id", ""),
             str(_get(inv, "created_at", "") or "")[:19].replace("T", " "),
             _get(inv, "invoice_type", ""),
@@ -61,7 +63,7 @@ def build_invoice_excel(invoices, settings=None, customers=None, language="en", 
             remaining,
             _get(inv, "payment_status", _get(inv, "status", "")),
             currency_code,
-        ])
+        ]])
         for column in range(5, 12):
             ws.cell(ws.max_row, column).number_format = number_format
 

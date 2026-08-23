@@ -196,6 +196,13 @@ def apply_warehouse_delta(db: Session, warehouse_id: Optional[int], product_id: 
     default = _ensure_default_warehouse(db, company_id)
     if warehouse_id == default.id:
         return
+    # Every caller passes a client-suppliable warehouse_id (an invoice line,
+    # a stock-movement request) - re-validate it belongs to this company
+    # before writing a stock row against it, same as transfer_stock()/
+    # purchase_orders.py already do for their own warehouse_id params.
+    owned = db.query(Warehouse.id).filter(Warehouse.id == warehouse_id, Warehouse.company_id == company_id).first()
+    if not owned:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
     row = _get_or_create_row(db, warehouse_id, product_id, company_id)
     row.quantity = float(row.quantity or 0) + delta
 

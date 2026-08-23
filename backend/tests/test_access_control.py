@@ -7547,6 +7547,39 @@ class ApiAccessControlTests(unittest.TestCase):
         )
         self.assertEqual(oversized_csv.status_code, 413, oversized_csv.text)
 
+        # --- uploads: the 3 endpoints from the ORIGINAL size-limit sweep
+        # never actually had a direct oversized-payload regression test
+        # (only the 2 caught later by independent review did) ---
+        oversized_expense = self.client.post(
+            "/expenses", headers=admin_headers, json={"title": "Phase C Upload Test Expense", "amount": 1},
+        )
+        self.assertEqual(oversized_expense.status_code, 200, oversized_expense.text)
+        oversized_attachment = self.client.post(
+            f"/api/accounting/attachments/expense/{oversized_expense.json()['id']}", headers=admin_headers,
+            files={"file": ("big.bin", oversized, "application/octet-stream")},
+        )
+        self.assertEqual(oversized_attachment.status_code, 413, oversized_attachment.text)
+
+        oversized_customer = self.client.post(
+            "/customers", headers=admin_headers, json={"name": "Phase C Upload Test Customer"},
+        )
+        self.assertEqual(oversized_customer.status_code, 200, oversized_customer.text)
+        oversized_crm_file = self.client.post(
+            f"/api/crm/customers/{oversized_customer.json()['id']}/files", headers=admin_headers,
+            files={"file": ("big.bin", oversized, "application/octet-stream")},
+        )
+        self.assertEqual(oversized_crm_file.status_code, 413, oversized_crm_file.text)
+
+        oversized_employee = self.client.post(
+            "/api/hr", headers=admin_headers, json={"first_name": "Phase C", "last_name": "Upload Test"},
+        )
+        self.assertEqual(oversized_employee.status_code, 200, oversized_employee.text)
+        oversized_hr_doc = self.client.post(
+            f"/api/hr/{oversized_employee.json()['id']}/documents", headers=admin_headers,
+            files={"file": ("big.bin", oversized, "application/octet-stream")},
+        )
+        self.assertEqual(oversized_hr_doc.status_code, 413, oversized_hr_doc.text)
+
         # --- payment session reuse never charges a stale amount after a
         # partial payment lands on the invoice within the reuse window ---
         with patch.dict(os.environ, {"VETRIX_PAYMENT_PROVIDER": "sandbox"}):
@@ -7657,6 +7690,152 @@ class ApiAccessControlTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 with self.client.websocket_connect("/ws/notifications?token=not-a-real-token"):
                     pass
+
+    def test_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_security_phase_e_acceptance_regressions(self):
+        """SECURITY PHASE E: proves the confirmed final-acceptance findings
+        stay fixed - document-OCR upload size is bounded during the read
+        itself, not read-then-rejected."""
+        admin_headers, _ = self._login("ci-admin", "StrongAdminPassword!42")
+
+        from unittest.mock import patch
+        from app import document_ocr as document_ocr_module
+
+        oversized = b"x" * (16 * 1024 * 1024)
+        with patch.object(document_ocr_module, "_require_tesseract", lambda: None):
+            oversized_ocr = self.client.post(
+                "/api/document-ocr/extract", headers=admin_headers,
+                files={"file": ("big.png", oversized, "image/png")},
+            )
+        self.assertEqual(oversized_ocr.status_code, 400, oversized_ocr.text)
+        self.assertIn("too large", oversized_ocr.json()["detail"].lower())
+
+        # --- a foreign company's warehouse_id can no longer be used to
+        # write a stock-movement row against it ---
+        company_e = self.client.post("/api/companies", headers=admin_headers, json={"name": "Phase E Tenant Co"})
+        self.assertEqual(company_e.status_code, 200, company_e.text)
+        foreign_admin = self.client.post(
+            "/users", headers=admin_headers,
+            json={"full_name": "Phase E Foreign Admin", "username": "phasee-foreign-admin",
+                  "password": "StrongPhaseEForeign!42", "role": "admin", "company_id": company_e.json()["id"]},
+        )
+        self.assertEqual(foreign_admin.status_code, 200, foreign_admin.text)
+        foreign_headers, _ = self._login("phasee-foreign-admin", "StrongPhaseEForeign!42")
+        foreign_warehouse = self.client.post(
+            "/api/warehouses", headers=foreign_headers, json={"name": "Phase E Foreign Warehouse", "code": "PE-FW"},
+        )
+        self.assertEqual(foreign_warehouse.status_code, 200, foreign_warehouse.text)
+        foreign_warehouse_id = foreign_warehouse.json()["id"]
+
+        own_product = self.client.post(
+            "/products", headers=admin_headers, json={"name": "Phase E Warehouse Test Widget", "sell_price": 100, "stock": 50},
+        )
+        self.assertEqual(own_product.status_code, 200, own_product.text)
+
+        cross_tenant_movement = self.client.post(
+            "/stock-movements", headers=admin_headers,
+            json={"product_id": own_product.json()["id"], "warehouse_id": foreign_warehouse_id,
+                  "quantity": 5, "movement_type": "in"},
+        )
+        self.assertEqual(cross_tenant_movement.status_code, 404, cross_tenant_movement.text)
+
+        # Same-company warehouse usage still works.
+        own_warehouse = self.client.post(
+            "/api/warehouses", headers=admin_headers, json={"name": "Phase E Own Warehouse", "code": "PE-OW"},
+        )
+        self.assertEqual(own_warehouse.status_code, 200, own_warehouse.text)
+        same_tenant_movement = self.client.post(
+            "/stock-movements", headers=admin_headers,
+            json={"product_id": own_product.json()["id"], "warehouse_id": own_warehouse.json()["id"],
+                  "quantity": 5, "movement_type": "in"},
+        )
+        self.assertEqual(same_tenant_movement.status_code, 200, same_tenant_movement.text)
+
+        # --- create_product/update_product's business-rule ValueErrors
+        # (e.g. "negative stock") must still come back as a 200
+        # {"status": "error", ...} body, not escape into the sanitized 500
+        # handler - these two endpoints raise ValueError for expected
+        # validation failures, not unexpected internal errors ---
+        negative_stock_create = self.client.post(
+            "/products", headers=admin_headers,
+            json={"name": "Phase E Negative Stock Widget", "sell_price": 100, "stock": -5},
+        )
+        self.assertEqual(negative_stock_create.status_code, 200, negative_stock_create.text)
+        self.assertEqual(negative_stock_create.json()["status"], "error")
+
+        negative_stock_update = self.client.put(
+            f"/products/{own_product.json()['id']}", headers=admin_headers,
+            json={"name": "Phase E Warehouse Test Widget", "sell_price": 100, "stock": -5},
+        )
+        self.assertEqual(negative_stock_update.status_code, 200, negative_stock_update.text)
+        self.assertEqual(negative_stock_update.json()["status"], "error")
+
+        # --- a business-rule ValueError raised transitively (not directly
+        # in the endpoint's own try body) through
+        # delete_source_voucher/post_balanced_voucher's
+        # assert_source_period_open - e.g. editing a customer whose opening-
+        # balance voucher lives in a now-closed fiscal period - must also
+        # come back as {"status": "error", ...}, not escape as a sanitized
+        # 500. Independent review of the Phase E diff caught this same bug
+        # class (already fixed once for create_product/update_product's own
+        # direct `raise ValueError`) at 5 more sites where the ValueError
+        # is only raised by a callee: create_customer, update_customer,
+        # delete_product, delete_invoice, delete_transaction.
+        #
+        # Run this under the fresh "Phase E Tenant Co" company (created
+        # above for the warehouse-isolation check) rather than the shared
+        # ci-admin company: by this point in the suite ci-admin's company
+        # may already have an auto-vivified Fiscal <year> period covering
+        # today (assign_unassigned_vouchers, periods.py) from an earlier
+        # test's dated voucher, which would make this explicit same-day
+        # period POST fail with a spurious overlap instead of the intended
+        # closed-period assertion. company_e has no accounting activity yet
+        # (only a warehouse was created against it), so it starts with zero
+        # fiscal periods.
+        today_str = datetime.utcnow().date().isoformat()
+        closed_period = self.client.post(
+            "/api/accounting/periods", headers=foreign_headers,
+            json={"name": "Phase E Closed Period", "start_date": today_str, "end_date": today_str},
+        )
+        self.assertEqual(closed_period.status_code, 200, closed_period.text)
+        closed_period_id = closed_period.json()["id"]
+
+        period_customer = self.client.post(
+            "/customers", headers=foreign_headers,
+            json={"name": "Phase E Closed Period Customer", "opening_balance": 500},
+        )
+        self.assertEqual(period_customer.status_code, 200, period_customer.text)
+
+        close_result = self.client.post(f"/api/accounting/periods/{closed_period_id}/close", headers=foreign_headers)
+        self.assertEqual(close_result.status_code, 200, close_result.text)
+
+        blocked_update = self.client.put(
+            f"/customers/{period_customer.json()['id']}", headers=foreign_headers,
+            json={"name": "Phase E Closed Period Customer Renamed", "opening_balance": 500},
+        )
+        self.assertEqual(blocked_update.status_code, 200, blocked_update.text)
+        self.assertEqual(blocked_update.json()["status"], "error")
+        self.assertIn("closed", blocked_update.json()["message"].lower())
+
+        # --- a genuinely unexpected internal exception in main.py no
+        # longer echoes str(exception) to the client - it now bare-raises
+        # into the sanitized global handler, matching the pattern Phase C
+        # already applied to 4 other files (this sweep covers main.py
+        # itself, which that earlier pass never touched: ~31 sites) ---
+        import main as main_module
+
+        # A dedicated client with raise_server_exceptions=False: the default
+        # client re-raises the underlying exception into the test instead of
+        # returning the sanitized HTTP response, which is exactly the
+        # response body this test needs to inspect.
+        no_raise_client = TestClient(main_module.app, raise_server_exceptions=False)
+        with patch.object(main_module, "customer_balance", side_effect=RuntimeError("SELECT * FROM accounting_entries WHERE secret_column=1")):
+            forced_failure = no_raise_client.post(
+                "/customers", headers=admin_headers, json={"name": "Phase E Forced Failure Customer"},
+            )
+        self.assertEqual(forced_failure.status_code, 500, forced_failure.text)
+        self.assertEqual(forced_failure.json(), {"detail": "Internal server error"})
+        self.assertNotIn("accounting_entries", forced_failure.text)
+        self.assertNotIn("SELECT", forced_failure.text)
 
 
 if __name__ == "__main__":

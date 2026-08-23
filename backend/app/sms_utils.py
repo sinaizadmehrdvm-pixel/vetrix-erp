@@ -43,12 +43,22 @@ def send_sms(company_id: int | None, to_number: str, text: str, timeout: int = 1
     if settings["panel"] != "kavenegar":
         raise ValueError(f"SMS provider '{settings['panel']}' is not supported yet")
 
-    response = httpx.post(
-        KAVENEGAR_SEND_URL.format(api_key=settings["api_key"]),
-        data={"receptor": to_number, "message": text},
-        timeout=timeout,
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.post(
+            KAVENEGAR_SEND_URL.format(api_key=settings["api_key"]),
+            data={"receptor": to_number, "message": text},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        # httpx's own exception message (and any connection-level error
+        # below) includes the full request URL, which embeds the API key
+        # for this provider - never let that reach a caller that might
+        # persist or display str(error) (e.g. a dispatch-log entry visible
+        # in the UI). The status code alone is safe and useful to surface.
+        raise ValueError(f"SMS provider returned an error (HTTP {error.response.status_code})") from None
+    except httpx.HTTPError as error:
+        raise ValueError(f"Could not reach the SMS provider ({type(error).__name__})") from None
     data = response.json()
     status = (data.get("return") or {}).get("status")
     if status != 200:

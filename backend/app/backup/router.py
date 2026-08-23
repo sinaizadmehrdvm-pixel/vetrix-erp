@@ -71,6 +71,7 @@ def download_backup(filename: str, request: Request):
         backup_directory() / filename,
         media_type="application/vnd.sqlite3",
         filename=filename,
+        headers={"Cache-Control": "no-store"},
     )
 
 

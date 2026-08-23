@@ -5,7 +5,7 @@ the moment the exported file is opened. Nothing in this codebase guarded
 against this before; apply it at the point a cell is written, everywhere
 user-supplied text reaches an XLSX.
 """
-FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@")
+FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
 
 
 def sanitize_cell_value(value):
