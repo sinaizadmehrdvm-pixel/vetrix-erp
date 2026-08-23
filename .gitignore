@@ -13,6 +13,9 @@ build/
 package/
 VetrixERP-Windows-x64.zip
 VetrixERP-Windows-x64.sha256
+# PyInstaller regenerates this file with backend-relative paths if run
+# from inside backend/ instead of the repo root, where the real one lives.
+backend/VetrixERP.spec
 .vite/
 .DS_Store
 *.log

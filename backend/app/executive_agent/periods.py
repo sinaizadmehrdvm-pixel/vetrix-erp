@@ -9,7 +9,7 @@ exact same Monday-start convention as main.py's own _week_start(), so an
 agent answer about "this week" means the same thing the dashboard already
 means by it.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.data_import import _jalali_to_gregorian, _normalize_digits
 from app.export.localization import _gregorian_to_jalali
@@ -83,7 +83,11 @@ def resolve_period(phrase, language="en", today=None):
     """Returns {start_date, end_date, label, calendar} for a recognized
     business date-period phrase, or None if the phrase isn't recognized -
     callers must treat None as "ask for clarification," never guess."""
-    today = today or date.today()
+    # UTC, not local server time - every created_at this period is queried
+    # against (via tools.py's _invoices_in_range et al.) is stored with
+    # datetime.utcnow(); date.today() (local) would disagree with it for
+    # several hours after each local midnight.
+    today = today or datetime.utcnow().date()
     phrase_norm = _normalize_digits(str(phrase or "")).strip().lower()
     jy, jm, jd = _gregorian_to_jalali(today.year, today.month, today.day)
 

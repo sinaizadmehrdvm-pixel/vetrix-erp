@@ -14,7 +14,7 @@ agent.py) BEFORE a tool ever runs - the tool itself does not re-derive
 authorization, matching how every other module in this codebase relies on
 its caller having already resolved current_company_id()/the actor's role.
 """
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 from sqlalchemy import text
@@ -36,7 +36,11 @@ def _shim_request(company_id: int):
 def _default_range(start_date, end_date):
     if start_date and end_date:
         return start_date, end_date
-    today = date.today()
+    # UTC, not local server time: every created_at this queries against
+    # (Invoice/AccountingEntry, via _invoices_in_range below) is stored with
+    # datetime.utcnow() - date.today() (local) would disagree with it for
+    # several hours after each local midnight, undercounting "today".
+    today = datetime.utcnow().date()
     return today, today
 
 
@@ -108,7 +112,8 @@ def get_daily_company_summary(company_id, branch_id=None, start_date=None, end_d
     document alerts across 7 real sources) plus today's own sales/cash
     figures - never re-derives any of those calculations."""
     from app.executive_alerts import executive_alerts_summary
-    today = date.today()
+    # UTC, not local server time - see _default_range's comment above.
+    today = datetime.utcnow().date()
     db = SessionLocal()
     try:
         invoices_today = _invoices_in_range(db, company_id, today, today)
