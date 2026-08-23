@@ -28,6 +28,7 @@ export default function Card({
   tone,
   level = 2,
   clip = true,
+  fillHeight = false,
   className = "",
   children,
   ...rest
@@ -57,6 +58,15 @@ export default function Card({
         // a page whose card body hosts a Select needs `clip={false}` to
         // let that popup escape the card instead of being cut off.
         overflow: clip ? "hidden" : "visible",
+        // Opt-in (default false, so every existing caller is unaffected -
+        // `height:100%` on a card whose own height is auto just resolves
+        // to "auto" per spec, but the flex column only matters once a
+        // parent grid's `items-stretch` has actually given the card a
+        // taller height than its content needs). Lets a card in a
+        // stretched grid pair distribute that extra height inside its own
+        // body (see the content wrapper below) instead of just leaving it
+        // as blank space after the content.
+        ...(fillHeight ? { display: "flex", flexDirection: "column", height: "100%" } : null),
       }}
       {...rest}
     >
@@ -101,7 +111,14 @@ export default function Card({
           {action}
         </div>
       ) : null}
-      <div style={padding ? { padding: 20 } : undefined}>{children}</div>
+      <div
+        style={{
+          ...(padding ? { padding: 20 } : null),
+          ...(fillHeight ? { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } : null),
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

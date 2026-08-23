@@ -5,9 +5,16 @@
 import { Children, cloneElement } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import Skeleton from "./Skeleton";
-export function Table({ className = "", children, ...rest }) {
+// `scrollable=false` opts a caller out of the wrapper's `overflow-x-auto` -
+// default stays `true` so every existing caller's rendered output is
+// unchanged. A page that has genuinely eliminated horizontal overflow
+// (percentage column widths under `table-layout:fixed`, so the table can
+// never exceed 100% of its container) can pass `scrollable={false}` to
+// drop the wrapper entirely, rather than keep a scroll affordance that
+// would only ever fire on this table's own layout bugs going forward.
+export function Table({ className = "", children, scrollable = true, ...rest }) {
   return (
-    <div className="overflow-x-auto" style={{ borderRadius: "var(--erp-radius-lg)" }}>
+    <div className={scrollable ? "overflow-x-auto" : undefined} style={{ borderRadius: "var(--erp-radius-lg)" }}>
       <table
         className={["w-full", className].join(" ")}
         style={{

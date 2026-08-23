@@ -5,7 +5,11 @@ export default function Tabs({ tabs, activeId, onChange, className = "" }) {
   return (
     <div
       role="tablist"
-      className={["flex items-center gap-1 overflow-x-auto", className].join(" ")}
+      // `flex-wrap`, not `overflow-x-auto` - a row of 5+ tabs (some with
+      // long labels) at laptop/tablet widths didn't have room to sit on
+      // one line; scrolling hides tabs off-screen with no visual hint
+      // they exist, wrapping keeps every label fully visible instead.
+      className={["flex items-center flex-wrap gap-1", className].join(" ")}
       style={{
         borderBottom: "1px solid var(--erp-border)",
         padding: "0 4px",
@@ -23,7 +27,7 @@ export default function Tabs({ tabs, activeId, onChange, className = "" }) {
             onClick={() => onChange(tab.id)}
             className="inline-flex items-center gap-2 shrink-0 whitespace-nowrap"
             style={{
-              padding: "11px 14px",
+              padding: "12px 16px",
               fontSize: 14,
               fontWeight: 700,
               background: "transparent",
