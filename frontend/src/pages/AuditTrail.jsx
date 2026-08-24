@@ -231,8 +231,8 @@ export default function AuditTrail() {
               { value: "false", label: copy.failed },
             ]}
           />
-          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.from}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.from_date} onChange={(iso) => setFilters({ ...filters, from_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px]" /></div></label>
-          <label style={{ color: "var(--erp-muted)", fontSize: 12 }}>{copy.to}<div style={{ marginTop: 5 }}><JalaliDateField value={filters.to_date} onChange={(iso) => setFilters({ ...filters, to_date: iso })} fa={language === "fa"} language={language} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px]" /></div></label>
+          <JalaliDateField value={filters.from_date} onChange={(iso) => setFilters({ ...filters, from_date: iso })} fa={language === "fa"} language={language} placeholder={copy.from} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px] w-full" />
+          <JalaliDateField value={filters.to_date} onChange={(iso) => setFilters({ ...filters, to_date: iso })} fa={language === "fa"} language={language} placeholder={copy.to} className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-[var(--erp-radius-md)] p-[11px_12px] w-full" />
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 13, flexWrap: "wrap" }}>
           <button type="submit" style={{ display: "flex", alignItems: "center", gap: 7, border: 0, borderRadius: 12, padding: "10px 15px", background: "var(--erp-accent)", color: "#06202a", fontWeight: 900, cursor: "pointer" }}><Search size={16} />{copy.apply}</button>
