@@ -1,4 +1,4 @@
-Vetrix ERP 1.4.0 — Windows Portable
+Vetrix ERP 1.4.1 — Windows Portable
 
 Local use (default and safest mode)
 

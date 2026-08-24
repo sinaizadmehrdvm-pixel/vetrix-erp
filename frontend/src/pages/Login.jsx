@@ -25,7 +25,7 @@ import Notice from "../components/ui/Notice";
 import BrandLogo from "../components/brand/BrandLogo";
 import heroArtwork from "../assets/hero.png";
 
-const APP_VERSION_FALLBACK = "1.4.0";
+const APP_VERSION_FALLBACK = "1.4.1";
 const EASE = [0.16, 1, 0.3, 1];
 
 const LANGUAGE_OPTIONS = [

@@ -1,6 +1,6 @@
 # Vetrix ERP Frontend
 
-Release version: 1.4.0.
+Release version: 1.4.1.
 
 ## React + Vite
 

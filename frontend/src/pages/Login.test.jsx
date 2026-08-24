@@ -26,7 +26,7 @@ function renderAuth(initialPath = '/login') {
 function setupStatus(payload) {
   return {
     ok: true,
-    json: async () => ({ version: '1.4.0', ...payload }),
+    json: async () => ({ version: '1.4.1', ...payload }),
   };
 }
 
@@ -49,7 +49,7 @@ describe('Login auth experience', () => {
 
     expect(await screen.findByRole('button', { name: /create administrator/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
-    expect(screen.getByText('v1.4.0')).toBeInTheDocument();
+    expect(screen.getByText('v1.4.1')).toBeInTheDocument();
     expect(screen.queryByLabelText(/role/i)).not.toBeInTheDocument();
   });
 
