@@ -6,7 +6,6 @@ import JalaliDateField from "../components/forms/JalaliDateField";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, cleanNumberInput, invoiceTypeLabel } from "../localization/helpers";
 import { getAgingReport } from "../services/agingApi";
-import ReportHeader from "../components/reports/ReportHeader";
 import ReportFooter from "../components/reports/ReportFooter";
 
 export default function AgingReport() {
@@ -87,12 +86,6 @@ export default function AgingReport() {
         <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", alignSelf: "end" }}><Printer size={16} />{copy.print}</button>
       </div>
     </header>
-    <ReportHeader
-      title={copy.title}
-      subtitle={copy.subtitle}
-      period={asOf ? date(asOf) : undefined}
-      filterSummary={side !== "all" ? copy[side] : undefined}
-    />
     {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
     {data && <>
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(185px,1fr))", gap: 12, marginBottom: 16 }}>

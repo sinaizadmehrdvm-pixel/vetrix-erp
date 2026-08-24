@@ -18,7 +18,6 @@ import { getFiscalPeriods } from "../services/fiscalPeriodsApi";
 import { getFinancialStatements } from "../services/financialStatementsApi";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import Select from "../components/ui/Select";
-import ReportHeader from "../components/reports/ReportHeader";
 import ReportFooter from "../components/reports/ReportFooter";
 
 export default function FinancialStatements() {
@@ -170,7 +169,9 @@ export default function FinancialStatements() {
   const button = {
     border: 0,
     borderRadius: 13,
-    padding: "11px 15px",
+    padding: "0 15px",
+    height: 44,
+    boxSizing: "border-box",
     fontWeight: 900,
     cursor: "pointer",
   };
@@ -202,7 +203,7 @@ export default function FinancialStatements() {
             fa={language === "fa"}
             language={language}
             placeholder={copy.fromDate}
-            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}
+            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "0 13px", height: 44, boxSizing: "border-box", alignItems: "center" }}
           />
           <JalaliDateField
             value={endDate}
@@ -210,20 +211,13 @@ export default function FinancialStatements() {
             fa={language === "fa"}
             language={language}
             placeholder={copy.toDate}
-            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "10px 13px" }}
+            style={{ background: "var(--erp-panel-solid)", color: "var(--erp-text)", border: "1px solid var(--erp-border)", borderRadius: 13, padding: "0 13px", height: 44, boxSizing: "border-box", alignItems: "center" }}
           />
           <button onClick={() => load()} disabled={loading} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-accent)", display: "flex", gap: 7, alignItems: "center" }}><RefreshCw size={16} />{loading ? "..." : copy.refresh}</button>
           <button onClick={downloadCsv} style={{ ...button, background: "var(--erp-success-solid)", color: "var(--erp-success-solid-text)", display: "flex", gap: 7, alignItems: "center" }}><Download size={16} />{copy.export}</button>
           <button onClick={() => window.print()} style={{ ...button, background: "var(--erp-panel-solid)", color: "var(--erp-text)", display: "flex", gap: 7, alignItems: "center" }}><Printer size={16} />{copy.print}</button>
         </div>
       </header>
-
-      <ReportHeader
-        title={copy.title}
-        subtitle={copy.subtitle}
-        period={data?.period?.name || (data?.date_range ? `${date(data.date_range.start_date)} — ${date(data.date_range.end_date)}` : copy.allTime)}
-        filterSummary={active === "balance" ? copy.balance : active === "income" ? copy.income : copy.cash}
-      />
 
       {error && <div className="text-red-200" style={{ ...card, padding: 16, marginBottom: 17 }}>{error}</div>}
 

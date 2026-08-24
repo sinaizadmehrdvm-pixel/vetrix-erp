@@ -44,7 +44,6 @@ import moment from "moment-jalaali";
 import { useLanguage } from "../localization/useLanguage";
 import { toPersianDigits, paymentStatusLabel } from "../localization/helpers";
 import { toHijri, HIJRI_MONTHS_AR } from "../utils/hijri";
-import ReportHeader from "../components/reports/ReportHeader";
 import ReportFooter from "../components/reports/ReportFooter";
 import { Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from "../components/ui/Table";
 import Select from "../components/ui/Select";
@@ -504,9 +503,8 @@ export default function Reports() {
     ["transactions", tr("تراکنش‌ها", "المعاملات", "İşlemler", "Transactions")],
   ];
 
-  const activeTabLabel = tabs.find(([key]) => key === active)?.[1] || "";
   const pageSubtitle = tr(
-    "گزارشات کامل مشابه هلو و سپیدار: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی",
+    "گزارشات کامل: سود و زیان، تراز، مطالبات، بدهی‌ها، گردش نقدی، سود کالا و موجودی",
     "تقارير متكاملة: الأرباح والخسائر، ميزان المراجعة، المستحقات، الديون، التدفق النقدي، ربح المنتج والمخزون",
     "Eksiksiz ERP raporları: kâr/zarar, mizan, alacaklar, borçlar, nakit akışı, ürün kârı ve envanter",
     "Complete ERP reports: profit/loss, trial balance, receivables, payables, cashflow, product profit and inventory"
@@ -623,12 +621,6 @@ export default function Reports() {
         </div>
       )}
 
-      <ReportHeader
-        title={activeTabLabel}
-        subtitle={pageSubtitle}
-        filterSummary={query.trim() ? `${tr("جستجو", "بحث", "Arama", "Search")}: ${query}` : undefined}
-      />
-
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <ReportCard icon={<TrendingUp />} title={tr("فروش خالص", "صافي المبيعات", "Net satış", "Net sales")} value={money(profit.net_sales ?? stats?.total_revenue ?? 0)} color="text-green-300" />
         <ReportCard icon={<TrendingDown />} title={tr("خرید خالص", "صافي المشتريات", "Net alış", "Net purchases")} value={money(profit.net_purchases ?? stats?.total_purchases ?? 0)} color="text-red-300" />
@@ -694,12 +686,12 @@ export default function Reports() {
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Panel title={tr("بدهکاران برتر", "أكبر المدينين", "En büyük borçlular", "Top debtors")}>
-              {topDebtors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getDebtor(c))} color="text-red-300" />)}
+              {topDebtors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone ? (language === "fa" ? toPersianDigits(c.phone) : c.phone) : "-"} value={money(getDebtor(c))} color="text-red-300" />)}
               {topDebtors.length === 0 && <Empty tr={tr} />}
             </Panel>
 
             <Panel title={tr("بستانکاران برتر", "أكبر الدائنين", "En büyük alacaklılar", "Top creditors")}>
-              {topCreditors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone || "-"} value={money(getCreditor(c))} color="text-green-300" />)}
+              {topCreditors.slice(0, 10).map((c) => <Row key={c.id} title={c.name} subtitle={c.phone ? (language === "fa" ? toPersianDigits(c.phone) : c.phone) : "-"} value={money(getCreditor(c))} color="text-green-300" />)}
               {topCreditors.length === 0 && <Empty tr={tr} />}
             </Panel>
 
@@ -799,7 +791,7 @@ export default function Reports() {
       )}
 
       {active === "customers" && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <Panel title={tr("مطالبات از مشتریان", "المستحقات من العملاء", "Müşterilerden alacaklar", "Receivables from customers")}>
             <Table dir={dir} className="erp-report-table">
               <Thead>
@@ -931,7 +923,7 @@ export default function Reports() {
       )}
 
       {active === "cash" && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <Panel title={tr("جریان نقدی", "التدفق النقدي", "Nakit akışı", "Cashflow")}>
             <ReportLine label={tr("کل دریافت", "إجمالي المقبوضات", "Toplam tahsilat", "Total receipts")} value={money(cashflow.receipt_total || 0)} strong />
             <ReportLine label={tr("کل پرداخت", "إجمالي المدفوعات", "Toplam ödeme", "Total payments")} value={money(cashflow.payment_total || 0)} negative />
