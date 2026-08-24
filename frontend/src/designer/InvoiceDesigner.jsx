@@ -359,7 +359,7 @@ export default function InvoiceDesigner() {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <Link to="/invoices" className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><ArrowLeft size={18} /> {tr("بازگشت به فاکتورها", "العودة إلى الفواتير", "Faturalara dön", "Back to invoices")}</Link>
+          <Link to="/design-studio" className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><ArrowLeft size={18} /> {tr("بازگشت به استودیوی طراحی", "العودة إلى استوديو التصميم", "Tasarım stüdyosuna dön", "Back to Design Studio")}</Link>
           <button onClick={loadTemplates} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-accent)]"><RefreshCw size={18} /> {tr("دریافت", "تحديث", "Yenile", "Refresh")}</button>
           <button onClick={resetTemplate} className="studio-btn bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"><Trash2 size={18} /> {tr("پیش‌فرض", "إعادة تعيين", "Sıfırla", "Reset")}</button>
           <button onClick={saveTemplate} className="studio-btn bg-[var(--erp-accent)] text-slate-950"><Save size={18} /> {tr("ذخیره قالب", "حفظ القالب", "Şablonu kaydet", "Save")}</button>
