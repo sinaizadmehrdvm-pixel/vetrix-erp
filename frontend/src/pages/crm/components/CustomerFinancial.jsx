@@ -156,7 +156,6 @@ export default function CustomerFinancial({
 
     return last.map((x) => ({
       id: x.id,
-      label: `#${x.id}`,
       value: toNumber(x.total_amount),
       height: Math.max(8, (toNumber(x.total_amount) / max) * 100),
     }));
@@ -216,7 +215,7 @@ export default function CustomerFinancial({
             chartBars.map((bar) => (
               <div key={bar.id} className="flex-1 flex flex-col items-center gap-2">
                 <div className="w-full rounded-t-2xl bg-[var(--erp-accent)]/70 hover:bg-[var(--erp-accent-2)] transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
-                <div className="text-[10px] text-[var(--erp-muted)]">{bar.label}</div>
+                <div className="text-[10px] text-[var(--erp-muted)]">#{n(bar.id)}</div>
               </div>
             ))
           ) : (
