@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw, Settings2, ShieldAlert } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getExecutiveAlertsSummary, getExecutiveAlertSettings, updateExecutiveAlertSettings } from "../services/api";
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import Select from "../components/ui/Select";
@@ -20,6 +21,7 @@ const SEVERITY_TONE = {
 export default function ExecutiveAlerts() {
   const { dir, language, money, n, date } = useLanguage();
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,11 +136,18 @@ export default function ExecutiveAlerts() {
           <form onSubmit={saveSettings} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("روز هشدار پیش از سررسید", "أيام التنبيه قبل الاستحقاق", "Vade öncesi uyarı günü", "Days before due to alert")}</span>
-              <input type="number" className={inputClass} value={settingsDraft.alert_days_before_due} onChange={(e) => setSettingsDraft({ ...settingsDraft, alert_days_before_due: e.target.value })} />
+              {/* `type="text" inputMode="numeric"` (not `type="number"`) -
+                  native number inputs always render Latin digits, browsers
+                  give them no way to show localized glyphs. Same
+                  display-format-only / parse-back-to-normalized-number
+                  pattern used throughout the app: `pd()` for display,
+                  `cleanNumberInput()` strips back to a plain digit string
+                  on change, so the stored/submitted value is unaffected. */}
+              <input type="text" inputMode="numeric" className={inputClass} value={pd(settingsDraft.alert_days_before_due)} onChange={(e) => setSettingsDraft({ ...settingsDraft, alert_days_before_due: cleanNumberInput(e.target.value) })} />
             </label>
             <label className="text-sm">
               <span className="block mb-1 text-[var(--erp-muted)]">{tr("حداقل مبلغ مطالبه برای هشدار", "الحد الأدنى للمبلغ المستحق للتنبيه", "Uyarı için asgari alacak tutarı", "Minimum receivable amount to alert")}</span>
-              <input type="number" className={inputClass} value={settingsDraft.minimum_receivable_amount} onChange={(e) => setSettingsDraft({ ...settingsDraft, minimum_receivable_amount: e.target.value })} />
+              <input type="text" inputMode="numeric" className={inputClass} value={pd(settingsDraft.minimum_receivable_amount)} onChange={(e) => setSettingsDraft({ ...settingsDraft, minimum_receivable_amount: cleanNumberInput(e.target.value) })} />
             </label>
             <button type="submit" disabled={savingSettings} className="rounded-xl bg-[var(--erp-accent)] text-black font-black px-4 py-3 disabled:opacity-60">
               {savingSettings ? tr("در حال ذخیره...", "جارٍ الحفظ...", "Kaydediliyor...", "Saving...") : tr("ذخیره تنظیمات", "حفظ الإعدادات", "Ayarları kaydet", "Save settings")}

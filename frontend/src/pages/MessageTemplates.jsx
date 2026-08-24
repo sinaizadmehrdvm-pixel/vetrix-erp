@@ -5,6 +5,7 @@ import { confirmAction } from "../components/ui/confirmService";
 
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits } from "../localization/helpers";
 import {
   getMessageTemplates,
   updateMessageTemplate,
@@ -21,11 +22,20 @@ const CHANNEL_LABELS = {
   email: { fa: "ایمیل", ar: "البريد الإلكتروني", tr: "E-posta", en: "Email" },
 };
 
+const ROLE_LABELS = {
+  admin: { fa: "مدیر سیستم", ar: "مسؤول النظام", tr: "Yönetici", en: "Administrator" },
+  accountant: { fa: "حسابدار", ar: "محاسب", tr: "Muhasebeci", en: "Accountant" },
+  sales: { fa: "فروش", ar: "المبيعات", tr: "Satış", en: "Sales" },
+  warehouse: { fa: "انباردار", ar: "أمين المستودع", tr: "Depo Sorumlusu", en: "Warehouse" },
+  viewer: { fa: "مشاهده‌گر", ar: "مشاهدة فقط", tr: "Salt okunur", en: "Read only" },
+};
+
 export default function MessageTemplates() {
   const { language, dir } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const tr = (fa, ar, trText, en) => (language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? trText : en);
+  const pd = (value) => (language === "fa" ? toPersianDigits(value) : value);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -177,6 +187,12 @@ export default function MessageTemplates() {
               {group.map((item) => {
                 const dKey = `${item.key}:${item.channel}:${item.language}`;
                 const draft = draftFor(item);
+                // The template's OWN language (item.language, equal to
+                // activeLanguage here), not the admin's current UI
+                // language - this text is what gets sent verbatim to a
+                // customer, so a "fa" template's digits must be Persian
+                // regardless of what language the admin is browsing in.
+                const templatePd = (value) => (item.language === "fa" ? toPersianDigits(value) : value);
                 return (
                   <div key={dKey} className="space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -191,15 +207,15 @@ export default function MessageTemplates() {
                       <input
                         className="w-full p-3 rounded-xl bg-[var(--erp-bg)] border border-[var(--erp-border)] outline-none"
                         placeholder={tr("موضوع ایمیل", "عنوان الرسالة", "E-posta konusu", "Email subject")}
-                        value={draft.subject}
-                        onChange={(e) => setDraft(item, { subject: e.target.value })}
+                        value={templatePd(draft.subject)}
+                        onChange={(e) => setDraft(item, { subject: templatePd(e.target.value) })}
                       />
                     )}
                     <textarea
                       className="w-full p-3 rounded-xl bg-[var(--erp-bg)] border border-[var(--erp-border)] outline-none"
                       rows={6}
-                      value={draft.body}
-                      onChange={(e) => setDraft(item, { body: e.target.value })}
+                      value={templatePd(draft.body)}
+                      onChange={(e) => setDraft(item, { body: templatePd(e.target.value) })}
                     />
                     <p className="text-xs text-[var(--erp-muted)]">
                       {tr("جای‌نگهدارهای قابل استفاده: {name} {id} {amount} {brand}", "المتغيرات المتاحة: {name} {id} {amount} {brand}", "Kullanılabilir yer tutucular: {name} {id} {amount} {brand}", "Available placeholders: {name} {id} {amount} {brand}")}
@@ -245,7 +261,7 @@ export default function MessageTemplates() {
               className="flex-1 min-w-[200px]"
               value={grantUserId}
               onChange={(value) => setGrantUserId(value)}
-              options={[{ value: "", label: tr("انتخاب کاربر...", "اختر مستخدمًا...", "Kullanıcı seçin...", "Select a user...") }, ...nonEditorUsers.map((u) => ({ value: u.id, label: `${u.full_name || u.username} (${u.role})` }))]}
+              options={[{ value: "", label: tr("انتخاب کاربر...", "اختر مستخدمًا...", "Kullanıcı seçin...", "Select a user...") }, ...nonEditorUsers.map((u) => ({ value: u.id, label: `${pd(u.full_name || u.username)} (${ROLE_LABELS[u.role]?.[language] || ROLE_LABELS[u.role]?.en || u.role})` }))]}
             />
             <button onClick={grantEditor} disabled={!grantUserId} className="px-4 py-3 rounded-xl bg-[var(--erp-accent)] text-black font-bold flex items-center gap-2 disabled:opacity-50">
               <UserPlus size={16} /> {tr("افزودن", "إضافة", "Ekle", "Add")}
@@ -254,7 +270,7 @@ export default function MessageTemplates() {
           <div className="space-y-2">
             {editors.map((e) => (
               <div key={e.user_id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--erp-panel-solid)]">
-                <span className="font-bold">{e.full_name || e.username}</span>
+                <span className="font-bold">{pd(e.full_name || e.username)}</span>
                 <button onClick={() => revokeEditor(e.user_id)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(239,68,68,.12)", color: "#f87171" }}>
                   <Trash2 size={16} />
                 </button>
