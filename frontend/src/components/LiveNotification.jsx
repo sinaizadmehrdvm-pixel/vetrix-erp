@@ -4,9 +4,8 @@ export default function LiveNotification({ notifications = [] }) {
   const { t, language, n, dir } = useLanguage();
 
   function localizeTitle(item) {
-    if (language !== "fa") return item.title;
-
-    if (item.title_fa) return item.title_fa;
+    if (language === "en") return item.title;
+    if (language === "fa" && item.title_fa) return item.title_fa;
 
     const value = String(item.title || "").toLowerCase();
 
