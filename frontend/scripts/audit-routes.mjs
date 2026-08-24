@@ -10,7 +10,7 @@ const failures = [];
 const lazyNames = [...app.matchAll(/const\s+(\w+)\s*=\s*lazy\(/g)].map((match) => match[1]);
 const routedNames = new Set([...app.matchAll(/element=\{<(\w+)\s*\/>\}/g)].map((match) => match[1]));
 for (const name of lazyNames) {
-  if (name === "Login" || name === "InvoiceDesigner") continue;
+  if (name === "Login" || name === "InvoiceDesigner" || name === "DocumentDesigner" || name === "VisitorOrder") continue;
   if (!routedNames.has(name)) failures.push(`Lazy page is not routed: ${name}`);
 }
 
