@@ -53,7 +53,7 @@ export default function BackupRecovery() {
   const copy = {
     title: fa ? "پشتیبان‌گیری و بازیابی" : language === "ar" ? "النسخ الاحتياطي والاستعادة" : language === "tr" ? "Yedekleme ve Kurtarma" : "Backup & Recovery",
     subtitle: fa
-      ? "نسخه‌های معتبر دیتابیس با checksum و بازیابی اضطراری"
+      ? "نسخه‌های معتبر دیتابیس با مجموع بازبینی (checksum) و بازیابی اضطراری"
       : language === "ar"
       ? "لقطات قاعدة بيانات موثّقة بمجاميع اختبارية (checksum) واستعادة طوارئ"
       : language === "tr"
@@ -93,7 +93,7 @@ export default function BackupRecovery() {
       ? "Gerçek geri yükleme yalnızca geçici bir kopya üzerinde yapılan başarılı bir deneme sonrasında etkinleşir; test sırasında canlı veritabanı asla değiştirilmez."
       : "Real restore unlocks only after a successful rehearsal on a temporary copy; the live database is never changed by the test.",
     autoInfo: fa
-      ? "در صورت فعال‌بودن «بکاپ خودکار» در تنظیمات، بعد از فعالیت سیستم و حداکثر هر ۲۴ ساعت یک snapshot ساخته می‌شود."
+      ? "در صورت فعال‌بودن «بکاپ خودکار» در تنظیمات، بعد از فعالیت سیستم و حداکثر هر ۲۴ ساعت یک نسخه لحظه‌ای معتبر ساخته می‌شود."
       : language === "ar"
       ? "عند تفعيل «النسخ الاحتياطي التلقائي» في الإعدادات، يؤدي نشاط النظام إلى إنشاء لقطة موثّقة واحدة على الأكثر كل 24 ساعة."
       : language === "tr"
