@@ -60,6 +60,15 @@ export default function Modal({
               borderRadius: "var(--erp-radius-lg)",
               boxShadow: "var(--erp-elevation-3)",
               maxHeight: "90vh",
+              // `overflow-y:auto` alone makes the UA force `overflow-x`
+              // to `auto` too (CSS spec: a "visible" axis paired with a
+              // non-visible one on the same box gets promoted to `auto`),
+              // so any content that happened to run wide - an un-portaled
+              // popup, a form grid without min-width:0 - silently grew a
+              // horizontal scrollbar on the whole modal. Modal content is
+              // expected to always fit its own width; only vertical
+              // overflow (a tall form) is an intentional fallback.
+              overflowX: "hidden",
             }}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}

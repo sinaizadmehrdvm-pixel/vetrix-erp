@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 // Native <select> popups are rendered by the OS/browser itself (Windows
@@ -26,22 +27,29 @@ import { Check, ChevronDown } from "lucide-react";
 export default function Select({ value, onChange, options, placeholder, className = "", triggerClassName = "", disabled = false, variant = "default", error = false }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  // Popup normally hugs the trigger's inline-start edge (matches text
-  // direction). A trigger sitting near the viewport's inline-end edge
-  // (e.g. the last item in a wrapped filter row) can push a wide popup
-  // (long option labels grow it via width:max-content) past the screen
-  // edge - this flips it to anchor from the opposite edge instead, so it
-  // grows back on-screen rather than being clipped by the viewport.
-  const [popupFlip, setPopupFlip] = useState(false);
   const wrapperRef = useRef(null);
+  // The popup portals to document.body (see the render below) instead of
+  // being an absolutely-positioned child of `wrapperRef` - a Card/Modal
+  // ancestor's `overflow:hidden` (Card defaults to it), or a Modal's
+  // `overflow-y-auto` (which per spec forces `overflow-x:auto` too when
+  // only one axis is set to a non-visible value), would otherwise clip
+  // the popup or force the WHOLE modal to grow a horizontal scrollbar
+  // whenever an open dropdown's option list is wider than the modal -
+  // exactly the "Select popup enlarges/scrolls the modal" defect this
+  // fixes. Portaled + `fixed`, its position only ever depends on the
+  // trigger's own viewport coordinates, never on what wraps it.
+  const popupContainerRef = useRef(null);
   const listRef = useRef(null);
+  const [popupBox, setPopupBox] = useState(null);
 
   const selected = options.find((o) => String(o.value) === String(value));
 
   useEffect(() => {
     if (!open) return undefined;
     function handleOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
+      const insideWrapper = wrapperRef.current?.contains(event.target);
+      const insidePopup = popupContainerRef.current?.contains(event.target);
+      if (!insideWrapper && !insidePopup) setOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -49,16 +57,103 @@ export default function Select({ value, onChange, options, placeholder, classNam
 
   useLayoutEffect(() => {
     if (!open) return;
-    const el = listRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.right > window.innerWidth || rect.left < 0) setPopupFlip(true);
+
+    function updatePopupBox() {
+      const wrapperEl = wrapperRef.current;
+      if (!wrapperEl) return;
+      const rect = wrapperEl.getBoundingClientRect();
+      const margin = 12;
+      // Resolved per-element via getComputedStyle rather than a `dir`/
+      // `language` prop - Select doesn't receive either (it's used all
+      // over the app and just inherits whatever direction its page sets),
+      // and the computed style always reflects the real inherited value.
+      const isRtl = getComputedStyle(wrapperEl).direction === "rtl";
+      const minWidth = rect.width;
+
+      // Two candidate anchors - "left" pins the popup's physical left
+      // edge to the trigger's left edge and grows rightward; "right"
+      // pins the physical right edge and grows leftward. Matches the
+      // old insetInlineStart:0 (LTR: left-anchor, RTL: right-anchor) as
+      // the default, but picks whichever side actually has more room
+      // instead of only flipping on outright overflow, since the popup's
+      // width is fluid (max-content up to a cap), not fixed.
+      const spaceIfLeftAnchor = window.innerWidth - rect.left - margin;
+      const spaceIfRightAnchor = rect.right - margin;
+      let useLeftAnchor = !isRtl;
+      const preferredSpace = useLeftAnchor ? spaceIfLeftAnchor : spaceIfRightAnchor;
+      const otherSpace = useLeftAnchor ? spaceIfRightAnchor : spaceIfLeftAnchor;
+      // Flip when the default side can't even fit the trigger's own
+      // width (the popup's hard floor, via `minWidth` below) and the
+      // other side has more room - comparing against the real `minWidth`
+      // here, not a fixed guess, matters for any trigger wider than that
+      // guess would have been: a partial-but-insufficient "preferredSpace"
+      // could clear a flat threshold while still being less than
+      // `minWidth`, and since the popup's CSS `minWidth` forces it to the
+      // trigger's width regardless, it would render wider than the space
+      // actually available on that side.
+      if (preferredSpace < minWidth && otherSpace > preferredSpace) {
+        useLeftAnchor = !useLeftAnchor;
+      }
+      const space = useLeftAnchor ? spaceIfLeftAnchor : spaceIfRightAnchor;
+      // `width: max-content` (set as static CSS below, not computed here)
+      // is what actually makes the popup grow to fit its content, same as
+      // before this rewrite - `maxWidth` only caps how far it's ALLOWED
+      // to grow: the usual 480px ceiling, or the room genuinely available
+      // on the chosen anchor side, whichever is smaller - but never less
+      // than `minWidth` (the trigger's own width, which the popup's CSS
+      // `minWidth` always forces regardless). The outer `Math.max` matters
+      // for the rare trigger wider than 480px itself: `Math.min(480,
+      // space)` alone could clip the cap below `minWidth`, reintroducing
+      // the exact min>max contradiction this is meant to prevent - the
+      // trigger's own width must win over the 480px ceiling when the two
+      // conflict, since `minWidth` isn't optional.
+      const maxWidth = Math.max(minWidth, Math.min(480, space));
+
+      // Opens downward by default; flips above the trigger when there
+      // isn't reasonable room below (e.g. the last field before a
+      // modal's footer) so it never forces the modal/page to scroll just
+      // to reveal the option list.
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const upward = spaceBelow < 220 && rect.top > spaceBelow;
+      const maxHeight = Math.max(160, (upward ? rect.top : window.innerHeight - rect.bottom) - 18);
+
+      setPopupBox({
+        left: useLeftAnchor ? rect.left : undefined,
+        right: useLeftAnchor ? undefined : window.innerWidth - rect.right,
+        minWidth,
+        maxWidth,
+        top: upward ? undefined : rect.bottom + 6,
+        bottom: upward ? window.innerHeight - rect.top + 6 : undefined,
+        maxHeight,
+      });
+    }
+
+    updatePopupBox();
+    // rAF-throttled so a fast scroll gesture triggers at most one
+    // reposition per frame, matching JalaliDateField's popup - a fixed-
+    // position popup no longer moves with the page the way the old
+    // absolutely-positioned one did, so without this it would visually
+    // detach from the trigger on scroll.
+    let rafId = null;
+    function onScrollOrResize() {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updatePopupBox();
+      });
+    }
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
   }, [open]);
 
   function openList() {
     const index = options.findIndex((o) => String(o.value) === String(value));
     setActiveIndex(index >= 0 ? index : 0);
-    setPopupFlip(false);
     setOpen(true);
   }
 
@@ -126,21 +221,32 @@ export default function Select({ value, onChange, options, placeholder, classNam
         <ChevronDown size={16} style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </button>
 
-      {open && (
+      {open && popupBox && createPortal(
         <ul
-          ref={listRef}
+          ref={(node) => { listRef.current = node; popupContainerRef.current = node; }}
           role="listbox"
-          className="absolute z-30 erp-surface"
           style={{
-            top: "calc(100% + 6px)",
-            insetInlineStart: popupFlip ? undefined : 0,
-            insetInlineEnd: popupFlip ? 0 : undefined,
-            minWidth: "100%",
+            position: "fixed",
+            left: popupBox.left,
+            right: popupBox.right,
+            top: popupBox.top,
+            bottom: popupBox.bottom,
+            minWidth: popupBox.minWidth,
             width: "max-content",
-            maxWidth: "min(480px, 90vw)",
-            maxHeight: 260,
+            maxWidth: popupBox.maxWidth,
+            maxHeight: popupBox.maxHeight,
             overflowY: "auto",
+            zIndex: 1000,
             borderRadius: "var(--erp-radius-md)",
+            // Solid `--erp-panel-solid`, NOT `.erp-surface`'s translucent
+            // `--erp-panel` (86% opacity) + blur - that combination is
+            // right for a Card sitting on the page background, but a
+            // floating popup can land on top of arbitrary other content
+            // (another card, a table row), and the 14% see-through +
+            // blur let that content visibly bleed into the option list
+            // instead of the popup reading as a fully opaque surface.
+            background: "var(--erp-panel-solid)",
+            border: "1px solid var(--erp-border)",
             boxShadow: "var(--erp-elevation-3), inset 0 1px 0 0 var(--erp-surface-highlight)",
             padding: 6,
             margin: 0,
@@ -170,7 +276,8 @@ export default function Select({ value, onChange, options, placeholder, classNam
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );

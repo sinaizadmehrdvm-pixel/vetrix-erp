@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import moment from "moment-jalaali";
 import { toJalali, todayJalali, fromJalali, toHijriText, todayHijri, fromHijriText, toPersianDigits } from "../../utils/date";
 import { toHijri, hijriToGregorian, daysInHijriMonth, addHijriMonths, HIJRI_MONTHS_AR } from "../../utils/hijri";
 import { holidayFor, holidayCoverage } from "../../localization/holidays";
+import { JALALI_MONTHS_FA, GREGORIAN_MONTHS, WEEKDAYS_SHORT, WEEKEND_INDEXES } from "../../localization/calendarNames";
 import Tooltip from "../ui/Tooltip";
 
 function calendarSystemFor(lang, fa) {
@@ -11,18 +13,6 @@ function calendarSystemFor(lang, fa) {
   if (lang === "ar") return "hijri";
   return "gregorian";
 }
-
-const JALALI_MONTHS_FA = [
-  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
-  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
-];
-const GREGORIAN_MONTHS = {
-  tr: ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"],
-  en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-};
-const WEEKDAYS_FA = ["ش", "ی", "د", "س", "چ", "پ", "ج"]; // Saturday-first
-const WEEKDAYS_AR = ["ح", "ن", "ث", "ر", "خ", "ج", "س"]; // Sunday-first
-const WEEKDAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]; // Sunday-first
 
 function isoOf(year, month1Based, day) {
   return `${year}-${String(month1Based).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -42,9 +32,14 @@ function buildGrid(calendarSystem, cursor, language, country) {
     const cells = Array(offset).fill(null);
     for (let day = 1; day <= daysInMonth; day += 1) {
       const g = cursor.clone().jDate(day).toDate();
-      cells.push({ day, label: toPersianDigits(day), iso: isoOf(g.getFullYear(), g.getMonth() + 1, g.getDate()), isToday: today.jYear() === year && today.jMonth() === month && today.jDate() === day, holiday: holidayFor("jalali", month + 1, day, language, country) });
+      // Friday (column index 6, see WEEKDAYS_SHORT.fa) is Iran's weekly
+      // holiday and is conventionally shown in the holiday color in every
+      // Persian calendar, independent of `holidayFor`'s curated *named*
+      // holidays - without this, only a handful of days a year read as
+      // "off" at a glance and every Friday looks like an ordinary weekday.
+      cells.push({ day, label: toPersianDigits(day), iso: isoOf(g.getFullYear(), g.getMonth() + 1, g.getDate()), isToday: today.jYear() === year && today.jMonth() === month && today.jDate() === day, holiday: holidayFor("jalali", month + 1, day, language, country), isWeekend: WEEKEND_INDEXES.jalali.includes((offset + day - 1) % 7) });
     }
-    return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_FA, cells };
+    return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_SHORT.fa, cells };
   }
 
   if (calendarSystem === "hijri") {
@@ -58,9 +53,9 @@ function buildGrid(calendarSystem, cursor, language, country) {
     const cells = Array(offset).fill(null);
     for (let day = 1; day <= daysInMonth; day += 1) {
       const g = hijriToGregorian(year, month, day);
-      cells.push({ day, label: day, iso: isoOf(g.year, g.month, g.day), isToday: todayHijriYmd.year === year && todayHijriYmd.month === month && todayHijriYmd.day === day, holiday: holidayFor("hijri", month, day, language, country) });
+      cells.push({ day, label: day, iso: isoOf(g.year, g.month, g.day), isToday: todayHijriYmd.year === year && todayHijriYmd.month === month && todayHijriYmd.day === day, holiday: holidayFor("hijri", month, day, language, country), isWeekend: WEEKEND_INDEXES.hijri.includes((offset + day - 1) % 7) });
     }
-    return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_AR, cells, hijriYearMonth: { year, month } };
+    return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_SHORT.ar, cells, hijriYearMonth: { year, month } };
   }
 
   const date = cursor.toDate();
@@ -72,9 +67,11 @@ function buildGrid(calendarSystem, cursor, language, country) {
   const monthNames = GREGORIAN_MONTHS[language] || GREGORIAN_MONTHS.en;
   const cells = Array(offset).fill(null);
   for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push({ day, label: day, iso: isoOf(year, month + 1, day), isToday: today.getFullYear() === year && today.getMonth() === month && today.getDate() === day, holiday: holidayFor("gregorian", month + 1, day, language, country) });
+    cells.push({ day, label: day, iso: isoOf(year, month + 1, day), isToday: today.getFullYear() === year && today.getMonth() === month && today.getDate() === day, holiday: holidayFor("gregorian", month + 1, day, language, country), isWeekend: WEEKEND_INDEXES.gregorian.includes((offset + day - 1) % 7) });
   }
-  return { title: `${monthNames[month]} ${year}`, weekdays: WEEKDAYS_EN, cells };
+  // Was always WEEKDAYS_EN regardless of language - Turkish users got
+  // English weekday abbreviations ("Su, Mo, Tu...") in the grid header.
+  return { title: `${monthNames[month]} ${year}`, weekdays: WEEKDAYS_SHORT[language] || WEEKDAYS_SHORT.en, cells };
 }
 
 function cursorFromIso(iso) {
@@ -125,21 +122,91 @@ export default function JalaliDateField({ value, onChange, fa, language, country
   };
   const [text, setText] = useState(() => displayFor(value));
   const [open, setOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
   const [cursor, setCursor] = useState(() => cursorFromIso(value));
   const wrapperRef = useRef(null);
+  // The popup portals to document.body (see the render below) instead of
+  // being an absolutely-positioned child of `wrapperRef` - a Card/Modal
+  // ancestor's `overflow:hidden` (Card defaults to it; ancestors with a
+  // CSS transform, which framer-motion's Modal sets during its open/close
+  // animation, create a new containing block for `position:fixed`
+  // descendants too) would otherwise clip or misposition it depending on
+  // which page/modal this field happens to be used in. Portaled + `fixed`,
+  // its position only ever depends on the trigger's own viewport
+  // coordinates, never on what happens to wrap it.
+  const popupContainerRef = useRef(null);
+  // Physical viewport px (from getBoundingClientRect()), not CSS logical
+  // properties (insetInlineStart/End) or values relative to the trigger -
+  // those depend on the RTL `dir` inherited context lining up exactly
+  // with intent, which is easy to get backwards, and once portaled the
+  // popup's positioning ancestor is the viewport itself. Recomputed
+  // whenever the popup opens (see the layout effect below); `null` before
+  // the first computation, in which case nothing renders yet.
+  const [popupBox, setPopupBox] = useState(null);
 
-  // Popup is ~320px tall at most; flip it above the field when there isn't
-  // room below (e.g. a date field near the bottom of a modal) so it never
-  // forces the page/modal to scroll just to show the calendar grid.
   function openPopup() {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (rect) {
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(spaceBelow < 340 && rect.top > spaceBelow);
-    }
     setOpen(true);
   }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    function updatePopupBox() {
+      const wrapperEl = wrapperRef.current;
+      if (!wrapperEl) return;
+      const wrapperRect = wrapperEl.getBoundingClientRect();
+      const margin = 12;
+      const width = Math.min(260, window.innerWidth - margin * 2);
+      // Anchor edge follows reading direction (RTL: flush with the
+      // trigger's left/start edge, growing right; LTR: flush with its
+      // right/end edge, growing left) - matches DateBadge's popover, which
+      // already branches the same way. This used to always anchor flush-
+      // right regardless of language, so the two "shared" calendar popups
+      // in the app anchored to opposite edges for RTL users.
+      const isRtl = lang === "fa" || lang === "ar";
+      let left = isRtl ? wrapperRect.left : wrapperRect.right - width;
+      if (left < margin) left = margin;
+      if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width;
+      // Popup is ~320px tall at most; flip above the trigger when there
+      // isn't room below (e.g. a date field near the bottom of a modal)
+      // so it never forces the page/modal to scroll just to show the grid.
+      const spaceBelow = window.innerHeight - wrapperRect.bottom;
+      const upward = spaceBelow < 340 && wrapperRect.top > spaceBelow;
+      const maxHeight = Math.max(200, (upward ? wrapperRect.top : window.innerHeight - wrapperRect.bottom) - 18);
+      setPopupBox(
+        upward
+          ? { left, width, bottom: window.innerHeight - wrapperRect.top + 6, maxHeight }
+          : { left, width, top: wrapperRect.bottom + 6, maxHeight }
+      );
+    }
+
+    updatePopupBox();
+    // A portaled `position:fixed` popup no longer moves with the page the
+    // way an absolutely-positioned one (nested in normal document flow)
+    // used to - scrolling the trigger out from under it would otherwise
+    // leave the popup frozen in place while the trigger moves away
+    // underneath, visually detaching the two. `capture:true` also catches
+    // scrolling inside a nested scrollable ancestor (a modal body, a
+    // table wrapper), not just the window itself. rAF-throttled so a fast
+    // scroll gesture (which can fire far more raw scroll events than the
+    // display's refresh rate) triggers at most one reposition - and one
+    // grid rebuild, since `grid` isn't memoized - per frame, not one per
+    // raw event.
+    let rafId = null;
+    function onScrollOrResize() {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updatePopupBox();
+      });
+    }
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, lang]);
 
   // Resync the local draft text when the value/language changes from
   // outside (e.g. picking a day, the Today shortcut, or the parent
@@ -157,7 +224,14 @@ export default function JalaliDateField({ value, onChange, fa, language, country
   useEffect(() => {
     if (!open) return undefined;
     function handleOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
+      const insideWrapper = wrapperRef.current?.contains(event.target);
+      // The popup is portaled to document.body, so it's no longer a DOM
+      // descendant of `wrapperRef` - without also checking this, a click
+      // on the popup itself (a day cell, the month nav, "Today") would
+      // register as "outside" and close the calendar before its own
+      // onClick handler runs.
+      const insidePopup = popupContainerRef.current?.contains(event.target);
+      if (!insideWrapper && !insidePopup) setOpen(false);
     }
     function handleEscape(event) {
       if (event.key === "Escape") setOpen(false);
@@ -227,7 +301,17 @@ export default function JalaliDateField({ value, onChange, fa, language, country
   // the popup is actually visible - this field re-renders on every
   // keystroke in forms that hold it alongside other fields in one state
   // object, and recomputing the grid unconditionally on each of those
-  // renders was the source of visible typing lag.
+  // renders was the source of visible typing lag. Not memoized via
+  // `useMemo`/a ref cache/a derived-state effect - all three are rejected
+  // here by this project's lint rules (React Compiler can't preserve a
+  // manual `useMemo` in this component; ref access during render and
+  // setState-in-effect for derived state are both disallowed outright).
+  // The scroll/resize listener below is rAF-throttled specifically so
+  // this recomputes at most once per animation frame while the popup is
+  // open, rather than once per raw scroll event - keeping this cheap
+  // (~30 day-cells) recompute at a rate that was never the actual cost
+  // the original typing-lag fix (many simultaneous form fields, every
+  // keystroke) was guarding against.
   const grid = open ? buildGrid(calendarSystem, cursor, lang, country) : null;
   const coverage = open ? holidayCoverage(country, calendarSystem) : null;
 
@@ -275,13 +359,33 @@ export default function JalaliDateField({ value, onChange, fa, language, country
         </button>
       </Tooltip>
 
-      {open && (
+      {open && grid && popupBox && createPortal(
         <div
-          className="border border-[var(--erp-border)] bg-[var(--erp-panel)] p-3"
+          ref={popupContainerRef}
+          role="dialog"
+          aria-label={tr("انتخاب تاریخ", "اختيار التاريخ", "Tarih seç", "Choose date")}
+          dir={lang === "fa" || lang === "ar" ? "rtl" : "ltr"}
+          className="border border-[var(--erp-border)] bg-[var(--erp-panel-solid)] p-3"
           style={{
-            position: "absolute",
-            ...(openUpward ? { bottom: "100%", marginBottom: 6 } : { top: "100%", marginTop: 6 }),
-            zIndex: 50, width: 260, insetInlineEnd: 0,
+            position: "fixed",
+            left: popupBox.left,
+            width: popupBox.width,
+            top: popupBox.top,
+            bottom: popupBox.bottom,
+            maxHeight: popupBox.maxHeight,
+            overflowY: "auto",
+            // Portaled straight to document.body (see the createPortal
+            // call above) instead of being an absolutely-positioned child
+            // of the trigger - a Card's default overflow:hidden, or a
+            // Modal's transform during its open/close animation (which
+            // creates a new containing block for position:fixed
+            // descendants), would otherwise clip or mis-anchor this
+            // depending on which page/modal the field happens to sit in.
+            // A high z-index is needed since it now competes at the root
+            // stacking context level with Modal's own z-50 backdrop,
+            // rather than inheriting whatever local stacking context the
+            // trigger's ancestors set up.
+            zIndex: 1000,
             borderRadius: "var(--erp-radius-lg)", boxShadow: "var(--erp-elevation-3), inset 0 1px 0 0 var(--erp-surface-highlight)",
           }}
         >
@@ -297,7 +401,18 @@ export default function JalaliDateField({ value, onChange, fa, language, country
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
             {grid.weekdays.map((wd, index) => (
-              <div key={index} className="text-[var(--erp-muted)]" style={{ textAlign: "center", fontSize: 10, fontWeight: 800, padding: "2px 0" }}>{wd}</div>
+              <div
+                key={index}
+                style={{
+                  textAlign: "center",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "2px 0",
+                  color: WEEKEND_INDEXES[calendarSystem].includes(index) ? "var(--erp-accent-2)" : "var(--erp-muted)",
+                }}
+              >
+                {wd}
+              </div>
             ))}
           </div>
 
@@ -332,7 +447,7 @@ export default function JalaliDateField({ value, onChange, fa, language, country
                     lineHeight: 1,
                     fontFamily: "inherit",
                     fontWeight: cell?.isToday ? 900 : 600,
-                    color: !cell ? "transparent" : cell.isToday ? "var(--erp-on-accent)" : outOfRange ? "var(--erp-muted)" : cell.holiday ? "var(--erp-accent-2)" : "var(--erp-text)",
+                    color: !cell ? "transparent" : cell.isToday ? "var(--erp-on-accent)" : outOfRange ? "var(--erp-muted)" : (cell.holiday || cell.isWeekend) ? "var(--erp-accent-2)" : "var(--erp-text)",
                     opacity: outOfRange ? 0.4 : 1,
                     cursor: cell && !outOfRange ? "pointer" : "default",
                   }}
@@ -393,7 +508,8 @@ export default function JalaliDateField({ value, onChange, fa, language, country
               )}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

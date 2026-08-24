@@ -1,26 +1,17 @@
+import { useMemo } from "react";
 import moment from "moment-jalaali";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 import { fixedJalaliOccasionFor, fixedHijriOccasionFor } from "../localization/occasions";
 import { toHijri, hijriToGregorian, daysInHijriMonth, addHijriMonths, HIJRI_MONTHS_AR } from "../utils/hijri";
 import { toPersianDigits } from "../utils/date";
+import { JALALI_MONTHS_FA, GREGORIAN_MONTHS, WEEKDAYS_SHORT, WEEKEND_INDEXES } from "../localization/calendarNames";
 
 // moment-jalaali's loadPersian() (called once, in src/utils/date.js) quietly
 // switches moment's *global* default locale to Persian - so even plain
 // Gregorian format tokens like "MMMM" silently return Persian month names.
 // The Gregorian side of this widget therefore never formats through
 // moment; it reads the native Date object directly.
-const JALALI_MONTHS_FA = [
-  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
-  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
-];
-const GREGORIAN_MONTHS_EN = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const WEEKDAYS_FA = ["ش", "ی", "د", "س", "چ", "پ", "ج"]; // Saturday-first
-const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAYS_AR = ["ح", "ن", "ث", "ر", "خ", "ج", "س"]; // Sunday-first
 
 function calendarSystemFor(language) {
   if (language === "fa") return "jalali";
@@ -53,7 +44,7 @@ function buildJalaliMonth(cursor) {
     const gMonth = gDate.getMonth() + 1;
     const gDay = gDate.getDate();
     const { list: occasions, hijri } = occasionsFor(month + 1, day, gYear, gMonth, gDay);
-    const isWeekend = (offset + day - 1) % 7 === 6; // Friday column
+    const isWeekend = WEEKEND_INDEXES.jalali.includes((offset + day - 1) % 7);
     const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
     cells.push({
       key: `${year}-${month}-${day}`,
@@ -73,10 +64,10 @@ function buildJalaliMonth(cursor) {
       },
     });
   }
-  return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_FA, cells };
+  return { title: `${JALALI_MONTHS_FA[month]} ${toPersianDigits(year)}`, weekdays: WEEKDAYS_SHORT.fa, cells };
 }
 
-function buildGregorianMonth(cursor) {
+function buildGregorianMonth(cursor, language) {
   const date = cursor.toDate();
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -89,7 +80,7 @@ function buildGregorianMonth(cursor) {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const jm = moment(new Date(year, month, day));
     const { list: occasions, hijri } = occasionsFor(jm.jMonth() + 1, jm.jDate(), year, month + 1, day);
-    const isWeekend = (offset + day - 1) % 7 === 0 || (offset + day - 1) % 7 === 6;
+    const isWeekend = WEEKEND_INDEXES.gregorian.includes((offset + day - 1) % 7);
     const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
     cells.push({
       key: `${year}-${month}-${day}`,
@@ -109,7 +100,12 @@ function buildGregorianMonth(cursor) {
       },
     });
   }
-  return { title: `${GREGORIAN_MONTHS_EN[month]} ${year}`, weekdays: WEEKDAYS_EN, cells };
+  // Was always English regardless of `language` - Turkish users saw
+  // "January"/"Sun Mon Tue..." in the actual grid even after DateBadge's
+  // own trigger text was localized, since this builder never received
+  // the active language at all.
+  const monthNames = GREGORIAN_MONTHS[language] || GREGORIAN_MONTHS.en;
+  return { title: `${monthNames[month]} ${year}`, weekdays: WEEKDAYS_SHORT[language] || WEEKDAYS_SHORT.en, cells };
 }
 
 // Hijri months don't line up with Gregorian month boundaries, so unlike
@@ -134,7 +130,7 @@ function buildHijriMonth(cursor) {
     const g = hijriToGregorian(year, month, day);
     const jm = moment(new Date(g.year, g.month - 1, g.day));
     const { list: occasions } = occasionsFor(jm.jMonth() + 1, jm.jDate(), g.year, g.month, g.day);
-    const isWeekend = (offset + day - 1) % 7 === 5 || (offset + day - 1) % 7 === 6; // Friday/Saturday
+    const isWeekend = WEEKEND_INDEXES.hijri.includes((offset + day - 1) % 7);
     const isHoliday = isWeekend || occasions.some((occasion) => occasion.holiday);
     cells.push({
       key: `${year}-${month}-${day}`,
@@ -154,7 +150,7 @@ function buildHijriMonth(cursor) {
       },
     });
   }
-  return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_AR, cells, hijriYearMonth: { year, month } };
+  return { title: `${HIJRI_MONTHS_AR[month - 1]} ${year}`, weekdays: WEEKDAYS_SHORT.ar, cells, hijriYearMonth: { year, month } };
 }
 
 export default function CalendarWidget({ cursor, onCursorChange, selectedKey, onSelectDay }) {
@@ -163,10 +159,14 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
-  const built =
+  // Memoized so a scroll/resize-triggered re-render of DateBadge (which
+  // keeps its portaled popover positioned while open) doesn't rebuild this
+  // month grid - including per-day occasion/Hijri lookups - on every tick.
+  const built = useMemo(() => (
     calendarSystem === "jalali" ? buildJalaliMonth(cursor)
     : calendarSystem === "hijri" ? buildHijriMonth(cursor)
-    : buildGregorianMonth(cursor);
+    : buildGregorianMonth(cursor, language)
+  ), [calendarSystem, cursor, language]);
   const { title, weekdays, cells } = built;
 
   function goPrev() {
@@ -240,7 +240,11 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
               textAlign: "center",
               fontSize: 11,
               fontWeight: 800,
-              color: index === weekdays.length - 1 ? "#fb7185" : "var(--erp-muted)",
+              // Was `index === weekdays.length - 1` - only ever highlighted
+              // the single last column, correct for Jalali's one-day
+              // weekend but wrong for Hijri (Fri+Sat) and Gregorian
+              // (Sat+Sun), which need two columns marked.
+              color: WEEKEND_INDEXES[calendarSystem].includes(index) ? "var(--erp-accent-2)" : "var(--erp-muted)",
               padding: "2px 0 6px",
             }}
           >
@@ -270,9 +274,9 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
                 background: cell?.isToday ? "var(--erp-accent)" : "transparent",
                 color: cell
                   ? cell.isToday
-                    ? "#071028"
+                    ? "var(--erp-on-accent)"
                     : cell.isHoliday
-                      ? "#fb7185"
+                      ? "var(--erp-danger)"
                       : "var(--erp-text)"
                   : "transparent",
                 cursor: cell ? "pointer" : "default",
@@ -297,7 +301,7 @@ export default function CalendarWidget({ cursor, onCursorChange, selectedKey, on
                     width: 4,
                     height: 4,
                     borderRadius: "50%",
-                    background: cell.isToday ? "#071028" : cell.isHoliday ? "#fb7185" : "var(--erp-accent)",
+                    background: cell.isToday ? "var(--erp-on-accent)" : cell.isHoliday ? "var(--erp-danger)" : "var(--erp-accent)",
                   }}
                 />
               )}
