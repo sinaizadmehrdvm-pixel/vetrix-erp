@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -13,11 +14,13 @@ from app.auth import (
 from app.company_scope import current_company_id, get_company_brief
 from app.database import SessionLocal
 from app.mfa import consume_recovery_code, verify_totp_code
+from app.models.auth_bootstrap import AuthBootstrapClaim
 from app.models.company import Company
 from app.models.user import User
 from app.rbac import ROLE_LABELS, normalize_role, is_valid_role_code
 from app.security import account_attempt_key, login_attempt_key, login_retry_after, record_login_result
 from app.super_admin import is_super_admin, require_super_admin
+from app.version import APP_VERSION
 from jwt import PyJWTError
 
 router = APIRouter()
@@ -40,6 +43,17 @@ class UserCreate(BaseModel):
     # company or grant super-admin themselves.
     company_id: int | None = None
     is_super_admin: bool = False
+
+
+class PublicRegisterRequest(BaseModel):
+    full_name: str
+    username: str
+    password: str
+    confirm_password: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str = ""
 
 
 class ProfileUpdate(BaseModel):
@@ -88,7 +102,7 @@ def setup_status():
             "initialized": user_count > 0,
             "requires_admin": user_count == 0,
             "user_count": user_count,
-            "version": "1.4.0",
+            "version": APP_VERSION,
         }
     finally:
         db.close()
@@ -100,28 +114,60 @@ def require_admin(request: Request):
         raise HTTPException(status_code=403, detail="Administrator access required")
 
 
+def _validate_account_fields(full_name: str, username: str, password: str, confirm_password: str | None = None):
+    cleaned_full_name = str(full_name or "").strip()
+    cleaned_username = str(username or "").strip()
+    if not cleaned_full_name:
+        raise HTTPException(status_code=400, detail="Full name is required")
+    if not cleaned_username:
+        raise HTTPException(status_code=400, detail="Username is required")
+    if len(password or "") < 12:
+        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
+    if confirm_password is not None and password != confirm_password:
+        raise HTTPException(status_code=400, detail="Password confirmation does not match")
+    return cleaned_full_name, cleaned_username
+
+
+def _default_company_id(db: Session):
+    company = db.query(Company).order_by(Company.id.asc()).first()
+    if company:
+        return company.id
+    company = Company(name="Default company")
+    db.add(company)
+    db.flush()
+    return company.id
+
+
+def _public_registration_closed_error():
+    return HTTPException(
+        status_code=403,
+        detail="Public registration is closed. Ask a system administrator to create or approve your account.",
+    )
+
+
 @router.post("/users")
 def create_user(data: UserCreate, request: Request):
     require_admin(request)
-    if len(data.password) < 12:
-        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
-    raw_role = str(data.role).strip().lower()
-    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
-    if not is_valid_role_code(raw_role):
-        raise HTTPException(
-            status_code=400,
-            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}, "
-                    "or an existing custom role code",
-        )
+    full_name, username = _validate_account_fields(data.full_name, data.username, data.password)
+    auth = getattr(request.state, "auth", {})
+    caller_is_bootstrap = auth.get("role") == "bootstrap"
+    caller_is_super_admin = is_super_admin(auth)
+    if caller_is_bootstrap:
+        requested_role = "admin"
+    else:
+        raw_role = str(data.role).strip().lower()
+        requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
+        if not is_valid_role_code(raw_role):
+            raise HTTPException(
+                status_code=400,
+                detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}, "
+                        "or an existing custom role code",
+            )
     db: Session = SessionLocal()
     try:
-        existing = db.query(User).filter(User.username == data.username).first()
+        existing = db.query(User).filter(User.username == username).first()
         if existing:
             raise HTTPException(status_code=409, detail="User already exists")
-
-        auth = getattr(request.state, "auth", {})
-        caller_is_bootstrap = auth.get("role") == "bootstrap"
-        caller_is_super_admin = is_super_admin(auth)
 
         if caller_is_bootstrap:
             # Unchanged bootstrap fallback logic (first-ever user, no
@@ -152,8 +198,8 @@ def create_user(data: UserCreate, request: Request):
             grant_super_admin = False
 
         user = User(
-            full_name=data.full_name,
-            username=data.username,
+            full_name=full_name,
+            username=username,
             password=hash_password(data.password),
             role=requested_role,
             company_id=company_id,
@@ -173,6 +219,86 @@ def create_user(data: UserCreate, request: Request):
         }
     finally:
         db.close()
+
+
+@router.post("/register")
+def public_register(data: PublicRegisterRequest):
+    full_name, username = _validate_account_fields(
+        data.full_name,
+        data.username,
+        data.password,
+        data.confirm_password,
+    )
+    db: Session = SessionLocal()
+    try:
+        if db.query(User).count() > 0:
+            raise _public_registration_closed_error()
+
+        db.add(AuthBootstrapClaim(id=1))
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            if db.query(User).count() > 0:
+                raise _public_registration_closed_error()
+            raise HTTPException(
+                status_code=409,
+                detail="First administrator setup is already in progress. Retry after it completes.",
+            )
+
+        if db.query(User).count() > 0:
+            raise _public_registration_closed_error()
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="User already exists")
+
+        user = User(
+            full_name=full_name,
+            username=username,
+            password=hash_password(data.password),
+            role="admin",
+            company_id=_default_company_id(db),
+            is_super_admin=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return {
+            "status": "created",
+            "username": user.username,
+            "requires_login": True,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="User already exists")
+    finally:
+        db.close()
+
+
+def _password_recovery_response():
+    return {
+        "status": "accepted",
+        "recovery_mode": "administrator_reset",
+        "message": (
+            "If this account exists, recovery can continue through the established "
+            "administrator-controlled password reset process."
+        ),
+    }
+
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    recovery_username = f"password-recovery:{data.username}"
+    attempt_key = login_attempt_key(client_ip, recovery_username)
+    acct_key = account_attempt_key(recovery_username)
+    if not (login_retry_after(attempt_key) or login_retry_after(acct_key)):
+        record_login_result(attempt_key, False)
+        record_login_result(acct_key, False)
+    return _password_recovery_response()
 
 
 def user_to_auth_dict(user: User):

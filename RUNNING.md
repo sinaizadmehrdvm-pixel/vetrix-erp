@@ -29,7 +29,7 @@ http://127.0.0.1:8001/
 Expected response:
 
 ```json
-{"message":"Vetrix ERP Backend Running","version":"0.4.0","status":"online"}
+{"message":"Vetrix ERP Backend Running","version":"1.4.0","status":"online"}
 ```
 
 ## Frontend

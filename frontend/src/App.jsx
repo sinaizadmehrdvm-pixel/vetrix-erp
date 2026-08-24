@@ -120,6 +120,8 @@ function AppContent() {
       <Suspense fallback={<VitalixLoader variant="page" />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Login />} />
+          <Route path="/forgot-password" element={<Login />} />
           <Route path="/portal/:token" element={<CustomerPortalView />} />
           <Route path="/supplier-portal/:token" element={<SupplierPortalView />} />
           <Route path="/pay/:authority" element={<PaymentGatewayView />} />

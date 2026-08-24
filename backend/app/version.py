@@ -1,0 +1,2 @@
+APP_VERSION = "1.4.0"
+PILOT_RELEASE_ID = "v1.4.0-pilot.1"

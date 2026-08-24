@@ -373,6 +373,8 @@ PUBLIC_PATHS = {
     "/health",
     "/login",
     "/login/totp",
+    "/register",
+    "/forgot-password",
     "/setup/status",
     "/docs",
     "/openapi.json",

@@ -20,6 +20,8 @@ from app.auth import (
 class AuthenticationPolicyTests(unittest.TestCase):
     def test_only_documented_public_routes_bypass_authentication(self):
         self.assertTrue(is_public_request("/login", "POST"))
+        self.assertTrue(is_public_request("/register", "POST"))
+        self.assertTrue(is_public_request("/forgot-password", "POST"))
         self.assertTrue(is_public_request("/docs", "GET"))
         self.assertTrue(is_public_request("/customers", "OPTIONS"))
         self.assertTrue(
