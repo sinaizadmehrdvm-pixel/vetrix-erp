@@ -233,13 +233,14 @@ export default function CustomerFinancial({
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-[240px_180px] gap-3">
-            <div className="relative">
-              <Search size={17} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
+            <div className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 14px" }}>
+              <Search size={17} className="text-[var(--erp-muted)] shrink-0" />
               <input
                 value={lang === "fa" ? toPersianDigits(query) : query}
                 onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
                 placeholder={tr("جستجوی فاکتور...", "بحث في الفواتير...", "Fatura ara...", "Search invoices...")}
-                className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-10 pl-4 py-3 outline-none border border-[var(--erp-border)]"
+                className="min-w-0 flex-1 text-[var(--erp-text)]"
+                style={{ padding: "11px 0" }}
               />
             </div>
 

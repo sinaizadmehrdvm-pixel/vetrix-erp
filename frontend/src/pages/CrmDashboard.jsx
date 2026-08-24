@@ -470,37 +470,48 @@ function TopCustomers({ language, n, money, items }) {
 
 function CustomerList({ language, dir, n, money, items, query, setQuery, filter, setFilter }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2">
-          <Users />
-          {language === "fa" ? "لیست تحلیلی مشتریان" : language === "ar" ? "قائمة تحليل العملاء" : language === "tr" ? "Müşteri analiz listesi" : "Customer analytics list"}
-        </h2>
+    <div className="min-w-0 rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
+        <Users />
+        {language === "fa" ? "لیست تحلیلی مشتریان" : language === "ar" ? "قائمة تحليل العملاء" : language === "tr" ? "Müşteri analiz listesi" : "Customer analytics list"}
+      </h2>
 
-        <div className="flex gap-2 flex-wrap">
-          <div className="bg-[var(--erp-panel-solid)] rounded-2xl px-3 py-2 flex items-center gap-2">
-            <Search size={16} className="text-[var(--erp-accent)]" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
-              placeholder={language === "fa" ? "جستجو..." : language === "ar" ? "بحث..." : language === "tr" ? "Ara..." : "Search..."}
-              className="bg-transparent outline-none text-[var(--erp-text)] placeholder-[var(--erp-muted)] w-44"
-            />
-          </div>
-
-          <Select
-            value={filter}
-            onChange={(value) => setFilter(value)}
-            className="w-36 shrink-0"
-            options={[
-              { value: "all", label: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All" },
-              { value: "vip", label: "VIP" },
-              { value: "followup", label: language === "fa" ? "پیگیری" : language === "ar" ? "متابعة" : language === "tr" ? "Takip" : "Follow-up" },
-              { value: "risk", label: language === "fa" ? "ریسک" : language === "ar" ? "مخاطر" : language === "tr" ? "Risk" : "Risk" },
-              { value: "healthy", label: language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy" },
-            ]}
+      {/* Search + filter toolbar: a full-width, 2-equal-column row
+          (repeat(2, minmax(0,1fr)) via grid-cols-2). DOM order is
+          [search, filter] and grid auto-placement follows the inherited
+          `dir` on its own, so this naturally reads search-start/
+          filter-end in LTR and filter-start/search-end in RTL without any
+          dir-conditional JS. Stacks to 1 column (search first) below the
+          sm breakpoint. The outer card's `overflow-hidden` (removed above)
+          was clipping this Select's popup whenever it opened near the
+          card edge - Table.jsx already owns its own horizontal-scroll
+          wrapper and corner radius, so the outer clip was never needed
+          for the table and only existed as dead legacy chrome. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <label className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 12px", minHeight: 44 }}>
+          <Search size={16} className="text-[var(--erp-accent)] shrink-0" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+            placeholder={language === "fa" ? "جستجو..." : language === "ar" ? "بحث..." : language === "tr" ? "Ara..." : "Search..."}
+            aria-label={language === "fa" ? "جستجوی مشتریان" : language === "ar" ? "بحث العملاء" : language === "tr" ? "Müşteri ara" : "Search customers"}
+            className="min-w-0 flex-1"
+            style={{ color: "var(--erp-text)", padding: "10px 0" }}
           />
-        </div>
+        </label>
+
+        <Select
+          value={filter}
+          onChange={(value) => setFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All" },
+            { value: "vip", label: "VIP" },
+            { value: "followup", label: language === "fa" ? "پیگیری" : language === "ar" ? "متابعة" : language === "tr" ? "Takip" : "Follow-up" },
+            { value: "risk", label: language === "fa" ? "ریسک" : language === "ar" ? "مخاطر" : language === "tr" ? "Risk" : "Risk" },
+            { value: "healthy", label: language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy" },
+          ]}
+        />
       </div>
 
       <Table dir={dir} className="min-w-[900px] text-sm">

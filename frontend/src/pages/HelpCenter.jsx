@@ -278,13 +278,14 @@ export default function HelpCenter() {
         <p className="text-[var(--erp-muted)] mt-2">{subtitle}</p>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute top-1/2 -translate-y-1/2 start-3 w-4 h-4 text-[var(--erp-muted)]" />
+      <div className="vitalix-input-group flex items-center gap-2 max-w-md" style={{ padding: "0 12px" }}>
+        <Search className="w-4 h-4 text-[var(--erp-muted)] shrink-0" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full ps-9 pe-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--erp-accent)]"
+          className="min-w-0 flex-1 text-sm text-[var(--erp-text)]"
+          style={{ padding: "10px 0" }}
         />
       </div>
 

@@ -135,9 +135,9 @@ export default function CustomerFiles({ files = [], fa = true, language, n = (v)
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3 mb-4">
-        <div className="relative">
-          <Search size={18} className="absolute top-3.5 right-4 text-[var(--erp-muted)]" />
-          <input value={lang === "fa" ? toPersianDigits(query) : query} onChange={(e) => setQuery(toEnglishDigits(e.target.value))} placeholder={tr("جستجو در فایل‌ها...", "بحث في الملفات...", "Dosyalarda ara...", "Search files...")} className="w-full bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl pr-11 pl-4 py-3 outline-none border border-[var(--erp-border)]" />
+        <div className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 14px" }}>
+          <Search size={18} className="text-[var(--erp-muted)] shrink-0" />
+          <input value={lang === "fa" ? toPersianDigits(query) : query} onChange={(e) => setQuery(toEnglishDigits(e.target.value))} placeholder={tr("جستجو در فایل‌ها...", "بحث في الملفات...", "Dosyalarda ara...", "Search files...")} className="min-w-0 flex-1 text-[var(--erp-text)]" style={{ padding: "11px 0" }} />
         </div>
         <Select
           value={categoryFilter}

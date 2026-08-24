@@ -597,13 +597,13 @@ export default function ProductImportWizard() {
           ))}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--erp-bg)", borderRadius: 12, padding: "8px 12px", flex: 1, minWidth: 220 }}>
+            <div className="vitalix-input-group" style={{ background: "var(--erp-bg)", gap: 8, padding: "0 12px", flex: 1, minWidth: 220 }}>
               <Search size={16} style={{ color: "var(--erp-accent)" }} />
               <input
                 value={searchInput}
                 onChange={(e) => { setSearchInput(e.target.value); setPage(1); }}
                 placeholder={tr("جستجو در ردیف‌ها...", "بحث في الصفوف...", "Satırlarda ara...", "Search rows...")}
-                style={{ background: "transparent", border: 0, outline: "none", color: "var(--erp-text)", flex: 1 }}
+                style={{ color: "var(--erp-text)", flex: 1, minWidth: 0, padding: "8px 0" }}
               />
             </div>
             <Select

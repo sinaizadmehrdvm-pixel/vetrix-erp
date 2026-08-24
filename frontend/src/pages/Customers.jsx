@@ -1314,9 +1314,13 @@ export default function Customers() {
       </div>
 
       <div ref={tableTopRef} className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-[var(--erp-radius-lg)] p-5" style={{ boxShadow: "var(--erp-shadow), inset 0 1px 0 0 var(--erp-surface-highlight)" }}>
-        <div className="flex flex-wrap items-center gap-3 bg-[var(--erp-panel-solid)] rounded-[var(--erp-radius-md)] px-4 py-3 mb-3">
-          <Search size={20} className="text-[var(--erp-accent)] shrink-0" />
-
+        {/* Row 1: dominant, full-width search. Focus ring lives on this
+            rounded outer group via :focus-within (.vitalix-input-group in
+            index.css) - the inner <input> gives up its own outline/border/
+            box-shadow so it never shows the browser's square focus box
+            inside the pill. */}
+        <label className="vitalix-input-group flex items-center gap-2.5 mb-3" style={{ padding: "0 16px" }}>
+          <Search size={20} className="text-[var(--erp-accent)] shrink-0" aria-hidden="true" />
           <input
             value={faText(searchInput, fa)}
             onChange={(e) => setSearchInput(faText(e.target.value, fa))}
@@ -1329,13 +1333,22 @@ export default function Customers() {
                 ? "Ad, telefon, vergi no, e-posta veya şehre göre ara..."
                 : "Search by name, phone, national ID, tax code, email or city..."
             }
-            className="bg-transparent outline-none flex-1 min-w-[220px] text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
+            aria-label={fa ? "جستجوی مشتریان" : ar ? "بحث العملاء" : tr ? "Müşteri ara" : "Search customers"}
+            className="min-w-0 flex-1"
+            style={{ color: "var(--erp-text)", padding: "13px 0" }}
           />
+        </label>
 
+        {/* Row 2: filters + report action. Grid on mobile/tablet so
+            controls wrap into balanced 2-3 columns without overflow; flex
+            at desktop width restores each Select's natural compact width,
+            with the export action pushed to the row end via ms-auto so it
+            reads as an action, not another filter. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-center gap-3 mb-3">
           <Select
             value={filters.type}
             onChange={(value) => patchFilters({ type: value })}
-            className="w-40 shrink-0"
+            className="w-full lg:w-40 shrink-0"
             options={[
               { value: "all", label: fa ? "همه انواع" : language === "ar" ? "كل الأنواع" : language === "tr" ? "Tüm türler" : "All types" },
               { value: "customer", label: t("customerParty") },
@@ -1351,7 +1364,7 @@ export default function Customers() {
           <Select
             value={filters.bal}
             onChange={(value) => patchFilters({ bal: value })}
-            className="w-44 shrink-0"
+            className="w-full lg:w-44 shrink-0"
             options={[
               { value: "all", label: fa ? "همه وضعیت مالی" : ar ? "كل الحالات المالية" : tr ? "Tüm bakiyeler" : "All balances" },
               { value: "debtor", label: fa ? "فقط بدهکار" : ar ? "مدين فقط" : tr ? "Sadece borçlu" : "Debtors only" },
@@ -1364,7 +1377,7 @@ export default function Customers() {
           <Select
             value={filters.crm}
             onChange={(value) => patchFilters({ crm: value })}
-            className="w-40 shrink-0"
+            className="w-full lg:w-40 shrink-0"
             options={[
               { value: "all", label: fa ? "همه CRM" : language === "ar" ? "كل CRM" : language === "tr" ? "Tüm CRM" : "All CRM" },
               { value: "vip", label: "VIP" },
@@ -1377,7 +1390,7 @@ export default function Customers() {
           <Select
             value={filters.phoneHas}
             onChange={(value) => patchFilters({ phoneHas: value })}
-            className="w-48 shrink-0"
+            className="w-full lg:w-48 shrink-0"
             options={[
               { value: "all", label: fa ? "شماره تماس: همه" : ar ? "رقم الهاتف: الكل" : tr ? "Telefon: hepsi" : "Phone: all" },
               { value: "yes", label: fa ? "دارای شماره تماس" : ar ? "لديه رقم" : tr ? "Numarası var" : "Has phone" },
@@ -1389,7 +1402,7 @@ export default function Customers() {
             <Select
               value={filters.city}
               onChange={(value) => patchFilters({ city: value })}
-              className="w-36 shrink-0"
+              className="w-full lg:w-36 shrink-0"
               options={[
                 { value: "all", label: fa ? "همه شهرها" : ar ? "كل المدن" : tr ? "Tüm şehirler" : "All cities" },
                 ...cityOptions.map((city) => ({ value: city, label: city })),
@@ -1398,16 +1411,17 @@ export default function Customers() {
           )}
 
           {user && (
-            <button
+            <Button
               type="button"
+              variant={myOnly ? "primary" : "secondary"}
               onClick={() => setMyOnly((v) => !v)}
-              className={`px-4 py-2 rounded-[var(--erp-radius-sm)] font-black text-sm ${myOnly ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-bg-soft)] text-[var(--erp-text)]"}`}
+              className="w-full lg:w-auto"
             >
               {fa ? "مشتریان من" : language === "ar" ? "عملائي" : language === "tr" ? "Müşterilerim" : "My customers"}
-            </button>
+            </Button>
           )}
 
-          <div className="relative ms-auto" ref={exportMenuRef}>
+          <div className="relative col-span-2 sm:col-span-3 lg:col-span-1 lg:ms-auto" ref={exportMenuRef}>
             <Button
               variant="secondary"
               icon={Download}
@@ -1415,6 +1429,7 @@ export default function Customers() {
               aria-haspopup="menu"
               aria-expanded={exportMenuOpen}
               loading={exportBusy}
+              className="w-full lg:w-auto"
             >
               {exportLabels.button}
               <ChevronDown size={14} />

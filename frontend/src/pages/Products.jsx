@@ -1006,9 +1006,22 @@ export default function Products() {
       </div>
 
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-3 flex-wrap">
-          <Search size={18} />
-          <input value={faText(search, fa)} onChange={(e) => setSearch(faText(e.target.value, fa))} placeholder={label.search} className="bg-transparent outline-none flex-1 min-w-[200px] text-[var(--erp-text)] placeholder-[var(--erp-muted)]" />
+        {/* Search: shared .vitalix-input-group pattern (focus ring on the
+            rounded outer container via :focus-within, not the bare
+            <input>) - !rounded-2xl matches this page's own control radius
+            (inputClass/the Select overrides below) rather than the
+            group's 12px default, so it stays coherent with the rest of
+            Products.jsx's chrome instead of introducing a second radius. */}
+        <div className="vitalix-input-group !rounded-2xl flex items-center gap-2 mb-3 flex-wrap" style={{ padding: "0 16px" }}>
+          <Search size={18} className="text-[var(--erp-accent)] shrink-0" aria-hidden="true" />
+          <input
+            value={faText(search, fa)}
+            onChange={(e) => setSearch(faText(e.target.value, fa))}
+            placeholder={label.search}
+            aria-label={label.search}
+            className="min-w-0 flex-1"
+            style={{ color: "var(--erp-text)", padding: "16px 0" }}
+          />
           <button
             type="button"
             onClick={() => { setScannerMode("search"); setScannerOpen(true); }}

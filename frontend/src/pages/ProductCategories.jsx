@@ -156,13 +156,13 @@ export default function ProductCategories() {
       </div>
 
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
+        <div className="vitalix-input-group !rounded-2xl flex items-center gap-2 px-4 py-3 mb-5">
           <Search size={18} className="text-[var(--erp-accent)]" />
           <input
             value={query}
             onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
             placeholder={language === "fa" ? "جستجوی دسته‌بندی..." : language === "ar" ? "بحث عن تصنيف..." : language === "tr" ? "Kategori ara..." : "Search category..."}
-            className="bg-transparent outline-none text-[var(--erp-text)] w-full"
+            className="min-w-0 flex-1 text-[var(--erp-text)]"
           />
         </div>
 

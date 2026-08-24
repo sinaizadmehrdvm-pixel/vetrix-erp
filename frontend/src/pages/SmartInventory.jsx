@@ -273,13 +273,14 @@ export default function SmartInventory() {
               <Brain />
               {language === "fa" ? "تحلیل هوشمند انبار" : language === "ar" ? "ذكاء المخزون" : language === "tr" ? "Stok zekası" : "Inventory intelligence"}
             </h2>
-            <div className="relative min-w-[260px]">
-              <Search className="absolute top-3 right-3 text-[var(--erp-muted)]" size={18} />
+            <div className="vitalix-input-group !rounded-2xl flex items-center gap-2 min-w-[260px]" style={{ padding: "0 14px" }}>
+              <Search className="text-[var(--erp-muted)] shrink-0" size={18} />
               <input
                 value={query}
                 onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
                 placeholder={language === "fa" ? "جستجوی کالا، برند، کد..." : language === "ar" ? "بحث عن منتج أو علامة تجارية أو رمز..." : language === "tr" ? "Ürün, marka, kod ara..." : "Search product, brand, code..."}
-                className="w-full bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl py-3 pr-10 pl-4 outline-none text-[var(--erp-text)]"
+                className="min-w-0 flex-1 text-[var(--erp-text)]"
+                style={{ padding: "11px 0" }}
               />
             </div>
           </div>

@@ -431,13 +431,20 @@ export default function Expenses() {
       </div>
 
       <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
-        <div className="flex items-center gap-2 bg-[var(--erp-panel-solid)] rounded-2xl px-4 py-3 mb-5">
+        {/* .vitalix-input-group (index.css) owns the rounded pill's border/
+            background/focus-within ring on the outer container - the bare
+            <input> gives up its own outline/border/box-shadow via that
+            same class's `> input` rule, so it never shows the browser's
+            square focus box inside the rounded pill. !rounded-2xl keeps
+            this page's existing 16px radius instead of the class's 12px
+            default. */}
+        <div className="vitalix-input-group !rounded-2xl flex items-center gap-2 px-4 py-3 mb-5">
           <Search size={18} />
           <input
             value={faText(search, fa)}
             onChange={(e) => setSearch(faText(e.target.value, fa))}
             placeholder={label.search}
-            className="bg-transparent outline-none w-full text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
+            className="min-w-0 flex-1 text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
         </div>
 

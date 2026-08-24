@@ -173,13 +173,14 @@ export default function DesignStudio() {
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute top-1/2 -translate-y-1/2 start-3 w-4 h-4 text-[var(--erp-muted)]" />
+        <div className="vitalix-input-group flex items-center gap-2 flex-1 min-w-[200px]" style={{ padding: "0 12px" }}>
+          <Search className="w-4 h-4 text-[var(--erp-muted)] shrink-0" />
           <input
             value={pd(search)}
             onChange={(e) => setSearch(toEnglishDigits(e.target.value))}
             placeholder={tr("جست‌وجوی قالب...", "بحث عن قالب...", "Şablon ara...", "Search templates...")}
-            className="w-full ps-9 pe-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--erp-accent)]"
+            className="min-w-0 flex-1 text-sm text-[var(--erp-text)]"
+            style={{ padding: "11px 0" }}
           />
         </div>
         <Select
