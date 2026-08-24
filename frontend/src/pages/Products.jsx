@@ -911,6 +911,7 @@ export default function Products() {
           <Field label={label.unit}>
             <Select
               className="w-full"
+              triggerClassName="!rounded-2xl !p-4"
               value={form.unit || tr("عدد", "قطعة", "Adet", "pcs")}
               onChange={(value) => setField("unit", value)}
               options={unitOptions.map((unit) => ({ value: unit, label: unit }))}
@@ -944,6 +945,7 @@ export default function Products() {
           >
             <Select
               className="w-full"
+              triggerClassName="!rounded-2xl !p-4"
               value={form.main_category}
               onChange={(value) => { setField("main_category", value); setField("sub_category", ""); }}
               options={[
@@ -956,6 +958,7 @@ export default function Products() {
           <Field label={label.subCategory}>
             <Select
               className="w-full"
+              triggerClassName="!rounded-2xl !p-4"
               value={form.sub_category}
               onChange={(value) => setField("sub_category", value)}
               disabled={!form.main_category}
@@ -1037,6 +1040,7 @@ export default function Products() {
             value={brandFilter}
             onChange={(value) => setBrandFilter(value)}
             className="w-40 shrink-0"
+            triggerClassName="!rounded-2xl !p-4"
             options={[
               { value: "all", label: tr("همه برندها", "كل العلامات", "Tüm markalar", "All brands") },
               ...brandOptions.map((b) => ({ value: b, label: b })),
@@ -1046,6 +1050,7 @@ export default function Products() {
             value={unitFilter}
             onChange={(value) => setUnitFilter(value)}
             className="w-36 shrink-0"
+            triggerClassName="!rounded-2xl !p-4"
             options={[
               { value: "all", label: tr("همه واحدها", "كل الوحدات", "Tüm birimler", "All units") },
               ...unitOptionsFromData.map((u) => ({ value: u, label: u })),
@@ -1056,6 +1061,7 @@ export default function Products() {
               value={categoryFilter}
               onChange={(value) => { setCategoryFilter(value); setSubCategoryFilter("all"); }}
               className="w-48 shrink-0"
+              triggerClassName="!rounded-2xl !p-4"
               options={[
                 { value: "all", label: tr("همه گروه‌های اصلی", "كل التصنيفات الرئيسية", "Tüm ana kategoriler", "All main categories") },
                 ...categoryFilterOptions.map((c) => ({ value: c, label: c })),
@@ -1067,6 +1073,7 @@ export default function Products() {
               value={subCategoryFilter}
               onChange={(value) => setSubCategoryFilter(value)}
               className="w-44 shrink-0"
+              triggerClassName="!rounded-2xl !p-4"
               options={[
                 { value: "all", label: tr("همه زیرگروه‌ها", "كل المجموعات الفرعية", "Tüm alt gruplar", "All subcategories") },
                 ...subCategoryFilterOptions.map((c) => ({ value: c, label: c })),
@@ -1077,6 +1084,7 @@ export default function Products() {
             value={stockStatusFilter}
             onChange={(value) => setStockStatusFilter(value)}
             className="w-48 shrink-0"
+            triggerClassName="!rounded-2xl !p-4"
             options={[
               { value: "all", label: tr("هر وضعیت موجودی", "أي حالة مخزون", "Her stok durumu", "Any stock status") },
               { value: "in_stock", label: tr("موجود", "متوفر", "Stokta", "In stock") },
@@ -1088,6 +1096,7 @@ export default function Products() {
             value={activeFilter}
             onChange={(value) => setActiveFilter(value)}
             className="w-44 shrink-0"
+            triggerClassName="!rounded-2xl !p-4"
             options={[
               { value: "all", label: tr("فعال و غیرفعال", "نشط وغير نشط", "Aktif ve pasif", "Active & inactive") },
               { value: "active", label: tr("فقط فعال", "نشط فقط", "Sadece aktif", "Active only") },
