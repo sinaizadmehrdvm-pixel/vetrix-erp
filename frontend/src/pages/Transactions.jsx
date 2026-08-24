@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import Select from "../components/ui/Select";
@@ -49,6 +49,16 @@ const emptyForm = {
 
 const inputClass =
   "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-[var(--erp-accent)] rounded-2xl p-4 outline-none transition-all min-h-[58px]";
+
+// Select's `className` only ever reaches its outer positioning wrapper,
+// never the trigger <button> that actually owns radius/padding/height -
+// passing `inputClass` there (as this form used to) silently no-ops on
+// the button while adding unwanted padding to the wrapper. Selects (and
+// the grouped JalaliDateField below) need this page's own control size
+// applied via `triggerClassName`/`groupClassName` instead, so every
+// control in the transaction-entry form actually renders at the same
+// 58px/16px-radius box the raw inputClass fields already use.
+const controlTriggerClass = "!rounded-2xl !p-4 !min-h-[58px]";
 
 const REASON_LABELS = {
   fa: {
@@ -165,12 +175,19 @@ export default function Transactions() {
   const tr = (faText, arText, trText, enText) =>
     language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState([]);
   const [parties, setParties] = useState([]);
   const [search, setSearch] = useState("");
+  // Optional `?customer_id=` deep link (e.g. the Field Sales module's
+  // "Receive Payment" quick action) prefills the receipt form so a rep
+  // doesn't have to re-find the customer they just visited.
+  const prefillCustomerId = searchParams.get("customer_id") || "";
   const [form, setForm] = useState({
     ...emptyForm,
     date: todayByLanguage(language),
+    party_id: prefillCustomerId,
+    type: prefillCustomerId ? "income" : emptyForm.type,
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -514,7 +531,8 @@ export default function Transactions() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <Select
-            className={inputClass}
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.type}
             onChange={(value) => setForm({ ...form, type: value })}
             options={[
@@ -524,7 +542,8 @@ export default function Transactions() {
           />
 
           <Select
-            className={inputClass}
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.reason}
             onChange={(value) => setForm({ ...form, reason: value })}
             options={Object.keys(REASON_LABELS.fa).map((key) => ({
@@ -534,7 +553,8 @@ export default function Transactions() {
           />
 
           <Select
-            className={inputClass}
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.party_id}
             onChange={(value) => setForm({ ...form, party_id: value })}
             options={[
@@ -564,6 +584,8 @@ export default function Transactions() {
           />
 
           <Select
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.method}
             onChange={(value) => setForm({ ...form, method: value })}
             options={[
@@ -590,7 +612,8 @@ export default function Transactions() {
             fa={language === "fa"}
             language={language}
             country={country}
-            className={inputClass}
+            variant="grouped"
+            groupClassName="!rounded-2xl !min-h-[58px]"
           />
         </div>
 
