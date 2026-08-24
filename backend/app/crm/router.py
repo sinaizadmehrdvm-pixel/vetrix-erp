@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 from datetime import datetime
@@ -7,6 +7,7 @@ from app.database import engine, SessionLocal
 from app.models.customer import Customer
 from app.models.invoice import Invoice
 from app.models.accounting_entry import AccountingEntry
+from app.company_scope import current_company_id
 
 router = APIRouter()
 
@@ -232,7 +233,10 @@ def _profile(db, customer):
         "open_tasks_count": int(open_tasks),
         "lifetime_value": stats["total_sales"],
         "loyalty": loyalty,
-        "tags": ",".join([x for x in [loyalty.get("level"), "Needs Followup" if balance > 0 else "", "Credit Risk" if risk in ["high", "critical"] else ""] if x]),
+        # Raw semantic keys, never pre-formatted English text - the frontend
+        # (Customer360.jsx's tagLabel) translates these per the active UI
+        # language, the same way it already does for loyalty.level/risk_level.
+        "tags": ",".join([x for x in [loyalty.get("level"), "needs_followup" if balance > 0 else "", "credit_risk" if risk in ["high", "critical"] else ""] if x]),
     }
 
 def _invoice_dict(i):
@@ -256,11 +260,18 @@ def _customer_ai(profile):
         "suggested_discount": loyalty.get("discount_percent", 0),
     }
 
+def _require_customer_in_company(db, customer_id: int, company_id: int) -> Customer:
+    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer
+
+
 @router.get("/dashboard")
-def crm_dashboard():
+def crm_dashboard(request: Request):
     db = SessionLocal()
     try:
-        customers = db.query(Customer).all()
+        customers = db.query(Customer).filter(Customer.company_id == current_company_id(request)).all()
         profiles = [_profile(db, c) for c in customers]
         debtors = sorted([p for p in profiles if p.get("debit", 0) > 0], key=lambda x: x.get("debit", 0), reverse=True)
         risky = [p for p in profiles if p.get("risk_level") in ["high", "critical"]]
@@ -285,10 +296,10 @@ def crm_dashboard():
         db.close()
 
 @router.get("/customers/{customer_id}")
-def get_customer_360(customer_id: int):
+def get_customer_360(customer_id: int, request: Request):
     db = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             return {"status": "error", "message": "Customer not found"}
         profile = _profile(db, customer)
@@ -308,10 +319,10 @@ def get_customer_360(customer_id: int):
         db.close()
 
 @router.get("/customers/{customer_id}/loyalty")
-def get_customer_loyalty(customer_id: int):
+def get_customer_loyalty(customer_id: int, request: Request):
     db = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             return {"status": "error", "message": "Customer not found"}
         return _profile(db, customer).get("loyalty") or {}
@@ -319,7 +330,12 @@ def get_customer_loyalty(customer_id: int):
         db.close()
 
 @router.post("/customers/{customer_id}/loyalty/redeem")
-def redeem_customer_points(customer_id: int, data: LoyaltyRedeemRequest):
+def redeem_customer_points(customer_id: int, data: LoyaltyRedeemRequest, request: Request):
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, current_company_id(request))
+    finally:
+        db.close()
     points = max(0, _safe_float(data.points))
     with engine.connect() as conn:
         row = conn.execute(text("SELECT * FROM customer_loyalty WHERE customer_id=:cid"), {"cid": customer_id}).mappings().first()
@@ -336,10 +352,10 @@ def redeem_customer_points(customer_id: int, data: LoyaltyRedeemRequest):
         return {"status": "ok", "redeemed_points": points, "remaining_points": available - points, "gift_credit": gift_credit}
 
 @router.get("/customers/{customer_id}/profile")
-def get_customer_profile(customer_id: int):
+def get_customer_profile(customer_id: int, request: Request):
     db = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             return {"status": "error", "message": "Customer not found"}
         return _profile(db, customer)
@@ -347,16 +363,21 @@ def get_customer_profile(customer_id: int):
         db.close()
 
 @router.get("/customers/{customer_id}/timeline")
-def get_customer_timeline(customer_id: int):
+def get_customer_timeline(customer_id: int, request: Request):
     db = SessionLocal()
     try:
+        _require_customer_in_company(db, customer_id, current_company_id(request))
         invoices = db.query(Invoice).filter(Invoice.customer_id == customer_id).all()
         entries = db.query(AccountingEntry).filter(AccountingEntry.customer_id == customer_id).all()
         events = []
         for i in invoices:
-            events.append({"id": f"invoice-{i.id}", "type": "invoice", "title": f"Invoice #{i.id}", "description": getattr(i, "invoice_type", ""), "amount": _safe_float(getattr(i, "total_amount", 0)), "created_at": _dt(getattr(i, "created_at", None)), "source": "invoice"})
+            # No English "Invoice #.." title baked in here - invoice_id/
+            # invoice_type are raw codes the frontend (CustomerTimeline.jsx)
+            # translates and formats per the active UI language, the same
+            # way it already does for accounting entries below.
+            events.append({"id": f"invoice-{i.id}", "type": "invoice", "invoice_id": i.id, "invoice_type": getattr(i, "invoice_type", ""), "amount": _safe_float(getattr(i, "total_amount", 0)), "created_at": _dt(getattr(i, "created_at", None)), "source": "invoice"})
         for e in entries:
-            events.append({"id": f"entry-{e.id}", "type": e.source_type or "accounting", "title": e.description or "Accounting entry", "description": e.entry_type or "", "amount": _safe_float(e.debit or e.credit), "created_at": _dt(getattr(e, "created_at", None)), "source": "accounting"})
+            events.append({"id": f"entry-{e.id}", "type": e.source_type or "accounting", "entry_type": e.entry_type or "", "title": e.description or "", "amount": _safe_float(e.debit or e.credit), "created_at": _dt(getattr(e, "created_at", None)), "source": "accounting"})
         with engine.connect() as conn:
             for source, table_name in [("note", "crm_notes"), ("task", "crm_tasks"), ("interaction", "crm_interactions")]:
                 rows = conn.execute(text(f"SELECT * FROM {table_name} WHERE customer_id=:cid"), {"cid": customer_id}).mappings().all()
@@ -368,10 +389,10 @@ def get_customer_timeline(customer_id: int):
         db.close()
 
 @router.get("/customers/{customer_id}/ai")
-def get_customer_ai(customer_id: int):
+def get_customer_ai(customer_id: int, request: Request):
     db = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             return {"status": "error", "message": "Customer not found"}
         return _customer_ai(_profile(db, customer))
@@ -379,59 +400,92 @@ def get_customer_ai(customer_id: int):
         db.close()
 
 @router.get("/customers/{customer_id}/notes")
-def get_notes(customer_id: int):
+def get_notes(customer_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, current_company_id(request))
+    finally:
+        db.close()
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(text("SELECT * FROM crm_notes WHERE customer_id=:cid ORDER BY id DESC"), {"cid": customer_id}).mappings().all()]
 
 @router.post("/customers/{customer_id}/notes")
-def create_note(customer_id: int, data: CrmNoteCreate):
+def create_note(customer_id: int, data: CrmNoteCreate, request: Request):
+    company_id = current_company_id(request)
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, company_id)
+    finally:
+        db.close()
     with engine.connect() as conn:
-        res = conn.execute(text("INSERT INTO crm_notes (customer_id,note_type,title,text,tags,created_at) VALUES (:customer_id,:note_type,:title,:text,:tags,:created_at)"), {"customer_id": customer_id, "note_type": data.note_type, "title": data.title, "text": data.text, "tags": data.tags, "created_at": datetime.utcnow()})
+        res = conn.execute(text("INSERT INTO crm_notes (customer_id,note_type,title,text,tags,created_at,company_id) VALUES (:customer_id,:note_type,:title,:text,:tags,:created_at,:company_id)"), {"customer_id": customer_id, "note_type": data.note_type, "title": data.title, "text": data.text, "tags": data.tags, "created_at": datetime.utcnow(), "company_id": company_id})
         conn.commit()
         return {"status": "created", "id": res.lastrowid}
 
 @router.delete("/notes/{note_id}")
-def delete_note(note_id: int):
+def delete_note(note_id: int, request: Request):
     with engine.connect() as conn:
-        conn.execute(text("DELETE FROM crm_notes WHERE id=:id"), {"id": note_id})
+        conn.execute(text("DELETE FROM crm_notes WHERE id=:id AND company_id=:company_id"), {"id": note_id, "company_id": current_company_id(request)})
         conn.commit()
         return {"status": "deleted", "id": note_id}
 
 @router.get("/customers/{customer_id}/tasks")
-def get_tasks(customer_id: int):
+def get_tasks(customer_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, current_company_id(request))
+    finally:
+        db.close()
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(text("SELECT * FROM crm_tasks WHERE customer_id=:cid ORDER BY id DESC"), {"cid": customer_id}).mappings().all()]
 
 @router.post("/customers/{customer_id}/tasks")
-def create_task(customer_id: int, data: CrmTaskCreate):
+def create_task(customer_id: int, data: CrmTaskCreate, request: Request):
+    company_id = current_company_id(request)
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, company_id)
+    finally:
+        db.close()
     with engine.connect() as conn:
-        res = conn.execute(text("INSERT INTO crm_tasks (customer_id,title,description,due_date,status,priority,created_at,completed_at) VALUES (:customer_id,:title,:description,:due_date,:status,:priority,:created_at,'')"), {"customer_id": customer_id, "title": data.title, "description": data.description, "due_date": data.due_date, "status": data.status, "priority": data.priority, "created_at": datetime.utcnow()})
+        res = conn.execute(text("INSERT INTO crm_tasks (customer_id,title,description,due_date,status,priority,created_at,completed_at,company_id) VALUES (:customer_id,:title,:description,:due_date,:status,:priority,:created_at,'',:company_id)"), {"customer_id": customer_id, "title": data.title, "description": data.description, "due_date": data.due_date, "status": data.status, "priority": data.priority, "created_at": datetime.utcnow(), "company_id": company_id})
         conn.commit()
         return {"status": "created", "id": res.lastrowid}
 
 @router.put("/tasks/{task_id}")
-def update_task(task_id: int, data: CrmTaskUpdate):
+def update_task(task_id: int, data: CrmTaskUpdate, request: Request):
     completed_at = datetime.utcnow().isoformat() if data.status == "done" else ""
     with engine.connect() as conn:
-        conn.execute(text("UPDATE crm_tasks SET title=:title,description=:description,due_date=:due_date,status=:status,priority=:priority,completed_at=:completed_at WHERE id=:id"), {"id": task_id, "title": data.title, "description": data.description, "due_date": data.due_date, "status": data.status, "priority": data.priority, "completed_at": completed_at})
+        conn.execute(text("UPDATE crm_tasks SET title=:title,description=:description,due_date=:due_date,status=:status,priority=:priority,completed_at=:completed_at WHERE id=:id AND company_id=:company_id"), {"id": task_id, "title": data.title, "description": data.description, "due_date": data.due_date, "status": data.status, "priority": data.priority, "completed_at": completed_at, "company_id": current_company_id(request)})
         conn.commit()
         return {"status": "updated", "id": task_id}
 
 @router.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
+def delete_task(task_id: int, request: Request):
     with engine.connect() as conn:
-        conn.execute(text("DELETE FROM crm_tasks WHERE id=:id"), {"id": task_id})
+        conn.execute(text("DELETE FROM crm_tasks WHERE id=:id AND company_id=:company_id"), {"id": task_id, "company_id": current_company_id(request)})
         conn.commit()
         return {"status": "deleted", "id": task_id}
 
 @router.get("/customers/{customer_id}/interactions")
-def get_interactions(customer_id: int):
+def get_interactions(customer_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, current_company_id(request))
+    finally:
+        db.close()
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(text("SELECT * FROM crm_interactions WHERE customer_id=:cid ORDER BY id DESC"), {"cid": customer_id}).mappings().all()]
 
 @router.post("/customers/{customer_id}/interactions")
-def create_interaction(customer_id: int, data: CrmInteractionCreate):
+def create_interaction(customer_id: int, data: CrmInteractionCreate, request: Request):
+    company_id = current_company_id(request)
+    db = SessionLocal()
+    try:
+        _require_customer_in_company(db, customer_id, company_id)
+    finally:
+        db.close()
     with engine.connect() as conn:
-        res = conn.execute(text("INSERT INTO crm_interactions (customer_id,interaction_type,title,description,result,next_followup,created_at) VALUES (:customer_id,:interaction_type,:title,:description,:result,:next_followup,:created_at)"), {"customer_id": customer_id, "interaction_type": data.interaction_type, "title": data.title, "description": data.description, "result": data.result, "next_followup": data.next_followup, "created_at": datetime.utcnow()})
+        res = conn.execute(text("INSERT INTO crm_interactions (customer_id,interaction_type,title,description,result,next_followup,created_at,company_id) VALUES (:customer_id,:interaction_type,:title,:description,:result,:next_followup,:created_at,:company_id)"), {"customer_id": customer_id, "interaction_type": data.interaction_type, "title": data.title, "description": data.description, "result": data.result, "next_followup": data.next_followup, "created_at": datetime.utcnow(), "company_id": company_id})
         conn.commit()
         return {"status": "created", "id": res.lastrowid}

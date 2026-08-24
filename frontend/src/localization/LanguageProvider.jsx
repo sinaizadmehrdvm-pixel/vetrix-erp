@@ -90,7 +90,9 @@ export function LanguageProvider({ children }) {
     document.body.classList.add(dir);
 
     if (language === "fa") {
-      document.body.style.fontFamily = "'Vazirmatn','IRANSans',Tahoma,sans-serif";
+      document.body.style.fontFamily = "'Estedad Variable','IRANSans',Tahoma,sans-serif";
+    } else if (language === "ar") {
+      document.body.style.fontFamily = "'Estedad Variable','Tahoma','Segoe UI',Arial,sans-serif";
     } else {
       document.body.style.fontFamily = "'Inter','Segoe UI',Arial,sans-serif";
     }
@@ -121,7 +123,7 @@ export function LanguageProvider({ children }) {
       roundingMode: companyFormatting.rounding_mode || "half_up",
       decimalPlaces: profile.currencyDigits,
       n: (value, options) => formatCountryNumber(value, profile, language, options),
-      money: (value, currencyOverride) => formatCountryMoney(value, profile, language, currencyOverride),
+      money: (value, currencyOverride, options) => formatCountryMoney(value, profile, language, currencyOverride, options),
       date: (value, options) => formatCountryDate(value, profile, language, options),
       time: (value) => formatCountryTime(value, profile, language),
       languages: Object.values(translations),

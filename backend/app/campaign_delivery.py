@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.online_commerce import _ensure_schema as _ensure_commerce_schema
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/campaign-delivery", tags=["Campaign Delivery"])
 MAX_CLOCK_SKEW_SECONDS = 300
@@ -86,6 +87,8 @@ def _ensure_schema(conn):
             FOREIGN KEY(queued_by) REFERENCES users(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "campaign_delivery_jobs")
 
 
 def _scheduled_due(value):
@@ -116,8 +119,8 @@ def queue_campaign(campaign_id: int, request: Request):
     with engine.begin() as conn:
         _ensure_schema(conn)
         campaign = conn.execute(text("""
-            SELECT * FROM social_campaigns WHERE id=:id
-        """), {"id": campaign_id}).mappings().first()
+            SELECT * FROM social_campaigns WHERE id=:id AND company_id=:company_id
+        """), {"id": campaign_id, "company_id": current_company_id(request)}).mappings().first()
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
         if campaign["status"] not in {"approved", "scheduled"}:
@@ -139,13 +142,14 @@ def queue_campaign(campaign_id: int, request: Request):
             }
         job = conn.execute(text("""
             INSERT INTO campaign_delivery_jobs
-              (campaign_id, channel, status, queued_by, queued_at)
-            VALUES (:campaign_id, :channel, 'queued', :actor, :now)
+              (campaign_id, channel, status, queued_by, queued_at, company_id)
+            VALUES (:campaign_id, :channel, 'queued', :actor, :now, :company_id)
         """), {
             "campaign_id": campaign_id,
             "channel": campaign["channel"],
             "actor": actor,
             "now": _now(),
+            "company_id": current_company_id(request),
         })
         return {
             "status": "queued",
@@ -280,8 +284,9 @@ def delivery_readiness(request: Request):
         _ensure_schema(conn)
         counts = conn.execute(text("""
             SELECT status, COUNT(*) count FROM campaign_delivery_jobs
+            WHERE company_id=:company_id
             GROUP BY status
-        """)).mappings().all()
+        """), {"company_id": current_company_id(request)}).mappings().all()
     return {
         "ready": len(secret) >= 24,
         "signature_algorithm": "HMAC-SHA256",

@@ -15,101 +15,28 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, cleanNumberInput } from "../localization/helpers";
 import { getCache } from "../storage/db";
-import { getPdfTemplates, savePdfTemplate } from "../services/api";
-
-const INVOICES_CACHE_KEY = "invoices";
-
-const PAGE_SIZES = {
-  A4: { w: 794, h: 1123, label: "A4" },
-  A5: { w: 559, h: 794, label: "A5" },
-  THERMAL80: { w: 302, h: 980, label: "Thermal 80" },
-  THERMAL58: { w: 220, h: 980, label: "Thermal 58" },
-};
-
-const defaultConfig = {
-  page_size: "A4",
-  theme: { primary: "#0f172a", accent: "#06b6d4" },
-  elements: [
-    { id: "title", type: "text", label: "عنوان فاکتور", text: "{{invoice_title}}", x: 540, y: 45, w: 190, h: 45, fontSize: 24, color: "#0f172a", bg: "#ffffff", border: "#ffffff", radius: 10, align: "center", bold: true },
-    { id: "logo", type: "logo", label: "لوگو", text: "LOGO", x: 55, y: 40, w: 120, h: 65, fontSize: 18, color: "#0891b2", bg: "#ecfeff", border: "#bae6fd", radius: 16, align: "center", bold: true },
-    { id: "company", type: "text", label: "نام شرکت", text: "Vetrix ERP\nسیستم حسابداری و مدیریت فروش", x: 190, y: 45, w: 300, h: 75, fontSize: 18, color: "#0891b2", bg: "#ffffff", border: "#ffffff", radius: 8, align: "center", bold: true },
-    { id: "invoiceInfo", type: "box", label: "اطلاعات فاکتور", text: "شماره: {{invoice_id}}\nتاریخ: {{invoice_date}}\nوضعیت: {{payment_status}}", x: 520, y: 120, w: 220, h: 90, fontSize: 13, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "customer", type: "box", label: "طرف حساب", text: "طرف حساب\n{{customer_name}}\n{{customer_phone}}\n{{customer_address}}", x: 55, y: 145, w: 400, h: 95, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "table", type: "table", label: "جدول اقلام", text: "جدول اقلام فاکتور", x: 55, y: 275, w: 685, h: 265, fontSize: 13, color: "#0f172a", bg: "#ffffff", border: "#94a3b8", radius: 10, align: "center", bold: true },
-    { id: "totals", type: "totals", label: "جمع فاکتور", text: "جمع فاکتور", x: 55, y: 570, w: 300, h: 160, fontSize: 14, color: "#0f172a", bg: "#f8fafc", border: "#cbd5e1", radius: 14, align: "right", bold: false },
-    { id: "qr", type: "qr", label: "QR Code", text: "QR", x: 590, y: 600, w: 105, h: 105, fontSize: 14, color: "#0f172a", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "note", type: "box", label: "توضیحات", text: "توضیحات\n{{invoice_note}}", x: 55, y: 760, w: 685, h: 75, fontSize: 13, color: "#334155", bg: "#ffffff", border: "#e2e8f0", radius: 12, align: "right", bold: false },
-    { id: "signature", type: "box", label: "امضا", text: "امضاء فروشنده / حسابدار", x: 55, y: 900, w: 250, h: 85, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "stamp", type: "box", label: "مهر", text: "مهر شرکت / امضاء طرف حساب", x: 490, y: 900, w: 250, h: 85, fontSize: 13, color: "#64748b", bg: "#ffffff", border: "#cbd5e1", radius: 12, align: "center", bold: false },
-    { id: "footer", type: "text", label: "متن پایین", text: "با تشکر از اعتماد شما", x: 250, y: 1035, w: 300, h: 35, fontSize: 13, color: "#334155", bg: "transparent", border: "transparent", radius: 0, align: "center", bold: true },
-  ],
-};
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-function toNumber(value) {
-  const cleaned = String(value ?? "0")
-    .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-    .replace(/[,،]/g, "")
-    .replace(/[^\d.-]/g, "");
-  const num = Number(cleaned);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function getInvoiceItems(invoice) {
-  if (Array.isArray(invoice?.items)) return invoice.items;
-  if (Array.isArray(invoice?.invoice_items)) return invoice.invoice_items;
-  if (Array.isArray(invoice?.details)) return invoice.details;
-  return [];
-}
-
-function normalizeConfig(config) {
-  const source = config && typeof config === "object" ? config : defaultConfig;
-  return {
-    ...defaultConfig,
-    ...source,
-    theme: { ...defaultConfig.theme, ...(source.theme || {}) },
-    elements: Array.isArray(source.elements) && source.elements.length ? source.elements : defaultConfig.elements,
-  };
-}
-
-function getInvoiceTitle(invoice, fa) {
-  const type = invoice?.invoice_type || invoice?.type || "sale";
-  const labelsFa = {
-    sale: "فاکتور فروش",
-    buy: "فاکتور خرید",
-    proforma: "پیش‌فاکتور",
-    return_sale: "مرجوعی فروش",
-    return_buy: "مرجوعی خرید",
-  };
-  const labelsEn = {
-    sale: "Sales Invoice",
-    buy: "Purchase Invoice",
-    proforma: "Proforma Invoice",
-    return_sale: "Sales Return",
-    return_buy: "Purchase Return",
-  };
-  return invoice?.invoice_type_label || (fa ? labelsFa[type] : labelsEn[type]) || (fa ? "فاکتور" : "Invoice");
-}
-
-function paymentLabel(status, fa) {
-  const key = String(status || "unpaid").toLowerCase();
-  if (!fa) return key || "-";
-  return {
-    paid: "تسویه شده",
-    unpaid: "تسویه نشده",
-    partial: "تسویه ناقص",
-    draft: "پیش‌نویس",
-    final: "نهایی",
-  }[key] || key || "-";
-}
+import Select from "../components/ui/Select";
+import { getInvoice, getPdfTemplates, savePdfTemplate } from "../services/api";
+import { promptAction } from "../components/ui/confirmService";
+import {
+  PAGE_SIZES,
+  buildDefaultConfig,
+  defaultTemplateName,
+  normalizeConfig,
+  getInvoiceItems,
+  computeInvoiceTotals,
+  buildReplaceTokens,
+} from "./invoicePrintHelpers";
+import { Canvas, PrintElement } from "./invoicePrintComponents";
 
 function snap(value) {
   return Math.round(Number(value || 0) / 10) * 10;
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 export default function InvoicePrint({ invoice: propInvoice = null }) {
@@ -120,8 +47,8 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const [cachedInvoice, setCachedInvoice] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
-  const [templateName, setTemplateName] = useState(fa ? "قالب چاپ فاکتور" : "Invoice print template");
-  const [config, setConfig] = useState(defaultConfig);
+  const [templateName, setTemplateName] = useState(() => defaultTemplateName(language));
+  const [config, setConfig] = useState(() => buildDefaultConfig(language));
   const [selectedElementId, setSelectedElementId] = useState("title");
   const [editMode, setEditMode] = useState(true);
   const [drag, setDrag] = useState(null);
@@ -136,26 +63,39 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   const page = PAGE_SIZES[config.page_size] || PAGE_SIZES.A4;
   const selectedElement = config.elements.find((el) => el.id === selectedElementId) || null;
 
-  const totals = useMemo(() => {
-    const subtotal =
-      invoice?.subtotal ??
-      items.reduce((sum, item) => sum + toNumber(item.quantity) * toNumber(item.unit_price ?? item.price), 0);
+  const totals = useMemo(() => computeInvoiceTotals(invoice, items), [invoice, items]);
 
-    const discount = toNumber(invoice?.discount ?? invoice?.discount_amount);
-    const tax = toNumber(invoice?.tax ?? invoice?.tax_amount);
-    const shipping = toNumber(invoice?.shipping_cost);
-    const total = invoice?.total_amount ?? invoice?.total ?? subtotal - discount + tax + shipping;
-    const settled = toNumber(invoice?.settled_amount ?? invoice?.paid_amount ?? invoice?.received_amount);
-    const remaining = Math.max(toNumber(invoice?.remaining_amount ?? total - settled), 0);
-
-    return { subtotal, discount, tax, shipping, total, settled, remaining };
-  }, [invoice, items]);
+  // Keep the quick "default template" in sync with the active language -
+  // without this, switching the app language while already on this page
+  // left the template name and every element's default text stuck in
+  // whatever language was active when the component first mounted.
+  // Resynced during render (React's documented pattern for this) rather
+  // than in an effect, which would cause an extra render pass.
+  const [syncedLanguage, setSyncedLanguage] = useState(language);
+  if (language !== syncedLanguage) {
+    setSyncedLanguage(language);
+    if (selectedTemplateId === "default") {
+      setConfig(buildDefaultConfig(language));
+      setTemplateName(defaultTemplateName(language));
+      setSelectedElementId("title");
+    }
+  }
 
   useEffect(() => {
-    async function loadCachedInvoice() {
+    async function loadInvoiceDetails() {
       if (propInvoice || !id) return;
+      // Prefer the backend (has line items); the local list cache only ever
+      // held list-summary rows with no items, which made every invoice
+      // printed from the invoice list show an empty items table.
       try {
-        const cached = await getCache(INVOICES_CACHE_KEY);
+        const full = await getInvoice(id);
+        setCachedInvoice(full);
+        return;
+      } catch (e) {
+        console.error("Invoice fetch error:", e);
+      }
+      try {
+        const cached = await getCache("invoices");
         if (Array.isArray(cached)) {
           const found = cached.find((x) => String(x.id) === String(id));
           setCachedInvoice(found || null);
@@ -164,12 +104,13 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
         console.error("Invoice cache error:", e);
       }
     }
-    loadCachedInvoice();
+    loadInvoiceDetails();
   }, [id, propInvoice]);
 
   useEffect(() => {
     const timer = setTimeout(() => { void loadTemplates(); }, 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadTemplates() {
@@ -178,7 +119,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       const data = await getPdfTemplates();
       const normalized = (Array.isArray(data) ? data : []).map((tpl) => ({
         ...tpl,
-        config: normalizeConfig(tpl.config),
+        config: normalizeConfig(tpl.config, language),
       }));
       setTemplates(normalized);
     } catch (err) {
@@ -190,7 +131,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   }
 
   function updateConfig(nextConfig) {
-    setConfig(normalizeConfig(nextConfig));
+    setConfig(normalizeConfig(nextConfig, language));
   }
 
   function updateElement(id, patch) {
@@ -204,27 +145,51 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setSelectedTemplateId(templateId);
 
     if (templateId === "default") {
-      setTemplateName(fa ? "قالب چاپ فاکتور" : "Invoice print template");
-      updateConfig(defaultConfig);
+      setTemplateName(defaultTemplateName(language));
+      updateConfig(buildDefaultConfig(language));
       setSelectedElementId("title");
-      setMessage(fa ? "قالب پیش‌فرض اعمال شد." : "Default template applied.");
+      setMessage(
+        fa
+          ? "قالب پیش‌فرض اعمال شد."
+          : language === "ar"
+          ? "تم تطبيق القالب الافتراضي."
+          : language === "tr"
+          ? "Varsayılan şablon uygulandı."
+          : "Default template applied."
+      );
       return;
     }
 
     const template = templates.find((tpl) => String(tpl.id) === String(templateId));
     if (!template) return;
 
-    setTemplateName(template.name || (fa ? "قالب چاپ" : "Print template"));
-    updateConfig(template.config || defaultConfig);
+    setTemplateName(
+      template.name || (fa ? "قالب چاپ" : language === "ar" ? "قالب الطباعة" : language === "tr" ? "Yazdırma Şablonu" : "Print template")
+    );
+    updateConfig(template.config || buildDefaultConfig(language));
     setSelectedElementId((template.config?.elements || [])[0]?.id || "title");
-    setMessage(fa ? "قالب انتخاب شد و روی پیش‌نمایش اعمال شد." : "Template loaded in preview.");
+    setMessage(
+      fa
+        ? "قالب انتخاب شد و روی پیش‌نمایش اعمال شد."
+        : language === "ar"
+        ? "تم تحميل القالب وتطبيقه على المعاينة."
+        : language === "tr"
+        ? "Şablon yüklendi ve önizlemeye uygulandı."
+        : "Template loaded in preview."
+    );
   }
 
   async function saveAsTemplate() {
     const suffix = invoice?.id ? ` #${invoice.id}` : "";
-    const newName = window.prompt(
-      fa ? "نام قالب جدید را وارد کن:" : "Enter new template name:",
-      `${templateName}${suffix}`
+    const newName = await promptAction(
+      fa
+        ? "نام قالب جدید را وارد کن:"
+        : language === "ar"
+        ? "أدخل اسم القالب الجديد:"
+        : language === "tr"
+        ? "Yeni şablon adını girin:"
+        : "Enter new template name:",
+      { defaultValue: `${templateName}${suffix}` }
     );
 
     if (!newName) return;
@@ -235,16 +200,29 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       config,
     });
 
-    setMessage(fa ? "قالب جدید ذخیره شد." : "New template saved.");
+    setMessage(
+      fa
+        ? "قالب جدید ذخیره شد."
+        : language === "ar"
+        ? "تم حفظ القالب الجديد."
+        : language === "tr"
+        ? "Yeni şablon kaydedildi."
+        : "New template saved."
+    );
     await loadTemplates();
   }
 
   function duplicateElement() {
     if (!selectedElement) return;
+    const copyLabel =
+      fa ? `${selectedElement.label || selectedElement.type} کپی`
+      : language === "ar" ? `نسخة ${selectedElement.label || selectedElement.type}`
+      : language === "tr" ? `${selectedElement.label || selectedElement.type} Kopyası`
+      : `${selectedElement.label || selectedElement.type} copy`;
     const copy = {
       ...clone(selectedElement),
       id: `${selectedElement.id}_copy_${Date.now()}`,
-      label: `${selectedElement.label || selectedElement.type} کپی`,
+      label: copyLabel,
       x: selectedElement.x + 20,
       y: selectedElement.y + 20,
     };
@@ -318,107 +296,63 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
     setResize(null);
   }
 
-  function replaceTokens(text) {
-    const customerName = invoice?.customerName || invoice?.customer_name || invoice?.customer?.name || "-";
-    const customerPhone = invoice?.customer?.phone || invoice?.customer_phone || invoice?.phone || "ثبت نشده";
-    const customerAddress = invoice?.customer?.address || invoice?.customer_address || invoice?.address || "ثبت نشده";
-    const invoiceDate = date(invoice?.created_at || new Date(), { month: "long" });
-    const invoiceTitle = getInvoiceTitle(invoice, fa);
-    const status = paymentLabel(invoice?.payment_status || invoice?.status, fa);
-
-    const tokens = {
-      "{{invoice_title}}": invoiceTitle,
-      "{{invoice_id}}": `#${n(invoice?.id || "")}`,
-      "{{invoice_date}}": invoiceDate,
-      "{{payment_status}}": status,
-      "{{customer_name}}": customerName,
-      "{{customer_phone}}": customerPhone,
-      "{{customer_address}}": customerAddress,
-      "{{subtotal}}": money(totals.subtotal),
-      "{{discount}}": money(totals.discount),
-      "{{tax}}": money(totals.tax),
-      "{{shipping}}": money(totals.shipping),
-      "{{total}}": money(totals.total),
-      "{{settled}}": money(totals.settled),
-      "{{remaining}}": money(totals.remaining),
-      "{{invoice_note}}": invoice?.invoice_note || invoice?.note || "-",
-    };
-
-    return String(text || "").replace(/\{\{[^}]+\}\}/g, (match) => tokens[match] ?? match);
-  }
+  const replaceTokens = buildReplaceTokens({ invoice, items, totals, language, n, money, date });
 
   function renderElement(element) {
-    if (element.type === "table") return <ItemsTable items={items} fa={fa} n={n} money={money} />;
-    if (element.type === "totals") return <TotalsBox totals={totals} fa={fa} money={money} />;
-
-    if (element.type === "qr") {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-700">
-          <div className="w-14 h-14 border-4 border-slate-800 grid grid-cols-3 grid-rows-3 gap-1 p-1 bg-white">
-            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-            <span /><span className="bg-slate-900" /><span />
-            <span className="bg-slate-900" /><span /><span className="bg-slate-900" />
-          </div>
-          <small>QR #{n(invoice?.id || "")}</small>
-        </div>
-      );
-    }
-
-    if (element.type === "barcode") {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center text-slate-800">
-          <div className="tracking-[6px] text-3xl">|||| || ||| |||| || |</div>
-          <small>{invoice?.id || ""}</small>
-        </div>
-      );
-    }
-
-    if (element.type === "logo") {
-      return <div className="w-full h-full flex items-center justify-center text-cyan-700 font-black">{replaceTokens(element.text || "LOGO")}</div>;
-    }
-
-    return <div className="whitespace-pre-line leading-relaxed w-full">{replaceTokens(element.text)}</div>;
+    return <PrintElement element={element} items={items} language={language} n={n} money={money} invoice={invoice} replaceTokens={replaceTokens} />;
   }
 
   if (!invoice) {
     return (
-      <section className="p-6 text-white bg-slate-950 min-h-screen">
-        <Link to="/invoices" className="text-cyan-300 font-bold">
-          {fa ? "بازگشت به فاکتورها" : "Back to invoices"}
+      <section className="p-6 text-[var(--erp-text)] bg-[var(--erp-bg)] min-h-screen">
+        <Link to="/invoices" className="text-[var(--erp-accent)] font-bold">
+          {fa ? "بازگشت به فاکتورها" : language === "ar" ? "العودة إلى الفواتير" : language === "tr" ? "Faturalara Dön" : "Back to invoices"}
         </Link>
-        <div className="mt-6 text-slate-300">
-          {fa ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود." : "Invoice not found."}
+        <div className="mt-6 text-[var(--erp-muted)]">
+          {fa
+            ? "فاکتور پیدا نشد. یک بار صفحه فاکتورها را باز کن تا کش آفلاین به‌روزرسانی شود."
+            : language === "ar"
+            ? "لم يتم العثور على الفاتورة. افتح صفحة الفواتير مرة واحدة لتحديث الذاكرة المؤقتة غير المتصلة."
+            : language === "tr"
+            ? "Fatura bulunamadı. Çevrimdışı önbelleği güncellemek için faturalar sayfasını bir kez açın."
+            : "Invoice not found."}
         </div>
       </section>
     );
   }
 
   return (
-    <section dir={dir} className="print-studio-page min-h-screen bg-slate-950 text-white p-5">
+    <section dir={dir} className="print-studio-page min-h-screen bg-[var(--erp-bg)] text-[var(--erp-text)] p-5">
       <div className="no-print flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h1 className="text-3xl font-black text-cyan-400">
-            {fa ? "استودیوی چاپ فاکتور" : "Invoice Print Studio"}
+          <h1 className="text-3xl font-black text-[var(--erp-accent)]">
+            {fa ? "استودیوی چاپ فاکتور" : language === "ar" ? "استوديو طباعة الفواتير" : language === "tr" ? "Fatura Baskı Stüdyosu" : "Invoice Print Studio"}
           </h1>
-          <p className="text-slate-400 mt-2">
-            {fa ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.` : `Print invoice #${invoice.id} with a saved template.`}
+          <p className="text-[var(--erp-muted)] mt-2">
+            {fa
+              ? `فاکتور شماره ${n(invoice.id)} را با قالب ذخیره‌شده چاپ کن.`
+              : language === "ar"
+              ? `اطبع الفاتورة رقم ${n(invoice.id)} باستخدام قالب محفوظ.`
+              : language === "tr"
+              ? `${n(invoice.id)} numaralı faturayı kayıtlı bir şablonla yazdırın.`
+              : `Print invoice #${invoice.id} with a saved template.`}
           </p>
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <Link to="/invoices" className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-bold flex items-center gap-2">
+          <Link to={`/invoice-print/${invoice.id}`} className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-bold flex items-center gap-2">
             <ArrowLeft size={18} />
-            {fa ? "بازگشت" : "Back"}
+            {fa ? "بازگشت به گزینه‌های چاپ" : language === "ar" ? "الرجوع إلى خيارات الطباعة" : language === "tr" ? "Yazdırma Seçeneklerine Dön" : "Back to print options"}
           </Link>
 
           <button type="button" onClick={saveAsTemplate} className="px-4 py-3 rounded-2xl bg-emerald-400 text-slate-950 font-black flex items-center gap-2">
             <Save size={18} />
-            {fa ? "ذخیره به عنوان قالب" : "Save as template"}
+            {fa ? "ذخیره به عنوان قالب" : language === "ar" ? "حفظ كقالب" : language === "tr" ? "Şablon Olarak Kaydet" : "Save as template"}
           </button>
 
-          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2">
+          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2">
             <Printer size={18} />
-            {fa ? "چاپ / ذخیره PDF" : "Print / PDF"}
+            {fa ? "چاپ / ذخیره PDF" : language === "ar" ? "طباعة / حفظ PDF" : language === "tr" ? "Yazdır / PDF Kaydet" : "Print / PDF"}
           </button>
         </div>
       </div>
@@ -430,42 +364,50 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
       )}
 
       <div className="no-print grid grid-cols-1 xl:grid-cols-[310px_1fr_320px] gap-5">
-        <aside className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-          <h2 className="text-cyan-300 font-black flex items-center gap-2">
+        <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+          <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <FileText size={20} />
-            {fa ? "قالب چاپ" : "Print Template"}
+            {fa ? "قالب چاپ" : language === "ar" ? "قالب الطباعة" : language === "tr" ? "Yazdırma Şablonu" : "Print Template"}
           </h2>
 
-          <Field label={fa ? "انتخاب قالب ذخیره‌شده" : "Saved template"}>
-            <select value={selectedTemplateId} onChange={(e) => handleTemplateChange(e.target.value)} className="studio-input">
-              <option value="default">{fa ? "قالب پیش‌فرض سریع" : "Default template"}</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
+          <Field label={fa ? "انتخاب قالب ذخیره‌شده" : language === "ar" ? "اختيار قالب محفوظ" : language === "tr" ? "Kayıtlı Şablon Seç" : "Saved template"}>
+            <Select
+              value={selectedTemplateId}
+              onChange={(value) => handleTemplateChange(value)}
+              options={[
+                { value: "default", label: fa ? "قالب پیش‌فرض سریع" : language === "ar" ? "القالب الافتراضي السريع" : language === "tr" ? "Hızlı Varsayılan Şablon" : "Default template" },
+                ...templates.map((template) => ({ value: template.id, label: template.name })),
+              ]}
+            />
           </Field>
 
-          <Field label={fa ? "نام قالب / نسخه چاپ" : "Template name"}>
+          <Field label={fa ? "نام قالب / نسخه چاپ" : language === "ar" ? "اسم القالب / نسخة الطباعة" : language === "tr" ? "Şablon Adı / Baskı Sürümü" : "Template name"}>
             <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="studio-input" />
           </Field>
 
-          <Field label={fa ? "اندازه صفحه" : "Page size"}>
-            <select value={config.page_size} onChange={(e) => updateConfig({ ...config, page_size: e.target.value })} className="studio-input">
-              <option value="A4">A4</option>
-              <option value="A5">A5</option>
-              <option value="THERMAL80">Thermal 80</option>
-              <option value="THERMAL58">Thermal 58</option>
-            </select>
+          <Field label={fa ? "اندازه صفحه" : language === "ar" ? "حجم الصفحة" : language === "tr" ? "Sayfa Boyutu" : "Page size"}>
+            <Select
+              value={config.page_size}
+              onChange={(value) => updateConfig({ ...config, page_size: value })}
+              options={[
+                { value: "A4", label: "A4" },
+                { value: "A5", label: "A5" },
+                { value: "THERMAL80", label: "Thermal 80" },
+                { value: "THERMAL58", label: "Thermal 58" },
+              ]}
+            />
           </Field>
 
           <div className="grid grid-cols-2 gap-2">
             <button onClick={loadTemplates} className="studio-tool-button">
               <RefreshCw size={16} />
-              {loadingTemplates ? "..." : fa ? "دریافت" : "Refresh"}
+              {loadingTemplates ? "..." : fa ? "دریافت" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
             </button>
             <button onClick={() => setEditMode((v) => !v)} className="studio-tool-button">
               <Edit3 size={16} />
-              {editMode ? (fa ? "ویرایش روشن" : "Edit on") : fa ? "ویرایش خاموش" : "Edit off"}
+              {editMode
+                ? (fa ? "ویرایش روشن" : language === "ar" ? "التعديل مفعّل" : language === "tr" ? "Düzenleme Açık" : "Edit on")
+                : (fa ? "ویرایش خاموش" : language === "ar" ? "التعديل متوقف" : language === "tr" ? "Düzenleme Kapalı" : "Edit off")}
             </button>
           </div>
 
@@ -480,33 +422,35 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
 
           <button onClick={() => setShowGrid((v) => !v)} className="w-full studio-tool-button">
             <Grid3X3 size={16} />
-            {showGrid ? (fa ? "Grid روشن" : "Grid on") : fa ? "Grid خاموش" : "Grid off"}
+            {showGrid
+              ? (fa ? "Grid روشن" : language === "ar" ? "الشبكة مفعّلة" : language === "tr" ? "Izgara Açık" : "Grid on")
+              : (fa ? "Grid خاموش" : language === "ar" ? "الشبكة متوقفة" : language === "tr" ? "Izgara Kapalı" : "Grid off")}
           </button>
         </aside>
 
         <main
-          className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 overflow-auto"
+          className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 overflow-auto"
           onMouseMove={onCanvasMouseMove}
           onMouseUp={stopPointerActions}
           onMouseLeave={stopPointerActions}
         >
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-cyan-300 font-black">{fa ? "پیش‌نمایش قابل ویرایش" : "Editable preview"}</div>
-            <div className="text-slate-400 text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
+            <div className="text-[var(--erp-accent)] font-black">{fa ? "پیش‌نمایش قابل ویرایش" : language === "ar" ? "معاينة قابلة للتعديل" : language === "tr" ? "Düzenlenebilir Önizleme" : "Editable preview"}</div>
+            <div className="text-[var(--erp-muted)] text-sm">{page.label} • {Math.round(zoom * 100)}%</div>
           </div>
 
-          <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} fa={fa} />
+          <Canvas page={page} zoom={zoom} showGrid={showGrid} config={config} selectedElementId={selectedElementId} editMode={editMode} onElementMouseDown={onElementMouseDown} onResizeMouseDown={onResizeMouseDown} renderElement={renderElement} dir={dir} />
         </main>
 
-        <aside className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-5 space-y-4">
-          <h2 className="text-cyan-300 font-black flex items-center gap-2">
+        <aside className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5 space-y-4">
+          <h2 className="text-[var(--erp-accent)] font-black flex items-center gap-2">
             <Settings2 size={20} />
-            {fa ? "تنظیمات بخش" : "Selected element"}
+            {fa ? "تنظیمات بخش" : language === "ar" ? "إعدادات العنصر" : language === "tr" ? "Seçili Öğe Ayarları" : "Selected element"}
           </h2>
 
           {selectedElement ? (
             <>
-              <div className="font-black text-white">{selectedElement.label || selectedElement.type}</div>
+              <div className="font-black text-[var(--erp-text)]">{selectedElement.label || selectedElement.type}</div>
 
               <div className="grid grid-cols-2 gap-2">
                 <NumberProp label="X" value={selectedElement.x} onChange={(v) => updateElement(selectedElement.id, { x: Number(v) })} />
@@ -515,43 +459,43 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
                 <NumberProp label="H" value={selectedElement.h} onChange={(v) => updateElement(selectedElement.id, { h: Number(v) })} />
               </div>
 
-              <Field label={fa ? "متن" : "Text"}>
+              <Field label={fa ? "متن" : language === "ar" ? "النص" : language === "tr" ? "Metin" : "Text"}>
                 <textarea value={selectedElement.text || ""} onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })} rows={4} className="studio-input" />
               </Field>
 
-              <NumberProp label={fa ? "سایز فونت" : "Font size"} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />
-              <NumberProp label={fa ? "گردی گوشه" : "Radius"} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />
+              <NumberProp label={fa ? "سایز فونت" : language === "ar" ? "حجم الخط" : language === "tr" ? "Yazı Boyutu" : "Font size"} value={selectedElement.fontSize} onChange={(v) => updateElement(selectedElement.id, { fontSize: Number(v) })} />
+              <NumberProp label={fa ? "گردی گوشه" : language === "ar" ? "استدارة الحواف" : language === "tr" ? "Köşe Yarıçapı" : "Radius"} value={selectedElement.radius} onChange={(v) => updateElement(selectedElement.id, { radius: Number(v) })} />
 
-              <ColorProp label={fa ? "رنگ متن" : "Text color"} value={selectedElement.color} onChange={(v) => updateElement(selectedElement.id, { color: v })} />
-              <ColorProp label={fa ? "پس‌زمینه" : "Background"} value={selectedElement.bg} onChange={(v) => updateElement(selectedElement.id, { bg: v })} />
-              <ColorProp label={fa ? "خط دور" : "Border"} value={selectedElement.border} onChange={(v) => updateElement(selectedElement.id, { border: v })} />
+              <ColorProp label={fa ? "رنگ متن" : language === "ar" ? "لون النص" : language === "tr" ? "Metin Rengi" : "Text color"} value={selectedElement.color} onChange={(v) => updateElement(selectedElement.id, { color: v })} />
+              <ColorProp label={fa ? "پس‌زمینه" : language === "ar" ? "الخلفية" : language === "tr" ? "Arka Plan" : "Background"} value={selectedElement.bg} onChange={(v) => updateElement(selectedElement.id, { bg: v })} />
+              <ColorProp label={fa ? "خط دور" : language === "ar" ? "الحدود" : language === "tr" ? "Kenarlık" : "Border"} value={selectedElement.border} onChange={(v) => updateElement(selectedElement.id, { border: v })} />
 
-              <button onClick={duplicateElement} className="studio-tool-button w-full"><Copy size={16} /> {fa ? "کپی از بخش" : "Duplicate"}</button>
-              <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : "Delete"}</button>
+              <button onClick={duplicateElement} className="studio-tool-button w-full"><Copy size={16} /> {fa ? "کپی از بخش" : language === "ar" ? "نسخ العنصر" : language === "tr" ? "Öğeyi Çoğalt" : "Duplicate"}</button>
+              <button onClick={deleteElement} className="px-4 py-3 rounded-2xl bg-red-500 text-white font-black flex justify-center gap-2 w-full"><Trash2 size={16} /> {fa ? "حذف بخش" : language === "ar" ? "حذف العنصر" : language === "tr" ? "Öğeyi Sil" : "Delete"}</button>
             </>
           ) : (
-            <div className="text-slate-400">{fa ? "یک بخش را انتخاب کن." : "Select an element."}</div>
+            <div className="text-[var(--erp-muted)]">{fa ? "یک بخش را انتخاب کن." : language === "ar" ? "اختر عنصرًا." : language === "tr" ? "Bir öğe seçin." : "Select an element."}</div>
           )}
         </aside>
       </div>
 
       <div className="print-only">
-        <Canvas page={page} zoom={1} showGrid={false} config={config} selectedElementId={null} editMode={false} onElementMouseDown={() => {}} onResizeMouseDown={() => {}} renderElement={renderElement} fa={fa} />
+        <Canvas page={page} zoom={1} showGrid={false} config={config} selectedElementId={null} editMode={false} onElementMouseDown={() => {}} onResizeMouseDown={() => {}} renderElement={renderElement} dir={dir} />
       </div>
 
       <style>{`
         .studio-input {
           width: 100%;
-          background: #1e293b;
-          color: white;
-          border: 1px solid rgba(34,211,238,.18);
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
+          border: 1px solid var(--erp-border);
           border-radius: 16px;
           padding: 12px;
           outline: none;
         }
         .studio-tool-button {
-          background: #1e293b;
-          color: white;
+          background: var(--erp-panel-solid);
+          color: var(--erp-text);
           border-radius: 16px;
           padding: 12px;
           font-weight: 800;
@@ -560,7 +504,7 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
           justify-content: center;
           gap: 8px;
         }
-        .studio-tool-button:hover { background: #334155; }
+        .studio-tool-button:hover { background: var(--erp-glow); }
         .print-only { display: none; }
         @media print {
           body * { visibility: hidden !important; }
@@ -584,133 +528,27 @@ export default function InvoicePrint({ invoice: propInvoice = null }) {
   );
 }
 
-function Canvas({ page, zoom, showGrid, config, selectedElementId, editMode, onElementMouseDown, onResizeMouseDown, renderElement, fa }) {
-  return (
-    <div className="min-w-max flex justify-center pb-10">
-      <div
-        className="print-canvas relative bg-white text-slate-950 shadow-2xl origin-top"
-        style={{
-          width: page.w,
-          height: page.h,
-          transform: `scale(${zoom})`,
-          backgroundImage: showGrid
-            ? "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)"
-            : "none",
-          backgroundSize: "20px 20px",
-        }}
-      >
-        {(config.elements || []).map((element) => (
-          <div
-            key={element.id}
-            onMouseDown={(e) => onElementMouseDown(e, element)}
-            className={`absolute select-none overflow-hidden flex items-center justify-center ${editMode ? "cursor-move" : ""} ${selectedElementId === element.id ? "ring-2 ring-cyan-500" : ""}`}
-            style={{
-              left: element.x,
-              top: element.y,
-              width: element.w,
-              height: element.h,
-              color: element.color,
-              background: element.bg,
-              border: `1px solid ${element.border || "transparent"}`,
-              borderRadius: element.radius,
-              fontSize: element.fontSize,
-              fontWeight: element.bold ? 900 : 500,
-              textAlign: element.align || "center",
-              padding: 8,
-              direction: fa ? "rtl" : "ltr",
-            }}
-          >
-            {renderElement(element)}
-            {editMode && selectedElementId === element.id && (
-              <div
-                data-resize="true"
-                onMouseDown={(e) => onResizeMouseDown(e, element)}
-                className="absolute -bottom-2 -right-2 w-4 h-4 bg-cyan-500 rounded-full cursor-se-resize border border-white"
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ItemsTable({ items, fa, n, money }) {
-  return (
-    <table className="w-full border-collapse text-[11px]">
-      <thead>
-        <tr className="bg-slate-900 text-white">
-          <th className="border p-1">#</th>
-          <th className="border p-1">{fa ? "شرح" : "Item"}</th>
-          <th className="border p-1">{fa ? "تعداد" : "Qty"}</th>
-          <th className="border p-1">{fa ? "واحد" : "Unit"}</th>
-          <th className="border p-1">{fa ? "جمع" : "Total"}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.length ? (
-          items.map((item, index) => {
-            const unit = item.unit_price ?? item.price ?? 0;
-            const total = item.total ?? item.total_price ?? toNumber(item.quantity) * toNumber(unit);
-            return (
-              <tr key={`${item.product_id || item.id || index}-${index}`}>
-                <td className="border p-1 text-center">{n(index + 1)}</td>
-                <td className="border p-1">{item.product_name || item.name || item.product?.name || "-"}</td>
-                <td className="border p-1 text-center">{n(item.quantity || 0)}</td>
-                <td className="border p-1 text-center">{money(unit)}</td>
-                <td className="border p-1 text-center">{money(total)}</td>
-              </tr>
-            );
-          })
-        ) : (
-          <tr>
-            <td colSpan={5} className="border p-2 text-center">{fa ? "اقلامی ثبت نشده است." : "No items."}</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function TotalsBox({ totals, fa, money }) {
-  const rows = [
-    [fa ? "جمع جزء" : "Subtotal", totals.subtotal],
-    [fa ? "تخفیف" : "Discount", totals.discount],
-    [fa ? "مالیات" : "Tax", totals.tax],
-    [fa ? "حمل" : "Shipping", totals.shipping],
-    [fa ? "پرداخت شده" : "Settled", totals.settled],
-    [fa ? "باقی‌مانده" : "Remaining", totals.remaining],
-  ];
-
-  return (
-    <div className="w-full text-[12px] space-y-1">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between border-b border-slate-200 pb-1">
-          <span>{label}</span>
-          <b>{money(value)}</b>
-        </div>
-      ))}
-      <div className="flex justify-between text-cyan-700 font-black text-sm pt-2">
-        <span>{fa ? "مبلغ نهایی" : "Total"}</span>
-        <b>{money(totals.total)}</b>
-      </div>
-    </div>
-  );
-}
-
 function Field({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="text-cyan-200 text-sm font-bold block">{label}</label>
+      <label className="text-[var(--erp-accent)] text-sm font-bold block">{label}</label>
       {children}
     </div>
   );
 }
 
 function NumberProp({ label, value, onChange }) {
+  const { language } = useLanguage();
+  const display = value ?? 0;
   return (
     <Field label={label}>
-      <input type="number" value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="studio-input" />
+      <input
+        type="text"
+        inputMode="numeric"
+        value={language === "fa" ? toPersianDigits(display) : display}
+        onChange={(e) => onChange(cleanNumberInput(e.target.value))}
+        className="studio-input"
+      />
     </Field>
   );
 }
@@ -718,7 +556,7 @@ function NumberProp({ label, value, onChange }) {
 function ColorProp({ label, value, onChange }) {
   return (
     <Field label={label}>
-      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-slate-800 rounded-2xl p-1" />
+      <input type="color" value={value || "#ffffff"} onChange={(e) => onChange(e.target.value)} className="w-full h-11 bg-[var(--erp-panel-solid)] rounded-2xl p-1" />
     </Field>
   );
 }

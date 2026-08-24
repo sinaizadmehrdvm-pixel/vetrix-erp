@@ -1,21 +1,45 @@
 import hashlib
+import logging
 import os
 import re
 import shutil
 import sqlite3
 import threading
+import time
 import uuid
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import text
 
-from app.database import engine
+from app.database import engine, SessionLocal
+
+_logger = logging.getLogger(__name__)
 
 BACKUP_NAME = re.compile(
     r"^vetrix_(manual|auto|pre_restore)_\d{8}T\d{6}_\d{6}Z\.db$"
 )
 BACKUP_LOCK = threading.RLock()
+
+
+def _replace_with_retry(source, destination, attempts=6, initial_delay=0.1):
+    """os.replace() wrapped with a short retry/backoff for Windows, where a
+    freshly-written file can be transiently opened by antivirus/indexing
+    right after close() returns, blocking a rename with PermissionError for
+    a fraction of a second even though nothing in this process still holds
+    it open. A no-op on platforms/situations where the first attempt just
+    succeeds."""
+    delay = initial_delay
+    for attempt in range(1, attempts + 1):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError:
+            if attempt == attempts:
+                raise
+            time.sleep(delay)
+            delay *= 2
 
 
 def _utc_now():
@@ -60,7 +84,13 @@ def _sha256(path):
 
 def _quick_check(path):
     try:
-        with sqlite3.connect(str(path)) as connection:
+        # sqlite3.Connection's own context manager only commits/rolls back
+        # a transaction on exit - it does NOT close the connection, so the
+        # underlying file handle stays open. Harmless on POSIX (you can
+        # unlink/rename an open file there) but on Windows it blocks the
+        # os.replace()/unlink() calls callers make right after this returns
+        # with a PermissionError. closing() forces an actual .close().
+        with closing(sqlite3.connect(str(path))) as connection:
             result = connection.execute("PRAGMA quick_check").fetchone()
             tables = connection.execute(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
@@ -121,13 +151,13 @@ def create_database_backup(kind="manual"):
         temporary = destination.with_suffix(".tmp")
 
         try:
-            with sqlite3.connect(str(source_path)) as source:
-                with sqlite3.connect(str(temporary)) as target:
+            with closing(sqlite3.connect(str(source_path))) as source:
+                with closing(sqlite3.connect(str(temporary))) as target:
                     source.backup(target)
             valid, message, _ = _quick_check(temporary)
             if not valid:
                 raise ValueError(f"Backup integrity check failed: {message}")
-            os.replace(temporary, destination)
+            _replace_with_retry(temporary, destination)
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -154,7 +184,7 @@ def test_restore_database_backup(filename):
         temporary = backup_directory() / f".restore-test-{uuid.uuid4().hex}.db"
         try:
             shutil.copy2(backup_path, temporary)
-            with sqlite3.connect(str(temporary)) as connection:
+            with closing(sqlite3.connect(str(temporary))) as connection:
                 integrity_rows = connection.execute("PRAGMA integrity_check").fetchall()
                 integrity_messages = [str(row[0]) for row in integrity_rows]
                 tables = {
@@ -227,7 +257,7 @@ def restore_database_backup(filename):
             engine.dispose()
             for suffix in ("-wal", "-shm"):
                 Path(f"{database_path}{suffix}").unlink(missing_ok=True)
-            os.replace(temporary, database_path)
+            _replace_with_retry(temporary, database_path)
             engine.dispose()
         finally:
             temporary.unlink(missing_ok=True)
@@ -272,7 +302,59 @@ def maybe_create_automatic_backup():
         if automatic:
             latest = datetime.fromisoformat(automatic[0]["created_at"])
             if _utc_now() - latest < timedelta(hours=interval_hours):
+                _maybe_email_latest_backup(automatic[0])
                 return None
-        return create_database_backup(kind="auto")
+        result = create_database_backup(kind="auto")
+        _maybe_email_latest_backup(result)
+        return result
     except (OSError, ValueError, sqlite3.DatabaseError):
         return None
+
+
+def _maybe_email_latest_backup(backup_item):
+    """Offsite delivery: a copy stored only on the same disk as the
+    database is lost right alongside it in a real disk failure. When an
+    admin sets a "backup email" (Settings > Backup & SMS) and a delivery
+    frequency, this emails the most recent auto backup as an attachment
+    once that frequency has elapsed, tracked via app_settings.last_backup_email_at
+    - independent of how often the backup file itself is regenerated."""
+    try:
+        from app.email_utils import send_email_with_attachment, smtp_configured
+        from app.settings_routes import AppSettings
+
+        db = SessionLocal()
+        try:
+            settings = db.query(AppSettings).first()
+            if not settings or not (settings.backup_email or "").strip():
+                return
+            frequency_hours = max(1, int(settings.backup_email_frequency_hours or 168))
+            if settings.last_backup_email_at:
+                last_sent = datetime.fromisoformat(settings.last_backup_email_at)
+                if _utc_now() - last_sent < timedelta(hours=frequency_hours):
+                    return
+            if not smtp_configured(None):
+                return
+
+            path = backup_directory() / backup_item["filename"]
+            if not path.exists():
+                return
+            content = path.read_bytes()
+
+            send_email_with_attachment(
+                None,
+                settings.backup_email.strip(),
+                f"Vetrix ERP database backup - {backup_item['filename']}",
+                "Attached: the latest automatic database backup, sent per your configured delivery schedule.",
+                backup_item["filename"], content, "application/octet-stream",
+            )
+            settings.last_backup_email_at = _utc_now().isoformat()
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        # Backup-email delivery must never turn a successful local backup
+        # into a client-visible failure - the file is already safely on
+        # disk regardless of whether this best-effort email goes out. Still
+        # logged (Task 08 Section 13) so a pilot operator can see why an
+        # expected backup email never arrived.
+        _logger.exception("Automatic backup-email delivery failed")

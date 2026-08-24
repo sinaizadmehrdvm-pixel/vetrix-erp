@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.accounting.periods import assert_voucher_period_open
+from app.company_scope import current_company_id
 from app.database import engine
 
 router = APIRouter(prefix="/api/accounting/approvals", tags=["Voucher Approvals"])
@@ -41,6 +42,9 @@ def _ensure_schema(conn):
             FOREIGN KEY(approval_id) REFERENCES accounting_approval_requests(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "accounting_approval_requests")
+    ensure_company_id_column(conn, "accounting_approval_events")
 
 
 def _auth(request):
@@ -59,7 +63,7 @@ def _require_approver(request):
     return user_id
 
 
-def _approval(conn, approval_id):
+def _approval(conn, approval_id, company_id):
     row = conn.execute(text("""
         SELECT ar.*, v.voucher_no, v.voucher_date, v.description,
                v.status AS voucher_status, v.source_type,
@@ -70,29 +74,31 @@ def _approval(conn, approval_id):
         JOIN accounting_vouchers v ON v.id=ar.voucher_id
         LEFT JOIN users requester ON requester.id=ar.requested_by
         LEFT JOIN users decider ON decider.id=ar.decided_by
-        WHERE ar.id=:id
-    """), {"id": approval_id}).mappings().first()
+        WHERE ar.id=:id AND ar.company_id=:company_id
+    """), {"id": approval_id, "company_id": company_id}).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Approval request not found")
     return dict(row)
 
 
-def _event(conn, approval_id, event_type, actor, note=""):
+def _event(conn, approval_id, event_type, actor, company_id, note=""):
     conn.execute(text("""
         INSERT INTO accounting_approval_events
-          (approval_id, event_type, actor_user_id, note, created_at)
-        VALUES (:approval_id, :event_type, :actor, :note, :created_at)
+          (approval_id, event_type, actor_user_id, note, created_at, company_id)
+        VALUES (:approval_id, :event_type, :actor, :note, :created_at, :company_id)
     """), {
         "approval_id": approval_id,
         "event_type": event_type,
         "actor": actor,
         "note": note.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "company_id": company_id,
     })
 
 
 @router.get("")
-def list_approvals(status: str = "pending"):
+def list_approvals(request: Request, status: str = "pending"):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -105,18 +111,19 @@ def list_approvals(status: str = "pending"):
             JOIN accounting_vouchers v ON v.id=ar.voucher_id
             LEFT JOIN users requester ON requester.id=ar.requested_by
             LEFT JOIN users decider ON decider.id=ar.decided_by
-            WHERE (:status='all' OR ar.status=:status)
+            WHERE ar.company_id=:company_id AND (:status='all' OR ar.status=:status)
             ORDER BY CASE WHEN ar.status='pending' THEN 0 ELSE 1 END,
                      ar.requested_at DESC, ar.id DESC
-        """), {"status": status}).mappings().all()
+        """), {"status": status, "company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
 @router.get("/{approval_id}")
-def approval_detail(approval_id: int):
+def approval_detail(approval_id: int, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        approval = _approval(conn, approval_id)
+        approval = _approval(conn, approval_id, company_id)
         events = conn.execute(text("""
             SELECT e.*, u.full_name AS actor_name, u.username AS actor_username
             FROM accounting_approval_events e
@@ -130,11 +137,12 @@ def approval_detail(approval_id: int):
 @router.post("/vouchers/{voucher_id}/submit")
 def submit_voucher(voucher_id: int, request: Request):
     actor, _ = _auth(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         voucher = conn.execute(text("""
-            SELECT * FROM accounting_vouchers WHERE id=:id
-        """), {"id": voucher_id}).mappings().first()
+            SELECT * FROM accounting_vouchers WHERE id=:id AND company_id=:company_id
+        """), {"id": voucher_id, "company_id": company_id}).mappings().first()
         if not voucher:
             raise HTTPException(status_code=404, detail="Voucher not found")
         if voucher["source_type"] != "manual":
@@ -148,8 +156,8 @@ def submit_voucher(voucher_id: int, request: Request):
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error))
         existing = conn.execute(text("""
-            SELECT * FROM accounting_approval_requests WHERE voucher_id=:id
-        """), {"id": voucher_id}).mappings().first()
+            SELECT * FROM accounting_approval_requests WHERE voucher_id=:id AND company_id=:company_id
+        """), {"id": voucher_id, "company_id": company_id}).mappings().first()
         now = datetime.now(timezone.utc).isoformat()
         if existing and existing["status"] == "pending":
             raise HTTPException(status_code=409, detail="Voucher is already pending approval")
@@ -164,20 +172,21 @@ def submit_voucher(voucher_id: int, request: Request):
         else:
             result = conn.execute(text("""
                 INSERT INTO accounting_approval_requests
-                  (voucher_id, requested_by, requested_at, status)
-                VALUES (:voucher_id, :actor, :now, 'pending')
-            """), {"voucher_id": voucher_id, "actor": actor, "now": now})
+                  (voucher_id, requested_by, requested_at, status, company_id)
+                VALUES (:voucher_id, :actor, :now, 'pending', :company_id)
+            """), {"voucher_id": voucher_id, "actor": actor, "now": now, "company_id": company_id})
             approval_id = result.lastrowid
-        _event(conn, approval_id, "submitted", actor)
+        _event(conn, approval_id, "submitted", actor, company_id)
         return {"status": "pending", "approval_id": approval_id, "voucher_id": voucher_id}
 
 
 @router.post("/{approval_id}/approve")
 def approve_voucher(approval_id: int, payload: DecisionPayload, request: Request):
     actor = _require_approver(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        approval = _approval(conn, approval_id)
+        approval = _approval(conn, approval_id, company_id)
         if approval["status"] != "pending":
             raise HTTPException(status_code=409, detail="Approval request is not pending")
         if approval["requested_by"] == actor:
@@ -192,29 +201,30 @@ def approve_voucher(approval_id: int, payload: DecisionPayload, request: Request
         conn.execute(text("""
             UPDATE accounting_vouchers
             SET status='posted', posted_at=:now, updated_at=:now
-            WHERE id=:id
-        """), {"now": now, "id": approval["voucher_id"]})
+            WHERE id=:id AND company_id=:company_id
+        """), {"now": now, "id": approval["voucher_id"], "company_id": company_id})
         conn.execute(text("""
             UPDATE accounting_approval_requests
             SET status='approved', decided_by=:actor, decided_at=:now,
-                decision_note=:note WHERE id=:id
+                decision_note=:note WHERE id=:id AND company_id=:company_id
         """), {
             "actor": actor, "now": now, "note": payload.note.strip(),
-            "id": approval_id,
+            "id": approval_id, "company_id": company_id,
         })
-        _event(conn, approval_id, "approved", actor, payload.note)
+        _event(conn, approval_id, "approved", actor, company_id, payload.note)
         return {"status": "approved", "approval_id": approval_id, "voucher_id": approval["voucher_id"]}
 
 
 @router.post("/{approval_id}/reject")
 def reject_voucher(approval_id: int, payload: DecisionPayload, request: Request):
     actor = _require_approver(request)
+    company_id = current_company_id(request)
     note = payload.note.strip()
     if not note:
         raise HTTPException(status_code=400, detail="Rejection note is required")
     with engine.begin() as conn:
         _ensure_schema(conn)
-        approval = _approval(conn, approval_id)
+        approval = _approval(conn, approval_id, company_id)
         if approval["status"] != "pending":
             raise HTTPException(status_code=409, detail="Approval request is not pending")
         if approval["requested_by"] == actor:
@@ -223,18 +233,19 @@ def reject_voucher(approval_id: int, payload: DecisionPayload, request: Request)
         conn.execute(text("""
             UPDATE accounting_approval_requests
             SET status='rejected', decided_by=:actor, decided_at=:now,
-                decision_note=:note WHERE id=:id
-        """), {"actor": actor, "now": now, "note": note, "id": approval_id})
-        _event(conn, approval_id, "rejected", actor, note)
+                decision_note=:note WHERE id=:id AND company_id=:company_id
+        """), {"actor": actor, "now": now, "note": note, "id": approval_id, "company_id": company_id})
+        _event(conn, approval_id, "rejected", actor, company_id, note)
         return {"status": "rejected", "approval_id": approval_id, "voucher_id": approval["voucher_id"]}
 
 
 @router.post("/{approval_id}/withdraw")
 def withdraw_request(approval_id: int, request: Request):
     actor, _ = _auth(request)
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        approval = _approval(conn, approval_id)
+        approval = _approval(conn, approval_id, company_id)
         if approval["status"] != "pending":
             raise HTTPException(status_code=409, detail="Only pending requests can be withdrawn")
         if approval["requested_by"] != actor:
@@ -243,7 +254,7 @@ def withdraw_request(approval_id: int, request: Request):
         conn.execute(text("""
             UPDATE accounting_approval_requests
             SET status='withdrawn', decided_by=:actor, decided_at=:now
-            WHERE id=:id
-        """), {"actor": actor, "now": now, "id": approval_id})
-        _event(conn, approval_id, "withdrawn", actor)
+            WHERE id=:id AND company_id=:company_id
+        """), {"actor": actor, "now": now, "id": approval_id, "company_id": company_id})
+        _event(conn, approval_id, "withdrawn", actor, company_id)
         return {"status": "withdrawn", "approval_id": approval_id}

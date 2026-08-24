@@ -11,9 +11,11 @@ async function request(path) {
   return data;
 }
 
-export function getFinancialStatements(fiscalPeriodId = "") {
-  const query = fiscalPeriodId
-    ? `?fiscal_period_id=${encodeURIComponent(fiscalPeriodId)}`
-    : "";
+export function getFinancialStatements(fiscalPeriodId = "", startDate = "", endDate = "") {
+  const params = new URLSearchParams();
+  if (fiscalPeriodId) params.set("fiscal_period_id", fiscalPeriodId);
+  if (!fiscalPeriodId && startDate) params.set("start_date", startDate);
+  if (!fiscalPeriodId && endDate) params.set("end_date", endDate);
+  const query = params.toString() ? `?${params.toString()}` : "";
   return request(`/api/accounting/statements${query}`);
 }

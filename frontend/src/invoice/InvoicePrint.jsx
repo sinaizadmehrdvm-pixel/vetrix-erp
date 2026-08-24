@@ -6,6 +6,13 @@ export default function InvoicePrint({ invoice }) {
 
   if (!invoice) return null;
 
+  const statusColor =
+    invoice.payment_status === "paid" || invoice.payment_status === "final"
+      ? "#22c55e"
+      : invoice.payment_status === "partial"
+        ? "#fbbf24"
+        : "#fb7185";
+
   const paymentStatus =
     invoice.payment_status === "paid"
       ? language === "fa"
@@ -26,11 +33,11 @@ export default function InvoicePrint({ invoice }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(34,211,238,0.22)",
+        background: "var(--erp-panel)",
+        border: "1px solid var(--erp-border)",
         borderRadius: 28,
         padding: 24,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
         boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
       }}
@@ -48,7 +55,7 @@ export default function InvoicePrint({ invoice }) {
         <div>
           <h2
             style={{
-              color: "#22d3ee",
+              color: "var(--erp-accent)",
               fontSize: 26,
               fontWeight: 900,
               marginBottom: 6,
@@ -57,7 +64,7 @@ export default function InvoicePrint({ invoice }) {
             {language === "fa" ? "پیش‌نمایش فاکتور" : "Invoice Preview"}
           </h2>
 
-          <p style={{ color: "#94a3b8" }}>
+          <p style={{ color: "var(--erp-muted)" }}>
             {language === "fa"
               ? "نسخه آماده چاپ و بررسی نهایی فاکتور"
               : "Printable invoice preview and final review"}
@@ -70,7 +77,7 @@ export default function InvoicePrint({ invoice }) {
             border: "none",
             borderRadius: 16,
             padding: "12px 18px",
-            background: "#22d3ee",
+            background: "var(--erp-accent)",
             color: "#071028",
             fontWeight: 900,
             cursor: "pointer",
@@ -86,9 +93,8 @@ export default function InvoicePrint({ invoice }) {
 
       <div
         style={{
-          background:
-            "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.9))",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--erp-panel-solid)",
+          border: "1px solid var(--erp-border)",
           borderRadius: 24,
           padding: 22,
         }}
@@ -110,11 +116,11 @@ export default function InvoicePrint({ invoice }) {
                 marginBottom: 14,
               }}
             >
-              <FileText color="#22d3ee" />
+              <FileText color="var(--erp-accent)" />
               <strong style={{ fontSize: 22 }}>{t("invoiceSystem")}</strong>
             </div>
 
-            <div style={{ color: "#94a3b8", lineHeight: 1.9 }}>
+            <div style={{ color: "var(--erp-muted)", lineHeight: 1.9 }}>
               <div>
                 {language === "fa" ? "شماره فاکتور" : "Invoice ID"}: #
                 {n(invoice.id)}
@@ -124,7 +130,7 @@ export default function InvoicePrint({ invoice }) {
               </div>
               <div>
                 {t("status")}:{" "}
-                <span style={{ color: "#22c55e", fontWeight: 900 }}>
+                <span style={{ color: statusColor, fontWeight: 900 }}>
                   {paymentStatus}
                 </span>
               </div>
@@ -137,11 +143,11 @@ export default function InvoicePrint({ invoice }) {
               width: 120,
               height: 120,
               borderRadius: 20,
-              border: "1px dashed rgba(34,211,238,0.5)",
+              border: "1px dashed var(--erp-accent)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#22d3ee",
+              color: "var(--erp-accent)",
               flexDirection: "column",
               gap: 8,
             }}
@@ -152,6 +158,46 @@ export default function InvoicePrint({ invoice }) {
             </span>
           </div>
         </div>
+
+        {Array.isArray(invoice.items) && invoice.items.length > 0 && (
+          <div
+            style={{
+              border: "1px solid var(--erp-border)",
+              borderRadius: 18,
+              overflow: "hidden",
+              marginBottom: 22,
+            }}
+          >
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "var(--erp-panel)" }}>
+                  <th style={{ textAlign: "start", padding: "10px 12px", color: "var(--erp-accent)" }}>
+                    {language === "fa" ? "کالا" : "Item"}
+                  </th>
+                  <th style={{ textAlign: "start", padding: "10px 12px", color: "var(--erp-accent)" }}>
+                    {language === "fa" ? "تعداد" : "Qty"}
+                  </th>
+                  <th style={{ textAlign: "start", padding: "10px 12px", color: "var(--erp-accent)" }}>
+                    {language === "fa" ? "قیمت واحد" : "Unit price"}
+                  </th>
+                  <th style={{ textAlign: "start", padding: "10px 12px", color: "var(--erp-accent)" }}>
+                    {language === "fa" ? "جمع" : "Line total"}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoice.items.map((item, index) => (
+                  <tr key={item.id ?? index} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td style={{ padding: "10px 12px" }}>{item.product_name || item.name || "-"}</td>
+                    <td style={{ padding: "10px 12px" }}>{n(item.quantity ?? 0)}</td>
+                    <td style={{ padding: "10px 12px" }}>{money(item.unit_price ?? 0)}</td>
+                    <td style={{ padding: "10px 12px" }}>{money((item.quantity ?? 0) * (item.unit_price ?? 0))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div
           style={{
@@ -174,16 +220,16 @@ export default function InvoicePrint({ invoice }) {
         {invoice.invoice_note && (
           <div
             style={{
-              background: "rgba(15,23,42,0.7)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "var(--erp-panel)",
+              border: "1px solid var(--erp-border)",
               borderRadius: 18,
               padding: 16,
-              color: "#cbd5e1",
+              color: "var(--erp-muted)",
               lineHeight: 1.8,
               marginBottom: 18,
             }}
           >
-            <strong style={{ color: "#22d3ee" }}>{t("notes")}:</strong>{" "}
+            <strong style={{ color: "var(--erp-accent)" }}>{t("notes")}:</strong>{" "}
             {invoice.invoice_note}
           </div>
         )}
@@ -199,8 +245,8 @@ export default function InvoicePrint({ invoice }) {
         >
           <ShieldCheck size={18} />
           {language === "fa"
-            ? "این فاکتور توسط Vetrix ERP ایجاد شده است."
-            : "This invoice was generated by Vetrix ERP."}
+            ? "این فاکتور توسط VITALIX ایجاد شده است."
+            : "This invoice was generated by VITALIX."}
         </div>
       </div>
     </div>
@@ -213,19 +259,19 @@ function Box({ label, value, strong = false }) {
       style={{
         background: strong
           ? "linear-gradient(135deg, rgba(34,211,238,0.18), rgba(16,185,129,0.16))"
-          : "rgba(15,23,42,0.65)",
-        border: "1px solid rgba(255,255,255,0.08)",
+          : "var(--erp-panel)",
+        border: "1px solid var(--erp-border)",
         borderRadius: 18,
         padding: 16,
       }}
     >
-      <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>
+      <div style={{ color: "var(--erp-muted)", fontSize: 13, marginBottom: 8 }}>
         {label}
       </div>
 
       <div
         style={{
-          color: strong ? "#22d3ee" : "white",
+          color: strong ? "var(--erp-accent)" : "var(--erp-text)",
           fontSize: strong ? 22 : 18,
           fontWeight: 900,
         }}

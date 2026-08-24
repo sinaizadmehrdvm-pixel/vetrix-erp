@@ -1,105 +1,118 @@
+import { Link } from "react-router-dom";
+import { Receipt } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 
-export default function RecentInvoices({ invoices = [] }) {
-  const { t, money, dir } = useLanguage();
+const STATUS_LABELS = {
+  fa: { paid: "تسویه شده", unpaid: "تسویه نشده", partial: "تسویه ناقص", draft: "پیش‌نویس", final: "نهایی" },
+  ar: { paid: "مدفوع", unpaid: "غير مدفوع", partial: "مدفوع جزئياً", draft: "مسودة", final: "نهائي" },
+  tr: { paid: "Ödendi", unpaid: "Ödenmedi", partial: "Kısmi ödendi", draft: "Taslak", final: "Nihai" },
+  en: { paid: "Paid", unpaid: "Unpaid", partial: "Partially paid", draft: "Draft", final: "Final" },
+};
 
-  const gridColumns =
-    dir === "rtl" ? "90px 120px 1fr 80px" : "80px 1fr 120px 90px";
+function statusLabel(value, language) {
+  const raw = String(value || "").toLowerCase();
+  return (STATUS_LABELS[language] || STATUS_LABELS.en)[raw] || value || "-";
+}
+
+export default function RecentInvoices({ invoices = [], to = "/invoices" }) {
+  const { t, n, money, dir, language } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
           textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("recentInvoices")}
-      </h2>
+        <h2 style={{ margin: 0 }}>{t("recentInvoices")}</h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {tr("مشاهده همه ←", "عرض الكل ←", "Tümünü gör →", "View all →")}
+        </span>
+      </Link>
 
       {invoices.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>{t("noInvoices")}</p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noInvoices")}</p>
+        </div>
       ) : (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: gridColumns,
-              gap: 12,
-              paddingBottom: 10,
-              color: "#22d3ee",
-              fontWeight: 900,
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-              textAlign: dir === "rtl" ? "right" : "left",
-            }}
-          >
-            {dir === "rtl" ? (
-              <>
-                <span>{t("status")}</span>
-                <span>{t("total")}</span>
-                <span>{t("customer")}</span>
-                <span>ID</span>
-              </>
-            ) : (
-              <>
-                <span>ID</span>
-                <span>{t("customer")}</span>
-                <span>{t("total")}</span>
-                <span>{t("status")}</span>
-              </>
-            )}
-          </div>
-
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {invoices.map((invoice) => {
-            const id = `#${invoice.id}`;
             const customer = invoice.customer || invoice.customer_name || "-";
             const total = money(invoice.total || invoice.total_amount || 0);
-            const status = invoice.status || "-";
+            const status = statusLabel(invoice.status, language);
 
             return (
-              <div
+              <Link
                 key={invoice.id}
+                to={`/invoice-print/${invoice.id}`}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: gridColumns,
-                  gap: 12,
-                  padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.08)",
-                  color: "#e2e8f0",
-                  textAlign: dir === "rtl" ? "right" : "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "var(--erp-panel-solid)",
+                  minWidth: 0,
+                  textDecoration: "none",
+                  color: "inherit",
                 }}
               >
-                {dir === "rtl" ? (
-                  <>
-                    <span style={{ color: "#22c55e", fontWeight: 900 }}>
-                      {status}
-                    </span>
-                    <span>{total}</span>
-                    <span>{customer}</span>
-                    <strong style={{ color: "#22d3ee" }}>{id}</strong>
-                  </>
-                ) : (
-                  <>
-                    <strong style={{ color: "#22d3ee" }}>{id}</strong>
-                    <span>{customer}</span>
-                    <span>{total}</span>
-                    <span style={{ color: "#22c55e", fontWeight: 900 }}>
-                      {status}
-                    </span>
-                  </>
-                )}
-              </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      minWidth: 40,
+                      borderRadius: 12,
+                      background: "var(--erp-glow)",
+                      color: "var(--erp-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Receipt size={18} />
+                  </div>
+                  <div style={{ minWidth: 0, textAlign: dir === "rtl" ? "right" : "left" }}>
+                    <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {tr(`فاکتور شماره ${n(invoice.id)}`, `الفاتورة رقم ${n(invoice.id)}`, `${n(invoice.id)} numaralı fatura`, `Invoice #${n(invoice.id)}`)}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--erp-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {customer}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: dir === "rtl" ? "left" : "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{total}</div>
+                  <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 700, whiteSpace: "nowrap" }}>{status}</div>
+                </div>
+              </Link>
             );
           })}
-        </>
+        </div>
       )}
     </div>
   );

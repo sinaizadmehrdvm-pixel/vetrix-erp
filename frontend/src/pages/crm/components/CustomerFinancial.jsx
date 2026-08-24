@@ -9,6 +9,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { formatCalendarDate } from "../../../utils/date";
+import { toPersianDigits, toEnglishDigits } from "../../../localization/helpers";
+import Select from "../../../components/ui/Select";
 
 function toNumber(value) {
   return Number(
@@ -20,57 +23,26 @@ function toNumber(value) {
   );
 }
 
-function formatDate(value, fa) {
-  if (!value) return "-";
-  try {
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return new Intl.DateTimeFormat(fa ? "fa-IR-u-ca-persian" : "en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  } catch {
-    return String(value);
-  }
-}
-
-function invoiceTypeLabel(type, fa) {
+function invoiceTypeLabel(type, language) {
   const key = String(type || "").toLowerCase();
-  const faMap = {
-    sale: "فروش",
-    buy: "خرید",
-    proforma: "پیش‌فاکتور",
-    return_sale: "مرجوعی فروش",
-    return_buy: "مرجوعی خرید",
+  const maps = {
+    fa: { sale: "فروش", buy: "خرید", proforma: "پیش‌فاکتور", return_sale: "مرجوعی فروش", return_buy: "مرجوعی خرید" },
+    ar: { sale: "بيع", buy: "شراء", proforma: "فاتورة أولية", return_sale: "مرتجع بيع", return_buy: "مرتجع شراء" },
+    tr: { sale: "Satış", buy: "Alış", proforma: "Proforma", return_sale: "Satış iadesi", return_buy: "Alış iadesi" },
+    en: { sale: "Sale", buy: "Buy", proforma: "Proforma", return_sale: "Sale return", return_buy: "Buy return" },
   };
-  const enMap = {
-    sale: "Sale",
-    buy: "Buy",
-    proforma: "Proforma",
-    return_sale: "Sale return",
-    return_buy: "Buy return",
-  };
-  return (fa ? faMap : enMap)[key] || type || "-";
+  return (maps[language] || maps.en)[key] || type || "-";
 }
 
-function statusLabel(status, fa) {
+function statusLabel(status, language) {
   const key = String(status || "").toLowerCase();
-  const faMap = {
-    paid: "تسویه شده",
-    unpaid: "تسویه نشده",
-    partial: "تسویه ناقص",
-    draft: "پیش‌نویس",
-    final: "نهایی",
+  const maps = {
+    fa: { paid: "تسویه شده", unpaid: "تسویه نشده", partial: "تسویه ناقص", draft: "پیش‌نویس", final: "نهایی" },
+    ar: { paid: "مدفوع", unpaid: "غير مدفوع", partial: "مدفوع جزئياً", draft: "مسودة", final: "نهائي" },
+    tr: { paid: "Ödendi", unpaid: "Ödenmedi", partial: "Kısmi ödendi", draft: "Taslak", final: "Nihai" },
+    en: { paid: "Paid", unpaid: "Unpaid", partial: "Partial", draft: "Draft", final: "Final" },
   };
-  const enMap = {
-    paid: "Paid",
-    unpaid: "Unpaid",
-    partial: "Partial",
-    draft: "Draft",
-    final: "Final",
-  };
-  return (fa ? faMap : enMap)[key] || status || "-";
+  return (maps[language] || maps.en)[key] || status || "-";
 }
 
 function normalizeInvoices(invoices) {
@@ -108,11 +80,16 @@ export default function CustomerFinancial({
   invoices = [],
   ledger = [],
   fa = true,
+  language,
   money = (v) => String(v ?? 0),
   n = (v) => String(v ?? ""),
   loading = false,
   onRefresh,
 }) {
+  const lang = language || (fa ? "fa" : "en");
+  const tr = (faText, arText, trText, enText) =>
+    lang === "fa" ? faText : lang === "ar" ? arText : lang === "tr" ? trText : enText;
+
   const [query, setQuery] = useState("");
   const [invoiceFilter, setInvoiceFilter] = useState("all");
 
@@ -179,24 +156,26 @@ export default function CustomerFinancial({
 
     return last.map((x) => ({
       id: x.id,
-      label: `#${x.id}`,
       value: toNumber(x.total_amount),
       height: Math.max(8, (toNumber(x.total_amount) / max) * 100),
     }));
   }, [invoiceRows]);
 
   return (
-    <section className="rounded-[2rem] bg-slate-900/70 border border-cyan-400/20 p-5 text-white">
+    <section className="rounded-[2rem] bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 text-[var(--erp-text)]">
       <div className="flex items-start justify-between gap-4 flex-wrap mb-5">
         <div>
-          <h2 className="text-2xl font-black text-cyan-300 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <Wallet />
-            {fa ? "پرونده مالی مشتری" : "Customer Financial Profile"}
+            {tr("پرونده مالی مشتری", "الملف المالي للعميل", "Müşteri finansal profili", "Customer Financial Profile")}
           </h2>
-          <p className="text-slate-400 text-sm mt-2">
-            {fa
-              ? "خلاصه مالی، فاکتورها، مانده حساب، بدهی/بستانکاری و نمودار خرید مشتری"
-              : "Financial summary, invoices, balance, debit/credit and customer purchase chart"}
+          <p className="text-[var(--erp-muted)] text-sm mt-2">
+            {tr(
+              "خلاصه مالی، فاکتورها، مانده حساب، بدهی/بستانکاری و نمودار خرید مشتری",
+              "ملخص مالي والفواتير والرصيد والمدين/الدائن ومخطط مشتريات العميل",
+              "Finansal özet, faturalar, bakiye, borç/alacak ve müşteri satın alma grafiği",
+              "Financial summary, invoices, balance, debit/credit and customer purchase chart"
+            )}
           </p>
         </div>
 
@@ -204,101 +183,105 @@ export default function CustomerFinancial({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        <FinancialCard icon={<Wallet />} title={fa ? "مانده حساب" : "Balance"} value={money(Math.abs(financial.balance))} hint={financial.balance > 0 ? (fa ? "بدهکار" : "Debtor") : financial.balance < 0 ? (fa ? "بستانکار" : "Creditor") : (fa ? "تسویه" : "Settled")} tone={financial.balance > 0 ? "rose" : financial.balance < 0 ? "emerald" : "cyan"} />
-        <FinancialCard icon={<ArrowUpRight />} title={fa ? "جمع فروش" : "Total sales"} value={money(financial.sales)} hint={fa ? "ارزش خرید مشتری" : "Customer purchase value"} tone="cyan" />
-        <FinancialCard icon={<FileText />} title={fa ? "تعداد فاکتور" : "Invoices"} value={n(financial.invoiceCount)} hint={`${fa ? "باز" : "Open"}: ${n(financial.openCount)}`} tone="amber" />
-        <FinancialCard icon={<CreditCard />} title={fa ? "فاکتورهای باز" : "Open amount"} value={money(financial.openAmount)} hint={fa ? "نیازمند پیگیری" : "Needs follow-up"} tone="rose" />
-        <FinancialCard icon={<ArrowDownRight />} title={fa ? "جمع بدهکار" : "Total debit"} value={money(financial.debit)} tone="rose" />
-        <FinancialCard icon={<ArrowUpRight />} title={fa ? "جمع بستانکار" : "Total credit"} value={money(financial.credit)} tone="emerald" />
-        <FinancialCard icon={<BarChart3 />} title={fa ? "میانگین فاکتور" : "Avg invoice"} value={money(financial.avgInvoice)} tone="cyan" />
-        <FinancialCard icon={<FileText />} title={fa ? "فاکتورهای تسویه" : "Paid invoices"} value={n(financial.paidCount)} tone="emerald" />
+        <FinancialCard icon={<Wallet />} title={tr("مانده حساب", "الرصيد", "Bakiye", "Balance")} value={money(Math.abs(financial.balance))} hint={financial.balance > 0 ? tr("بدهکار", "مدين", "Borçlu", "Debtor") : financial.balance < 0 ? tr("بستانکار", "دائن", "Alacaklı", "Creditor") : tr("تسویه", "مُسوّى", "Kapandı", "Settled")} tone={financial.balance > 0 ? "rose" : financial.balance < 0 ? "emerald" : "cyan"} />
+        <FinancialCard icon={<ArrowUpRight />} title={tr("جمع فروش", "إجمالي المبيعات", "Toplam satış", "Total sales")} value={money(financial.sales)} hint={tr("ارزش خرید مشتری", "قيمة مشتريات العميل", "Müşteri satın alma değeri", "Customer purchase value")} tone="cyan" />
+        <FinancialCard icon={<FileText />} title={tr("تعداد فاکتور", "عدد الفواتير", "Fatura sayısı", "Invoices")} value={n(financial.invoiceCount)} hint={`${tr("باز", "مفتوح", "Açık", "Open")}: ${n(financial.openCount)}`} tone="amber" />
+        <FinancialCard icon={<CreditCard />} title={tr("فاکتورهای باز", "المبلغ المفتوح", "Açık tutar", "Open amount")} value={money(financial.openAmount)} hint={tr("نیازمند پیگیری", "يتطلب متابعة", "Takip gerektirir", "Needs follow-up")} tone="rose" />
+        <FinancialCard icon={<ArrowDownRight />} title={tr("جمع بدهکار", "إجمالي المدين", "Toplam borç", "Total debit")} value={money(financial.debit)} tone="rose" />
+        <FinancialCard icon={<ArrowUpRight />} title={tr("جمع بستانکار", "إجمالي الدائن", "Toplam alacak", "Total credit")} value={money(financial.credit)} tone="emerald" />
+        <FinancialCard icon={<BarChart3 />} title={tr("میانگین فاکتور", "متوسط الفاتورة", "Ortalama fatura", "Avg invoice")} value={money(financial.avgInvoice)} tone="cyan" />
+        <FinancialCard icon={<FileText />} title={tr("فاکتورهای تسویه", "الفواتير المدفوعة", "Ödenen faturalar", "Paid invoices")} value={n(financial.paidCount)} tone="emerald" />
       </div>
 
-      <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-5 mb-5">
+      <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5 mb-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <h3 className="font-black text-cyan-300 flex items-center gap-2">
+          <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <BarChart3 size={20} />
-            {fa ? "نمودار آخرین فاکتورها" : "Recent invoices chart"}
+            {tr("نمودار آخرین فاکتورها", "مخطط آخر الفواتير", "Son faturalar grafiği", "Recent invoices chart")}
           </h3>
-          <span className="text-slate-400 text-sm">{fa ? "۸ فاکتور آخر" : "Last 8 invoices"}</span>
+          <span className="text-[var(--erp-muted)] text-sm">{tr("۸ فاکتور آخر", "آخر 8 فواتير", "Son 8 fatura", "Last 8 invoices")}</span>
         </div>
 
         <div className="h-52 flex items-end gap-3">
           {chartBars.length ? (
             chartBars.map((bar) => (
               <div key={bar.id} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full rounded-t-2xl bg-cyan-400/70 hover:bg-cyan-300 transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
-                <div className="text-[10px] text-slate-400">{bar.label}</div>
+                <div className="w-full rounded-t-2xl bg-[var(--erp-accent)]/70 hover:bg-[var(--erp-accent-2)] transition" style={{ height: `${bar.height}%` }} title={money(bar.value)} />
+                <div className="text-[10px] text-[var(--erp-muted)]">#{n(bar.id)}</div>
               </div>
             ))
           ) : (
-            <div className="w-full text-center text-slate-400">{fa ? "داده‌ای برای نمودار وجود ندارد." : "No chart data."}</div>
+            <div className="w-full text-center text-[var(--erp-muted)]">{tr("داده‌ای برای نمودار وجود ندارد.", "لا توجد بيانات للمخطط.", "Grafik verisi yok.", "No chart data.")}</div>
           )}
         </div>
       </div>
 
-      <div className="rounded-3xl bg-slate-800/60 border border-white/5 p-5">
+      <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <h3 className="font-black text-cyan-300 flex items-center gap-2">
+          <h3 className="font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={20} />
-            {fa ? "فاکتورهای مشتری" : "Customer invoices"}
+            {tr("فاکتورهای مشتری", "فواتير العميل", "Müşteri faturaları", "Customer invoices")}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-[240px_180px] gap-3">
-            <div className="relative">
-              <Search size={17} className="absolute top-3.5 right-4 text-slate-500" />
+            <div className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 14px" }}>
+              <Search size={17} className="text-[var(--erp-muted)] shrink-0" />
               <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={fa ? "جستجوی فاکتور..." : "Search invoices..."}
-                className="w-full bg-slate-900 text-white rounded-2xl pr-10 pl-4 py-3 outline-none border border-cyan-400/10"
+                value={lang === "fa" ? toPersianDigits(query) : query}
+                onChange={(e) => setQuery(toEnglishDigits(e.target.value))}
+                placeholder={tr("جستجوی فاکتور...", "بحث في الفواتير...", "Fatura ara...", "Search invoices...")}
+                className="min-w-0 flex-1 text-[var(--erp-text)]"
+                style={{ padding: "11px 0" }}
               />
             </div>
 
-            <select
+            <Select
               value={invoiceFilter}
-              onChange={(e) => setInvoiceFilter(e.target.value)}
-              className="w-full bg-slate-900 text-white rounded-2xl px-4 py-3 outline-none border border-cyan-400/10"
-            >
-              <option value="all">{fa ? "همه" : "All"}</option>
-              <option value="sale">{fa ? "فروش" : "Sale"}</option>
-              <option value="buy">{fa ? "خرید" : "Buy"}</option>
-              <option value="proforma">{fa ? "پیش‌فاکتور" : "Proforma"}</option>
-              <option value="paid">{fa ? "تسویه شده" : "Paid"}</option>
-              <option value="unpaid">{fa ? "تسویه نشده" : "Unpaid"}</option>
-              <option value="partial">{fa ? "ناقص" : "Partial"}</option>
-            </select>
+              onChange={(value) => setInvoiceFilter(value)}
+              className="w-full"
+              options={[
+                { value: "all", label: tr("همه", "الكل", "Tümü", "All") },
+                { value: "sale", label: tr("فروش", "بيع", "Satış", "Sale") },
+                { value: "buy", label: tr("خرید", "شراء", "Alış", "Buy") },
+                { value: "proforma", label: tr("پیش‌فاکتور", "فاتورة أولية", "Proforma", "Proforma") },
+                { value: "paid", label: tr("تسویه شده", "مدفوع", "Ödendi", "Paid") },
+                { value: "unpaid", label: tr("تسویه نشده", "غير مدفوع", "Ödenmedi", "Unpaid") },
+                { value: "partial", label: tr("ناقص", "جزئي", "Kısmi", "Partial") },
+              ]}
+            />
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-sm">
             <thead>
-              <tr className="text-cyan-300 border-b border-cyan-500/20">
-                <th className="p-3 text-right">{fa ? "شماره" : "ID"}</th>
-                <th className="p-3 text-right">{fa ? "تاریخ" : "Date"}</th>
-                <th className="p-3 text-right">{fa ? "نوع" : "Type"}</th>
-                <th className="p-3 text-right">{fa ? "مبلغ" : "Amount"}</th>
-                <th className="p-3 text-right">{fa ? "باقی‌مانده" : "Remaining"}</th>
-                <th className="p-3 text-right">{fa ? "وضعیت" : "Status"}</th>
+              <tr className="text-[var(--erp-accent)] border-b border-[var(--erp-border)]">
+                <th className="p-3 text-right">#</th>
+                <th className="p-3 text-right">{tr("شماره", "الرقم", "No", "ID")}</th>
+                <th className="p-3 text-right">{tr("تاریخ", "التاريخ", "Tarih", "Date")}</th>
+                <th className="p-3 text-right">{tr("نوع", "النوع", "Tür", "Type")}</th>
+                <th className="p-3 text-right">{tr("مبلغ", "المبلغ", "Tutar", "Amount")}</th>
+                <th className="p-3 text-right">{tr("باقی‌مانده", "المتبقي", "Kalan", "Remaining")}</th>
+                <th className="p-3 text-right">{tr("وضعیت", "الحالة", "Durum", "Status")}</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-slate-700/60 hover:bg-cyan-400/5">
-                  <td className="p-3 font-black text-white">#{n(inv.id)}</td>
-                  <td className="p-3 text-slate-300">{formatDate(inv.created_at, fa)}</td>
-                  <td className="p-3 text-slate-300">{invoiceTypeLabel(inv.invoice_type, fa)}</td>
-                  <td className="p-3 text-cyan-300 font-black">{money(inv.total_amount)}</td>
+              {filteredInvoices.map((inv, rowIndex) => (
+                <tr key={inv.id} className="border-b border-[var(--erp-border)] hover:bg-[var(--erp-glow)]">
+                  <td className="p-3 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
+                  <td className="p-3 font-black text-[var(--erp-text)]">#{n(inv.id)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{formatCalendarDate(inv.created_at, lang)}</td>
+                  <td className="p-3 text-[var(--erp-muted)]">{invoiceTypeLabel(inv.invoice_type, lang)}</td>
+                  <td className="p-3 text-[var(--erp-accent)] font-black">{money(inv.total_amount)}</td>
                   <td className="p-3 text-amber-300 font-black">{money(inv.remaining_amount || 0)}</td>
                   <td className="p-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-black ${
@@ -308,7 +291,7 @@ export default function CustomerFinancial({
                         ? "bg-amber-400/10 text-amber-300"
                         : "bg-rose-400/10 text-rose-300"
                     }`}>
-                      {statusLabel(inv.payment_status, fa)}
+                      {statusLabel(inv.payment_status, lang)}
                     </span>
                   </td>
                 </tr>
@@ -316,8 +299,8 @@ export default function CustomerFinancial({
 
               {filteredInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">
-                    {fa ? "فاکتوری برای نمایش وجود ندارد." : "No invoices to show."}
+                  <td colSpan={7} className="p-8 text-center text-[var(--erp-muted)]">
+                    {tr("فاکتوری برای نمایش وجود ندارد.", "لا توجد فواتير لعرضها.", "Gösterilecek fatura yok.", "No invoices to show.")}
                   </td>
                 </tr>
               )}
@@ -331,19 +314,19 @@ export default function CustomerFinancial({
 
 function FinancialCard({ icon, title, value, hint, tone = "cyan" }) {
   const toneClass = {
-    cyan: "text-cyan-300 bg-cyan-400/10 border-cyan-400/20",
+    cyan: "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]",
     emerald: "text-emerald-300 bg-emerald-400/10 border-emerald-400/20",
     rose: "text-rose-300 bg-rose-400/10 border-rose-400/20",
     amber: "text-amber-300 bg-amber-400/10 border-amber-400/20",
-  }[tone] || "text-cyan-300 bg-cyan-400/10 border-cyan-400/20";
+  }[tone] || "text-[var(--erp-accent)] bg-[var(--erp-glow)] border-[var(--erp-border)]";
 
   return (
-    <div className="rounded-3xl bg-slate-800/70 border border-white/5 p-5">
+    <div className="rounded-3xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
-          <div className="text-2xl font-black text-white mt-2">{value}</div>
-          {hint && <div className="text-xs text-slate-500 mt-2">{hint}</div>}
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
+          <div className="text-2xl font-black text-[var(--erp-text)] mt-2">{value}</div>
+          {hint && <div className="text-xs text-[var(--erp-muted)] mt-2">{hint}</div>}
         </div>
         <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${toneClass}`}>
           {icon}

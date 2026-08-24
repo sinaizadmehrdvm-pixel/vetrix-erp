@@ -11,5 +11,5 @@ async function request(path) {
   return data;
 }
 
-export const getSystemHealth = () => request("/api/system/health");
-export const getSystemReadiness = () => request("/api/system/readiness");
+export const getSystemHealth = (language = "en") => request(`/api/system/health?language=${language}`);
+export const getSystemReadiness = (language = "en") => request(`/api/system/readiness?language=${language}`);

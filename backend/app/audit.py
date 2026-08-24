@@ -1,15 +1,41 @@
 import hashlib
 import json
+import threading
+import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
+from app.company_scope import current_company_id, ensure_company_id_column
 from app.database import engine
+from app.super_admin import is_super_admin
 
 router = APIRouter(prefix="/api/audit", tags=["Audit Trail"])
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+# Now that 401/403 responses are audited regardless of HTTP method (see
+# record_audit_event below), an unauthenticated flood of GETs with no/
+# garbage tokens would otherwise write one DB row per request - unbounded
+# growth and, on SQLite's default (non-WAL) journal mode, write-lock
+# contention with every other request. Collapse repeat failures from the
+# same client into a single row per short window instead: enough to know
+# "this IP started probing," not one row per attempt.
+FAILURE_AUDIT_DEDUPE_SECONDS = 5
+_recent_failure_writes: dict = {}
+_recent_failure_writes_lock = threading.Lock()
+
+
+def _should_write_failure_event(client_ip, status_code):
+    key = f"{status_code}:{client_ip or 'unknown'}"
+    now = time.monotonic()
+    with _recent_failure_writes_lock:
+        last = _recent_failure_writes.get(key)
+        if last is not None and now - last < FAILURE_AUDIT_DEDUPE_SECONDS:
+            return False
+        _recent_failure_writes[key] = now
+        return True
 
 
 def _require_admin(request: Request):
@@ -49,6 +75,16 @@ def ensure_audit_schema(conn):
         CREATE INDEX IF NOT EXISTS ix_audit_events_path
         ON audit_events(path)
     """))
+    # company_id is intentionally NOT part of the hash-chain payload below -
+    # it's tenant-scoping metadata, not a tamper-evident field, so adding it
+    # (and backfilling legacy rows to DEFAULT_COMPANY_ID, same convention as
+    # every other retrofit in company_scope.py) can't invalidate any
+    # previously-computed event_hash/previous_hash.
+    ensure_company_id_column(conn, "audit_events")
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_audit_events_company_id
+        ON audit_events(company_id)
+    """))
 
 
 def classify_action(method, path):
@@ -63,6 +99,11 @@ def classify_action(method, path):
         return "delete"
     if method in {"PUT", "PATCH"}:
         return "update"
+    if method in {"GET", "HEAD"}:
+        # Only ever reached for an authentication/authorization failure now
+        # (record_audit_event still skips successful, non-mutating reads) -
+        # "create" would be a misleading label for a blocked read attempt.
+        return "read"
     if final_segment in {"close", "reopen", "post", "cancel", "convert", "toggle"}:
         return final_segment
     return "create"
@@ -80,8 +121,23 @@ def _event_hash(payload):
 
 def record_audit_event(request, status_code):
     method = request.method.upper()
-    if method not in MUTATING_METHODS:
+    # Authentication/authorization failures are security-relevant regardless
+    # of HTTP method - a GET probe against a resource the caller isn't
+    # authorized for (or with a stolen/expired/revoked token) must leave a
+    # trace the same way a blocked mutation already does. Successful,
+    # non-mutating requests (ordinary reads) stay unaudited to avoid
+    # flooding the log with routine business traffic.
+    is_mutating = method in MUTATING_METHODS
+    if not is_mutating and status_code not in (401, 403):
         return
+    if not is_mutating:
+        # This request would have been skipped entirely before failure
+        # events started being audited - dedupe it (mutating failures were
+        # already unconditionally audited pre-fix, so their volume/DB-write
+        # behavior is unchanged here).
+        client_ip = request.client.host if request.client else ""
+        if not _should_write_failure_event(client_ip, status_code):
+            return
 
     auth = getattr(request.state, "auth", {}) or {}
     username = str(auth.get("username") or "bootstrap")
@@ -97,6 +153,7 @@ def record_audit_event(request, status_code):
     created_at = datetime.now(timezone.utc).isoformat()
     request_id = str(uuid4())
     action = classify_action(method, request.url.path)
+    company_id = current_company_id(request)
 
     with engine.begin() as conn:
         ensure_audit_schema(conn)
@@ -122,12 +179,12 @@ def record_audit_event(request, status_code):
             INSERT INTO audit_events
             (request_id, actor_user_id, actor_username, actor_role, method, path,
              action, status_code, client_ip, user_agent, created_at,
-             previous_hash, event_hash)
+             previous_hash, event_hash, company_id)
             VALUES
             (:request_id, :actor_user_id, :actor_username, :actor_role, :method,
              :path, :action, :status_code, :client_ip, :user_agent, :created_at,
-             :previous_hash, :event_hash)
-        """), {**hash_payload, "event_hash": event_hash})
+             :previous_hash, :event_hash, :company_id)
+        """), {**hash_payload, "event_hash": event_hash, "company_id": company_id})
 
 
 def verify_audit_chain(conn):
@@ -180,11 +237,15 @@ def list_audit_events(
     offset: int = 0,
 ):
     _require_admin(request)
+    auth = getattr(request.state, "auth", {})
     where = []
     params = {
         "limit": max(1, min(int(limit or 100), 500)),
         "offset": max(0, int(offset or 0)),
     }
+    if not is_super_admin(auth):
+        where.append("company_id=:scoped_company_id")
+        params["scoped_company_id"] = current_company_id(request)
     if actor:
         where.append("actor_username LIKE :actor")
         params["actor"] = f"%{actor}%"

@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 
@@ -11,6 +11,7 @@ from app.accounting.posting import (
     post_balanced_voucher,
 )
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/fixed-assets", tags=["Fixed Assets"])
 MONEY_STEP = Decimal("0.01")
@@ -73,9 +74,13 @@ def _ensure_schema(conn):
             FOREIGN KEY(asset_id) REFERENCES fixed_assets(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column, migrate_fixed_assets_composite_unique
+    ensure_company_id_column(conn, "fixed_assets")
+    ensure_company_id_column(conn, "fixed_asset_depreciation")
+    migrate_fixed_assets_composite_unique(conn)
 
 
-def _asset(conn, asset_id):
+def _asset(conn, asset_id, company_id):
     _ensure_schema(conn)
     row = conn.execute(text("""
         SELECT a.*,
@@ -83,9 +88,9 @@ def _asset(conn, asset_id):
                COALESCE(MAX(d.months_recognized),0) AS recognized_months
         FROM fixed_assets a
         LEFT JOIN fixed_asset_depreciation d ON d.asset_id=a.id
-        WHERE a.id=:id
+        WHERE a.id=:id AND a.company_id=:company_id
         GROUP BY a.id
-    """), {"id": asset_id}).mappings().first()
+    """), {"id": asset_id, "company_id": company_id}).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Fixed asset not found")
     return dict(row)
@@ -113,7 +118,8 @@ def _serialize(row):
 
 
 @router.get("")
-def list_assets():
+def list_assets(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         rows = conn.execute(text("""
@@ -122,9 +128,10 @@ def list_assets():
                    COALESCE(MAX(d.months_recognized),0) AS recognized_months
             FROM fixed_assets a
             LEFT JOIN fixed_asset_depreciation d ON d.asset_id=a.id
+            WHERE a.company_id=:company_id
             GROUP BY a.id
             ORDER BY a.purchase_date DESC, a.id DESC
-        """)).mappings().all()
+        """), {"company_id": company_id}).mappings().all()
         assets = [_serialize(row) for row in rows]
         return {
             "summary": {
@@ -139,9 +146,9 @@ def list_assets():
 
 
 @router.get("/{asset_id}")
-def asset_detail(asset_id: int):
+def asset_detail(asset_id: int, request: Request):
     with engine.begin() as conn:
-        asset = _serialize(_asset(conn, asset_id))
+        asset = _serialize(_asset(conn, asset_id, current_company_id(request)))
         history = conn.execute(text("""
             SELECT * FROM fixed_asset_depreciation
             WHERE asset_id=:id ORDER BY through_date DESC, id DESC
@@ -151,7 +158,8 @@ def asset_detail(asset_id: int):
 
 
 @router.post("")
-def create_asset(data: AssetCreate):
+def create_asset(data: AssetCreate, request: Request):
+    company_id = current_company_id(request)
     name = data.name.strip()
     code = data.asset_code.strip()
     cost = _money(data.acquisition_cost)
@@ -171,11 +179,11 @@ def create_asset(data: AssetCreate):
                 INSERT INTO fixed_assets
                   (name, asset_code, category, purchase_date, acquisition_cost,
                    salvage_value, useful_life_months, payment_method,
-                   serial_number, location, note, status, created_at)
+                   serial_number, location, note, status, created_at, company_id)
                 VALUES
                   (:name, :asset_code, :category, :purchase_date, :cost,
                    :salvage, :life, :payment_method, :serial_number,
-                   :location, :note, 'active', :created_at)
+                   :location, :note, 'active', :created_at, :company_id)
             """), {
                 "name": name, "asset_code": code, "category": data.category.strip(),
                 "purchase_date": data.purchase_date.isoformat(), "cost": float(cost),
@@ -183,6 +191,7 @@ def create_asset(data: AssetCreate):
                 "payment_method": data.payment_method, "serial_number": data.serial_number.strip(),
                 "location": data.location.strip(), "note": data.note.strip(),
                 "created_at": datetime.now(timezone.utc).isoformat(),
+                "company_id": company_id,
             })
             asset_id = result.lastrowid
             description = f"خرید دارایی ثابت: {name} ({code})"
@@ -192,6 +201,7 @@ def create_asset(data: AssetCreate):
                     {"account_code": "1202", "debit": float(cost), "description": description},
                     {"account_code": cash_account_for_method(data.payment_method), "credit": float(cost), "description": description},
                 ],
+                company_id,
                 voucher_date=data.purchase_date.isoformat(),
                 connection=conn,
             )
@@ -205,16 +215,17 @@ def create_asset(data: AssetCreate):
 
 
 @router.delete("/{asset_id}")
-def delete_asset(asset_id: int):
+def delete_asset(asset_id: int, request: Request):
+    company_id = current_company_id(request)
     try:
         with engine.begin() as conn:
-            _asset(conn, asset_id)
+            _asset(conn, asset_id, company_id)
             count = conn.execute(text("""
                 SELECT COUNT(*) FROM fixed_asset_depreciation WHERE asset_id=:id
             """), {"id": asset_id}).scalar() or 0
             if count:
                 raise HTTPException(status_code=409, detail="Asset has depreciation history and cannot be deleted")
-            delete_source_voucher("fixed_asset_acquisition", asset_id, connection=conn)
+            delete_source_voucher("fixed_asset_acquisition", asset_id, company_id, connection=conn)
             conn.execute(text("DELETE FROM fixed_assets WHERE id=:id"), {"id": asset_id})
             return {"status": "deleted", "id": asset_id}
     except ValueError as error:
@@ -226,11 +237,12 @@ def _months_between(start, end):
 
 
 @router.post("/depreciation/run")
-def run_depreciation(data: DepreciationRun):
+def run_depreciation(data: DepreciationRun, request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
         if data.asset_id:
-            assets = [_asset(conn, data.asset_id)]
+            assets = [_asset(conn, data.asset_id, company_id)]
         else:
             assets = [dict(row) for row in conn.execute(text("""
                 SELECT a.*,
@@ -238,9 +250,9 @@ def run_depreciation(data: DepreciationRun):
                        COALESCE(MAX(d.months_recognized),0) AS recognized_months
                 FROM fixed_assets a
                 LEFT JOIN fixed_asset_depreciation d ON d.asset_id=a.id
-                WHERE a.status='active'
+                WHERE a.status='active' AND a.company_id=:company_id
                 GROUP BY a.id ORDER BY a.id
-            """)).mappings().all()]
+            """), {"company_id": company_id}).mappings().all()]
 
         posted = []
         skipped = []
@@ -267,15 +279,16 @@ def run_depreciation(data: DepreciationRun):
             result = conn.execute(text("""
                 INSERT INTO fixed_asset_depreciation
                   (asset_id, through_date, months_recognized, amount,
-                   accumulated_after, book_value_after, created_at)
+                   accumulated_after, book_value_after, created_at, company_id)
                 VALUES
                   (:asset_id, :through_date, :months, :amount,
-                   :accumulated, :book_value, :created_at)
+                   :accumulated, :book_value, :created_at, :company_id)
             """), {
                 "asset_id": asset["id"], "through_date": data.through_date.isoformat(),
                 "months": elapsed, "amount": float(amount),
                 "accumulated": float(projected_accumulated), "book_value": float(book_value),
                 "created_at": datetime.now(timezone.utc).isoformat(),
+                "company_id": company_id,
             })
             entry_id = result.lastrowid
             description = f"استهلاک دارایی: {asset['name']} تا {data.through_date.isoformat()}"
@@ -285,6 +298,7 @@ def run_depreciation(data: DepreciationRun):
                     {"account_code": "5103", "debit": float(amount), "description": description},
                     {"account_code": "1203", "credit": float(amount), "description": description},
                 ],
+                company_id,
                 voucher_date=data.through_date.isoformat(),
                 connection=conn,
             )

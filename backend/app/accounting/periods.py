@@ -1,3 +1,4 @@
+import weakref
 from datetime import date, datetime
 from typing import Optional
 
@@ -6,8 +7,16 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/periods", tags=["Fiscal Periods"])
+
+# Same reasoning as posting.py's _posting_schema_ready: ensure_fiscal_schema
+# is idempotent but gets called from several places per voucher post
+# (resolve_open_period, assert_source_period_open, _ensure_schema), each
+# re-running several PRAGMA/ALTER/CREATE INDEX checks. Keyed by the live
+# Connection object so it's scoped to one transaction and can't go stale.
+_fiscal_schema_ready = weakref.WeakSet()
 
 
 class FiscalPeriodCreate(BaseModel):
@@ -41,6 +50,8 @@ def _ensure_column(conn, table_name, column_name, column_sql):
 
 
 def ensure_fiscal_schema(conn):
+    if conn in _fiscal_schema_ready:
+        return
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS fiscal_periods (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,6 +64,8 @@ def ensure_fiscal_schema(conn):
             reopened_at VARCHAR
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "fiscal_periods")
     voucher_table = conn.execute(text("""
         SELECT name FROM sqlite_master
         WHERE type='table' AND name='accounting_vouchers'
@@ -74,13 +87,18 @@ def ensure_fiscal_schema(conn):
             CREATE UNIQUE INDEX IF NOT EXISTS ux_voucher_period_number
             ON accounting_vouchers(fiscal_period_id, period_voucher_no)
         """))
+        # Only cache "done" once accounting_vouchers actually existed and got
+        # its columns/index - if some caller ever reaches this function
+        # before that table exists, we must not skip this block next time
+        # once the table does exist later in the same connection/transaction.
+        _fiscal_schema_ready.add(conn)
 
 
 def _period_dict(row):
     return dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
 
 
-def assign_unassigned_vouchers(conn):
+def assign_unassigned_vouchers(conn, company_id):
     """Attach legacy vouchers to periods without changing their global numbers."""
     ensure_fiscal_schema(conn)
     voucher_table = conn.execute(text("""
@@ -93,36 +111,37 @@ def assign_unassigned_vouchers(conn):
     vouchers = conn.execute(text("""
         SELECT id, voucher_date
         FROM accounting_vouchers
-        WHERE fiscal_period_id IS NULL
+        WHERE fiscal_period_id IS NULL AND company_id=:company_id
         ORDER BY voucher_date ASC, id ASC
-    """)).mappings().all()
+    """), {"company_id": company_id}).mappings().all()
     for voucher in vouchers:
         target = _parse_date(voucher["voucher_date"] or date.today())
         period = conn.execute(text("""
             SELECT id FROM fiscal_periods
-            WHERE start_date <= :target AND end_date >= :target
+            WHERE start_date <= :target AND end_date >= :target AND company_id=:company_id
             ORDER BY start_date DESC
             LIMIT 1
-        """), {"target": target.isoformat()}).mappings().first()
+        """), {"target": target.isoformat(), "company_id": company_id}).mappings().first()
         if not period:
             year_start = date(target.year, 1, 1).isoformat()
             year_end = date(target.year, 12, 31).isoformat()
             overlap = conn.execute(text("""
                 SELECT id FROM fiscal_periods
-                WHERE NOT (end_date < :start_date OR start_date > :end_date)
+                WHERE NOT (end_date < :start_date OR start_date > :end_date) AND company_id=:company_id
                 LIMIT 1
-            """), {"start_date": year_start, "end_date": year_end}).mappings().first()
+            """), {"start_date": year_start, "end_date": year_end, "company_id": company_id}).mappings().first()
             start_date = target.isoformat() if overlap else year_start
             end_date = target.isoformat() if overlap else year_end
             result = conn.execute(text("""
                 INSERT INTO fiscal_periods
-                (name, start_date, end_date, status, created_at)
-                VALUES (:name, :start_date, :end_date, 'open', :created_at)
+                (name, start_date, end_date, status, created_at, company_id)
+                VALUES (:name, :start_date, :end_date, 'open', :created_at, :company_id)
             """), {
                 "name": f"Fiscal {target.year}" if not overlap else f"Imported {target.isoformat()}",
                 "start_date": start_date,
                 "end_date": end_date,
                 "created_at": datetime.utcnow().isoformat(),
+                "company_id": company_id,
             })
             period_id = result.lastrowid
         else:
@@ -144,7 +163,7 @@ def assign_unassigned_vouchers(conn):
         })
 
 
-def create_fiscal_period(conn, name, start_date, end_date):
+def create_fiscal_period(conn, name, start_date, end_date, company_id):
     start = _parse_date(start_date)
     end = _parse_date(end_date)
     if end < start:
@@ -153,11 +172,12 @@ def create_fiscal_period(conn, name, start_date, end_date):
     ensure_fiscal_schema(conn)
     overlap = conn.execute(text("""
         SELECT id, name FROM fiscal_periods
-        WHERE NOT (end_date < :start_date OR start_date > :end_date)
+        WHERE NOT (end_date < :start_date OR start_date > :end_date) AND company_id=:company_id
         LIMIT 1
     """), {
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
+        "company_id": company_id,
     }).mappings().first()
     if overlap:
         raise ValueError(f"Fiscal period overlaps with: {overlap['name']}")
@@ -165,26 +185,27 @@ def create_fiscal_period(conn, name, start_date, end_date):
     now = datetime.utcnow().isoformat()
     result = conn.execute(text("""
         INSERT INTO fiscal_periods
-        (name, start_date, end_date, status, created_at)
-        VALUES (:name, :start_date, :end_date, 'open', :created_at)
+        (name, start_date, end_date, status, created_at, company_id)
+        VALUES (:name, :start_date, :end_date, 'open', :created_at, :company_id)
     """), {
         "name": name.strip() or f"Fiscal {start.year}",
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "created_at": now,
+        "company_id": company_id,
     })
     return result.lastrowid
 
 
-def resolve_open_period(conn, voucher_date=None):
+def resolve_open_period(conn, voucher_date, company_id):
     ensure_fiscal_schema(conn)
     target = _parse_date(voucher_date or date.today())
     row = conn.execute(text("""
         SELECT * FROM fiscal_periods
-        WHERE start_date <= :target AND end_date >= :target
+        WHERE start_date <= :target AND end_date >= :target AND company_id=:company_id
         ORDER BY start_date DESC
         LIMIT 1
-    """), {"target": target.isoformat()}).mappings().first()
+    """), {"target": target.isoformat(), "company_id": company_id}).mappings().first()
 
     if not row:
         period_id = create_fiscal_period(
@@ -192,6 +213,7 @@ def resolve_open_period(conn, voucher_date=None):
             f"Fiscal {target.year}",
             date(target.year, 1, 1),
             date(target.year, 12, 31),
+            company_id,
         )
         row = conn.execute(
             text("SELECT * FROM fiscal_periods WHERE id=:id"),
@@ -205,10 +227,11 @@ def resolve_open_period(conn, voucher_date=None):
     return dict(row)
 
 
-def next_voucher_numbers(conn, fiscal_period_id):
+def next_voucher_numbers(conn, fiscal_period_id, company_id):
     global_no = (
         conn.execute(
-            text("SELECT COALESCE(MAX(voucher_no), 0) + 1 FROM accounting_vouchers")
+            text("SELECT COALESCE(MAX(voucher_no), 0) + 1 FROM accounting_vouchers WHERE company_id=:company_id"),
+            {"company_id": company_id},
         ).scalar()
         or 1
     )
@@ -235,27 +258,28 @@ def assert_voucher_period_open(conn, voucher_id):
         raise ValueError(f"Fiscal period '{row['name']}' is closed")
 
 
-def assert_source_period_open(conn, source_type, source_id):
+def assert_source_period_open(conn, source_type, source_id, company_id):
     ensure_fiscal_schema(conn)
     row = conn.execute(text("""
         SELECT p.name, p.status
         FROM accounting_vouchers v
         JOIN fiscal_periods p ON p.id = v.fiscal_period_id
-        WHERE v.source_type=:source_type AND v.source_id=:source_id
+        WHERE v.source_type=:source_type AND v.source_id=:source_id AND v.company_id=:company_id
         LIMIT 1
     """), {
         "source_type": source_type,
         "source_id": source_id,
+        "company_id": company_id,
     }).mappings().first()
     if row and row["status"] != "open":
         raise ValueError(f"Fiscal period '{row['name']}' is closed")
 
 
-def close_fiscal_period(conn, period_id):
+def close_fiscal_period(conn, period_id, company_id):
     ensure_fiscal_schema(conn)
     period = conn.execute(
-        text("SELECT * FROM fiscal_periods WHERE id=:id"),
-        {"id": period_id},
+        text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
+        {"id": period_id, "company_id": company_id},
     ).mappings().first()
     if not period:
         raise ValueError("Fiscal period not found")
@@ -288,11 +312,11 @@ def close_fiscal_period(conn, period_id):
     ).mappings().first())
 
 
-def reopen_fiscal_period(conn, period_id):
+def reopen_fiscal_period(conn, period_id, company_id):
     ensure_fiscal_schema(conn)
     period = conn.execute(
-        text("SELECT * FROM fiscal_periods WHERE id=:id"),
-        {"id": period_id},
+        text("SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id"),
+        {"id": period_id, "company_id": company_id},
     ).mappings().first()
     if not period:
         raise ValueError("Fiscal period not found")
@@ -308,10 +332,11 @@ def reopen_fiscal_period(conn, period_id):
 
 
 @router.get("")
-def list_fiscal_periods():
+def list_fiscal_periods(request: Request):
+    company_id = current_company_id(request)
     with engine.begin() as conn:
         ensure_fiscal_schema(conn)
-        assign_unassigned_vouchers(conn)
+        assign_unassigned_vouchers(conn, company_id)
         voucher_table = conn.execute(text("""
             SELECT name FROM sqlite_master
             WHERE type='table' AND name='accounting_vouchers'
@@ -324,16 +349,18 @@ def list_fiscal_periods():
                        COALESCE(SUM(v.total_credit), 0) AS total_credit
                 FROM fiscal_periods p
                 LEFT JOIN accounting_vouchers v ON v.fiscal_period_id = p.id
+                WHERE p.company_id=:company_id
                 GROUP BY p.id
                 ORDER BY p.start_date DESC
-            """)).mappings().all()
+            """), {"company_id": company_id}).mappings().all()
         else:
             rows = conn.execute(text("""
                 SELECT p.*, 0 AS vouchers_count,
                        0 AS total_debit, 0 AS total_credit
                 FROM fiscal_periods p
+                WHERE p.company_id=:company_id
                 ORDER BY p.start_date DESC
-            """)).mappings().all()
+            """), {"company_id": company_id}).mappings().all()
         return [dict(row) for row in rows]
 
 
@@ -347,6 +374,7 @@ def create_period(payload: FiscalPeriodCreate, request: Request):
                 payload.name,
                 payload.start_date,
                 payload.end_date,
+                current_company_id(request),
             )
             row = conn.execute(
                 text("SELECT * FROM fiscal_periods WHERE id=:id"),
@@ -363,7 +391,7 @@ def close_period(period_id: int, request: Request):
     from app.accounting.closing import close_books
     try:
         with engine.begin() as conn:
-            return close_books(conn, period_id)
+            return close_books(conn, period_id, current_company_id(request))
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
@@ -374,6 +402,6 @@ def reopen_period(period_id: int, request: Request):
     from app.accounting.closing import reopen_books
     try:
         with engine.begin() as conn:
-            return reopen_books(conn, period_id)
+            return reopen_books(conn, period_id, current_company_id(request))
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))

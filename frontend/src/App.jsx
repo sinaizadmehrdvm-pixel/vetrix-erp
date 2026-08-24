@@ -7,6 +7,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { useLanguage } from "./localization/useLanguage";
 import LocaleSettingsSync from "./localization/LocaleSettingsSync";
+import VitalixLoader from "./components/brand/VitalixLoader";
+import { ConfirmDialogHost } from "./components/ui/ConfirmDialog";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Customers = lazy(() => import("./pages/Customers"));
@@ -15,7 +17,7 @@ const Products = lazy(() => import("./pages/Products"));
 const ProductCategories = lazy(() => import("./pages/ProductCategories"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const InvoicePrint = lazy(() => import("./pages/InvoicePrint"));
-const Warehouse = lazy(() => import("./pages/Warehouse"));
+const InvoicePrintChoose = lazy(() => import("./pages/InvoicePrintChoose"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const Payments = lazy(() => import("./pages/Payments"));
 const Receipts = lazy(() => import("./pages/Receipts"));
@@ -24,16 +26,25 @@ const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Login = lazy(() => import("./pages/Login"));
 const InvoiceDesigner = lazy(() => import("./designer/InvoiceDesigner"));
-const FinanceCenter = lazy(() => import("./pages/FinanceCenter"));
+const DocumentDesigner = lazy(() => import("./designer/DocumentDesigner"));
 const Customer360 = lazy(() => import("./pages/crm/Customer360"));
 const CrmDashboard = lazy(() => import("./pages/CrmDashboard"));
 const SmartInventory = lazy(() => import("./pages/SmartInventory"));
+const PurchaseOrders = lazy(() => import("./pages/PurchaseOrders"));
+const SalesPipeline = lazy(() => import("./pages/SalesPipeline"));
+const BranchesWarehouses = lazy(() => import("./pages/BranchesWarehouses"));
 const AiBusinessIntelligence = lazy(() => import("./pages/AiBusinessIntelligence"));
+const ImprovementCenter = lazy(() => import("./pages/ImprovementCenter"));
 const AccountingCore = lazy(() => import("./pages/AccountingCore"));
 const AccountingEntries = lazy(() => import("./pages/AccountingEntries"));
 const FiscalPeriods = lazy(() => import("./pages/FiscalPeriods"));
 const AuditTrail = lazy(() => import("./pages/AuditTrail"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
+const CompanyManagement = lazy(() => import("./pages/CompanyManagement"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const ExecutiveAgent = lazy(() => import("./pages/ExecutiveAgent"));
+const Employees = lazy(() => import("./pages/Employees"));
+const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
 const BackupRecovery = lazy(() => import("./pages/BackupRecovery"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const FinancialStatements = lazy(() => import("./pages/FinancialStatements"));
@@ -45,21 +56,34 @@ const BudgetControl = lazy(() => import("./pages/BudgetControl"));
 const CurrencyManagement = lazy(() => import("./pages/CurrencyManagement"));
 const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
 const TreasuryCheques = lazy(() => import("./pages/TreasuryCheques"));
-const BusinessIntelligence = lazy(() => import("./pages/BusinessIntelligence"));
 const OnlineCommerce = lazy(() => import("./pages/OnlineCommerce"));
 const ChangeRequestCenter = lazy(() => import("./pages/ChangeRequestCenter"));
 const FinancialPolicy = lazy(() => import("./pages/FinancialPolicy"));
 const DataImportCenter = lazy(() => import("./pages/DataImportCenter"));
+const AccountSecurity = lazy(() => import("./pages/AccountSecurity"));
+const CustomerPortalView = lazy(() => import("./pages/CustomerPortalView"));
+const SupplierPortalView = lazy(() => import("./pages/SupplierPortalView"));
+const PaymentGatewayView = lazy(() => import("./pages/PaymentGatewayView"));
+const PaymentReminders = lazy(() => import("./pages/PaymentReminders"));
+const MessageTemplates = lazy(() => import("./pages/MessageTemplates"));
+const HelpCenter = lazy(() => import("./pages/HelpCenter"));
+const DesignStudio = lazy(() => import("./pages/DesignStudio"));
+const ExecutiveAlerts = lazy(() => import("./pages/ExecutiveAlerts"));
+const CatalogManager = lazy(() => import("./pages/CatalogManager"));
+const CatalogPublicView = lazy(() => import("./pages/CatalogPublicView"));
+const InvoiceVerifyView = lazy(() => import("./pages/InvoiceVerifyView"));
+const PricingTiers = lazy(() => import("./pages/PricingTiers"));
+const RecurringInvoices = lazy(() => import("./pages/RecurringInvoices"));
+const VisitorHome = lazy(() => import("./pages/visitor/VisitorHome"));
+const VisitorOrder = lazy(() => import("./pages/visitor/VisitorOrder"));
+const VisitorVisits = lazy(() => import("./pages/visitor/VisitorVisits"));
+const FieldSalesLayout = lazy(() => import("./pages/visitor/FieldSalesLayout"));
 
 function ProtectedRoute({ children }) {
   const { user, authReady } = useAuth();
 
   if (!authReady) {
-    return (
-      <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-        Vetrix ERP...
-      </div>
-    );
+    return <VitalixLoader variant="page" />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
@@ -91,21 +115,62 @@ function AppContent() {
           },
         }}
       />
+      <ConfirmDialogHost />
 
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[#071028] flex items-center justify-center text-cyan-300 font-bold">
-            Vetrix ERP...
-          </div>
-        }
-      >
+      <Suspense fallback={<VitalixLoader variant="page" />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/portal/:token" element={<CustomerPortalView />} />
+          <Route path="/supplier-portal/:token" element={<SupplierPortalView />} />
+          <Route path="/pay/:authority" element={<PaymentGatewayView />} />
+          <Route path="/catalog/:token" element={<CatalogPublicView />} />
+          <Route path="/verify-invoice/:id/:code" element={<InvoiceVerifyView />} />
         <Route
           path="/invoice-designer"
           element={
             <ProtectedRoute>
               <InvoiceDesigner />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/business-card-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="business_card" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/letterhead-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="letterhead" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/banner-designer"
+          element={
+            <ProtectedRoute>
+              <DocumentDesigner kind="banner" />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Visitor (field sales rep) order screen only - still the
+            separate, minimal, mobile-first shell outside the desktop
+            Sidebar/MainLayout (pages/visitor/VisitorLayout.jsx). /visitor
+            and /visitor/visits themselves moved inside MainLayout below:
+            the Field Sales Phase 1 redesign needs the real app Sidebar at
+            desktop widths, which MainLayout already provides responsively
+            (an off-canvas drawer on mobile via its own hamburger button),
+            so there was no need for a second, parallel responsive shell. */}
+        <Route
+          path="/visitor/order/:customerId"
+          element={
+            <ProtectedRoute>
+              <VisitorOrder />
             </ProtectedRoute>
           }
         />
@@ -120,27 +185,46 @@ function AppContent() {
         >
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="visitor" element={<FieldSalesLayout />}>
+            <Route index element={<VisitorHome />} />
+            <Route path="visits" element={<VisitorVisits />} />
+          </Route>
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetails />} />
           <Route path="customers/:id/360" element={<Customer360 />} />
           <Route path="products" element={<Products />} />
           <Route path="product-categories" element={<ProductCategories />} />
           <Route path="invoices" element={<Invoices />} />
-          <Route path="invoice-print/:id" element={<InvoicePrint />} />
-          <Route path="warehouse" element={<Warehouse />} />
+          <Route path="invoice-print/:id" element={<InvoicePrintChoose />} />
+          <Route path="invoice-print/:id/edit" element={<InvoicePrint />} />
+          {/* Branches (/branches), single-warehouse stock movement
+              (/warehouse) and multi-warehouse management (/warehouses)
+              merged into one tabbed page - old links redirect straight to
+              the matching tab instead of a bare landing page, so deep
+              links/bookmarks keep working. */}
+          <Route path="branches-warehouses" element={<BranchesWarehouses />} />
+          <Route path="warehouse" element={<Navigate to="/branches-warehouses?tab=stock-movement" replace />} />
           <Route path="smart-inventory" element={<SmartInventory />} />
+          <Route path="purchase-orders" element={<PurchaseOrders />} />
+          <Route path="sales-pipeline" element={<SalesPipeline />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="payments" element={<Payments />} />
           <Route path="receipts" element={<Receipts />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="reports" element={<Reports />} />
           <Route path="ai-bi" element={<AiBusinessIntelligence />} />
-          <Route path="finance" element={<FinanceCenter />} />
+          <Route path="improvement-center" element={<ImprovementCenter />} />
+          <Route path="finance" element={<Navigate to="/transactions" replace />} />
           <Route path="accounting" element={<AccountingCore />} />
           <Route path="accounting-entries" element={<AccountingEntries />} />
           <Route path="fiscal-periods" element={<FiscalPeriods />} />
           <Route path="audit-trail" element={<AuditTrail />} />
           <Route path="user-management" element={<UserManagement />} />
+          <Route path="company-management" element={<CompanyManagement />} />
+          <Route path="company-profile" element={<CompanyProfile />} />
+          <Route path="executive-agent" element={<ExecutiveAgent />} />
+          <Route path="hr/employees" element={<Employees />} />
+          <Route path="hr/employees/:id" element={<EmployeeProfile />} />
           <Route path="backup-recovery" element={<BackupRecovery />} />
           <Route path="system-health" element={<SystemHealth />} />
           <Route path="financial-statements" element={<FinancialStatements />} />
@@ -154,11 +238,26 @@ function AppContent() {
           <Route path="treasury-cheques" element={<TreasuryCheques />} />
           <Route path="settings" element={<Settings />} />
           <Route path="crm" element={<CrmDashboard />} />
-          <Route path="business-intelligence" element={<BusinessIntelligence />} />
+          {/* Task 07 Section 4/F: BusinessIntelligence.jsx duplicated AiBusinessIntelligence.jsx's
+              KPIs with a weaker client-side-only forecast/scoring, while /ai-bi has the real
+              backend-computed anomaly detection and cashflow forecast - redirected, not removed,
+              so old bookmarks/links still land somewhere useful. */}
+          <Route path="business-intelligence" element={<Navigate to="/ai-bi" replace />} />
           <Route path="online-commerce" element={<OnlineCommerce />} />
           <Route path="change-requests" element={<ChangeRequestCenter />} />
           <Route path="financial-policy" element={<FinancialPolicy />} />
           <Route path="data-import" element={<DataImportCenter />} />
+          <Route path="account-security" element={<AccountSecurity />} />
+          <Route path="catalog-manager" element={<CatalogManager />} />
+          <Route path="pricing-tiers" element={<PricingTiers />} />
+          <Route path="recurring-invoices" element={<RecurringInvoices />} />
+          <Route path="payment-reminders" element={<PaymentReminders />} />
+          <Route path="message-templates" element={<MessageTemplates />} />
+          <Route path="help" element={<HelpCenter />} />
+          <Route path="design-studio" element={<DesignStudio />} />
+          <Route path="warehouses" element={<Navigate to="/branches-warehouses?tab=warehouses" replace />} />
+          <Route path="branches" element={<Navigate to="/branches-warehouses?tab=branches" replace />} />
+          <Route path="executive-alerts" element={<ExecutiveAlerts />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

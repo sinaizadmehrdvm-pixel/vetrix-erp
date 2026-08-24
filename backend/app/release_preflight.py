@@ -7,10 +7,17 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
 from app.database import engine
+from app.super_admin import require_super_admin
 from app.system_health import build_system_health
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
+# Task 08: the pilot candidate built from this exact commit range (Tasks
+# 01-07). Follows the repository's existing v{major}.{minor}.{patch} git-tag
+# convention (see CHANGELOG.md) with a -pilot.N suffix, rather than a
+# separate parallel identifier - bump the trailing counter if a second pilot
+# candidate is cut from the same 1.4.0 baseline.
+PILOT_RELEASE_ID = "v1.4.0-pilot.1"
 
 RELEASE_TABLES = {
     "accounting_approval_requests",
@@ -71,9 +78,11 @@ def build_release_preflight(app=None):
         )
     if environment != "production":
         warnings.append("VETRIX_ENV is not set to production")
+    from app.auth import _is_properly_configured_secret
+
     secret = os.getenv("VETRIX_JWT_SECRET", "").strip()
-    if environment == "production" and len(secret) < 32:
-        blockers.append("Production JWT secret must contain at least 32 characters")
+    if environment == "production" and not _is_properly_configured_secret(secret):
+        blockers.append("Production JWT secret must be a real secret of at least 32 characters, not empty or the .env.example placeholder")
     origins = [
         item.strip()
         for item in os.getenv("VETRIX_ALLOWED_ORIGINS", "").split(",")
@@ -168,7 +177,7 @@ def build_release_preflight(app=None):
 
 @router.get("/release-preflight")
 def release_preflight(request: Request):
-    _require_admin(request)
+    require_super_admin(request)
     return build_release_preflight(request.app)
 
 
@@ -177,5 +186,6 @@ def version():
     return {
         "name": "Vetrix ERP",
         "version": APP_VERSION,
+        "pilot_release_id": PILOT_RELEASE_ID,
         "environment": os.getenv("VETRIX_ENV", "development"),
     }

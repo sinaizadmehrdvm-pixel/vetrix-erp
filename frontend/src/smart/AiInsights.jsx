@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateStatus(status, t, language) {
@@ -35,8 +36,9 @@ function translateRecommendation(recommendation, t, language) {
   return recommendation || t("improveSalesStrategy");
 }
 
-export default function AiInsights({ insight }) {
+export default function AiInsights({ insight, to = "/ai-bi" }) {
   const { t, language, money, dir } = useLanguage();
+  const fa = language === "fa";
 
   if (!insight) return null;
 
@@ -54,56 +56,76 @@ export default function AiInsights({ insight }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "linear-gradient(135deg,#0f172a,#1e293b)",
         borderRadius: 24,
         padding: 24,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 20,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
         {t("aiInsight")}
-      </h2>
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : language === "ar" ? "عرض الكل ←" : language === "tr" ? "Tümünü gör →" : "View all →"}
+        </span>
+      </Link>
 
-      <div
-        style={{
-          fontSize: 22,
-          marginBottom: 12,
-          fontWeight: 800,
-          color: "#f8fafc",
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {t("profit")}: {money(profit)}
-      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div
+          style={{
+            fontSize: 22,
+            marginBottom: 12,
+            fontWeight: 800,
+            color: "var(--erp-text)",
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {t("profit")}: {money(profit)}
+        </div>
 
-      <div
-        style={{
-          color: "#22d3ee",
-          marginBottom: 12,
-          fontWeight: 800,
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {statusText}
-      </div>
+        <div
+          style={{
+            color: "var(--erp-accent)",
+            marginBottom: 12,
+            fontWeight: 800,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {statusText}
+        </div>
 
-      <div
-        style={{
-          color: "#94a3b8",
-          lineHeight: 1.8,
-          textAlign: dir === "rtl" ? "right" : "left",
-        }}
-      >
-        {recommendationText}
+        <div
+          style={{
+            color: "var(--erp-muted)",
+            lineHeight: 1.8,
+            textAlign: dir === "rtl" ? "right" : "left",
+          }}
+        >
+          {recommendationText}
+        </div>
       </div>
     </div>
   );

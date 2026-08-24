@@ -9,7 +9,14 @@ ROUNDING_MODES = {
     "up": ROUND_UP,
 }
 ALLOWED_INVOICE_TYPES = {"sale", "buy", "proforma", "return_sale", "return_buy"}
-ALLOWED_PAYMENT_STATUSES = {"unpaid", "partial", "paid"}
+# "refunded"/"cancelled" are the two exceptions never derived by
+# calculate_payment_status() below - they're set explicitly by the void/
+# refund endpoints in app/invoice_payments.py.
+ALLOWED_PAYMENT_STATUSES = {"unpaid", "partial", "paid", "overpaid", "refunded", "cancelled"}
+ALLOWED_PAYMENT_METHODS = {
+    "cash", "card", "bank_transfer", "cheque", "wallet", "store_credit",
+    "installment", "online_gateway", "crypto", "custom",
+}
 SETTLEMENT_TYPES = {
     "sale": "receipt",
     "buy": "payment",
@@ -105,4 +112,21 @@ def calculate_payment_status(total_amount, settled_amount, decimal_places=2, rou
         return "unpaid"
     if settled < total:
         return "partial"
-    return "paid"
+    if settled == total:
+        return "paid"
+    return "overpaid"
+
+
+TERMINAL_PAYMENT_STATUSES = {"refunded", "cancelled"}
+
+
+def display_payment_status(stored_status, total_amount, settled_amount, decimal_places=2, rounding_mode="half_up"):
+    """Every invoice-reading endpoint needs the same rule
+    calculate_payment_status()'s own comment above documents but doesn't
+    enforce itself: "refunded"/"cancelled" are explicitly set by the void/
+    refund endpoints and are never re-derivable from settled-vs-total, so
+    a read path must preserve them rather than silently recomputing a
+    generic status on every request."""
+    if stored_status in TERMINAL_PAYMENT_STATUSES:
+        return stored_status
+    return calculate_payment_status(total_amount, settled_amount, decimal_places, rounding_mode)

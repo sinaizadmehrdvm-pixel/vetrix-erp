@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -11,6 +11,7 @@ from app.accounting.periods import (
     next_voucher_numbers,
     resolve_open_period,
 )
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/entries", tags=["Accounting Entries"])
 
@@ -76,7 +77,15 @@ def _dict(row):
     return dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
 
 
-def _ensure_tables():
+def _ensure_tables(company_id=None):
+    """Structural schema only (tables/indexes/composite-unique migration) -
+    company-independent, safe to call with company_id=None from any route
+    that just needs the tables to exist. The default chart-of-accounts seed
+    is delegated to posting.py's _ensure_company_accounts_seeded(), the one
+    place that logic lives now (this file used to keep its own independent
+    copy, which is exactly the kind of schema drift that made the pre-
+    Milestone-3 chart_accounts table ambiguous - see the Milestone 2
+    completion report). Only actually seeds when a company_id is given."""
     with engine.connect() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS chart_accounts (
@@ -113,8 +122,18 @@ def _ensure_tables():
                 posted_at VARCHAR
             )
         """))
+        from app.company_scope import (
+            ensure_company_id_column,
+            migrate_chart_accounts_composite_unique,
+            migrate_accounting_vouchers_composite_unique,
+        )
+        ensure_company_id_column(conn, "chart_accounts")
+        ensure_company_id_column(conn, "accounting_vouchers")
+        migrate_chart_accounts_composite_unique(conn)
+        migrate_accounting_vouchers_composite_unique(conn)
         ensure_fiscal_schema(conn)
-        assign_unassigned_vouchers(conn)
+        if company_id is not None:
+            assign_unassigned_vouchers(conn, company_id)
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS accounting_voucher_lines (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,35 +156,14 @@ def _ensure_tables():
             conn.execute(text("ALTER TABLE accounting_voucher_lines ADD COLUMN project_id INTEGER"))
         from app.accounting.currencies import ensure_currency_schema
         ensure_currency_schema(conn)
-        count = conn.execute(text("SELECT COUNT(*) FROM chart_accounts")).scalar() or 0
-        if count == 0:
-            now = datetime.utcnow().isoformat()
-            defaults = [
-                ("1", "دارایی‌ها", "asset", "group", None, "debit", "#22d3ee"),
-                ("11", "دارایی‌های جاری", "asset", "ledger", 1, "debit", "#38bdf8"),
-                ("1101", "صندوق", "asset", "subsidiary", 2, "debit", "#06b6d4"),
-                ("1102", "بانک", "asset", "subsidiary", 2, "debit", "#06b6d4"),
-                ("1103", "حساب‌های دریافتنی", "asset", "subsidiary", 2, "debit", "#06b6d4"),
-                ("12", "موجودی و دارایی عملیاتی", "asset", "ledger", 1, "debit", "#38bdf8"),
-                ("1201", "موجودی کالا", "asset", "subsidiary", 6, "debit", "#06b6d4"),
-                ("2", "بدهی‌ها", "liability", "group", None, "credit", "#fb7185"),
-                ("21", "بدهی‌های جاری", "liability", "ledger", 8, "credit", "#f97316"),
-                ("2101", "حساب‌های پرداختنی", "liability", "subsidiary", 9, "credit", "#fb7185"),
-                ("3", "حقوق صاحبان سرمایه", "equity", "group", None, "credit", "#a78bfa"),
-                ("3101", "سرمایه", "equity", "subsidiary", 11, "credit", "#a78bfa"),
-                ("4", "درآمدها", "revenue", "group", None, "credit", "#34d399"),
-                ("4101", "فروش کالا و خدمات", "revenue", "subsidiary", 13, "credit", "#10b981"),
-                ("5", "هزینه‌ها", "expense", "group", None, "debit", "#facc15"),
-                ("5101", "بهای تمام شده کالا", "expense", "subsidiary", 15, "debit", "#f59e0b"),
-                ("5102", "هزینه‌های اداری و عمومی", "expense", "subsidiary", 15, "debit", "#f59e0b"),
-            ]
-            for code, name, account_type, level, parent_id, normal_balance, color in defaults:
-                conn.execute(text("""
-                    INSERT INTO chart_accounts
-                    (code, name, account_type, level, parent_id, normal_balance, color, is_active, created_at, updated_at)
-                    VALUES (:code, :name, :account_type, :level, :parent_id, :normal_balance, :color, 1, :now, :now)
-                """), dict(code=code, name=name, account_type=account_type, level=level, parent_id=parent_id, normal_balance=normal_balance, color=color, now=now))
+        ensure_company_id_column(conn, "accounting_voucher_lines")
         conn.commit()
+        if company_id is not None:
+            from app.accounting.posting import _ensure_company_accounts_seeded
+            from app.accounting.currencies import ensure_company_currency_seeded
+            _ensure_company_accounts_seeded(conn, company_id)
+            ensure_company_currency_seeded(conn, company_id)
+            conn.commit()
 
 
 def _validate_account_payload(payload):
@@ -177,8 +175,8 @@ def _validate_account_payload(payload):
         raise HTTPException(status_code=400, detail="Invalid normal_balance")
 
 
-def _get_account(conn, account_id: int):
-    row = conn.execute(text("SELECT id, code, name, account_type, normal_balance, is_active FROM chart_accounts WHERE id=:id"), {"id": account_id}).fetchone()
+def _get_account(conn, account_id: int, company_id: int):
+    row = conn.execute(text("SELECT id, code, name, account_type, normal_balance, is_active FROM chart_accounts WHERE id=:id AND company_id=:company_id"), {"id": account_id, "company_id": company_id}).fetchone()
     if not row:
         raise HTTPException(status_code=400, detail=f"Account not found: {account_id}")
     account = _dict(row)
@@ -187,7 +185,7 @@ def _get_account(conn, account_id: int):
     return account
 
 
-def _validate_lines(conn, lines):
+def _validate_lines(conn, lines, company_id):
     if len(lines) < 2:
         raise HTTPException(status_code=400, detail="Voucher needs at least 2 lines")
     debit = round(sum(float(x.debit or 0) for x in lines), 2)
@@ -205,7 +203,7 @@ def _validate_lines(conn, lines):
             raise HTTPException(status_code=400, detail="A line cannot have both debit and credit")
         if d == 0 and c == 0:
             raise HTTPException(status_code=400, detail="A line must have debit or credit")
-        _get_account(conn, line.account_id)
+        _get_account(conn, line.account_id, company_id)
         if line.currency_code:
             code = str(line.currency_code).strip().upper()
             foreign = float(line.foreign_amount or 0)
@@ -215,7 +213,7 @@ def _validate_lines(conn, lines):
                 raise HTTPException(status_code=400, detail="Foreign amount and exchange rate must be greater than zero")
             if round(foreign * rate, 2) != round(base_amount, 2):
                 raise HTTPException(status_code=400, detail="Base amount must equal foreign amount multiplied by exchange rate")
-            currency = conn.execute(text("SELECT code FROM accounting_currencies WHERE code=:code AND active=1"), {"code": code}).first()
+            currency = conn.execute(text("SELECT code FROM accounting_currencies WHERE code=:code AND active=1 AND company_id=:company_id"), {"code": code, "company_id": company_id}).first()
             if not currency:
                 raise HTTPException(status_code=400, detail=f"Active currency not found: {code}")
     return debit, credit
@@ -240,10 +238,11 @@ def entries_health():
 
 
 @router.get("/chart")
-def list_accounts(q: str = "", account_type: str = "", level: str = "", active: str = "all"):
-    _ensure_tables()
-    where = []
-    params = {}
+def list_accounts(request: Request, q: str = "", account_type: str = "", level: str = "", active: str = "all"):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
+    where = ["company_id=:company_id"]
+    params = {"company_id": company_id}
     if q:
         where.append("(code LIKE :q OR name LIKE :q OR description LIKE :q)")
         params["q"] = f"%{q}%"
@@ -256,17 +255,15 @@ def list_accounts(q: str = "", account_type: str = "", level: str = "", active: 
     if active != "all":
         where.append("is_active=:is_active")
         params["is_active"] = 1 if active in ["1", "true", "active"] else 0
-    sql = "SELECT * FROM chart_accounts"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
+    sql = "SELECT * FROM chart_accounts WHERE " + " AND ".join(where)
     sql += " ORDER BY code ASC"
     with engine.connect() as conn:
         return [_dict(r) for r in conn.execute(text(sql), params).fetchall()]
 
 
 @router.get("/chart/tree")
-def account_tree():
-    accounts = list_accounts()
+def account_tree(request: Request):
+    accounts = list_accounts(request)
     by_parent = {}
     for account in accounts:
         by_parent.setdefault(account.get("parent_id"), []).append({**account, "children": []})
@@ -281,42 +278,45 @@ def account_tree():
 
 
 @router.get("/chart/{account_id}")
-def get_account(account_id: int):
-    _ensure_tables()
+def get_account(account_id: int, request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     with engine.connect() as conn:
-        row = conn.execute(text("SELECT * FROM chart_accounts WHERE id=:id"), {"id": account_id}).fetchone()
+        row = conn.execute(text("SELECT * FROM chart_accounts WHERE id=:id AND company_id=:company_id"), {"id": account_id, "company_id": company_id}).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Account not found")
         return _dict(row)
 
 
 @router.post("/chart")
-def create_account(payload: AccountCreate):
-    _ensure_tables()
+def create_account(payload: AccountCreate, request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     _validate_account_payload(payload)
     now = datetime.utcnow().isoformat()
     with engine.connect() as conn:
-        duplicate = conn.execute(text("SELECT id FROM chart_accounts WHERE code=:code"), {"code": payload.code}).fetchone()
+        duplicate = conn.execute(text("SELECT id FROM chart_accounts WHERE code=:code AND company_id=:company_id"), {"code": payload.code, "company_id": company_id}).fetchone()
         if duplicate:
             raise HTTPException(status_code=400, detail="Account code already exists")
         result = conn.execute(text("""
             INSERT INTO chart_accounts
-            (code, name, account_type, level, parent_id, normal_balance, description, color, is_active, created_at, updated_at)
-            VALUES (:code, :name, :account_type, :level, :parent_id, :normal_balance, :description, :color, :is_active, :now, :now)
-        """), {**payload.dict(), "now": now})
+            (code, name, account_type, level, parent_id, normal_balance, description, color, is_active, created_at, updated_at, company_id)
+            VALUES (:code, :name, :account_type, :level, :parent_id, :normal_balance, :description, :color, :is_active, :now, :now, :company_id)
+        """), {**payload.dict(), "now": now, "company_id": company_id})
         conn.commit()
-        return get_account(result.lastrowid)
+        return get_account(result.lastrowid, request)
 
 
 @router.put("/chart/{account_id}")
-def update_account(account_id: int, payload: AccountUpdate):
-    current = get_account(account_id)
+def update_account(account_id: int, payload: AccountUpdate, request: Request):
+    company_id = current_company_id(request)
+    current = get_account(account_id, request)
     merged = {**current, **{k: v for k, v in payload.dict().items() if v is not None}}
     checker = AccountCreate(**{k: merged[k] for k in AccountCreate.__fields__.keys()})
     _validate_account_payload(checker)
     now = datetime.utcnow().isoformat()
     with engine.connect() as conn:
-        duplicate = conn.execute(text("SELECT id FROM chart_accounts WHERE code=:code AND id != :id"), {"code": merged["code"], "id": account_id}).fetchone()
+        duplicate = conn.execute(text("SELECT id FROM chart_accounts WHERE code=:code AND id != :id AND company_id=:company_id"), {"code": merged["code"], "id": account_id, "company_id": company_id}).fetchone()
         if duplicate:
             raise HTTPException(status_code=400, detail="Account code already exists")
         conn.execute(text("""
@@ -324,50 +324,55 @@ def update_account(account_id: int, payload: AccountUpdate):
             code=:code, name=:name, account_type=:account_type, level=:level, parent_id=:parent_id,
             normal_balance=:normal_balance, description=:description, color=:color, is_active=:is_active,
             updated_at=:now
-            WHERE id=:id
-        """), {**merged, "id": account_id, "now": now})
+            WHERE id=:id AND company_id=:company_id
+        """), {**merged, "id": account_id, "now": now, "company_id": company_id})
         conn.commit()
-    return get_account(account_id)
+    return get_account(account_id, request)
 
 
 @router.post("/chart/{account_id}/toggle")
-def toggle_account(account_id: int):
-    current = get_account(account_id)
-    return update_account(account_id, AccountUpdate(is_active=not bool(current.get("is_active"))))
+def toggle_account(account_id: int, request: Request):
+    current = get_account(account_id, request)
+    return update_account(account_id, AccountUpdate(is_active=not bool(current.get("is_active"))), request)
 
 
 @router.delete("/chart/{account_id}")
-def delete_account(account_id: int):
-    _ensure_tables()
+def delete_account(account_id: int, request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     with engine.connect() as conn:
-        child = conn.execute(text("SELECT id FROM chart_accounts WHERE parent_id=:id LIMIT 1"), {"id": account_id}).fetchone()
-        used = conn.execute(text("SELECT id FROM accounting_voucher_lines WHERE account_id=:id LIMIT 1"), {"id": account_id}).fetchone()
+        owned = conn.execute(text("SELECT id FROM chart_accounts WHERE id=:id AND company_id=:company_id"), {"id": account_id, "company_id": company_id}).fetchone()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Account not found")
+        child = conn.execute(text("SELECT id FROM chart_accounts WHERE parent_id=:id AND company_id=:company_id LIMIT 1"), {"id": account_id, "company_id": company_id}).fetchone()
+        used = conn.execute(text("SELECT id FROM accounting_voucher_lines WHERE account_id=:id AND company_id=:company_id LIMIT 1"), {"id": account_id, "company_id": company_id}).fetchone()
         if child:
             raise HTTPException(status_code=400, detail="Cannot delete account with children")
         if used:
             raise HTTPException(status_code=400, detail="Cannot delete account used in vouchers")
-        conn.execute(text("DELETE FROM chart_accounts WHERE id=:id"), {"id": account_id})
+        conn.execute(text("DELETE FROM chart_accounts WHERE id=:id AND company_id=:company_id"), {"id": account_id, "company_id": company_id})
         conn.commit()
     return {"ok": True, "deleted_id": account_id}
 
 
 @router.post("/seed")
-def seed_accounting_entries():
-    _ensure_tables()
-    return {"ok": True, "accounts": len(list_accounts())}
+def seed_accounting_entries(request: Request):
+    _ensure_tables(current_company_id(request))
+    return {"ok": True, "accounts": len(list_accounts(request))}
 
 
 @router.get("/meta")
-def accounting_entries_meta():
-    _ensure_tables()
+def accounting_entries_meta(request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     with engine.begin() as conn:
         from app.accounting.budgets import _ensure_schema as ensure_budget_schema
         ensure_budget_schema(conn)
-        cost_centers = [_dict(row) for row in conn.execute(text("SELECT * FROM cost_centers WHERE active=1 ORDER BY code")).fetchall()]
-        projects = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_projects WHERE active=1 ORDER BY code")).fetchall()]
+        cost_centers = [_dict(row) for row in conn.execute(text("SELECT * FROM cost_centers WHERE active=1 AND company_id=:company_id ORDER BY code"), {"company_id": company_id}).fetchall()]
+        projects = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_projects WHERE active=1 AND company_id=:company_id ORDER BY code"), {"company_id": company_id}).fetchall()]
         from app.accounting.currencies import ensure_currency_schema
         ensure_currency_schema(conn)
-        currencies = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_currencies WHERE active=1 ORDER BY is_base DESC, code")).fetchall()]
+        currencies = [_dict(row) for row in conn.execute(text("SELECT * FROM accounting_currencies WHERE active=1 AND company_id=:company_id ORDER BY is_base DESC, code"), {"company_id": company_id}).fetchall()]
     return {
         "cost_centers": cost_centers,
         "projects": projects,
@@ -379,31 +384,32 @@ def accounting_entries_meta():
 
 
 @router.get("")
-def list_vouchers(status: str = "", q: str = "", limit: int = 100):
-    _ensure_tables()
-    where = []
-    params = {"limit": max(1, min(int(limit or 100), 500))}
+def list_vouchers(request: Request, status: str = "", q: str = "", limit: int = 100):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
+    where = ["company_id=:company_id"]
+    params = {"limit": max(1, min(int(limit or 100), 500)), "company_id": company_id}
     if status:
         where.append("status=:status")
         params["status"] = status
     if q:
         where.append("(description LIKE :q OR source_type LIKE :q)")
         params["q"] = f"%{q}%"
-    sql = "SELECT * FROM accounting_vouchers"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
+    sql = "SELECT * FROM accounting_vouchers WHERE " + " AND ".join(where)
     sql += " ORDER BY voucher_no DESC LIMIT :limit"
     with engine.connect() as conn:
         return [_dict(r) for r in conn.execute(text(sql), params).fetchall()]
 
 
 @router.get("/reports/summary")
-def accounting_summary(from_date: str = "", to_date: str = ""):
-    _ensure_tables()
+def accounting_summary(request: Request, from_date: str = "", to_date: str = ""):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     where, params = _date_filters("v", from_date, to_date)
-    sql_where = ""
+    params["company_id"] = company_id
+    sql_where = " WHERE v.company_id=:company_id"
     if where:
-        sql_where = " WHERE " + " AND ".join(where)
+        sql_where += " AND " + " AND ".join(where)
     with engine.connect() as conn:
         row = conn.execute(text(f"""
             SELECT COUNT(*) AS vouchers_count,
@@ -422,10 +428,13 @@ def accounting_summary(from_date: str = "", to_date: str = ""):
 
 
 @router.get("/reports/journal")
-def journal_report(status: str = "posted", q: str = "", from_date: str = "", to_date: str = "", limit: int = 1000):
-    _ensure_tables()
+def journal_report(request: Request, status: str = "posted", q: str = "", from_date: str = "", to_date: str = "", limit: int = 1000):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     where, params = _date_filters("v", from_date, to_date)
     params["limit"] = max(1, min(int(limit or 1000), 5000))
+    params["company_id"] = company_id
+    where.append("v.company_id=:company_id")
     if status and status != "all":
         where.append("v.status=:status")
         params["status"] = status
@@ -448,9 +457,12 @@ def journal_report(status: str = "posted", q: str = "", from_date: str = "", to_
 
 
 @router.get("/reports/ledger")
-def ledger_report(account_id: Optional[int] = None, account_code: str = "", status: str = "posted", from_date: str = "", to_date: str = ""):
-    _ensure_tables()
+def ledger_report(request: Request, account_id: Optional[int] = None, account_code: str = "", status: str = "posted", from_date: str = "", to_date: str = ""):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     where, params = _date_filters("v", from_date, to_date)
+    params["company_id"] = company_id
+    where.append("v.company_id=:company_id")
     if status and status != "all":
         where.append("v.status=:status")
         params["status"] = status
@@ -484,9 +496,11 @@ def ledger_report(account_id: Optional[int] = None, account_code: str = "", stat
 
 
 @router.get("/reports/trial-balance")
-def trial_balance(status: str = "posted", from_date: str = "", to_date: str = "", include_zero: bool = False):
-    _ensure_tables()
+def trial_balance(request: Request, status: str = "posted", from_date: str = "", to_date: str = "", include_zero: bool = False):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     where, params = _date_filters("v", from_date, to_date)
+    params["company_id"] = company_id
     if status and status != "all":
         where.append("v.status=:status")
         params["status"] = status
@@ -502,6 +516,7 @@ def trial_balance(status: str = "posted", from_date: str = "", to_date: str = ""
             FROM chart_accounts a
             LEFT JOIN accounting_voucher_lines l ON l.account_id = a.id
             LEFT JOIN accounting_vouchers v ON v.id = l.voucher_id {sql_where}
+            WHERE a.company_id=:company_id
             GROUP BY a.id, a.code, a.name, a.account_type, a.normal_balance
             ORDER BY a.code ASC
         """), params).fetchall()
@@ -526,10 +541,11 @@ def trial_balance(status: str = "posted", from_date: str = "", to_date: str = ""
 
 
 @router.get("/{voucher_id}")
-def get_voucher(voucher_id: int):
-    _ensure_tables()
+def get_voucher(voucher_id: int, request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     with engine.connect() as conn:
-        voucher = conn.execute(text("SELECT * FROM accounting_vouchers WHERE id=:id"), {"id": voucher_id}).fetchone()
+        voucher = conn.execute(text("SELECT * FROM accounting_vouchers WHERE id=:id AND company_id=:company_id"), {"id": voucher_id, "company_id": company_id}).fetchone()
         if not voucher:
             raise HTTPException(status_code=404, detail="Voucher not found")
         lines = conn.execute(text("SELECT * FROM accounting_voucher_lines WHERE voucher_id=:id ORDER BY id"), {"id": voucher_id}).fetchall()
@@ -537,27 +553,28 @@ def get_voucher(voucher_id: int):
 
 
 @router.post("")
-def create_voucher(payload: VoucherCreate):
-    _ensure_tables()
+def create_voucher(payload: VoucherCreate, request: Request):
+    company_id = current_company_id(request)
+    _ensure_tables(company_id)
     if payload.status not in ["draft", "posted"]:
         raise HTTPException(status_code=400, detail="status must be draft or posted")
     now = datetime.utcnow().isoformat()
     voucher_date = payload.voucher_date or datetime.utcnow().date().isoformat()
     try:
         with engine.begin() as conn:
-            total_debit, total_credit = _validate_lines(conn, payload.lines)
-            period = resolve_open_period(conn, voucher_date)
-            voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"])
+            total_debit, total_credit = _validate_lines(conn, payload.lines, company_id)
+            period = resolve_open_period(conn, voucher_date, company_id)
+            voucher_no, period_voucher_no = next_voucher_numbers(conn, period["id"], company_id)
             posted_at = now if payload.status == "posted" else ""
             result = conn.execute(text("""
                 INSERT INTO accounting_vouchers
                 (voucher_no, fiscal_period_id, period_voucher_no, voucher_date,
                  description, status, source_type, source_id, total_debit,
-                 total_credit, created_at, updated_at, posted_at)
+                 total_credit, created_at, updated_at, posted_at, company_id)
                 VALUES
                 (:voucher_no, :fiscal_period_id, :period_voucher_no, :voucher_date,
                  :description, :status, :source_type, :source_id, :total_debit,
-                 :total_credit, :now, :now, :posted_at)
+                 :total_credit, :now, :now, :posted_at, :company_id)
             """), {
                 "voucher_no": voucher_no,
                 "fiscal_period_id": period["id"],
@@ -571,24 +588,25 @@ def create_voucher(payload: VoucherCreate):
                 "total_credit": total_credit,
                 "now": now,
                 "posted_at": posted_at,
+                "company_id": company_id,
             })
             voucher_id = result.lastrowid
             for line in payload.lines:
-                account = _get_account(conn, line.account_id)
+                account = _get_account(conn, line.account_id, company_id)
                 conn.execute(text("""
                     INSERT INTO accounting_voucher_lines
-                    (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at)
-                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now)
-                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "cost_center_id": line.cost_center_id, "project_id": line.project_id, "currency_code": str(line.currency_code).upper() if line.currency_code else None, "foreign_amount": line.foreign_amount, "exchange_rate": line.exchange_rate, "now": now})
+                    (voucher_id, account_id, account_code, account_name, description, debit, credit, cost_center_id, project_id, currency_code, foreign_amount, exchange_rate, created_at, company_id)
+                    VALUES (:voucher_id, :account_id, :account_code, :account_name, :description, :debit, :credit, :cost_center_id, :project_id, :currency_code, :foreign_amount, :exchange_rate, :now, :company_id)
+                """), {"voucher_id": voucher_id, "account_id": line.account_id, "account_code": account.get("code") or "", "account_name": account.get("name") or "", "description": line.description, "debit": float(line.debit or 0), "credit": float(line.credit or 0), "cost_center_id": line.cost_center_id, "project_id": line.project_id, "currency_code": str(line.currency_code).upper() if line.currency_code else None, "foreign_amount": line.foreign_amount, "exchange_rate": line.exchange_rate, "now": now, "company_id": company_id})
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return get_voucher(voucher_id)
+    return get_voucher(voucher_id, request)
 
 
 @router.post("/{voucher_id}/post")
-def post_voucher(voucher_id: int):
+def post_voucher(voucher_id: int, request: Request):
     now = datetime.utcnow().isoformat()
-    current = get_voucher(voucher_id)
+    current = get_voucher(voucher_id, request)
     if current.get("status") == "cancelled":
         raise HTTPException(status_code=400, detail="Cancelled voucher cannot be posted")
     if round(float(current.get("total_debit") or 0), 2) != round(float(current.get("total_credit") or 0), 2):
@@ -599,25 +617,25 @@ def post_voucher(voucher_id: int):
             conn.execute(text("UPDATE accounting_vouchers SET status='posted', posted_at=:now, updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return get_voucher(voucher_id)
+    return get_voucher(voucher_id, request)
 
 
 @router.post("/{voucher_id}/cancel")
-def cancel_voucher(voucher_id: int):
+def cancel_voucher(voucher_id: int, request: Request):
     now = datetime.utcnow().isoformat()
-    get_voucher(voucher_id)
+    get_voucher(voucher_id, request)
     try:
         with engine.begin() as conn:
             assert_voucher_period_open(conn, voucher_id)
             conn.execute(text("UPDATE accounting_vouchers SET status='cancelled', updated_at=:now WHERE id=:id"), {"id": voucher_id, "now": now})
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return get_voucher(voucher_id)
+    return get_voucher(voucher_id, request)
 
 
 @router.delete("/{voucher_id}")
-def delete_voucher(voucher_id: int):
-    current = get_voucher(voucher_id)
+def delete_voucher(voucher_id: int, request: Request):
+    current = get_voucher(voucher_id, request)
     if current.get("status") == "posted":
         raise HTTPException(status_code=400, detail="Posted voucher cannot be deleted")
     try:

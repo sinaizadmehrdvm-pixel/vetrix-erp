@@ -12,14 +12,26 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/change-requests", tags=["Managed Change Requests"])
 
 ALLOWED_SOURCES = {"in_app", "telegram", "whatsapp", "other"}
-ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only"}
+ALLOWED_ACTIONS = {"online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage", "pricing_rule_draft"}
 ALLOWED_PRODUCT_FIELDS = {"is_published", "sync_stock", "online_price", "discount_percent", "sale_start", "sale_end", "website_slug"}
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac", ".opus"}
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
+
+# Reserved for action types with a real, external-facing side effect where
+# a single admin's approval isn't enough on its own - reminder_channel_manage
+# lets one person inject an arbitrary URL template later used to contact
+# customers, the closest analog among today's executable actions to the
+# task spec's "bank/payment configuration" example. The mechanism (see
+# approve_request's pending_second_approval branch) is generic and ready to
+# cover future genuinely high-risk actions (financial policy, user
+# permissions, accounting periods) once those become real executable
+# change-request types - none of them are today, so they aren't listed here.
+HIGH_RISK_ACTIONS = {"reminder_channel_manage"}
 
 
 def _audio_directory():
@@ -103,6 +115,16 @@ def _ensure_schema(conn):
             FOREIGN KEY(actor_user_id) REFERENCES users(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "managed_change_requests")
+    ensure_company_id_column(conn, "managed_change_events")
+    _ensure_dual_approval_column(conn)
+
+
+def _ensure_dual_approval_column(conn):
+    rows = conn.execute(text("PRAGMA table_info(managed_change_requests)")).fetchall()
+    if "first_approved_by" not in {row[1] for row in rows}:
+        conn.execute(text("ALTER TABLE managed_change_requests ADD COLUMN first_approved_by INTEGER"))
 
 
 def _event(conn, request_id, event_type, actor, detail=""):
@@ -113,15 +135,41 @@ def _event(conn, request_id, event_type, actor, detail=""):
     """), {"request_id": request_id, "event_type": event_type, "actor": actor, "detail": detail, "created_at": _now()})
 
 
-def _row(conn, request_id):
+def _submission_actor(conn, request_id):
+    """Who effectively authored/submitted this request for approval. For a
+    direct human-submitted request this is the same person as
+    `requested_by` - but a voice-intake request (app/inbound_voice.py)
+    always has `requested_by` fixed to a non-admin service account
+    (_service_user explicitly rejects an admin role), and
+    review_transcript() lets an admin freely rewrite the
+    action_type/target/proposed_changes and submit it for approval. The
+    maker-checker guard in approve_request must block THAT admin from
+    also approving their own review, not just the nominal `requested_by`
+    - otherwise one admin could single-handedly author, submit, and
+    approve/execute any voice-derived request (see review_transcript's
+    'submitted'/'transcript_reviewed' events)."""
     row = conn.execute(text("""
+        SELECT actor_user_id FROM managed_change_events
+        WHERE request_id=:id AND event_type IN ('submitted', 'transcript_reviewed')
+        ORDER BY id DESC LIMIT 1
+    """), {"id": request_id}).first()
+    return row[0] if row else None
+
+
+def _row(conn, request_id, company_id=None):
+    query = """
         SELECT r.*, requester.full_name requested_by_name,
                decider.full_name decided_by_name
         FROM managed_change_requests r
         LEFT JOIN users requester ON requester.id=r.requested_by
         LEFT JOIN users decider ON decider.id=r.decided_by
         WHERE r.id=:id
-    """), {"id": request_id}).mappings().first()
+    """
+    params = {"id": request_id}
+    if company_id is not None:
+        query += " AND r.company_id=:company_id"
+        params["company_id"] = company_id
+    row = conn.execute(text(query), params).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Change request not found")
     result = dict(row)
@@ -154,6 +202,307 @@ def _validate(action_type, target_id, changes):
             raise HTTPException(status_code=400, detail="Unsupported campaign channel")
     if action_type == "note_only" and changes:
         raise HTTPException(status_code=400, detail="Note-only requests cannot contain executable changes")
+    if action_type == "sale_invoice_draft":
+        customer_id = changes.get("customer_id")
+        if not isinstance(customer_id, int) or customer_id <= 0:
+            raise HTTPException(status_code=400, detail="A valid customer_id is required")
+        items = changes.get("items")
+        if not isinstance(items, list) or not items:
+            raise HTTPException(status_code=400, detail="At least one item is required")
+        for entry in items:
+            if not isinstance(entry, dict):
+                raise HTTPException(status_code=400, detail="Each item must be an object")
+            product_id = entry.get("product_id")
+            quantity = entry.get("quantity")
+            if not isinstance(product_id, int) or product_id <= 0:
+                raise HTTPException(status_code=400, detail="Each item needs a valid product_id")
+            if not isinstance(quantity, (int, float)) or quantity <= 0:
+                raise HTTPException(status_code=400, detail="Each item needs a quantity greater than zero")
+    if action_type == "report_delivery":
+        from app.report_delivery import FORMATS, REPORT_REGISTRY
+
+        report_type = changes.get("report_type")
+        if report_type not in REPORT_REGISTRY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"report_type must be one of: {', '.join(sorted(REPORT_REGISTRY))}",
+            )
+        if changes.get("format") not in FORMATS:
+            raise HTTPException(status_code=400, detail=f"format must be one of: {', '.join(sorted(FORMATS))}")
+        destination_email = str(changes.get("destination_email") or "").strip()
+        if "@" not in destination_email or "." not in destination_email.split("@")[-1]:
+            raise HTTPException(status_code=400, detail="A valid destination_email is required")
+    if action_type == "pricing_rule_draft":
+        from app.pricing import CUSTOMER_SCOPE_TYPES, PRICE_MODES, VALID_CUSTOMER_GROUPS, LOYALTY_LEVELS
+
+        if not target_id:
+            raise HTTPException(status_code=400, detail="Product target is required")
+        customer_scope_type = changes.get("customer_scope_type")
+        if customer_scope_type not in CUSTOMER_SCOPE_TYPES:
+            raise HTTPException(status_code=400, detail=f"customer_scope_type must be one of: {', '.join(sorted(CUSTOMER_SCOPE_TYPES))}")
+        customer_scope_value = str(changes.get("customer_scope_value") or "").strip()
+        if customer_scope_type != "any" and not customer_scope_value:
+            raise HTTPException(status_code=400, detail="customer_scope_value is required unless customer_scope_type is 'any'")
+        if customer_scope_type == "group" and customer_scope_value not in VALID_CUSTOMER_GROUPS:
+            raise HTTPException(status_code=400, detail=f"customer_scope_value must be one of: {', '.join(sorted(VALID_CUSTOMER_GROUPS))}")
+        if customer_scope_type == "loyalty_tier" and customer_scope_value not in LOYALTY_LEVELS:
+            raise HTTPException(status_code=400, detail=f"customer_scope_value must be one of: {', '.join(sorted(LOYALTY_LEVELS))}")
+        if changes.get("price_mode") not in PRICE_MODES:
+            raise HTTPException(status_code=400, detail=f"price_mode must be one of: {', '.join(sorted(PRICE_MODES))}")
+        try:
+            float(changes.get("price_value"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="price_value must be a number")
+    if action_type == "reminder_channel_manage":
+        operation = changes.get("operation")
+        if operation not in {"add", "remove"}:
+            raise HTTPException(status_code=400, detail="operation must be 'add' or 'remove'")
+        if operation == "add":
+            name = str(changes.get("name") or "").strip()
+            link_template = str(changes.get("link_template") or "").strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="A channel name is required")
+            if not link_template.startswith(("http://", "https://")):
+                raise HTTPException(status_code=400, detail="link_template must be a full URL")
+            if "{phone}" not in link_template and "{message}" not in link_template:
+                raise HTTPException(status_code=400, detail="link_template must contain {phone} and/or {message}")
+        else:
+            if not str(changes.get("channel_id") or "").strip():
+                raise HTTPException(status_code=400, detail="A channel_id is required to remove a channel")
+
+
+# --- Voice Assistant Layer 1: rule-based transcript classification -----
+#
+# No speech-to-text and no LLM are wired up anywhere in this app - this is
+# deliberately NOT AI, just keyword/regex pattern matching over whatever
+# transcript text is already available (either typed by the reviewing
+# manager, or the Telegram "caption"/"text" field app/inbound_voice.py
+# already captures alongside a voice message). It turns "the manager must
+# figure out the right action_type from scratch every single time" into
+# "confirm or correct a suggestion" - a real, always-available first layer,
+# with a real (LLM-backed) Layer 2 an explicit later phase, per the
+# original scoping decision, never silently substituted for one.
+_ACTION_KEYWORDS = {
+    "pricing_rule_draft": [
+        "قانون قیمت", "قیمت‌گذاری", "برای مشتریان عمده", "تخفیف عمده",
+        "قاعدة تسعير", "تسعير", "لعملاء الجملة", "خصم للجملة",
+        "fiyatlandırma kuralı", "toptan müşteriler için", "toptan indirim",
+        "pricing rule", "wholesale customers", "wholesale discount", "create a pricing rule",
+    ],
+    "reminder_channel_manage": [
+        "کانال یادآوری", "کانال پیام", "پیام‌رسان", "افزودن کانال", "حذف کانال",
+        "قناة تذكير", "قناة رسائل", "إضافة قناة", "حذف قناة",
+        "hatırlatma kanalı", "mesaj kanalı", "kanal ekle", "kanal kaldır",
+        "reminder channel", "messaging channel", "add channel", "remove channel",
+    ],
+    "report_delivery": [
+        "گزارش", "ارسال گزارش", "ایمیل گزارش",
+        "تقرير", "إرسال تقرير",
+        "rapor", "rapor gönder",
+        "report", "send report",
+    ],
+    "campaign_draft": [
+        "کمپین", "تبلیغ", "کمپین تبلیغاتی",
+        "حملة", "حملة إعلانية",
+        "kampanya", "reklam kampanyası",
+        "campaign", "marketing campaign",
+    ],
+    "sale_invoice_draft": [
+        "فاکتور فروش", "صدور فاکتور", "فاکتور بزن",
+        "فاتورة بيع", "إصدار فاتورة",
+        "satış faturası", "fatura kes",
+        "sale invoice", "create invoice", "issue invoice",
+    ],
+    "online_product_update": [
+        "قیمت", "تخفیف", "قیمت سایت", "فروش آنلاین",
+        "السعر", "الخصم", "خصم", "متجر إلكتروني",
+        "fiyat", "indirim", "online mağaza",
+        "price", "discount", "online store", "website price",
+    ],
+}
+
+_EMAIL_RE = None
+
+
+def _email_regex():
+    global _EMAIL_RE
+    if _EMAIL_RE is None:
+        import re
+        _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+    return _EMAIL_RE
+
+
+_REPORT_TYPE_KEYWORDS = {
+    "sales": ["فروش", "المبيعات", "satış"],
+    "purchases": ["خرید", "المشتريات", "alış"],
+    "inventory": ["موجودی", "المخزون", "envanter", "stok"],
+    "customer_balances": ["مانده حساب", "أرصدة العملاء", "müşteri bakiye"],
+    "product_profit": ["سودآوری", "ربحية", "kârlılık"],
+    "open_invoices": ["تسویه‌نشده", "غير المسواة", "ödenmemiş"],
+    "inventory_movements": ["گردش انبار", "حركة المخزون", "stok hareket"],
+}
+
+
+def _extract_report_delivery(transcript: str) -> dict:
+    from app.report_delivery import FORMATS, REPORT_REGISTRY
+
+    lowered = transcript.lower()
+    changes = {}
+    for report_type, keywords in _REPORT_TYPE_KEYWORDS.items():
+        if any(kw in transcript for kw in keywords):
+            changes["report_type"] = report_type
+            break
+    if "report_type" not in changes:
+        for report_type in REPORT_REGISTRY:
+            if report_type.replace("_", " ") in lowered or report_type in lowered:
+                changes["report_type"] = report_type
+                break
+    for fmt in FORMATS:
+        if fmt in lowered:
+            changes["format"] = fmt
+            break
+    email_match = _email_regex().search(transcript)
+    if email_match:
+        changes["destination_email"] = email_match.group(0)
+    return changes
+
+
+def _extract_reminder_channel_manage(transcript: str) -> dict:
+    lowered = transcript.lower()
+    remove_cues = ["حذف", "إزالة", "kaldır", "remove", "delete"]
+    changes = {"operation": "remove" if any(cue in lowered for cue in remove_cues) else "add"}
+    return changes
+
+
+def _extract_campaign_draft(transcript: str) -> dict:
+    lowered = transcript.lower()
+    for channel in ("instagram", "whatsapp", "telegram", "linkedin", "website"):
+        if channel in lowered:
+            return {"channel": channel}
+    return {}
+
+
+_PERCENT_RE = None
+
+
+def _percent_regex():
+    global _PERCENT_RE
+    if _PERCENT_RE is None:
+        import re
+        _PERCENT_RE = re.compile(r"(\d+)\s*(?:%|٪|درصد|percent)")
+    return _PERCENT_RE
+
+
+def _extract_pricing_rule_draft(transcript: str) -> dict:
+    """Real, regex-based extraction (not AI) mirroring the task spec's own
+    worked example - "cut price 10% for wholesale customers from tomorrow"
+    becomes customer_scope_type=group/wholesale, price_mode=percent_discount/
+    10, effective_from=tomorrow's date. Whatever it can't confidently find
+    (which product, an ambiguous discount) is left out entirely rather than
+    guessed - _validate() then requires the reviewer to fill it in, which is
+    exactly the "ask, don't guess" behavior the task spec requires."""
+    lowered = transcript.lower()
+    changes = {}
+
+    percent_match = _percent_regex().search(transcript)
+    if percent_match:
+        changes["price_mode"] = "percent_discount"
+        changes["price_value"] = float(percent_match.group(1))
+
+    wholesale_cues = ["عمده", "جملة", "toptan", "wholesale"]
+    if any(cue in lowered for cue in wholesale_cues):
+        changes["customer_scope_type"] = "group"
+        changes["customer_scope_value"] = "wholesale"
+
+    tomorrow_cues = ["فردا", "غدا", "yarın", "tomorrow"]
+    if any(cue in lowered for cue in tomorrow_cues):
+        from datetime import date, timedelta
+        changes["effective_from"] = (date.today() + timedelta(days=1)).isoformat()
+
+    return changes
+
+
+_EXTRACTORS = {
+    "report_delivery": _extract_report_delivery,
+    "reminder_channel_manage": _extract_reminder_channel_manage,
+    "campaign_draft": _extract_campaign_draft,
+    "pricing_rule_draft": _extract_pricing_rule_draft,
+}
+
+# Required proposed_changes keys per action type, used only to compute
+# missing_fields (see suggest_action_from_transcript) - a real "what's
+# missing" signal for the frontend's structured follow-up questions,
+# never used to silently fill anything in.
+_REQUIRED_FIELDS = {
+    "pricing_rule_draft": {
+        "target_id": {"fa": "کدام کالا؟", "ar": "أي منتج؟", "tr": "Hangi ürün?", "en": "Which product?"},
+        "customer_scope_type": {"fa": "برای کدام گروه مشتری؟", "ar": "لأي مجموعة عملاء؟", "tr": "Hangi müşteri grubu için?", "en": "Which customer group/channel?"},
+        "price_mode": {"fa": "چه نوع تغییر قیمتی؟", "ar": "أي نوع تغيير سعر؟", "tr": "Ne tür fiyat değişikliği?", "en": "What kind of price change?"},
+        "price_value": {"fa": "چه مقدار؟", "ar": "كم القيمة؟", "tr": "Ne kadar?", "en": "How much?"},
+    },
+    "online_product_update": {
+        "target_id": {"fa": "کدام کالا؟", "ar": "أي منتج؟", "tr": "Hangi ürün?", "en": "Which product?"},
+    },
+    "sale_invoice_draft": {
+        "customer_id": {"fa": "کدام مشتری؟", "ar": "أي عميل؟", "tr": "Hangi müşteri?", "en": "Which customer?"},
+        "items": {"fa": "کدام کالاها و چه تعداد؟", "ar": "أي منتجات وبأي كمية؟", "tr": "Hangi ürünler ve ne kadar?", "en": "Which products and how many?"},
+    },
+    "campaign_draft": {
+        "channel": {"fa": "کدام کانال؟", "ar": "أي قناة؟", "tr": "Hangi kanal?", "en": "Which channel?"},
+        "title": {"fa": "عنوان کمپین چیست؟", "ar": "ما عنوان الحملة؟", "tr": "Kampanya başlığı nedir?", "en": "What's the campaign title?"},
+    },
+    "report_delivery": {
+        "report_type": {"fa": "کدام گزارش؟", "ar": "أي تقرير؟", "tr": "Hangi rapor?", "en": "Which report?"},
+        "destination_email": {"fa": "ایمیل مقصد چیست؟", "ar": "ما بريد الوجهة؟", "tr": "Hedef e-posta nedir?", "en": "What's the destination email?"},
+    },
+    "reminder_channel_manage": {
+        "operation": {"fa": "افزودن یا حذف؟", "ar": "إضافة أم إزالة؟", "tr": "Ekleme mi kaldırma mı?", "en": "Add or remove?"},
+    },
+}
+
+
+def _missing_fields(action_type: str, target_id, changes: dict, language: str = "en") -> list:
+    required = _REQUIRED_FIELDS.get(action_type, {})
+    missing = []
+    for field, questions in required.items():
+        value = target_id if field == "target_id" else changes.get(field)
+        if value in (None, "", [], {}):
+            missing.append({"field": field, "question": questions.get(language, questions["en"])})
+    return missing
+
+
+def suggest_action_from_transcript(transcript: str, language: str = "en") -> dict:
+    """Best-effort action_type + partial proposed_changes guess for a
+    transcript, always returned alongside a confidence label - the
+    reviewing manager confirms or corrects it, exactly like today, so a
+    wrong guess costs nothing beyond one dropdown click. Never raises.
+
+    Also returns missing_fields: whatever _REQUIRED_FIELDS says this
+    action_type needs that the extractor couldn't find, as structured
+    questions - the task spec's "do not guess, ask" requirement made
+    concrete rather than left to the frontend to improvise."""
+    text_value = (transcript or "").strip()
+    if not text_value:
+        return {"action_type": "note_only", "confidence": "low", "proposed_changes": {}, "missing_fields": []}
+
+    lowered = text_value.lower()
+    scores = {}
+    for action_type, keywords in _ACTION_KEYWORDS.items():
+        hits = sum(1 for kw in keywords if kw.lower() in lowered)
+        if hits:
+            scores[action_type] = hits
+
+    if not scores:
+        return {"action_type": "note_only", "confidence": "low", "proposed_changes": {}, "missing_fields": []}
+
+    best_action = max(scores, key=scores.get)
+    confidence = "high" if scores[best_action] >= 2 else "medium"
+    try:
+        extracted = _EXTRACTORS.get(best_action, lambda _t: {})(text_value)
+    except Exception:
+        extracted = {}
+    missing = _missing_fields(best_action, None, extracted, language)
+    return {"action_type": best_action, "confidence": confidence, "proposed_changes": extracted, "missing_fields": missing}
 
 
 class ChangeRequestPayload(BaseModel):
@@ -161,7 +510,7 @@ class ChangeRequestPayload(BaseModel):
     source_reference: str = Field(default="", max_length=500)
     audio_reference: str = Field(default="", max_length=2000)
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage", "pricing_rule_draft"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -172,7 +521,7 @@ class DecisionPayload(BaseModel):
 
 class TranscriptReviewPayload(BaseModel):
     transcript: str = Field(min_length=2, max_length=10000)
-    action_type: Literal["online_product_update", "campaign_draft", "note_only"]
+    action_type: Literal["online_product_update", "campaign_draft", "note_only", "sale_invoice_draft", "report_delivery", "reminder_channel_manage", "pricing_rule_draft"]
     target_id: Optional[int] = None
     proposed_changes: Dict[str, Any] = Field(default_factory=dict)
 
@@ -216,6 +565,19 @@ async def upload_audio(request: Request, audio: UploadFile = File(...)):
     }
 
 
+class SuggestActionPayload(BaseModel):
+    transcript: str = Field(min_length=1, max_length=10000)
+    language: str = "en"
+
+
+@router.post("/suggest-action")
+def suggest_action(payload: SuggestActionPayload, request: Request):
+    """Voice Assistant Layer 1 - see suggest_action_from_transcript()'s
+    docstring. Manager-only, same as reviewing a transcript itself."""
+    _require_admin(request)
+    return suggest_action_from_transcript(payload.transcript, payload.language)
+
+
 @router.get("/audio/{reference}")
 def download_audio(reference: str, request: Request):
     _auth(request)
@@ -228,8 +590,8 @@ def download_audio(reference: str, request: Request):
 
 
 @router.get("")
-def list_requests(status: str = "all"):
-    allowed = {"all", "draft", "needs_transcript_review", "pending_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
+def list_requests(request: Request, status: str = "all"):
+    allowed = {"all", "draft", "needs_transcript_review", "pending_approval", "pending_second_approval", "approved", "rejected", "applied", "failed", "withdrawn"}
     if status not in allowed:
         raise HTTPException(status_code=400, detail="Invalid request status")
     with engine.begin() as conn:
@@ -240,14 +602,15 @@ def list_requests(status: str = "all"):
             FROM managed_change_requests r
             LEFT JOIN users requester ON requester.id=r.requested_by
             LEFT JOIN users decider ON decider.id=r.decided_by
-            WHERE (:status='all' OR r.status=:status)
+            WHERE (:status='all' OR r.status=:status) AND r.company_id=:company_id
             ORDER BY CASE
                        WHEN r.status='needs_transcript_review' THEN 0
                        WHEN r.status='pending_approval' THEN 1
+                       WHEN r.status='pending_second_approval' THEN 1
                        ELSE 2
                      END,
                      r.id DESC
-        """), {"status": status}).mappings().all()
+        """), {"status": status, "company_id": current_company_id(request)}).mappings().all()
         result = []
         for row in rows:
             item = dict(row)
@@ -260,10 +623,10 @@ def list_requests(status: str = "all"):
 
 
 @router.get("/{request_id}")
-def request_detail(request_id: int):
+def request_detail(request_id: int, request: Request):
     with engine.begin() as conn:
         _ensure_schema(conn)
-        result = _row(conn, request_id)
+        result = _row(conn, request_id, current_company_id(request))
         events = conn.execute(text("""
             SELECT e.*, u.full_name actor_name, u.username actor_username
             FROM managed_change_events e
@@ -277,26 +640,28 @@ def request_detail(request_id: int):
 @router.post("")
 def create_request(payload: ChangeRequestPayload, request: Request):
     actor, _ = _auth(request)
+    company_id = current_company_id(request)
     _validate(payload.action_type, payload.target_id, payload.proposed_changes)
     if payload.audio_reference:
         _require_managed_audio(payload.audio_reference)
     with engine.begin() as conn:
         _ensure_schema(conn)
         if payload.action_type == "online_product_update":
-            if not conn.execute(text("SELECT id FROM products WHERE id=:id"), {"id": payload.target_id}).first():
+            if not conn.execute(text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"), {"id": payload.target_id, "company_id": company_id}).first():
                 raise HTTPException(status_code=404, detail="Product not found")
         result = conn.execute(text("""
             INSERT INTO managed_change_requests
               (source, source_reference, audio_reference, transcript, action_type,
-               target_id, proposed_changes, status, requested_by, requested_at)
+               target_id, proposed_changes, status, requested_by, requested_at, company_id)
             VALUES
               (:source, :source_reference, :audio_reference, :transcript, :action_type,
-               :target_id, :proposed_changes, 'draft', :actor, :now)
+               :target_id, :proposed_changes, 'draft', :actor, :now, :company_id)
         """), {
             **payload.dict(exclude={"proposed_changes"}),
             "proposed_changes": json.dumps(payload.proposed_changes, ensure_ascii=False, sort_keys=True),
             "actor": actor,
             "now": _now(),
+            "company_id": company_id,
         })
         request_id = result.lastrowid
         _event(conn, request_id, "created", actor, f"source={payload.source}")
@@ -310,11 +675,12 @@ def review_transcript(
     request: Request,
 ):
     actor = _require_admin(request)
+    company_id = current_company_id(request)
     transcript = payload.transcript.strip()
     _validate(payload.action_type, payload.target_id, payload.proposed_changes)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, company_id)
         if item["status"] != "needs_transcript_review":
             raise HTTPException(
                 status_code=409,
@@ -322,8 +688,8 @@ def review_transcript(
             )
         if payload.action_type == "online_product_update":
             product = conn.execute(
-                text("SELECT id FROM products WHERE id=:id"),
-                {"id": payload.target_id},
+                text("SELECT id FROM products WHERE id=:id AND company_id=:company_id"),
+                {"id": payload.target_id, "company_id": company_id},
             ).first()
             if not product:
                 raise HTTPException(status_code=404, detail="Product not found")
@@ -363,7 +729,7 @@ def submit_request(request_id: int, request: Request):
     actor, _ = _auth(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
+        item = _row(conn, request_id, current_company_id(request))
         if item["requested_by"] != actor:
             raise HTTPException(status_code=403, detail="Only the requester can submit")
         if item["status"] not in {"draft", "rejected"}:
@@ -431,6 +797,107 @@ def _apply(conn, item, actor):
             "now": _now(),
         })
         return f"Approved campaign draft created: {result.lastrowid}"
+    if item["action_type"] == "sale_invoice_draft":
+        customer_id = changes["customer_id"]
+        customer = conn.execute(
+            text("SELECT name FROM customers WHERE id=:id"), {"id": customer_id}
+        ).mappings().first()
+        if not customer:
+            raise ValueError(f"Customer {customer_id} no longer exists")
+        item_descriptions = []
+        for entry in changes["items"]:
+            product = conn.execute(
+                text("SELECT name FROM products WHERE id=:id"), {"id": entry["product_id"]}
+            ).mappings().first()
+            if not product:
+                raise ValueError(f"Product {entry['product_id']} no longer exists")
+            item_descriptions.append(f"{product['name']} x{entry['quantity']}")
+        # Deliberately does not create a live Invoice/GL entry here - approval
+        # only confirms the request is well-formed. A staff member still
+        # builds and reviews the real invoice through the normal Invoices
+        # page (pre-filled from this request), the same "human does the
+        # final step" pattern used for catalog orders and tiered pricing.
+        return (
+            f"Sale invoice draft ready for {customer['name']}: "
+            + ", ".join(item_descriptions)
+        )
+    if item["action_type"] == "pricing_rule_draft":
+        from app.pricing import _ensure_rules_schema
+
+        product = conn.execute(text("SELECT name FROM products WHERE id=:id"), {"id": item["target_id"]}).mappings().first()
+        if not product:
+            raise ValueError(f"Product {item['target_id']} no longer exists")
+        _ensure_rules_schema(conn)
+        now = _now()
+        result = conn.execute(text("""
+            INSERT INTO pricing_rules
+              (name, priority, scope_type, scope_value, customer_scope_type, customer_scope_value,
+               branch_id, channel, min_quantity, max_quantity, price_mode, price_value, currency,
+               start_date, end_date, status, notes, created_at, updated_at, company_id)
+            VALUES
+              (:name, 100, 'product', :scope_value, :customer_scope_type, :customer_scope_value,
+               NULL, '', :min_quantity, NULL, :price_mode, :price_value, '',
+               :start_date, :end_date, 'active', :notes, :now, :now, :company_id)
+        """), {
+            "name": f"Voice request #{item['id']}: {product['name']}",
+            "scope_value": str(item["target_id"]),
+            "customer_scope_type": changes["customer_scope_type"],
+            "customer_scope_value": str(changes.get("customer_scope_value") or ""),
+            "min_quantity": float(changes.get("min_quantity") or 1),
+            "price_mode": changes["price_mode"],
+            "price_value": float(changes["price_value"]),
+            "start_date": changes.get("effective_from") or None,
+            "end_date": changes.get("effective_until") or None,
+            "notes": "Created from an approved voice/text change request.",
+            "now": now,
+            "company_id": item["company_id"],
+        })
+        return f"Pricing rule created for {product['name']} (rule id {result.lastrowid})"
+    if item["action_type"] == "reminder_channel_manage":
+        row = conn.execute(text("""
+            SELECT id, reminder_channels_json FROM app_settings WHERE company_id=:company_id
+        """), {"company_id": item["company_id"]}).mappings().first()
+        try:
+            channels = json.loads((row["reminder_channels_json"] if row else None) or "[]")
+            if not isinstance(channels, list):
+                channels = []
+        except json.JSONDecodeError:
+            channels = []
+        if changes["operation"] == "add":
+            channels.append({
+                "id": secrets.token_hex(6),
+                "name": str(changes["name"]).strip(),
+                "link_template": str(changes["link_template"]).strip(),
+            })
+            summary = f"Added reminder channel '{changes['name']}'"
+        else:
+            channel_id = str(changes["channel_id"])
+            before = len(channels)
+            channels = [c for c in channels if str(c.get("id")) != channel_id]
+            if len(channels) == before:
+                raise ValueError(f"Reminder channel {channel_id} was not found")
+            summary = f"Removed reminder channel {channel_id}"
+        channels_json = json.dumps(channels, ensure_ascii=False)
+        if row:
+            conn.execute(text("""
+                UPDATE app_settings SET reminder_channels_json=:channels, updated_at=:now WHERE id=:id
+            """), {"channels": channels_json, "now": _now(), "id": row["id"]})
+        else:
+            conn.execute(text("""
+                INSERT INTO app_settings (company_id, reminder_channels_json, updated_at)
+                VALUES (:company_id, :channels, :now)
+            """), {"company_id": item["company_id"], "channels": channels_json, "now": _now()})
+        return summary
+    if item["action_type"] == "report_delivery":
+        from app.report_delivery import generate_and_send_report
+
+        result = generate_and_send_report(
+            changes["report_type"], changes["format"], changes["destination_email"], item["company_id"],
+        )
+        return (
+            f"Report '{changes['report_type']}' ({changes['format'].upper()}) "
+            f"to {changes['destination_email']}: {result['status']} - {result['detail']}"
+        )
     raise HTTPException(status_code=400, detail="Unsupported action")
 
 
@@ -439,11 +906,41 @@ def approve_request(request_id: int, payload: DecisionPayload, request: Request)
     actor = _require_admin(request)
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
-        if item["status"] != "pending_approval":
+        item = _row(conn, request_id, current_company_id(request))
+        if item["status"] not in ("pending_approval", "pending_second_approval"):
             raise HTTPException(status_code=409, detail="Request is not pending approval")
-        if item["requested_by"] == actor:
+        if item["requested_by"] == actor or _submission_actor(conn, request_id) == actor:
             raise HTTPException(status_code=409, detail="Maker-checker violation: requester cannot approve")
+
+        # High-risk actions need two different admins, not one - the first
+        # approval only records intent and moves the request to
+        # pending_second_approval; nothing executes until a second, distinct
+        # admin approves again. See HIGH_RISK_ACTIONS' docstring.
+        if item["status"] == "pending_approval" and item["action_type"] in HIGH_RISK_ACTIONS:
+            claimed = conn.execute(text("""
+                UPDATE managed_change_requests SET status='pending_second_approval', first_approved_by=:actor
+                WHERE id=:id AND status='pending_approval'
+            """), {"actor": actor, "id": request_id})
+            if claimed.rowcount == 0:
+                raise HTTPException(status_code=409, detail="Request was already acted on by another approval")
+            _event(conn, request_id, "first_approval_recorded", actor, payload.note.strip())
+            return {"status": "pending_second_approval", "request_id": request_id}
+
+        if item["status"] == "pending_second_approval" and item["first_approved_by"] == actor:
+            raise HTTPException(status_code=409, detail="A different administrator must provide the second approval")
+
+        # Atomically claim the row before running _apply() (which has real
+        # side effects - posting ledger entries, sending messages, etc.) so
+        # two near-simultaneous approve calls (double-click, retry, two
+        # admin tabs) can't both pass the status check above and both
+        # execute _apply(); whichever call's UPDATE loses the race gets
+        # rowcount=0 and a 409, never a second real execution.
+        claimed = conn.execute(text("""
+            UPDATE managed_change_requests SET status='executing' WHERE id=:id AND status=:expected_status
+        """), {"id": request_id, "expected_status": item["status"]})
+        if claimed.rowcount == 0:
+            raise HTTPException(status_code=409, detail="Request was already acted on by another approval")
+
         try:
             result = _apply(conn, item, actor)
             status = "applied"
@@ -473,8 +970,8 @@ def reject_request(request_id: int, payload: DecisionPayload, request: Request):
         raise HTTPException(status_code=400, detail="Rejection reason is required")
     with engine.begin() as conn:
         _ensure_schema(conn)
-        item = _row(conn, request_id)
-        if item["status"] != "pending_approval":
+        item = _row(conn, request_id, current_company_id(request))
+        if item["status"] not in ("pending_approval", "pending_second_approval"):
             raise HTTPException(status_code=409, detail="Request is not pending approval")
         conn.execute(text("""
             UPDATE managed_change_requests SET status='rejected', decided_by=:actor,

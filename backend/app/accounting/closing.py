@@ -14,6 +14,7 @@ from app.accounting.posting import (
     post_balanced_voucher,
 )
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(
     prefix="/api/accounting/periods",
@@ -35,19 +36,19 @@ def _require_admin(request: Request):
         raise HTTPException(status_code=403, detail="Administrator access required")
 
 
-def _get_period(conn, period_id):
+def _get_period(conn, period_id, company_id):
     ensure_fiscal_schema(conn)
     period = conn.execute(text("""
-        SELECT * FROM fiscal_periods WHERE id=:id
-    """), {"id": period_id}).mappings().first()
+        SELECT * FROM fiscal_periods WHERE id=:id AND company_id=:company_id
+    """), {"id": period_id, "company_id": company_id}).mappings().first()
     if not period:
         raise ValueError("Fiscal period not found")
     return dict(period)
 
 
-def fiscal_closing_preview(conn, period_id):
+def fiscal_closing_preview(conn, period_id, company_id):
     _ensure_schema(conn)
-    period = _get_period(conn, period_id)
+    period = _get_period(conn, period_id, company_id)
     rows = conn.execute(text("""
         SELECT a.id AS account_id, a.code AS account_code,
                a.name AS account_name, a.account_type,
@@ -60,9 +61,10 @@ def fiscal_closing_preview(conn, period_id):
           AND v.fiscal_period_id=:period_id
           AND v.source_type!='fiscal_close'
           AND a.account_type IN ('revenue', 'contra', 'expense')
+          AND a.company_id=:company_id
         GROUP BY a.id, a.code, a.name, a.account_type
         ORDER BY a.code
-    """), {"period_id": period_id}).mappings().all()
+    """), {"period_id": period_id, "company_id": company_id}).mappings().all()
 
     lines = []
     account_summary = []
@@ -119,9 +121,9 @@ def fiscal_closing_preview(conn, period_id):
     existing = conn.execute(text("""
         SELECT id, voucher_no, period_voucher_no
         FROM accounting_vouchers
-        WHERE source_type='fiscal_close' AND source_id=:period_id
+        WHERE source_type='fiscal_close' AND source_id=:period_id AND company_id=:company_id
         LIMIT 1
-    """), {"period_id": period_id}).mappings().first()
+    """), {"period_id": period_id, "company_id": company_id}).mappings().first()
 
     return {
         "period": period,
@@ -135,8 +137,8 @@ def fiscal_closing_preview(conn, period_id):
     }
 
 
-def close_books(conn, period_id):
-    preview = fiscal_closing_preview(conn, period_id)
+def close_books(conn, period_id, company_id):
+    preview = fiscal_closing_preview(conn, period_id, company_id)
     period = preview["period"]
     if period["status"] == "closed":
         return {
@@ -158,10 +160,11 @@ def close_books(conn, period_id):
             period_id,
             f"سند اختتامیه دوره مالی: {period['name']}",
             preview["lines"],
+            company_id,
             voucher_date=period["end_date"],
             connection=conn,
         )
-    closed = close_fiscal_period(conn, period_id)
+    closed = close_fiscal_period(conn, period_id, company_id)
     return {
         **closed,
         "closing_voucher_id": voucher_id,
@@ -170,11 +173,12 @@ def close_books(conn, period_id):
     }
 
 
-def reopen_books(conn, period_id):
-    reopened = reopen_fiscal_period(conn, period_id)
+def reopen_books(conn, period_id, company_id):
+    reopened = reopen_fiscal_period(conn, period_id, company_id)
     delete_source_voucher(
         "fiscal_close",
         period_id,
+        company_id,
         connection=conn,
     )
     return {
@@ -188,6 +192,6 @@ def closing_preview(period_id: int, request: Request):
     _require_admin(request)
     try:
         with engine.begin() as conn:
-            return fiscal_closing_preview(conn, period_id)
+            return fiscal_closing_preview(conn, period_id, current_company_id(request))
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))

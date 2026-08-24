@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, BadgePercent, CheckCircle2, Globe2, Megaphone, PackageCheck, RefreshCw, Save, Send, ShieldCheck, TrendingDown, TrendingUp, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { API_URL, getAuthHeaders } from "../services/api";
+import { API_URL, getAuthHeaders, getCatalogLinks, getPdfTemplates } from "../services/api";
 import { useLanguage } from "../localization/useLanguage";
+import { toPersianDigits, toEnglishDigits, cleanNumberInput } from "../localization/helpers";
 import { useAuth } from "../auth/AuthContext";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 
 const channels = ["website", "instagram", "telegram", "whatsapp", "linkedin"];
+const SEGMENT_TYPES = ["", "new_customers", "returning_customers", "high_value", "inactive", "vip", "city", "category"];
+const TEMPLATE_KEYS = ["", "campaign_promo"];
 
 async function storefrontApi(path) {
   const response = await fetch(`${API_URL}/api/storefront-sync${path}`, {
@@ -40,7 +45,8 @@ async function api(path, options = {}) {
 export default function OnlineCommerce() {
   const { language, dir, money, n } = useLanguage();
   const { user } = useAuth();
-  const fa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
   const [tab, setTab] = useState("products");
   const [summary, setSummary] = useState(null);
   const [products, setProducts] = useState([]);
@@ -51,28 +57,53 @@ export default function OnlineCommerce() {
   const [checkingConnections, setCheckingConnections] = useState(false);
   const [campaign, setCampaign] = useState({
     title: "", body: "", channel: "instagram", product_id: "", media_url: "",
-    destination_url: "", scheduled_at: "",
+    destination_url: "", scheduled_at: "", template_key: "", design_template_id: "",
+    segment_type: "", segment_value: "", catalog_link_id: "",
   });
+  const [designTemplates, setDesignTemplates] = useState([]);
+  const [catalogLinks, setCatalogLinks] = useState([]);
+  const [audienceEstimate, setAudienceEstimate] = useState(null);
+  const [opportunities, setOpportunities] = useState(null);
+  const [loadingOpportunities, setLoadingOpportunities] = useState(false);
 
   const labels = {
-    title: fa ? "مرکز فروش آنلاین و تبلیغات" : "Online Sales & Advertising",
-    subtitle: fa
-      ? "کنترل انتشار کالا، قیمت، موجودی، تخفیف و کمپین‌های شبکه‌های اجتماعی"
-      : "Control product publishing, pricing, stock, discounts, and social campaigns",
-    products: fa ? "کالاهای سایت" : "Website products",
-    campaigns: fa ? "کمپین‌های تبلیغاتی" : "Campaigns",
-    connections: fa ? "اتصال‌ها" : "Connections",
+    title: tr("مرکز فروش آنلاین و تبلیغات", "مركز المبيعات والإعلانات عبر الإنترنت", "Çevrimiçi Satış ve Reklam Merkezi", "Online Sales & Advertising"),
+    subtitle: tr(
+      "کنترل انتشار کالا، قیمت، موجودی، تخفیف و کمپین‌های شبکه‌های اجتماعی",
+      "التحكم في نشر المنتجات والأسعار والمخزون والخصومات وحملات التواصل الاجتماعي",
+      "Ürün yayını, fiyat, stok, indirim ve sosyal medya kampanyalarını kontrol edin",
+      "Control product publishing, pricing, stock, discounts, and social campaigns"
+    ),
+    products: tr("کالاهای سایت", "منتجات الموقع", "Site ürünleri", "Website products"),
+    campaigns: tr("کمپین‌های تبلیغاتی", "الحملات الإعلانية", "Reklam kampanyaları", "Campaigns"),
+    connections: tr("اتصال‌ها", "الاتصالات", "Bağlantılar", "Connections"),
+    opportunities: tr("فرصت‌های فروش", "فرص المبيعات", "Satış fırsatları", "Sales opportunities"),
   };
+
+  const segmentLabel = (s) => ({
+    "": tr("همه مشتریان راضی به دریافت پیام", "جميع العملاء الموافقين على التلقي", "Mesaj almayı kabul eden tüm müşteriler", "All consenting customers"),
+    new_customers: tr("مشتریان جدید (۳۰ روز اخیر)", "عملاء جدد (آخر 30 يومًا)", "Yeni müşteriler (son 30 gün)", "New customers (last 30 days)"),
+    returning_customers: tr("مشتریان بازگشتی", "العملاء العائدون", "Geri dönen müşteriler", "Returning customers"),
+    high_value: tr("مشتریان باارزش (سطح طلایی به بالا)", "عملاء ذوو قيمة عالية", "Yüksek değerli müşteriler", "High-value customers"),
+    inactive: tr("مشتریان غیرفعال (بدون خرید ۹۰ روز اخیر)", "عملاء غير نشطين (90 يومًا)", "Etkin olmayan müşteriler (90 gün)", "Inactive customers (90+ days)"),
+    vip: tr("مشتریان VIP", "عملاء VIP", "VIP müşteriler", "VIP customers"),
+    city: tr("بر اساس شهر", "حسب المدينة", "Şehre göre", "By city"),
+    category: tr("بر اساس دسته‌بندی خرید", "حسب فئة الشراء", "Satın alma kategorisine göre", "By purchase category"),
+  }[s] || s);
 
   async function load() {
     setLoading(true);
     try {
-      const [summaryData, productData, campaignData] = await Promise.all([
+      const [summaryData, productData, campaignData, designData, catalogData] = await Promise.all([
         api("/summary"), api("/products"), api("/campaigns"),
+        getPdfTemplates("banner").catch(() => []),
+        getCatalogLinks().catch(() => ({ items: [] })),
       ]);
       setSummary(summaryData);
       setProducts(productData);
       setCampaigns(campaignData);
+      setDesignTemplates(Array.isArray(designData) ? designData : (designData.items || []));
+      setCatalogLinks(catalogData.items || []);
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -84,6 +115,33 @@ export default function OnlineCommerce() {
     const timer = setTimeout(() => { void load(); }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      api(`/campaigns/audience-estimate?segment_type=${campaign.segment_type}&segment_value=${encodeURIComponent(campaign.segment_value)}`)
+        .then(setAudienceEstimate)
+        .catch(() => setAudienceEstimate(null));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [campaign.segment_type, campaign.segment_value]);
+
+  async function loadOpportunities() {
+    setLoadingOpportunities(true);
+    try {
+      setOpportunities(await api("/opportunities"));
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoadingOpportunities(false);
+    }
+  }
+
+  const stableLoadOpportunities = useStableCallback(loadOpportunities);
+
+  useEffect(() => {
+    if (tab === "opportunities") { const timer = setTimeout(() => { void stableLoadOpportunities(); }, 0); return () => clearTimeout(timer); }
+    return undefined;
+  }, [tab, stableLoadOpportunities]);
 
   async function checkConnections(showToast = false) {
     if (!["admin", "accountant"].includes(user?.role)) return;
@@ -100,8 +158,8 @@ export default function OnlineCommerce() {
       if (showToast) {
         const allReady = result.all_ready && storefront.ready;
         toast.success(allReady
-          ? (fa ? "همه اتصال‌های صوتی و سایت آماده‌اند." : "Voice and storefront connections are ready.")
-          : (fa ? "برخی تنظیمات اتصال هنوز کامل نیست." : "Some connection settings are incomplete."));
+          ? tr("همه اتصال‌های صوتی و سایت آماده‌اند.", "جميع اتصالات الصوت والموقع جاهزة.", "Tüm ses ve site bağlantıları hazır.", "Voice and storefront connections are ready.")
+          : tr("برخی تنظیمات اتصال هنوز کامل نیست.", "بعض إعدادات الاتصال غير مكتملة بعد.", "Bazı bağlantı ayarları henüz tamamlanmadı.", "Some connection settings are incomplete."));
       }
     } catch (error) {
       toast.error(error.message);
@@ -136,7 +194,7 @@ export default function OnlineCommerce() {
           website_slug: product.website_slug || "",
         }),
       });
-      toast.success(fa ? "تنظیمات کالا ذخیره شد" : "Product settings saved");
+      toast.success(tr("تنظیمات کالا ذخیره شد", "تم حفظ إعدادات المنتج", "Ürün ayarları kaydedildi", "Product settings saved"));
       load();
     } catch (error) { toast.error(error.message); }
   }
@@ -152,8 +210,8 @@ export default function OnlineCommerce() {
         return data;
       });
       toast.success(result.duplicate
-        ? (fa ? "کمپین از قبل در صف انتشار است." : "Campaign is already queued.")
-        : (fa ? "کمپین وارد صف امن انتشار شد." : "Campaign entered the secure delivery queue."));
+        ? tr("کمپین از قبل در صف انتشار است.", "الحملة موجودة بالفعل في قائمة الانتظار.", "Kampanya zaten sırada.", "Campaign is already queued.")
+        : tr("کمپین وارد صف امن انتشار شد.", "دخلت الحملة قائمة الانتظار الآمنة.", "Kampanya güvenli teslimat sırasına alındı.", "Campaign entered the secure delivery queue."));
       load();
     } catch (error) {
       toast.error(error.message);
@@ -169,11 +227,17 @@ export default function OnlineCommerce() {
         body: JSON.stringify({
           ...campaign,
           product_id: campaign.product_id ? Number(campaign.product_id) : null,
+          design_template_id: campaign.design_template_id ? Number(campaign.design_template_id) : null,
+          catalog_link_id: campaign.catalog_link_id ? Number(campaign.catalog_link_id) : null,
         }),
       });
       await api(`/campaigns/${created.campaign_id}/submit`, { method: "POST" });
-      setCampaign({ title: "", body: "", channel: "instagram", product_id: "", media_url: "", destination_url: "", scheduled_at: "" });
-      toast.success(fa ? "کمپین برای تأیید مدیر ارسال شد" : "Campaign submitted for manager approval");
+      setCampaign({
+        title: "", body: "", channel: "instagram", product_id: "", media_url: "",
+        destination_url: "", scheduled_at: "", template_key: "", design_template_id: "",
+        segment_type: "", segment_value: "", catalog_link_id: "",
+      });
+      toast.success(tr("کمپین برای تأیید مدیر ارسال شد", "تم إرسال الحملة لموافقة المدير", "Kampanya yönetici onayına gönderildi", "Campaign submitted for manager approval"));
       load();
     } catch (error) { toast.error(error.message); }
   }
@@ -192,22 +256,23 @@ export default function OnlineCommerce() {
           </div>
           <button onClick={load} className="erp-surface erp-accent rounded-2xl px-4 py-3 font-black flex items-center gap-2">
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-            {fa ? "به‌روزرسانی" : "Refresh"}
+            {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
         </div>
       </header>
 
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Metric icon={<PackageCheck />} label={fa ? "کالاهای منتشرشده" : "Published products"} value={summary?.products?.published || 0} n={n} />
-        <Metric icon={<BadgePercent />} label={fa ? "کالاهای تخفیف‌دار" : "Discounted products"} value={summary?.products?.discounted || 0} n={n} />
-        <Metric icon={<ShieldCheck />} label={fa ? "در انتظار تأیید" : "Pending approval"} value={summary?.campaigns?.pending || 0} n={n} />
-        <Metric icon={<Send />} label={fa ? "کمپین منتشرشده" : "Published campaigns"} value={summary?.campaigns?.published || 0} n={n} />
+        <Metric icon={<PackageCheck />} label={tr("کالاهای منتشرشده", "المنتجات المنشورة", "Yayınlanan ürünler", "Published products")} value={summary?.products?.published || 0} n={n} />
+        <Metric icon={<BadgePercent />} label={tr("کالاهای تخفیف‌دار", "المنتجات المخفضة", "İndirimli ürünler", "Discounted products")} value={summary?.products?.discounted || 0} n={n} />
+        <Metric icon={<ShieldCheck />} label={tr("در انتظار تأیید", "بانتظار الموافقة", "Onay bekliyor", "Pending approval")} value={summary?.campaigns?.pending || 0} n={n} />
+        <Metric icon={<Send />} label={tr("کمپین منتشرشده", "الحملات المنشورة", "Yayınlanan kampanyalar", "Published campaigns")} value={summary?.campaigns?.published || 0} n={n} />
       </section>
 
       <div className="erp-surface rounded-2xl p-2 flex gap-2 flex-wrap">
         {[
           ["products", labels.products, PackageCheck],
           ["campaigns", labels.campaigns, Megaphone],
+          ["opportunities", labels.opportunities, TrendingUp],
           ["connections", labels.connections, Globe2],
         ].map(([id, text, Icon]) => (
           <button key={id} onClick={() => setTab(id)} className="rounded-xl px-4 py-3 font-black flex items-center gap-2"
@@ -222,44 +287,188 @@ export default function OnlineCommerce() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px]">
               <thead style={{ background: "var(--erp-panel-solid)" }}>
-                <tr>{[fa ? "کالا" : "Product", fa ? "موجودی" : "Stock", fa ? "قیمت حسابداری" : "ERP price", fa ? "قیمت سایت" : "Online price", fa ? "تخفیف٪" : "Discount %", fa ? "انتشار" : "Publish", fa ? "همگام‌سازی موجودی" : "Sync stock", ""].map((text) => <th key={text} className="p-4 text-start">{text}</th>)}</tr>
+                <tr><th className="p-4 text-start">#</th>{[tr("کالا", "المنتج", "Ürün", "Product"), tr("موجودی", "المخزون", "Stok", "Stock"), tr("قیمت حسابداری", "سعر النظام", "ERP fiyatı", "ERP price"), tr("قیمت سایت", "سعر الموقع", "Site fiyatı", "Online price"), tr("تخفیف٪", "الخصم٪", "İndirim%", "Discount %"), tr("انتشار", "النشر", "Yayınla", "Publish"), tr("همگام‌سازی موجودی", "مزامنة المخزون", "Stok senkronizasyonu", "Sync stock"), ""].map((text) => <th key={text} className="p-4 text-start">{text}</th>)}</tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {products.map((product, rowIndex) => (
                   <tr key={product.id} style={{ borderTop: "1px solid var(--erp-border)" }}>
+                    <td className="p-4 text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</td>
                     <td className="p-4 font-black">{product.name}</td>
                     <td className="p-4">{n(product.stock || 0)}</td>
                     <td className="p-4">{money(product.sell_price || 0)}</td>
-                    <td className="p-3"><input type="number" min="0" className="erp-focus rounded-xl p-3 w-36" style={inputStyle} value={product.online_price ?? ""} onChange={(e) => patchProduct(product.id, { online_price: e.target.value })} /></td>
-                    <td className="p-3"><input type="number" min="0" max="100" className="erp-focus rounded-xl p-3 w-24" style={inputStyle} value={product.discount_percent || 0} onChange={(e) => patchProduct(product.id, { discount_percent: e.target.value })} /></td>
+                    <td className="p-3"><input type="text" inputMode="numeric" className="erp-focus rounded-xl p-3 w-36" style={inputStyle} value={language === "fa" ? toPersianDigits(product.online_price ?? "") : product.online_price ?? ""} onChange={(e) => patchProduct(product.id, { online_price: cleanNumberInput(e.target.value) })} /></td>
+                    <td className="p-3"><input type="text" inputMode="numeric" className="erp-focus rounded-xl p-3 w-24" style={inputStyle} value={language === "fa" ? toPersianDigits(product.discount_percent || 0) : product.discount_percent || 0} onChange={(e) => patchProduct(product.id, { discount_percent: cleanNumberInput(e.target.value) })} /></td>
                     <td className="p-4"><Toggle value={Boolean(product.is_published)} onChange={(value) => patchProduct(product.id, { is_published: value })} /></td>
                     <td className="p-4"><Toggle value={Boolean(product.sync_stock)} onChange={(value) => patchProduct(product.id, { sync_stock: value })} /></td>
-                    <td className="p-3"><button onClick={() => saveProduct(product)} className="rounded-xl p-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028" }}><Save size={17} />{fa ? "ذخیره" : "Save"}</button></td>
+                    <td className="p-3"><button onClick={() => saveProduct(product)} className="rounded-xl p-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028" }}><Save size={17} />{tr("ذخیره", "حفظ", "Kaydet", "Save")}</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {!products.length && !loading && <p className="p-8 text-center" style={{ color: "var(--erp-muted)" }}>{fa ? "ابتدا کالاها را در بخش کالا ثبت کنید." : "Create products in Products first."}</p>}
+          {!products.length && !loading && <p className="p-8 text-center" style={{ color: "var(--erp-muted)" }}>{tr("ابتدا کالاها را در بخش کالا ثبت کنید.", "قم بتسجيل المنتجات في قسم المنتجات أولاً.", "Önce ürünleri Ürünler bölümünde oluşturun.", "Create products in Products first.")}</p>}
         </div>
       )}
 
       {tab === "campaigns" && (
         <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-5">
           <form onSubmit={createCampaign} className="erp-surface rounded-3xl p-5 space-y-3">
-            <h2 className="text-xl font-black erp-accent">{fa ? "کمپین جدید" : "New campaign"}</h2>
-            <Input label={fa ? "عنوان" : "Title"} value={campaign.title} onChange={(value) => setCampaign({ ...campaign, title: value })} required />
-            <label className="block text-sm font-bold">{fa ? "شبکه" : "Channel"}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.channel} onChange={(e) => setCampaign({ ...campaign, channel: e.target.value })}>{channels.map((item) => <option key={item}>{item}</option>)}</select></label>
-            <label className="block text-sm font-bold">{fa ? "کالای مرتبط" : "Related product"}<select style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.product_id} onChange={(e) => setCampaign({ ...campaign, product_id: e.target.value })}><option value="">{fa ? "بدون کالا" : "No product"}</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            <label className="block text-sm font-bold">{fa ? "متن تبلیغ" : "Post copy"}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: e.target.value })} /></label>
-            <Input label={fa ? "لینک مقصد" : "Destination URL"} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
-            <Input label={fa ? "زمان انتشار" : "Schedule"} type="datetime-local" value={campaign.scheduled_at} onChange={(value) => setCampaign({ ...campaign, scheduled_at: value })} />
-            <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><ShieldCheck size={18} />{fa ? "ارسال برای تأیید مدیر" : "Submit for approval"}</button>
+            <h2 className="text-xl font-black erp-accent">{tr("کمپین جدید", "حملة جديدة", "Yeni kampanya", "New campaign")}</h2>
+            <Input label={tr("عنوان", "العنوان", "Başlık", "Title")} value={campaign.title} onChange={(value) => setCampaign({ ...campaign, title: language === "fa" ? toPersianDigits(value) : value })} required />
+            <label className="block text-sm font-bold">{tr("شبکه", "القناة", "Kanal", "Channel")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.channel}
+                onChange={(value) => setCampaign({ ...campaign, channel: value })}
+                options={channels.map((item) => ({ value: item, label: item === "website" ? tr("وبسایت", "الموقع الإلكتروني", "Web sitesi", "Website") : item[0].toUpperCase() + item.slice(1) }))}
+              />
+            </label>
+            <label className="block text-sm font-bold">{tr("کالای مرتبط", "المنتج المرتبط", "İlgili ürün", "Related product")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.product_id}
+                onChange={(value) => setCampaign({ ...campaign, product_id: value })}
+                options={[{ value: "", label: tr("بدون کالا", "بدون منتج", "Ürünsüz", "No product") }, ...products.map((item) => ({ value: item.id, label: item.name }))]}
+              />
+            </label>
+            <label className="block text-sm font-bold">{tr("متن تبلیغ", "نص الإعلان", "Reklam metni", "Post copy")}<textarea rows={5} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={campaign.body} onChange={(e) => setCampaign({ ...campaign, body: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })} /></label>
+            <Input label={tr("لینک مقصد", "رابط الوجهة", "Hedef bağlantı", "Destination URL")} value={campaign.destination_url} onChange={(value) => setCampaign({ ...campaign, destination_url: value })} />
+
+            <label className="block text-sm font-bold">{tr("مخاطب هدف", "الجمهور المستهدف", "Hedef kitle", "Target audience")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.segment_type}
+                onChange={(value) => setCampaign({ ...campaign, segment_type: value, segment_value: "" })}
+                options={SEGMENT_TYPES.map((s) => ({ value: s, label: segmentLabel(s) }))}
+              />
+            </label>
+            {campaign.segment_type === "city" && (
+              <Input label={tr("نام شهر", "اسم المدينة", "Şehir adı", "City name")} value={campaign.segment_value} onChange={(value) => setCampaign({ ...campaign, segment_value: value })} />
+            )}
+            {campaign.segment_type === "category" && (
+              <Input label={tr("نام دسته‌بندی", "اسم الفئة", "Kategori adı", "Category name")} value={campaign.segment_value} onChange={(value) => setCampaign({ ...campaign, segment_value: value })} />
+            )}
+            {audienceEstimate && (
+              <div className="rounded-xl p-3 flex items-center gap-2 text-sm" style={{ background: "var(--erp-glow)" }}>
+                <Users size={16} className="erp-accent" />
+                <span>
+                  {tr(
+                    `تخمین مخاطب: ${audienceEstimate.reachable_with_consent} نفر (از ${audienceEstimate.segment_size} مشتری در این بخش)`,
+                    `تقدير الجمهور: ${audienceEstimate.reachable_with_consent} (من أصل ${audienceEstimate.segment_size} في هذه الفئة)`,
+                    `Tahmini kitle: ${audienceEstimate.reachable_with_consent} kişi (bu segmentteki ${audienceEstimate.segment_size} müşteriden)`,
+                    `Estimated reach: ${audienceEstimate.reachable_with_consent} (of ${audienceEstimate.segment_size} customers in this segment)`
+                  )}
+                  {audienceEstimate.excluded_due_to_consent > 0 && (
+                    <span className="opacity-70">
+                      {" — "}
+                      {tr(
+                        `${audienceEstimate.excluded_due_to_consent} نفر به دلیل عدم رضایت بازاریابی مستثنی شدند`,
+                        `تم استبعاد ${audienceEstimate.excluded_due_to_consent} بسبب عدم موافقة التسويق`,
+                        `${audienceEstimate.excluded_due_to_consent} kişi pazarlama izni olmadığı için hariç tutuldu`,
+                        `${audienceEstimate.excluded_due_to_consent} excluded due to lack of marketing consent`
+                      )}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            <label className="block text-sm font-bold">{tr("قالب پیام (اختیاری)", "قالب الرسالة (اختياري)", "Mesaj şablonu (isteğe bağlı)", "Message template (optional)")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.template_key}
+                onChange={(value) => setCampaign({ ...campaign, template_key: value })}
+                options={TEMPLATE_KEYS.map((k) => ({ value: k, label: k || tr("بدون قالب", "بدون قالب", "Şablonsuz", "No template") }))}
+              />
+            </label>
+            <label className="block text-sm font-bold">{tr("طرح گرافیکی (Design Studio)", "التصميم الجرافيكي", "Grafik tasarım", "Design (Design Studio)")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.design_template_id}
+                onChange={(value) => setCampaign({ ...campaign, design_template_id: value })}
+                options={[{ value: "", label: tr("بدون طرح", "بدون تصميم", "Tasarımsız", "No design") }, ...designTemplates.map((t) => ({ value: t.id, label: t.name || `#${t.id}` }))]}
+              />
+            </label>
+            <label className="block text-sm font-bold">{tr("لینک کاتالوگ (اختیاری)", "رابط الكتالوج (اختياري)", "Katalog bağlantısı (isteğe bağlı)", "Catalog link (optional)")}
+              <Select
+                className="w-full mt-1"
+                value={campaign.catalog_link_id}
+                onChange={(value) => setCampaign({ ...campaign, catalog_link_id: value })}
+                options={[{ value: "", label: tr("بدون کاتالوگ", "بدون كتالوج", "Katalogsuz", "No catalog") }, ...catalogLinks.map((c) => ({ value: c.id, label: c.title || `#${c.id}` }))]}
+              />
+            </label>
+            <label className="block text-sm font-bold">
+              {tr("زمان انتشار", "وقت النشر", "Yayın zamanı", "Schedule")}
+              <div className="space-y-2 mt-1">
+                <JalaliDateField
+                  value={campaign.scheduled_at ? campaign.scheduled_at.split("T")[0] : ""}
+                  onChange={(iso) => setCampaign({ ...campaign, scheduled_at: `${iso}T${campaign.scheduled_at?.split("T")[1] || "00:00"}` })}
+                  fa={language === "fa"}
+                  language={language}
+                  className="w-full rounded-xl p-3 bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)]"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder={language === "fa" ? "۰۰:۰۰" : "00:00"}
+                  style={inputStyle}
+                  className="w-full rounded-xl p-3"
+                  value={
+                    (() => {
+                      const time = campaign.scheduled_at?.split("T")[1] || "";
+                      return language === "fa" ? toPersianDigits(time) : time;
+                    })()
+                  }
+                  onChange={(e) => {
+                    const time = toEnglishDigits(e.target.value).replace(/[^\d:]/g, "");
+                    const date = campaign.scheduled_at?.split("T")[0] || new Date().toISOString().slice(0, 10);
+                    setCampaign({ ...campaign, scheduled_at: `${date}T${time}` });
+                  }}
+                />
+              </div>
+            </label>
+            <button className="w-full rounded-2xl p-4 font-black flex items-center justify-center gap-2" style={{ background: "linear-gradient(110deg,var(--erp-accent),var(--erp-accent-2))", color: "#071028" }}><ShieldCheck size={18} />{tr("ارسال برای تأیید مدیر", "إرسال لموافقة المدير", "Yönetici onayına gönder", "Submit for approval")}</button>
           </form>
           <div className="space-y-3">
-            {campaigns.map((item) => <CampaignCard key={item.id} item={item} fa={fa} canQueue={["admin", "accountant"].includes(user?.role) && ["approved", "scheduled"].includes(item.status)} onQueue={() => queueCampaign(item)} />)}
-            {!campaigns.length && <div className="erp-surface rounded-3xl p-8 text-center">{fa ? "کمپینی ثبت نشده است." : "No campaigns yet."}</div>}
+            {campaigns.map((item) => <CampaignCard key={item.id} item={item} language={language} canQueue={["admin", "accountant"].includes(user?.role) && ["approved", "scheduled"].includes(item.status)} onQueue={() => queueCampaign(item)} />)}
+            {!campaigns.length && <div className="erp-surface rounded-3xl p-8 text-center">{tr("کمپینی ثبت نشده است.", "لا توجد حملات مسجلة.", "Kayıtlı kampanya yok.", "No campaigns yet.")}</div>}
           </div>
+        </div>
+      )}
+
+      {tab === "opportunities" && (
+        <div className="space-y-4">
+          {loadingOpportunities && !opportunities ? (
+            <div className="erp-surface rounded-3xl p-8 text-center" style={{ color: "var(--erp-muted)" }}>{tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</div>
+          ) : opportunities && (
+            <>
+              <OpportunitySection
+                icon={<Users size={20} className="erp-accent" />}
+                title={tr("مشتریان باارزش غیرفعال", "عملاء ذوو قيمة عالية غير نشطين", "Etkin olmayan yüksek değerli müşteriler", "Inactive high-value customers")}
+                items={opportunities.inactive_high_value_customers}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.customer_name} — ${money(item.balance)}`}
+              />
+              <OpportunitySection
+                icon={<TrendingDown size={20} className="erp-accent" />}
+                title={tr("کالاهای کم‌فروش / راکد", "منتجات بطيئة الحركة / راكدة", "Yavaş satan / durgun ürünler", "Slow-moving / dead stock")}
+                items={opportunities.slow_moving_products}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.product_name} — ${tr("موجودی", "المخزون", "Stok", "Stock")}: ${n(item.stock || 0)}`}
+              />
+              <OpportunitySection
+                icon={<AlertTriangle size={20} className="erp-accent" />}
+                title={tr("نزدیک به انقضا", "قريبة الانتهاء", "Son kullanma tarihi yaklaşan", "Expiring soon")}
+                items={opportunities.expiring_soon_batches}
+                empty={tr("موردی یافت نشد.", "لا توجد عناصر.", "Öğe bulunamadı.", "None found.")}
+                render={(item) => `${item.product_name} — ${n(item.days_to_expiry)} ${tr("روز مانده", "يومًا متبقيًا", "gün kaldı", "days left")}`}
+              />
+              <div className="erp-surface rounded-2xl p-4 text-sm flex items-center gap-2" style={{ color: "var(--erp-muted)" }}>
+                <AlertTriangle size={16} />
+                {tr("تشخیص «اضافه‌موجودی» فراتر از کالاهای راکد هنوز پیاده‌سازی نشده است.", "لم يتم تطبيق اكتشاف \"الفائض\" بعد الجرد الراكد بعد.", "Durgun stok tespiti dışında \"fazla stok\" tespiti henüz uygulanmadı.", "\"Overstock\" detection beyond dead-stock isn't implemented yet.")}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -268,44 +477,44 @@ export default function OnlineCommerce() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <ShieldCheck className="erp-accent mb-3" size={34} />
-              <h2 className="text-xl font-black">{fa ? "اتصال امن سرویس‌ها" : "Secure service connections"}</h2>
+              <h2 className="text-xl font-black">{tr("اتصال امن سرویس‌ها", "اتصال آمن للخدمات", "Güvenli servis bağlantısı", "Secure service connections")}</h2>
               <p className="mt-2" style={{ color: "var(--erp-muted)" }}>
-                {fa ? "فقط وضعیت تنظیم‌شدن Secretها نمایش داده می‌شود و مقدار هیچ کلیدی از سرور خارج نمی‌شود." : "Only secret readiness is reported; secret values never leave the server."}
+                {tr("فقط وضعیت تنظیم‌شدن Secretها نمایش داده می‌شود و مقدار هیچ کلیدی از سرور خارج نمی‌شود.", "يتم عرض حالة إعداد الأسرار فقط، ولا تغادر أي قيمة سرية الخادم.", "Yalnızca gizli anahtarların yapılandırma durumu gösterilir, hiçbir değer sunucudan çıkmaz.", "Only secret readiness is reported; secret values never leave the server.")}
               </p>
             </div>
-            {["admin", "accountant"].includes(user?.role) && <button type="button" onClick={() => checkConnections(true)} disabled={checkingConnections} className="rounded-2xl px-4 py-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028", opacity: checkingConnections ? .6 : 1 }}><Activity size={18} />{checkingConnections ? "..." : (fa ? "اجرای عیب‌یابی امن" : "Run secure diagnostics")}</button>}
+            {["admin", "accountant"].includes(user?.role) && <button type="button" onClick={() => checkConnections(true)} disabled={checkingConnections} className="rounded-2xl px-4 py-3 font-black flex items-center gap-2" style={{ background: "var(--erp-accent)", color: "#071028", opacity: checkingConnections ? .6 : 1 }}><Activity size={18} />{checkingConnections ? "..." : tr("اجرای عیب‌یابی امن", "تشغيل التشخيص الآمن", "Güvenli tanılama çalıştır", "Run secure diagnostics")}</button>}
           </div>
-          {!["admin", "accountant"].includes(user?.role) && <div className="mt-5 rounded-2xl p-4 flex gap-3 items-center" style={{ background: "rgba(245,158,11,.12)", color: "#fde68a" }}><AlertTriangle />{fa ? "مشاهده وضعیت اتصال فقط برای مدیر و حسابدار مجاز است." : "Connection status is restricted to managers."}</div>}
+          {!["admin", "accountant"].includes(user?.role) && <div className="mt-5 rounded-2xl p-4 flex gap-3 items-center text-amber-200" style={{ background: "rgba(245,158,11,.12)" }}><AlertTriangle />{tr("مشاهده وضعیت اتصال فقط برای مدیر و حسابدار مجاز است.", "عرض حالة الاتصال مسموح فقط للمدير والمحاسب.", "Bağlantı durumunu görüntüleme yalnızca yönetici ve muhasebeci içindir.", "Connection status is restricted to managers.")}</div>}
           {connectionStatus && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
             {["telegram", "whatsapp"].map((channel) => {
               const status = connectionStatus[channel];
               return <article key={channel} className="rounded-2xl p-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${status.ready ? "#22c55e" : "#f59e0b"}` }}>
                 <div className="flex items-center justify-between gap-3"><strong className="text-lg">{channel}</strong>{status.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
-                <p className="mt-3 font-black" style={{ color: status.ready ? "#86efac" : "#fcd34d" }}>{status.ready ? (fa ? "آماده فعال‌سازی واقعی" : "Ready for live activation") : (fa ? "تنظیمات ناقص" : "Configuration incomplete")}</p>
+                <p className={`mt-3 font-black ${status.ready ? "text-green-300" : "text-amber-300"}`}>{status.ready ? tr("آماده فعال‌سازی واقعی", "جاهز للتفعيل الفعلي", "Canlı aktivasyona hazır", "Ready for live activation") : tr("تنظیمات ناقص", "الإعدادات غير مكتملة", "Yapılandırma eksik", "Configuration incomplete")}</p>
                 <code className="block mt-3 text-xs" dir="ltr">{status.webhook_path}</code>
               </article>;
             })}
             <article className="rounded-2xl p-5 md:col-span-2" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-                <ConnectionMetric label={fa ? "فرستنده مجاز" : "Allowed senders"} value={n(connectionStatus.allowed_sender_count)} />
-                <ConnectionMetric label={fa ? "حساب سرویس معتبر" : "Valid service user"} value={connectionStatus.service_user?.valid && connectionStatus.service_user?.non_admin ? (fa ? "بله" : "Yes") : (fa ? "خیر" : "No")} />
-                <ConnectionMetric label={fa ? "پیام دریافت‌شده" : "Received events"} value={n(connectionStatus.events?.total || 0)} />
-                <ConnectionMetric label={fa ? "افشای Secret" : "Secret exposure"} value={connectionStatus.secrets_exposed ? (fa ? "خطر" : "Risk") : (fa ? "صفر" : "None")} />
+                <ConnectionMetric label={tr("فرستنده مجاز", "المرسلون المسموح بهم", "İzinli gönderenler", "Allowed senders")} value={n(connectionStatus.allowed_sender_count)} />
+                <ConnectionMetric label={tr("حساب سرویس معتبر", "حساب خدمة صالح", "Geçerli servis hesabı", "Valid service user")} value={connectionStatus.service_user?.valid && connectionStatus.service_user?.non_admin ? tr("بله", "نعم", "Evet", "Yes") : tr("خیر", "لا", "Hayır", "No")} />
+                <ConnectionMetric label={tr("پیام دریافت‌شده", "الرسائل المستلمة", "Alınan mesajlar", "Received events")} value={n(connectionStatus.events?.total || 0)} />
+                <ConnectionMetric label={tr("افشای Secret", "كشف السر", "Gizli anahtar ifşası", "Secret exposure")} value={connectionStatus.secrets_exposed ? tr("خطر", "خطر", "Risk", "Risk") : tr("صفر", "لا يوجد", "Yok", "None")} />
               </div>
             </article>
           </div>}
           {storefrontStatus && <article className="rounded-2xl p-5 mt-5" style={{ background: "var(--erp-panel-solid)", border: `1px solid ${storefrontStatus.ready ? "#22c55e" : "#f59e0b"}` }}>
-            <div className="flex items-center justify-between gap-3"><strong className="text-lg">{fa ? "همگام‌سازی فروشگاه" : "Storefront synchronization"}</strong>{storefrontStatus.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
-            <p className="mt-3 font-black" style={{ color: storefrontStatus.ready ? "#86efac" : "#fcd34d" }}>{storefrontStatus.ready ? (fa ? "فید امضاشده آماده اتصال است" : "Signed feed is ready") : (fa ? "Secret همگام‌سازی هنوز تنظیم نشده" : "Synchronization secret is not configured")}</p>
+            <div className="flex items-center justify-between gap-3"><strong className="text-lg">{tr("همگام‌سازی فروشگاه", "مزامنة المتجر", "Mağaza senkronizasyonu", "Storefront synchronization")}</strong>{storefrontStatus.ready ? <CheckCircle2 color="#86efac" /> : <AlertTriangle color="#fcd34d" />}</div>
+            <p className={`mt-3 font-black ${storefrontStatus.ready ? "text-green-300" : "text-amber-300"}`}>{storefrontStatus.ready ? tr("فید امضاشده آماده اتصال است", "الخلاصة الموقعة جاهزة للاتصال", "İmzalı besleme bağlantıya hazır", "Signed feed is ready") : tr("Secret همگام‌سازی هنوز تنظیم نشده", "لم يتم تكوين سر المزامنة بعد", "Senkronizasyon gizli anahtarı henüz yapılandırılmadı", "Synchronization secret is not configured")}</p>
             <code className="block mt-3 text-xs" dir="ltr">{storefrontStatus.feed_path}</code>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-center">
-              <ConnectionMetric label={fa ? "کالای منتشرشده" : "Published products"} value={n(storefrontStatus.published_products)} />
-              <ConnectionMetric label={fa ? "همگام با موجودی" : "Stock synced"} value={n(storefrontStatus.stock_synced_products)} />
-              <ConnectionMetric label={fa ? "امضای امنیتی" : "Security signature"} value={storefrontStatus.signature_algorithm} />
-              <ConnectionMetric label={fa ? "افشای Secret" : "Secret exposure"} value={storefrontStatus.secrets_exposed ? (fa ? "خطر" : "Risk") : (fa ? "صفر" : "None")} />
+              <ConnectionMetric label={tr("کالای منتشرشده", "المنتجات المنشورة", "Yayınlanan ürünler", "Published products")} value={n(storefrontStatus.published_products)} />
+              <ConnectionMetric label={tr("همگام با موجودی", "متزامن مع المخزون", "Stokla senkronize", "Stock synced")} value={n(storefrontStatus.stock_synced_products)} />
+              <ConnectionMetric label={tr("امضای امنیتی", "التوقيع الأمني", "Güvenlik imzası", "Security signature")} value={storefrontStatus.signature_algorithm} />
+              <ConnectionMetric label={tr("افشای Secret", "كشف السر", "Gizli anahtar ifşası", "Secret exposure")} value={storefrontStatus.secrets_exposed ? tr("خطر", "خطر", "Risk", "Risk") : tr("صفر", "لا يوجد", "Yok", "None")} />
             </div>
           </article>}
-          <div className="grid grid-cols-2 gap-3 mt-5">{["instagram", "linkedin"].map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{fa ? "فاز اتصال بعدی" : "Next connector phase"}</span></div>)}</div>
+          <div className="grid grid-cols-2 gap-3 mt-5">{["instagram", "linkedin"].map((channel) => <div key={channel} className="rounded-2xl p-4 text-center font-black" style={{ background: "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}>{channel}<span className="block text-xs mt-2" style={{ color: "var(--erp-muted)" }}>{tr("فاز اتصال بعدی", "مرحلة الاتصال التالية", "Sonraki bağlantı aşaması", "Next connector phase")}</span></div>)}</div>
         </div>
       )}
     </div>
@@ -323,14 +532,55 @@ function Metric({ icon, label, value, n }) {
 }
 
 function Toggle({ value, onChange }) {
-  return <button type="button" onClick={() => onChange(!value)} className="w-12 h-7 rounded-full p-1" style={{ background: value ? "var(--erp-accent)" : "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}><span className="block w-5 h-5 bg-white rounded-full transition-transform" style={{ transform: value ? "translateX(20px)" : "translateX(0)" }} /></button>;
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className="relative w-12 h-7 !min-h-0 !rounded-full overflow-hidden"
+      style={{ background: value ? "var(--erp-accent)" : "var(--erp-panel-solid)", border: "1px solid var(--erp-border)" }}
+    >
+      {/* absolutely positioned within an overflow-hidden track, using the
+          logical insetInlineStart (not transform: translateX, which is
+          physical and ignores dir) so the knob can never visually escape
+          the track and slides toward the correct edge in RTL too */}
+      <span
+        className="absolute w-5 h-5 bg-white rounded-full transition-all duration-150"
+        style={{ top: 3, insetInlineStart: value ? 23 : 3 }}
+      />
+    </button>
+  );
 }
 
 function Input({ label, value, onChange, type = "text", required = false }) {
   return <label className="block text-sm font-bold">{label}<input required={required} type={type} style={inputStyle} className="w-full rounded-xl p-3 mt-1" value={value} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
-function CampaignCard({ item, fa, canQueue, onQueue }) {
-  const status = { draft: fa ? "پیش‌نویس" : "Draft", pending_approval: fa ? "در انتظار تأیید" : "Pending approval", approved: fa ? "تأییدشده" : "Approved", scheduled: fa ? "زمان‌بندی‌شده" : "Scheduled", published: fa ? "منتشرشده" : "Published", rejected: fa ? "ردشده" : "Rejected", failed: fa ? "ناموفق" : "Failed" }[item.status] || item.status;
-  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><h3 className="font-black text-lg">{item.title}</h3><p className="text-sm mt-1" style={{ color: "var(--erp-muted)" }}>{item.channel} {item.product_name ? `• ${item.product_name}` : ""}</p></div><span className="rounded-full px-3 py-1 h-fit text-sm font-black" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{status}</span></div>{item.body && <p className="mt-3 whitespace-pre-wrap">{item.body}</p>}{item.external_reference && <p className="mt-3 text-xs erp-accent" dir="ltr">{item.external_reference}</p>}{canQueue && <button type="button" onClick={onQueue} className="mt-4 rounded-xl px-4 py-2 font-black flex items-center gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Send size={17} />{fa ? "ارسال به صف امن انتشار" : "Queue secure delivery"}</button>}</article>;
+function OpportunitySection({ icon, title, items, empty, render }) {
+  return (
+    <div className="erp-surface rounded-3xl p-5">
+      <div className="flex items-center gap-2 mb-3">{icon}<h3 className="text-lg font-black">{title}</h3></div>
+      {!items?.length ? (
+        <p style={{ color: "var(--erp-muted)" }}>{empty}</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item, index) => (
+            <div key={index} className="rounded-xl p-3 text-sm" style={{ background: "var(--erp-panel-solid)" }}>{render(item)}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CampaignCard({ item, language, canQueue, onQueue }) {
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
+  const statusMaps = {
+    fa: { draft: "پیش‌نویس", pending_approval: "در انتظار تأیید", approved: "تأییدشده", scheduled: "زمان‌بندی‌شده", published: "منتشرشده", rejected: "ردشده", failed: "ناموفق" },
+    ar: { draft: "مسودة", pending_approval: "بانتظار الموافقة", approved: "معتمد", scheduled: "مجدول", published: "منشور", rejected: "مرفوض", failed: "فشل" },
+    tr: { draft: "Taslak", pending_approval: "Onay bekliyor", approved: "Onaylandı", scheduled: "Zamanlandı", published: "Yayınlandı", rejected: "Reddedildi", failed: "Başarısız" },
+    en: { draft: "Draft", pending_approval: "Pending approval", approved: "Approved", scheduled: "Scheduled", published: "Published", rejected: "Rejected", failed: "Failed" },
+  };
+  const status = (statusMaps[language] || statusMaps.en)[item.status] || item.status;
+  return <article className="erp-surface rounded-2xl p-5"><div className="flex justify-between gap-3"><div><h3 className="font-black text-lg">{item.title}</h3><p className="text-sm mt-1" style={{ color: "var(--erp-muted)" }}>{item.channel} {item.product_name ? `• ${item.product_name}` : ""}</p></div><span className="rounded-full px-3 py-1 h-fit text-sm font-black" style={{ background: "var(--erp-glow)", color: "var(--erp-accent)" }}>{status}</span></div>{item.body && <p className="mt-3 whitespace-pre-wrap">{item.body}</p>}{item.external_reference && <p className="mt-3 text-xs erp-accent" dir="ltr">{item.external_reference}</p>}{canQueue && <button type="button" onClick={onQueue} className="mt-4 rounded-xl px-4 py-2 font-black flex items-center gap-2" style={{ background: "#22c55e", color: "#052e16" }}><Send size={17} />{tr("ارسال به صف امن انتشار", "إرسال إلى قائمة الانتظار الآمنة", "Güvenli teslimat sırasına gönder", "Queue secure delivery")}</button>}</article>;
 }

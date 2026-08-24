@@ -2,35 +2,50 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import text, Column, Integer, String, Float, Boolean, Text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List
 from datetime import datetime, timedelta
+import hashlib
+import json
+import logging
 import os
+
+# Task 08 Section 13: no logging configuration existed anywhere in the
+# backend before this - every module either used print() or relied on
+# Python's unconfigured "handler of last resort" (app/auth.py's warnings).
+# This only sets format/level for whatever already gets logged; it doesn't
+# add new logging calls or a file/rotation handler - an operator redirects
+# stdout/stderr to a file themselves (see WINDOWS_INSTALL.md), same as any
+# other process run under a supervisor. Default INFO, never DEBUG, to avoid
+# noisy production output; override with VETRIX_LOG_LEVEL if needed.
+logging.basicConfig(
+    level=os.getenv("VETRIX_LOG_LEVEL", "INFO").strip().upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 from app.database import SessionLocal, engine, Base
 from app.models.user import User
+from app.models.company import Company
+from app.company_scope import current_company_id, DEFAULT_COMPANY_ID
 from app.models.customer import Customer
 from app.models.product import Product
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.accounting_entry import AccountingEntry
 from app.auth import (
-    create_access_token,
     decode_access_token,
     extract_bearer_token,
-    hash_password,
     is_public_request,
-    password_needs_upgrade,
-    verify_password,
 )
 from jwt import PyJWTError
 
 from app.notifications.alerts import get_low_stock_alerts
 from app.notifications.live import build_live_notifications
+from app.notifications.broadcaster import broadcaster
+from app.notifications.ws_routes import router as notifications_ws_router
 from app.ai.finance_ai import generate_financial_insight
 from app.analytics.profit_engine import build_profit_analysis
-from app.widgets.dashboard_widgets import get_recent_invoices, get_top_products
 from app.export.pdf_export import build_invoice_pdf
 from app.export.excel_export import build_invoice_excel
 from app.export.localization import format_report_date, format_report_money, localized_digits
@@ -40,14 +55,13 @@ from app.backup.auto_backup import (
     maybe_create_automatic_backup,
 )
 from app.backup.router import router as backup_router
+from app.backup.delivery import router as backup_delivery_router, trigger_due_deliveries
 from app.designer.routes import router as designer_router
-from app.finance.routes import router as finance_router
 from app.ai_bi.router import router as ai_bi_router
 from app.crm.router import router as crm_router
 from app.crm.sales_pipeline_routes import router as pipeline_router
 from app.smart_inventory.routes import router as smart_inventory_router
 from app.crm.files import router as crm_files_router
-from app.accounting.router import router as accounting_router
 from app.accounting.entries_router import router as accounting_entries_router
 from app.accounting.periods import router as fiscal_periods_router
 from app.accounting.statements import router as financial_statements_router
@@ -55,8 +69,14 @@ from app.accounting.closing import router as fiscal_closing_router
 from app.accounting.tax import router as vat_accounting_router
 from app.accounting.aging import router as aging_report_router
 from app.accounting.bank_reconciliation import router as bank_reconciliation_router
+from app.accounting.attachments import router as accounting_attachments_router
 from app.accounting.fixed_assets import router as fixed_assets_router
 from app.accounting.budgets import router as budgets_router
+from app.accounting.budget_plans import router as budget_plans_router
+from app.bi_improvement import router as bi_improvement_router
+from app.company_profile import router as company_profile_router
+from app.hr import router as hr_router
+from app.executive_agent.agent import router as executive_agent_router
 from app.accounting.currencies import router as currencies_router
 from app.accounting.approvals import router as approvals_router
 from app.accounting.treasury import router as treasury_router
@@ -65,22 +85,46 @@ from app.audit import record_audit_event, router as audit_router
 from app.system_health import router as system_health_router
 from app.online_commerce import router as online_commerce_router
 from app.change_requests import router as change_requests_router
+from app.field_visits import router as field_visits_router
 from app.inbound_voice import router as inbound_voice_router
 from app.storefront_sync import router as storefront_sync_router
 from app.campaign_delivery import router as campaign_delivery_router
 from app.financial_policy import financial_policy_values, router as financial_policy_router
 from app.data_import import router as data_import_router
-from app.security import (
-    login_attempt_key,
-    login_retry_after,
-    record_login_result,
-)
+from app.idempotency import run_idempotent
 from app.rbac import (
-    ROLE_LABELS,
+    customer_scope_for_role,
     is_authorized,
     normalize_role,
+    resolve_base_role,
     router as rbac_router,
 )
+from app.settings_routes import get_or_create_settings, router as settings_router
+from app.industry_fields import sanitize_industry_fields, router as industry_fields_router
+from app.users_routes import require_admin, router as users_router
+from app.mfa_routes import router as mfa_router
+from app.customer_portal import router as customer_portal_router
+from app.supplier_portal import router as supplier_portal_router
+from app.recurring_invoices import maybe_generate_due_recurring_invoices, router as recurring_invoices_router
+from app.payment_gateway import router as payment_gateway_router
+from app.payment_providers import router as payment_providers_router
+from app.payment_reminders import maybe_send_due_reminders, router as payment_reminders_router
+from app.report_delivery import maybe_send_scheduled_reports, router as report_delivery_router
+from app.warehouses import apply_warehouse_delta, invoice_warehouse_delta, router as warehouses_router
+from app.branches import router as branches_router
+from app.executive_alerts import router as executive_alerts_router
+from app.purchase_orders import router as purchase_orders_router
+from app.customers_export import MAX_EXPORT_ROWS, _require_export_role, router as customers_export_router
+from app.marketing_consent import router as marketing_consent_router
+from app.import_report_export import router as import_report_export_router
+from app.companies import router as companies_router
+from app.product_batches import router as product_batches_router
+from app.product_categories import router as product_categories_router
+from app.einvoice import router as einvoice_router
+from app.document_ocr import router as document_ocr_router
+from app.catalog import router as catalog_router, CatalogOrder
+from app.catalog_messaging import router as catalog_messaging_router
+from app.pricing import VALID_CUSTOMER_GROUPS, router as pricing_router
 from app.accounting.reporting import build_profit_loss, customer_net_sales, net_period_total
 from app.accounting.posting import (
     cash_account_for_method,
@@ -90,57 +134,29 @@ from app.accounting.posting import (
 )
 from app.accounting.integrity import (
     ALLOWED_INVOICE_TYPES,
+    ALLOWED_PAYMENT_METHODS,
     ALLOWED_PAYMENT_STATUSES,
     aggregate_item_quantities,
     calculate_invoice_totals,
     calculate_payment_status,
+    display_payment_status,
     expected_settlement_type,
     money as accounting_money,
 )
+from app.invoice_payments import (
+    apply_settlement,
+    create_installment_schedule,
+    insert_payment_allocation,
+    invoice_settlement_breakdown,
+    router as invoice_payments_router,
+    _ensure_schema as ensure_invoice_payments_schema,
+)
+from app.accounting.treasury import create_invoice_cheque_leg
+from app.approvals.engine import router as approvals_engine_router
+from app.invoice_verification import router as invoice_verification_router, verification_code as invoice_verification_code
+from app.message_templates import router as message_templates_router
 
 
-class AppSettings(Base):
-    __tablename__ = "app_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    company_name = Column(String, default="Vetrix ERP")
-    manager_name = Column(String, default="")
-    phone = Column(String, default="")
-    mobile = Column(String, default="")
-    email = Column(String, default="")
-    website = Column(String, default="")
-    address = Column(Text, default="")
-    national_id = Column(String, default="")
-    economic_code = Column(String, default="")
-    currency = Column(String, default="تومان")
-    country_code = Column(String, default="IR")
-    locale_code = Column(String, default="fa-IR")
-    currency_code = Column(String, default="IRR")
-    calendar_system = Column(String, default="persian")
-    time_zone = Column(String, default="Asia/Tehran")
-    first_day_of_week = Column(Integer, default=6)
-    fiscal_year_start = Column(String, default="01-01-persian")
-    tax_profile_version = Column(String, default="")
-    tax_profile_verified_at = Column(String, default="")
-    rounding_mode = Column(String, default="half_up")
-    decimal_places = Column(Integer, default=0)
-    measurement_system = Column(String, default="metric")
-    tax_percent = Column(Float, default=10)
-    discount_percent = Column(Float, default=0)
-    fiscal_year = Column(String, default="")
-    invoice_footer = Column(Text, default="")
-    show_qr = Column(Boolean, default=True)
-    show_barcode = Column(Boolean, default=True)
-    show_logo = Column(Boolean, default=True)
-    logo_data = Column(Text, default="")
-    stamp_data = Column(Text, default="")
-    signature_data = Column(Text, default="")
-    theme = Column(String, default="dark")
-    low_stock_default = Column(Float, default=5)
-    auto_backup = Column(Boolean, default=False)
-    sms_panel = Column(String, default="")
-    sms_api_key = Column(String, default="")
-    updated_at = Column(String, default="")
 
 
 Base.metadata.create_all(bind=engine)
@@ -158,6 +174,7 @@ def ensure_sqlite_column(table_name: str, column_name: str, column_sql: str):
 
 def ensure_database_schema():
     customer_columns = {
+        "mobile": "mobile VARCHAR",
         "email": "email VARCHAR",
         "city": "city VARCHAR",
         "national_id": "national_id VARCHAR",
@@ -166,6 +183,32 @@ def ensure_database_schema():
         "opening_balance": "opening_balance FLOAT DEFAULT 0",
         "credit_limit": "credit_limit FLOAT DEFAULT 0",
         "notes": "notes VARCHAR",
+        "portal_access_enabled": "portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "portal_token_generation": "portal_token_generation INTEGER DEFAULT 0 NOT NULL",
+        "pricing_group": "pricing_group VARCHAR DEFAULT 'retail' NOT NULL",
+        "supplier_portal_access_enabled": "supplier_portal_access_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "supplier_portal_token_generation": "supplier_portal_token_generation INTEGER DEFAULT 0 NOT NULL",
+        "assigned_rep_id": "assigned_rep_id INTEGER",
+        # Set once the customer has messaged the company's Telegram bot (a
+        # bot can't message a user who hasn't started that chat first) -
+        # see app/telegram_utils.py.
+        "telegram_chat_id": "telegram_chat_id VARCHAR DEFAULT ''",
+        # Registered location for the Visitor module's geofenced check-ins
+        # and distance sorting - see app/field_visits.py.
+        "latitude": "latitude FLOAT",
+        "longitude": "longitude FLOAT",
+        # Marketing-campaign consent only (Task 02 Section 10) - defaults to
+        # true (opt-in), a deliberate product decision: existing customers
+        # are treated as already reachable, matching today's de-facto
+        # behavior. Unrelated to transactional sends (payment reminders,
+        # invoice links) which never checked this and still don't.
+        "marketing_consent": "marketing_consent BOOLEAN DEFAULT 1 NOT NULL",
+        # Consent provenance (Task 07 Section 4/C) - see app/marketing_consent.py.
+        # Declared on the Customer ORM model, so must exist before any ORM
+        # query touches the customers table, not just lazily on write.
+        "marketing_consent_source": "marketing_consent_source VARCHAR DEFAULT 'default'",
+        "marketing_consent_recorded_at": "marketing_consent_recorded_at VARCHAR",
+        "marketing_consent_recorded_by": "marketing_consent_recorded_by INTEGER",
     }
 
     invoice_columns = {
@@ -178,13 +221,47 @@ def ensure_database_schema():
         "payment_status": "payment_status VARCHAR DEFAULT 'unpaid'",
         "invoice_note": "invoice_note VARCHAR",
         "qr_enabled": "qr_enabled BOOLEAN DEFAULT 1",
+        "payment_terms_days": "payment_terms_days INTEGER DEFAULT 0",
+        "due_date": "due_date VARCHAR",
+        "source": "source VARCHAR DEFAULT 'desk'",
+        "amount_paid": "amount_paid REAL NOT NULL DEFAULT 0",
+        "void_status": "void_status VARCHAR NOT NULL DEFAULT 'active'",
+        "voided_at": "voided_at VARCHAR",
+        "voided_by": "voided_by INTEGER",
+        "void_reason": "void_reason VARCHAR DEFAULT ''",
+        # Modular per-industry extra fields (veterinary/human_medical/
+        # pharmacy/...) - see app/industry_fields.py. A free-form JSON blob
+        # rather than dedicated columns so adding a new industry or field
+        # never needs a migration.
+        "industry_fields_json": "industry_fields_json TEXT DEFAULT '{}'",
     }
 
     for name, sql in customer_columns.items():
         ensure_sqlite_column("customers", name, sql)
 
+    product_columns = {
+        "preferred_supplier_id": "preferred_supplier_id INTEGER",
+        "lead_time_days": "lead_time_days INTEGER DEFAULT 0",
+        "barcode2": "barcode2 VARCHAR",
+        "barcode3": "barcode3 VARCHAR",
+        "description": "description VARCHAR",
+        "count_in_pack": "count_in_pack FLOAT",
+        "is_active": "is_active BOOLEAN NOT NULL DEFAULT 1",
+    }
+    for name, sql in product_columns.items():
+        ensure_sqlite_column("products", name, sql)
+
     for name, sql in invoice_columns.items():
         ensure_sqlite_column("invoices", name, sql)
+
+    invoice_item_columns = {
+        "warehouse_id": "warehouse_id INTEGER",
+    }
+    for name, sql in invoice_item_columns.items():
+        ensure_sqlite_column("invoice_items", name, sql)
+
+    ensure_sqlite_column("catalog_orders", "converted_invoice_id", "converted_invoice_id INTEGER")
+    ensure_sqlite_column("pdf_templates", "kind", "kind VARCHAR NOT NULL DEFAULT 'invoice'")
 
     settings_columns = {
         "country_code": "country_code VARCHAR DEFAULT 'IR'",
@@ -199,15 +276,81 @@ def ensure_database_schema():
         "rounding_mode": "rounding_mode VARCHAR DEFAULT 'half_up'",
         "decimal_places": "decimal_places INTEGER DEFAULT 0",
         "measurement_system": "measurement_system VARCHAR DEFAULT 'metric'",
+        "smtp_host": "smtp_host VARCHAR DEFAULT ''",
+        "smtp_port": "smtp_port INTEGER DEFAULT 587",
+        "smtp_user": "smtp_user VARCHAR DEFAULT ''",
+        "smtp_password": "smtp_password VARCHAR DEFAULT ''",
+        "smtp_from": "smtp_from VARCHAR DEFAULT ''",
+        "reminder_channels_json": "reminder_channels_json TEXT DEFAULT '[]'",
+        "backup_email": "backup_email VARCHAR DEFAULT ''",
+        "backup_email_frequency_hours": "backup_email_frequency_hours INTEGER DEFAULT 168",
+        "last_backup_email_at": "last_backup_email_at VARCHAR DEFAULT ''",
+        "industry": "industry VARCHAR DEFAULT 'general'",
+        "telegram_bot_token": "telegram_bot_token VARCHAR DEFAULT ''",
+        "whatsapp_phone_number_id": "whatsapp_phone_number_id VARCHAR DEFAULT ''",
+        "whatsapp_access_token": "whatsapp_access_token VARCHAR DEFAULT ''",
     }
     for name, sql in settings_columns.items():
         ensure_sqlite_column("app_settings", name, sql)
 
     user_columns = {
         "must_change_password": "must_change_password BOOLEAN DEFAULT 0 NOT NULL",
+        "token_generation": "token_generation INTEGER DEFAULT 0 NOT NULL",
+        "totp_secret": "totp_secret VARCHAR",
+        "totp_enabled": "totp_enabled BOOLEAN DEFAULT 0 NOT NULL",
+        "totp_recovery_codes": "totp_recovery_codes TEXT",
+        "company_id": "company_id INTEGER",
+        "is_super_admin": "is_super_admin BOOLEAN DEFAULT 0 NOT NULL",
+        "avatar_data": "avatar_data TEXT DEFAULT ''",
     }
     for name, sql in user_columns.items():
         ensure_sqlite_column("users", name, sql)
+
+
+def ensure_default_company():
+    """Multi-company milestone 1 (foundation only - see app/models/company.py):
+    guarantee at least one company exists and every user belongs to one. On
+    an existing single-tenant installation this creates exactly one company
+    and backfills every user to it, so the app's observable behavior is
+    unchanged until a later milestone adds actual per-company data scoping
+    to business queries (customers/products/invoices/etc.)."""
+    with engine.connect() as conn:
+        company_id = conn.execute(text("SELECT id FROM companies ORDER BY id LIMIT 1")).scalar()
+        if not company_id:
+            result = conn.execute(text("""
+                INSERT INTO companies (name, is_active, created_at)
+                VALUES (:name, 1, :now)
+            """), {"name": "شرکت پیش‌فرض", "now": datetime.utcnow().isoformat()})
+            company_id = result.lastrowid
+        conn.execute(text(
+            "UPDATE users SET company_id=:company_id WHERE company_id IS NULL"
+        ), {"company_id": company_id})
+        conn.commit()
+
+
+def ensure_first_super_admin():
+    """Milestone 4: guarantee at least one super-admin exists whenever at
+    least one user exists. Handles two cases with one idempotent check: a
+    brand-new install (the bootstrap admin created via POST /users while
+    role == "bootstrap" is already flagged super-admin directly in
+    users_routes.py's create_user - this is just the safety net), and an
+    already-in-production database upgrading to this milestone, where the
+    is_super_admin column above lands defaulted to False for every existing
+    row and nothing would otherwise ever be able to create a second company.
+    Only acts when zero super-admins currently exist, so it never fights a
+    deliberate demotion once at least one is set."""
+    with engine.connect() as conn:
+        existing = conn.execute(text("SELECT COUNT(*) FROM users WHERE is_super_admin = 1")).scalar()
+        if existing:
+            return
+        candidate = conn.execute(text(
+            "SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1"
+        )).scalar()
+        if not candidate:
+            candidate = conn.execute(text("SELECT id FROM users ORDER BY id ASC LIMIT 1")).scalar()
+        if candidate:
+            conn.execute(text("UPDATE users SET is_super_admin = 1 WHERE id = :id"), {"id": candidate})
+            conn.commit()
 
 
 def ensure_extra_tables():
@@ -239,20 +382,113 @@ def ensure_extra_tables():
         """))
         conn.commit()
 
+    ensure_sqlite_column("stock_movements", "warehouse_id", "warehouse_id INTEGER")
+
+
+# Every business-data table that Milestone 2 scopes by company. Tables here
+# are created either eagerly (SQLAlchemy models / module-level __table__.create
+# calls, all of which have already run by the time this function is called)
+# or lazily by their own module's _ensure_schema() (app/accounting/*,
+# app/online_commerce.py, app/campaign_delivery.py, app/data_import.py,
+# app/change_requests.py, app/inbound_voice.py) - those modules also carry
+# their own ensure_company_id_column() call so a fresh database still gets
+# the column the first time the table is actually created. Listing them here
+# too keeps an already-populated database (like this one) covered immediately
+# without waiting for that lazy path to run.
+COMPANY_SCOPED_TABLES = [
+    "customers", "products", "invoices", "invoice_items", "accounting_entries",
+    "expenses", "stock_movements",
+    "warehouses", "warehouse_stock",
+    "purchase_orders", "purchase_order_items", "purchase_order_dispatch_log",
+    "product_batches", "product_categories", "price_tiers", "pricing_rules",
+    "recurring_invoice_templates", "payment_reminder_log", "payment_sessions",
+    "einvoice_submissions", "catalog_links", "catalog_orders",
+    "inbound_catalog_messages",
+    "customer_notes", "customer_transactions",
+    "crm_notes", "crm_tasks", "crm_interactions", "customer_loyalty",
+    "sales_pipeline_deals",
+    "pdf_templates", "report_delivery_schedules",
+    "message_templates", "message_template_editors",
+    "online_product_settings", "social_campaigns", "commerce_connections",
+    "campaign_delivery_jobs",
+    "data_import_batches", "data_import_product_links", "data_import_mapping_profiles",
+    "managed_change_requests", "managed_change_events",
+    "field_visits",
+    "inbound_voice_events",
+    "chart_accounts", "accounting_vouchers", "accounting_voucher_lines",
+    "cost_centers", "accounting_projects", "accounting_currencies", "accounting_exchange_rates",
+    "fiscal_periods", "accounting_budgets",
+    "treasury_cheques", "treasury_cheque_events",
+    "fixed_assets", "fixed_asset_depreciation",
+    "bank_accounts", "bank_statement_lines", "bank_reconciliation_matches",
+    "accounting_approval_requests", "accounting_approval_events",
+    "app_settings", "financial_policy_versions", "financial_policy_events",
+    "invoice_payment_allocations", "invoice_installment_plans", "invoice_installment_schedule",
+    "approval_rules", "approval_requests", "approval_events",
+    "idempotency_keys",
+    "payment_providers",
+    "branches",
+    "executive_alert_settings",
+    "budget_plans",
+    "budget_goods_lines",
+    "bi_findings", "bi_action_plans", "bi_action_tasks", "bi_finding_history", "bi_metric_snapshots",
+    "company_profile", "company_goals",
+    "employees", "employee_history", "employee_compensation", "employee_leave_balances",
+    "employee_leave_requests", "employee_attendance", "employee_performance_reviews",
+    "backup_delivery_policies", "backup_delivery_log",
+    "executive_agent_conversations", "executive_agent_messages",
+    "executive_agent_tool_runs", "executive_agent_external_bindings",
+]
+
+
+def ensure_company_scoping_columns():
+    """Milestone 2: retrofit `company_id` onto every business-data table.
+    Schema-only step - adds the column (backfilled to the default company)
+    but does not change what any query returns yet. Safe on a fresh database:
+    tables that don't exist yet are skipped and will pick up the column via
+    their own module's lazy schema-ensure function once first created."""
+    from app.company_scope import ensure_company_id_column
+    with engine.connect() as conn:
+        existing_tables = {
+            row[0]
+            for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()
+        }
+        for table_name in COMPANY_SCOPED_TABLES:
+            if table_name in existing_tables:
+                ensure_company_id_column(conn, table_name)
+        conn.commit()
+
 
 ensure_database_schema()
+ensure_default_company()
+ensure_first_super_admin()
 ensure_extra_tables()
+ensure_company_scoping_columns()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="1.3.0"
+    version="1.4.0"
 )
+
+_logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(Exception)
+async def _log_unhandled_exception(request: Request, exc: Exception):
+    """Task 08 Section 13: an uncaught exception during request handling
+    previously became a generic 500 with zero server-side trace - the
+    client got a plain error and the operator had nothing to diagnose from.
+    Logs the real exception (never the request body, which could carry a
+    password/token) before returning the same generic response FastAPI's
+    default handler would have."""
+    _logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
 
 app.include_router(designer_router)
-app.include_router(finance_router)
+app.include_router(product_categories_router)
 app.include_router(ai_bi_router)
 app.include_router(pipeline_router)
 app.include_router(smart_inventory_router)
@@ -264,23 +500,61 @@ app.include_router(fiscal_closing_router)
 app.include_router(vat_accounting_router)
 app.include_router(aging_report_router)
 app.include_router(bank_reconciliation_router)
+app.include_router(accounting_attachments_router)
 app.include_router(fixed_assets_router)
 app.include_router(budgets_router)
+app.include_router(budget_plans_router)
+app.include_router(bi_improvement_router)
+app.include_router(company_profile_router)
+app.include_router(hr_router)
+app.include_router(executive_agent_router)
 app.include_router(currencies_router)
 app.include_router(approvals_router)
 app.include_router(treasury_router)
+app.include_router(invoice_payments_router)
+app.include_router(approvals_engine_router)
+app.include_router(industry_fields_router)
+app.include_router(invoice_verification_router)
+app.include_router(message_templates_router)
 app.include_router(release_preflight_router)
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(backup_router)
+app.include_router(backup_delivery_router)
 app.include_router(system_health_router)
 app.include_router(online_commerce_router)
 app.include_router(change_requests_router)
+app.include_router(field_visits_router)
 app.include_router(inbound_voice_router)
 app.include_router(storefront_sync_router)
 app.include_router(campaign_delivery_router)
 app.include_router(financial_policy_router)
 app.include_router(data_import_router)
+app.include_router(settings_router)
+app.include_router(users_router)
+app.include_router(mfa_router)
+app.include_router(notifications_ws_router)
+app.include_router(customer_portal_router)
+app.include_router(supplier_portal_router)
+app.include_router(recurring_invoices_router)
+app.include_router(payment_gateway_router)
+app.include_router(payment_providers_router)
+app.include_router(payment_reminders_router)
+app.include_router(report_delivery_router)
+app.include_router(warehouses_router)
+app.include_router(branches_router)
+app.include_router(executive_alerts_router)
+app.include_router(purchase_orders_router)
+app.include_router(customers_export_router)
+app.include_router(marketing_consent_router)
+app.include_router(import_report_export_router)
+app.include_router(companies_router)
+app.include_router(product_batches_router)
+app.include_router(einvoice_router)
+app.include_router(document_ocr_router)
+app.include_router(catalog_router)
+app.include_router(catalog_messaging_router)
+app.include_router(pricing_router)
 
 default_origins = ",".join([
     "http://localhost:5173",
@@ -307,6 +581,10 @@ async def require_authenticated_api(request: Request, call_next):
                 await run_in_threadpool(record_audit_event, request, status_code)
                 if status_code < 400:
                     await run_in_threadpool(maybe_create_automatic_backup)
+                    await run_in_threadpool(maybe_generate_due_recurring_invoices)
+                    await run_in_threadpool(maybe_send_due_reminders)
+                    await run_in_threadpool(maybe_send_scheduled_reports)
+                    await run_in_threadpool(trigger_due_deliveries)
             except Exception:
                 # Audit storage must never turn a completed business operation
                 # into a client-visible failure.
@@ -326,41 +604,49 @@ async def require_authenticated_api(request: Request, call_next):
         finally:
             db.close()
 
+    async def _audited_401(detail):
+        try:
+            await run_in_threadpool(record_audit_event, request, 401)
+        except Exception:
+            pass
+        return JSONResponse(status_code=401, content={"detail": detail})
+
     token = extract_bearer_token(request.headers.get("Authorization"))
     if not token:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Authentication required"},
-        )
+        return await _audited_401("Authentication required")
 
     try:
         request.state.auth = decode_access_token(token)
     except PyJWTError:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Invalid or expired token"},
-        )
+        return await _audited_401("Invalid or expired token")
 
     try:
         authenticated_user_id = int(request.state.auth.get("sub"))
     except (TypeError, ValueError):
-        return JSONResponse(status_code=401, content={"detail": "Invalid authentication context"})
+        return await _audited_401("Invalid authentication context")
 
     auth_db: Session = SessionLocal()
     try:
         authenticated_user = auth_db.query(User).filter(User.id == authenticated_user_id).first()
         if not authenticated_user:
-            return JSONResponse(status_code=401, content={"detail": "User no longer exists"})
+            return await _audited_401("User no longer exists")
+
+        current_generation = int(getattr(authenticated_user, "token_generation", 0) or 0)
+        token_generation = int(request.state.auth.get("gen", 0) or 0)
+        if token_generation != current_generation:
+            return await _audited_401("Session has been revoked, please log in again")
+
         request.state.auth["username"] = authenticated_user.username
         request.state.auth["role"] = normalize_role(authenticated_user.role)
         request.state.auth["must_change_password"] = bool(getattr(authenticated_user, "must_change_password", False))
+        request.state.auth["is_super_admin"] = bool(getattr(authenticated_user, "is_super_admin", False))
     finally:
         auth_db.close()
 
     is_password_change_request = request.url.path == "/users/me/password" and request.method.upper() == "PUT"
 
     if request.state.auth.get("must_change_password") and not (
-        request.url.path in {"/me", "/users/me/password"}
+        request.url.path in {"/me", "/users/me/password", "/logout"}
         or request.url.path.startswith("/api/audit")
     ):
         return JSONResponse(
@@ -372,6 +658,7 @@ async def require_authenticated_api(request: Request, call_next):
         request.state.auth.get("role"),
         request.method,
         request.url.path,
+        is_super_admin=request.state.auth.get("is_super_admin", False),
     ):
         try:
             await run_in_threadpool(record_audit_event, request, 403)
@@ -385,45 +672,34 @@ async def require_authenticated_api(request: Request, call_next):
     return await call_and_audit()
 
 
-app.add_middleware(
-    CORSMiddleware,
+_cors_kwargs = dict(
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if os.getenv("VETRIX_ENV", "development").strip().lower() == "development":
+    # Dev convenience only (Vite may pick an arbitrary port beyond the
+    # 5173/5174 defaults) - Task 08 Section 18: this previously applied
+    # unconditionally, meaning any browser tab presenting an
+    # "Origin: http://localhost:<any port>" header got a credentialed CORS
+    # pass in production too, regardless of VETRIX_ALLOWED_ORIGINS. A real
+    # deployment must list its exact origin(s) via VETRIX_ALLOWED_ORIGINS
+    # instead of relying on this pattern. Allowlist-based ("== development"),
+    # not denylist-based ("!= production") - the packaged desktop build
+    # (VETRIX_ENV=desktop, same class of gap already closed once for
+    # payment-simulate) already sets its own exact VETRIX_ALLOWED_ORIGINS
+    # via desktop_launcher.py's network config, so it never needed this
+    # loose fallback and shouldn't carry its extra surface either.
+    _cors_kwargs["allow_origin_regex"] = r"^http://(localhost|127\.0\.0\.1):\d+$"
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
-
-class UserCreate(BaseModel):
-    full_name: str
-    username: str
-    password: str
-    role: str = "admin"
-
-
-class UserRoleUpdate(BaseModel):
-    role: str
-
-
-class UserPasswordReset(BaseModel):
-    password: str
-    force_change_on_next_login: bool = True
-
-
-class PasswordChangeRequest(BaseModel):
-    current_password: str
-    new_password: str
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
 
 
 class CustomerCreate(BaseModel):
     name: str
     phone: str = ""
+    mobile: str = ""
     email: str = ""
     address: str = ""
     city: str = ""
@@ -434,23 +710,64 @@ class CustomerCreate(BaseModel):
     opening_balance: float = 0
     credit_limit: float = 0
     notes: str = ""
+    pricing_group: str = "retail"
+    assigned_rep_id: Optional[int] = None
+    telegram_chat_id: str = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    marketing_consent: bool = True
 
 
 class ProductCreate(BaseModel):
     name: str
     barcode: Optional[str] = None
+    barcode2: Optional[str] = None
+    barcode3: Optional[str] = None
     code: Optional[str] = None
+    sku: Optional[str] = None
     price: Optional[float] = None
     sell_price: Optional[float] = None
     buy_price: Optional[float] = None
     unit: Optional[str] = "عدد"
     stock: float = 0
+    min_stock: Optional[float] = None
+    minimum_stock: Optional[float] = None
+    preferred_supplier_id: Optional[int] = None
+    lead_time_days: int = 0
+    brand: Optional[str] = None
+    main_category: Optional[str] = None
+    sub_category: Optional[str] = None
+    image: Optional[str] = None
+    description: Optional[str] = None
+    count_in_pack: Optional[float] = None
+    is_active: bool = True
 
 
 class InvoiceItemCreate(BaseModel):
     product_id: int
     quantity: float
     unit_price: float
+    warehouse_id: Optional[int] = None
+
+
+class InvoicePaymentAllocationCreate(BaseModel):
+    """One payment/receipt leg collected atomically alongside invoice
+    creation - see app/invoice_payments.py. A 'cheque' leg does not settle
+    the invoice immediately (app/accounting/treasury.py owns its lifecycle);
+    every other method settles immediately via _apply_settlement."""
+    method: str
+    amount: float
+    reference_number: str = ""
+    account_or_cashbox: str = ""
+    cheque_number: str = ""
+    cheque_bank_name: str = ""
+    cheque_branch_name: str = ""
+    cheque_due_date: str = ""
+    installment_index: Optional[int] = None
+    collector_user_id: Optional[int] = None
+    branch_warehouse_id: Optional[int] = None
+    note: str = ""
+    allow_overpayment: bool = False
 
 
 class InvoiceCreate(BaseModel):
@@ -463,6 +780,28 @@ class InvoiceCreate(BaseModel):
     payment_status: str = "unpaid"
     invoice_note: str = ""
     qr_enabled: bool = True
+    payment_terms_days: int = 0
+    due_date: str = ""
+    source: str = "desk"
+    payments: List[InvoicePaymentAllocationCreate] = []
+    installment_plan: Optional[dict] = None
+    industry_fields: dict = {}
+
+
+def _load_industry_fields(raw: str) -> dict:
+    try:
+        parsed = json.loads(raw or "{}")
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def resolve_invoice_due_date(payment_terms_days: int, due_date: str) -> str:
+    if due_date:
+        return due_date
+    if payment_terms_days and payment_terms_days > 0:
+        return (datetime.utcnow().date() + timedelta(days=payment_terms_days)).isoformat()
+    return ""
 
 
 class PaymentCreate(BaseModel):
@@ -472,6 +811,17 @@ class PaymentCreate(BaseModel):
     method: str = "cash"
     note: str = ""
     invoice_id: Optional[int] = None
+
+
+EXPENSE_CATEGORY_ACCOUNTS = {
+    "general": "5102",
+    "rent_utilities": "5104",
+    "marketing": "5105",
+    "payroll": "5106",
+    "transport": "5107",
+    "office_supplies": "5108",
+    "maintenance": "5109",
+}
 
 
 class ExpenseCreate(BaseModel):
@@ -484,6 +834,7 @@ class ExpenseCreate(BaseModel):
 
 class StockMovementCreate(BaseModel):
     warehouse: str = "Main"
+    warehouse_id: Optional[int] = None
     product_id: int
     quantity: float
     movement_type: str = "in"  # in / out / adjustment
@@ -491,44 +842,6 @@ class StockMovementCreate(BaseModel):
     note: str = ""
 
 
-class AppSettingsUpdate(BaseModel):
-    company_name: str = "Vetrix ERP"
-    manager_name: str = ""
-    phone: str = ""
-    mobile: str = ""
-    email: str = ""
-    website: str = ""
-    address: str = ""
-    national_id: str = ""
-    economic_code: str = ""
-    currency: str = "تومان"
-    country_code: str = "IR"
-    locale_code: str = "fa-IR"
-    currency_code: str = "IRR"
-    calendar_system: str = "persian"
-    time_zone: str = "Asia/Tehran"
-    first_day_of_week: int = 6
-    fiscal_year_start: str = "01-01-persian"
-    tax_profile_version: str = ""
-    tax_profile_verified_at: str = ""
-    rounding_mode: str = "half_up"
-    decimal_places: int = 0
-    measurement_system: str = "metric"
-    tax_percent: float = 10
-    discount_percent: float = 0
-    fiscal_year: str = ""
-    invoice_footer: str = ""
-    show_qr: bool = True
-    show_barcode: bool = True
-    show_logo: bool = True
-    logo_data: str = ""
-    stamp_data: str = ""
-    signature_data: str = ""
-    theme: str = "dark"
-    low_stock_default: float = 5
-    auto_backup: bool = False
-    sms_panel: str = ""
-    sms_api_key: str = ""
 
 
 def customer_balance(db: Session, customer_id: int) -> float:
@@ -538,7 +851,16 @@ def customer_balance(db: Session, customer_id: int) -> float:
         .order_by(AccountingEntry.created_at.asc(), AccountingEntry.id.asc())
         .all()
     )
-    return sum((e.debit or 0) - (e.credit or 0) for e in entries)
+    # Plain float accumulation over a customer's entire lifetime of ledger
+    # entries drifts off an exact cent value the longer the history gets
+    # (e.g. a real 400-entry history reproduces as 22276.830000000038) - this
+    # is then returned as-is as "balance"/"debit"/"credit" in customer_to_dict,
+    # so the noise was visible in the raw API response. Quantize through the
+    # same Decimal/ROUND_HALF_UP money() helper (imported above as
+    # accounting_money) already used for every other money figure in this
+    # file, rather than leaving the sum as a raw float.
+    raw_balance = sum((e.debit or 0) - (e.credit or 0) for e in entries)
+    return float(accounting_money(raw_balance))
 
 def rebuild_customer_balances(db: Session, customer_id: int):
     entries = (
@@ -551,8 +873,12 @@ def rebuild_customer_balances(db: Session, customer_id: int):
     balance = 0
 
     for entry in entries:
-        balance += float(entry.debit or 0)
-        balance -= float(entry.credit or 0)
+        # Re-quantize after every entry (not just once at the end) so the
+        # per-row balance_after stored to the ledger - shown on printed
+        # statements (main.py's _fmt_money(entry.balance_after, ...)) and
+        # returned raw by /customers/{id} transaction lists - never
+        # accumulates the same float drift customer_balance() above had.
+        balance = float(accounting_money(balance + float(entry.debit or 0) - float(entry.credit or 0)))
 
         entry.balance_after = balance
 
@@ -571,6 +897,12 @@ def add_customer_entry(
     balance_before = customer_balance(db, customer_id)
     balance_after = balance_before + float(debit or 0) - float(credit or 0)
 
+    # company_id is derived from the customer, not passed in separately - the
+    # customer row was already resolved (and company-checked) by the caller,
+    # so this stays correct without threading a new parameter through every
+    # one of add_customer_entry's call sites (opening balance, invoices,
+    # payments/receipts).
+    owning_customer = db.query(Customer).filter(Customer.id == customer_id).first()
     entry = AccountingEntry(
         customer_id=customer_id,
         source_type=source_type,
@@ -581,6 +913,7 @@ def add_customer_entry(
         credit=float(credit or 0),
         balance_after=balance_after,
         created_at=datetime.utcnow(),
+        company_id=owning_customer.company_id if owning_customer else None,
     )
     db.add(entry)
     return entry
@@ -599,6 +932,7 @@ def sync_customer_opening_general_ledger(db, customer, opening_balance):
         delete_source_voucher(
             "customer_opening",
             customer.id,
+            customer.company_id,
             connection=connection,
         )
         return
@@ -619,6 +953,7 @@ def sync_customer_opening_general_ledger(db, customer, opening_balance):
         customer.id,
         description,
         lines,
+        customer.company_id,
         voucher_date=_entity_date(customer.created_at),
         connection=connection,
     )
@@ -633,6 +968,7 @@ def sync_product_opening_general_ledger(db, product):
         delete_source_voucher(
             "product_opening",
             product.id,
+            product.company_id,
             connection=connection,
         )
         return
@@ -646,6 +982,7 @@ def sync_product_opening_general_ledger(db, product):
             {"account_code": "1201", "debit": amount, "description": description},
             {"account_code": "3101", "credit": amount, "description": description},
         ],
+        product.company_id,
         voucher_date=datetime.utcnow().date().isoformat(),
         connection=connection,
     )
@@ -679,6 +1016,7 @@ def post_inventory_adjustment_general_ledger(
         movement_id,
         description,
         lines,
+        product.company_id,
         voucher_date=movement_date,
         connection=db.connection(),
     )
@@ -690,6 +1028,7 @@ def customer_to_dict(db: Session, c: Customer):
         "id": c.id,
         "name": c.name,
         "phone": c.phone or "",
+        "mobile": getattr(c, "mobile", "") or "",
         "email": getattr(c, "email", "") or "",
         "address": c.address or "",
         "city": getattr(c, "city", "") or "",
@@ -700,6 +1039,14 @@ def customer_to_dict(db: Session, c: Customer):
         "opening_balance": getattr(c, "opening_balance", 0) or 0,
         "credit_limit": getattr(c, "credit_limit", 0) or 0,
         "notes": getattr(c, "notes", "") or "",
+        "pricing_group": getattr(c, "pricing_group", "retail") or "retail",
+        "assigned_rep_id": getattr(c, "assigned_rep_id", None),
+        "telegram_chat_id": getattr(c, "telegram_chat_id", "") or "",
+        "latitude": getattr(c, "latitude", None),
+        "longitude": getattr(c, "longitude", None),
+        "marketing_consent": bool(getattr(c, "marketing_consent", True)),
+        "marketing_consent_source": getattr(c, "marketing_consent_source", None) or "default",
+        "marketing_consent_recorded_at": getattr(c, "marketing_consent_recorded_at", None),
         "balance": balance,
         "debit": balance if balance > 0 else 0,
         "credit": abs(balance) if balance < 0 else 0,
@@ -722,6 +1069,8 @@ def product_to_dict(product):
         "name": getattr(product, "name", "") or "",
         "code": getattr(product, "code", "") or "",
         "barcode": getattr(product, "barcode", "") or "",
+        "barcode2": getattr(product, "barcode2", "") or "",
+        "barcode3": getattr(product, "barcode3", "") or "",
         "sku": getattr(product, "sku", "") or "",
         "brand": getattr(product, "brand", "") or "",
         "unit": getattr(product, "unit", "") or "عدد",
@@ -733,355 +1082,121 @@ def product_to_dict(product):
         "main_category": getattr(product, "main_category", "") or "",
         "sub_category": getattr(product, "sub_category", "") or "",
         "image": getattr(product, "image", "") or "",
+        "description": getattr(product, "description", "") or "",
+        "count_in_pack": getattr(product, "count_in_pack", None),
+        "preferred_supplier_id": getattr(product, "preferred_supplier_id", None),
+        "lead_time_days": int(getattr(product, "lead_time_days", 0) or 0),
         "low_stock": min_stock > 0 and stock <= min_stock,
+        "is_active": bool(getattr(product, "is_active", True)),
         "profit_per_unit": sell_price - buy_price,
         "stock_value_buy": stock * buy_price,
         "stock_value_sell": stock * sell_price,
         "value": stock * sell_price,
     }
 
+
+def publish_low_stock_if_needed(product: Product):
+    min_stock = float(getattr(product, "min_stock", 0) or 0)
+    stock = float(getattr(product, "stock", 0) or 0)
+    if min_stock > 0 and stock <= min_stock:
+        broadcaster.publish(
+            "low_stock",
+            product.company_id,
+            product_id=product.id,
+            product_name=product.name,
+            stock=stock,
+            min_stock=min_stock,
+        )
+
+
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "1.3.0", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": "1.4.0", "status": "online"}
 
 
-@app.get("/setup/status")
-def setup_status():
+@app.get("/health")
+def health():
+    """Minimal, unauthenticated liveness/readiness probe for a load balancer,
+    uptime monitor, or container orchestrator (Task 08 Section 14) - already
+    listed in app/auth.py's PUBLIC_PATHS, but no route ever implemented it
+    until now. Deliberately thin: unlike /api/system/health (admin-only,
+    detailed diagnostics), this never returns secrets, filesystem paths,
+    database contents, or provider credentials - just liveness + DB
+    reachability + version, safe to expose without a login."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        database_status = "reachable"
+    except Exception:
+        database_status = "unreachable"
+    return JSONResponse(
+        status_code=200 if database_status == "reachable" else 503,
+        content={
+            "status": "ok" if database_status == "reachable" else "unhealthy",
+            "database": database_status,
+            "version": "1.4.0",
+            "pilot_release_id": "v1.4.0-pilot.1",
+        },
+    )
+
+
+
+
+
+
+
+@app.get("/api/sales-reps")
+def list_sales_reps():
+    """Minimal, non-admin-gated user list (id/name only) so any signed-in
+    user can populate a customer-assignment dropdown - unlike GET /users,
+    which is admin-only and returns full account details."""
     db: Session = SessionLocal()
     try:
-        user_count = db.query(User).count()
-        return {
-            "initialized": user_count > 0,
-            "requires_admin": user_count == 0,
-            "user_count": user_count,
-            "version": "1.3.0",
-        }
-    finally:
-        db.close()
-
-
-def settings_to_dict(settings: AppSettings):
-    return {
-        "id": settings.id,
-        "company_name": settings.company_name or "Vetrix ERP",
-        "manager_name": settings.manager_name or "",
-        "phone": settings.phone or "",
-        "mobile": settings.mobile or "",
-        "email": settings.email or "",
-        "website": settings.website or "",
-        "address": settings.address or "",
-        "national_id": settings.national_id or "",
-        "economic_code": settings.economic_code or "",
-        "currency": settings.currency or "تومان",
-        "country_code": settings.country_code or "IR",
-        "locale_code": settings.locale_code or "fa-IR",
-        "currency_code": settings.currency_code or "IRR",
-        "calendar_system": settings.calendar_system or "persian",
-        "time_zone": settings.time_zone or "Asia/Tehran",
-        "first_day_of_week": int(settings.first_day_of_week if settings.first_day_of_week is not None else 6),
-        "fiscal_year_start": settings.fiscal_year_start or "01-01-persian",
-        "tax_profile_version": settings.tax_profile_version or "",
-        "tax_profile_verified_at": settings.tax_profile_verified_at or "",
-        "rounding_mode": settings.rounding_mode or "half_up",
-        "decimal_places": int(settings.decimal_places if settings.decimal_places is not None else 0),
-        "measurement_system": settings.measurement_system or "metric",
-        "tax_percent": float(settings.tax_percent or 0),
-        "discount_percent": float(settings.discount_percent or 0),
-        "fiscal_year": settings.fiscal_year or "",
-        "invoice_footer": settings.invoice_footer or "",
-        "show_qr": bool(settings.show_qr),
-        "show_barcode": bool(settings.show_barcode),
-        "show_logo": bool(settings.show_logo),
-        "logo_data": settings.logo_data or "",
-        "stamp_data": settings.stamp_data or "",
-        "signature_data": settings.signature_data or "",
-        "theme": settings.theme or "dark",
-        "low_stock_default": float(settings.low_stock_default or 0),
-        "auto_backup": bool(settings.auto_backup),
-        "sms_panel": settings.sms_panel or "",
-        "sms_api_key": settings.sms_api_key or "",
-        "updated_at": settings.updated_at or "",
-    }
-
-
-def get_or_create_settings(db: Session):
-    settings = db.query(AppSettings).first()
-    if not settings:
-        settings = AppSettings(updated_at=datetime.utcnow().isoformat())
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
-    return settings
-
-
-@app.get("/settings")
-def get_settings():
-    db: Session = SessionLocal()
-    try:
-        settings = get_or_create_settings(db)
-        result = settings_to_dict(settings)
-        db.close()
-        return result
-    except Exception as e:
-        db.rollback()
-        db.close()
-        return {"status": "error", "message": str(e)}
-
-
-@app.post("/settings")
-def save_settings(data: AppSettingsUpdate):
-    db: Session = SessionLocal()
-    try:
-        settings = get_or_create_settings(db)
-        payload = data.dict()
-
-        for key, value in payload.items():
-            if hasattr(settings, key):
-                setattr(settings, key, value)
-
-        settings.updated_at = datetime.utcnow().isoformat()
-        db.commit()
-        db.refresh(settings)
-
-        result = {"status": "saved", "settings": settings_to_dict(settings)}
-        db.close()
-        return result
-    except Exception as e:
-        db.rollback()
-        db.close()
-        return {"status": "error", "message": str(e)}
-
-
-@app.put("/settings")
-def update_settings(data: AppSettingsUpdate):
-    return save_settings(data)
-
-
-def require_admin(request: Request):
-    auth = getattr(request.state, "auth", {})
-    if auth.get("role") not in {"admin", "bootstrap"}:
-        raise HTTPException(status_code=403, detail="Administrator access required")
-
-
-@app.post("/users")
-def create_user(data: UserCreate, request: Request):
-    require_admin(request)
-    if len(data.password) < 12:
-        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
-    raw_role = str(data.role).strip().lower()
-    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
-    if raw_role not in ROLE_LABELS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
-        )
-    db: Session = SessionLocal()
-    try:
-        existing = db.query(User).filter(User.username == data.username).first()
-        if existing:
-            raise HTTPException(status_code=409, detail="User already exists")
-
-        user = User(
-            full_name=data.full_name,
-            username=data.username,
-            password=hash_password(data.password),
-            role=requested_role,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return {
-            "status": "created",
-            "id": user.id,
-            "username": user.username,
-            "role": user.role,
-            "must_change_password": bool(getattr(user, "must_change_password", False)),
-        }
-    finally:
-        db.close()
-
-
-def user_to_auth_dict(user: User):
-    return {
-        "id": user.id,
-        "full_name": user.full_name,
-        "username": user.username,
-        "role": user.role,
-        "must_change_password": bool(getattr(user, "must_change_password", False)),
-    }
-
-
-@app.get("/users")
-def list_users(request: Request):
-    require_admin(request)
-    db: Session = SessionLocal()
-    try:
-        return [user_to_auth_dict(user) for user in db.query(User).all()]
-    finally:
-        db.close()
-
-
-
-@app.put("/users/me/password")
-def change_own_password(data: PasswordChangeRequest, request: Request):
-    if len(data.new_password) < 12:
-        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
-    if data.current_password == data.new_password:
-        raise HTTPException(status_code=400, detail="New password must be different from the current password")
-
-    try:
-        user_id = int(request.state.auth["sub"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        raise HTTPException(status_code=401, detail="Invalid authentication context")
-
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User no longer exists")
-        if not verify_password(data.current_password, user.password):
-            raise HTTPException(status_code=401, detail="Current password is incorrect")
-        user.password = hash_password(data.new_password)
-        user.must_change_password = False
-        db.commit()
-        db.refresh(user)
-        return {"status": "updated", "user": user_to_auth_dict(user), "security_event": "user_password_changed"}
-    finally:
-        db.close()
-
-
-@app.put("/users/{user_id}/password")
-def admin_reset_user_password(user_id: int, data: UserPasswordReset, request: Request):
-    require_admin(request)
-    if len(data.password) < 12:
-        raise HTTPException(status_code=400, detail="Password must contain at least 12 characters")
-
-    auth_user_id = getattr(request.state, "auth", {}).get("sub")
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        user.password = hash_password(data.password)
-        user.must_change_password = bool(data.force_change_on_next_login)
-        db.commit()
-        db.refresh(user)
-        return {
-            "status": "updated",
-            "user": user_to_auth_dict(user),
-            "security_event": "admin_password_reset",
-            "requires_next_login_change": user.must_change_password,
-            "self_reset": str(auth_user_id) == str(user_id),
-        }
-    finally:
-        db.close()
-
-
-@app.put("/users/{user_id}/role")
-def update_user_role(user_id: int, data: UserRoleUpdate, request: Request):
-    require_admin(request)
-    raw_role = str(data.role).strip().lower()
-    requested_role = "viewer" if raw_role == "user" else normalize_role(raw_role)
-    if raw_role not in ROLE_LABELS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"role must be one of: {', '.join(role for role in ROLE_LABELS if role != 'user')}",
-        )
-
-    auth_user_id = getattr(request.state, "auth", {}).get("sub")
-    if str(user_id) == str(auth_user_id):
-        raise HTTPException(status_code=400, detail="You cannot change your own role")
-
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        if user.role == "admin" and requested_role != "admin":
-            admin_count = db.query(User).filter(User.role == "admin").count()
-            if admin_count <= 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail="The system must keep at least one administrator",
-                )
-        user.role = requested_role
-        db.commit()
-        db.refresh(user)
-        return {"status": "updated", "user": user_to_auth_dict(user)}
-    finally:
-        db.close()
-
-
-@app.post("/login")
-def login(data: LoginRequest, request: Request):
-    client_ip = request.client.host if request.client else "unknown"
-    attempt_key = login_attempt_key(client_ip, data.username)
-    retry_after = login_retry_after(attempt_key)
-    if retry_after:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many failed login attempts. Try again later.",
-            headers={"Retry-After": str(retry_after)},
-        )
-
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == data.username).first()
-        if not user or not verify_password(data.password, user.password):
-            record_login_result(attempt_key, False)
-            raise HTTPException(status_code=401, detail="Invalid username or password")
-
-        record_login_result(attempt_key, True)
-        if password_needs_upgrade(user.password):
-            user.password = hash_password(data.password)
-            db.commit()
-
-        token = create_access_token(user.id, user.username, normalize_role(user.role))
-        return {
-            "status": "success",
-            "message": "Login successful",
-            "access_token": token,
-            "token_type": "Bearer",
-            "requires_password_change": bool(getattr(user, "must_change_password", False)),
-            "user": user_to_auth_dict(user),
-        }
-    finally:
-        db.close()
-
-
-@app.get("/me")
-def me(request: Request):
-    try:
-        user_id = int(request.state.auth["sub"])
-    except (AttributeError, KeyError, TypeError, ValueError):
-        raise HTTPException(status_code=401, detail="Invalid authentication context")
-
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User no longer exists")
-        return {"status": "success", "user": user_to_auth_dict(user)}
+        users = db.query(User).order_by(User.full_name.asc()).all()
+        reps = [
+            u for u in users
+            if resolve_base_role(normalize_role(u.role)) in {"admin", "sales"}
+        ]
+        return [{"id": u.id, "full_name": u.full_name, "username": u.username} for u in reps]
     finally:
         db.close()
 
 
 @app.get("/customers")
-def list_customers():
+def list_customers(request: Request, assigned_rep_id: Optional[int] = None):
     db: Session = SessionLocal()
-    customers = db.query(Customer).order_by(Customer.id.desc()).all()
+    query = db.query(Customer).filter(Customer.company_id == current_company_id(request))
+    auth = getattr(request.state, "auth", {})
+    scope = customer_scope_for_role(auth.get("role"))
+    if scope and scope.get("restrict_to_own"):
+        try:
+            own_id = int(auth.get("sub"))
+        except (TypeError, ValueError):
+            own_id = None
+        query = query.filter(Customer.assigned_rep_id == own_id)
+    elif assigned_rep_id is not None:
+        query = query.filter(Customer.assigned_rep_id == assigned_rep_id)
+    customers = query.order_by(Customer.id.desc()).all()
     result = [customer_to_dict(db, c) for c in customers]
     db.close()
     return result
 
 
 @app.post("/customers")
-def create_customer(data: CustomerCreate):
+def create_customer(data: CustomerCreate, request: Request):
+    if data.pricing_group not in VALID_CUSTOMER_GROUPS:
+        return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
+        company_id = current_company_id(request)
+        try:
+            actor_id = int(getattr(request.state, "auth", {}).get("sub"))
+        except (TypeError, ValueError):
+            actor_id = None
         customer = Customer(
             name=data.name,
             phone=data.phone,
+            mobile=data.mobile,
             email=data.email,
             address=data.address,
             city=data.city,
@@ -1092,9 +1207,26 @@ def create_customer(data: CustomerCreate):
             opening_balance=data.opening_balance,
             credit_limit=data.credit_limit,
             notes=data.notes,
+            pricing_group=data.pricing_group,
+            assigned_rep_id=data.assigned_rep_id,
+            telegram_chat_id=data.telegram_chat_id,
+            latitude=data.latitude,
+            longitude=data.longitude,
+            marketing_consent=data.marketing_consent,
+            company_id=company_id,
         )
         db.add(customer)
         db.flush()
+
+        # The creation form shows the consent checkbox explicitly (see
+        # Customers.jsx) - unlike a pre-existing row whose true original
+        # intent is unknown, a newly-created customer's consent value IS
+        # a real, explicit choice the operator just made, so it's recorded
+        # as such from the start (app/marketing_consent.py).
+        from app.marketing_consent import _ensure_schema as _ensure_consent_schema, record_consent_change
+        conn = db.connection()
+        _ensure_consent_schema(conn)
+        record_consent_change(conn, customer.id, None, data.marketing_consent, actor_id, company_id, source="explicit")
 
         if data.opening_balance > 0:
             add_customer_entry(
@@ -1124,16 +1256,22 @@ def create_customer(data: CustomerCreate):
         result = {"status": "created", "id": customer.id, "name": customer.name, "balance": customer_balance(db, customer.id)}
         db.close()
         return result
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
 
 
 @app.get("/customers/{customer_id}")
-def customer_details(customer_id: int):
+def customer_details(customer_id: int, request: Request):
     db: Session = SessionLocal()
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
     if not customer:
         db.close()
         return {"status": "error", "message": "Customer not found"}
@@ -1143,9 +1281,9 @@ def customer_details(customer_id: int):
 
 
 @app.get("/customers/{customer_id}/ledger")
-def customer_ledger(customer_id: int):
+def customer_ledger(customer_id: int, request: Request):
     db: Session = SessionLocal()
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
     if not customer:
         db.close()
         return {"status": "error", "message": "Customer not found"}
@@ -1178,18 +1316,23 @@ def customer_ledger(customer_id: int):
 
 
 @app.put("/customers/{customer_id}")
-def update_customer(customer_id: int, data: CustomerCreate):
+def update_customer(customer_id: int, data: CustomerCreate, request: Request):
+    if data.pricing_group not in VALID_CUSTOMER_GROUPS:
+        return {"status": "error", "message": f"pricing_group must be one of: {', '.join(VALID_CUSTOMER_GROUPS)}"}
     db: Session = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        company_id = current_company_id(request)
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
         if not customer:
             db.close()
             return {"status": "error", "message": "Customer not found"}
 
         old_opening = float(getattr(customer, "opening_balance", 0) or 0)
+        old_consent = bool(getattr(customer, "marketing_consent", True))
 
         customer.name = data.name
         customer.phone = data.phone
+        customer.mobile = data.mobile
         customer.email = data.email
         customer.address = data.address
         customer.city = data.city
@@ -1200,6 +1343,22 @@ def update_customer(customer_id: int, data: CustomerCreate):
         customer.opening_balance = data.opening_balance
         customer.credit_limit = data.credit_limit
         customer.notes = data.notes
+        customer.pricing_group = data.pricing_group
+        customer.assigned_rep_id = data.assigned_rep_id
+        customer.telegram_chat_id = data.telegram_chat_id
+        customer.latitude = data.latitude
+        customer.longitude = data.longitude
+        customer.marketing_consent = data.marketing_consent
+
+        if bool(data.marketing_consent) != old_consent:
+            from app.marketing_consent import _ensure_schema as _ensure_consent_schema, record_consent_change
+            try:
+                actor_id = int(getattr(request.state, "auth", {}).get("sub"))
+            except (TypeError, ValueError):
+                actor_id = None
+            conn = db.connection()
+            _ensure_consent_schema(conn)
+            record_consent_change(conn, customer_id, old_consent, bool(data.marketing_consent), actor_id, company_id, source="explicit")
 
         # Keep exactly one opening-balance entry synced with customer.opening_balance.
         opening_entries = (
@@ -1245,17 +1404,23 @@ def update_customer(customer_id: int, data: CustomerCreate):
         result = {"status": "updated", "customer": customer_to_dict(db, customer), "old_opening_balance": old_opening}
         db.close()
         return result
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
 
 
 @app.delete("/customers/{customer_id}")
-def delete_customer(customer_id: int):
+def delete_customer(customer_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == current_company_id(request)).first()
         if not customer:
             db.close()
             return {"status": "error", "message": "Customer not found"}
@@ -1271,23 +1436,89 @@ def delete_customer(customer_id: int):
         db.commit()
         db.close()
         return {"status": "deleted", "id": customer_id}
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/products")
-def list_products():
+def list_products(
+    request: Request,
+    search: Optional[str] = None,
+    main_category: Optional[str] = None,
+    sub_category: Optional[str] = None,
+    brand: Optional[str] = None,
+    unit: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    stock_status: Optional[str] = None,
+):
+    """All filters are optional and additive (AND'd together) - omitting
+    every one preserves the exact old full-fetch behavior. Filtering
+    happens in SQL, not after loading the whole table, so this stays
+    efficient as the product count grows."""
     db: Session = SessionLocal()
     try:
-        return [product_to_dict(product) for product in db.query(Product).all()]
+        query = db.query(Product).filter(Product.company_id == current_company_id(request))
+        if search and search.strip():
+            like = f"%{search.strip()}%"
+            query = query.filter(
+                Product.name.ilike(like)
+                | Product.code.ilike(like)
+                | Product.barcode.ilike(like)
+                | Product.sku.ilike(like)
+                | Product.brand.ilike(like)
+            )
+        if main_category:
+            query = query.filter(Product.main_category == main_category)
+        if sub_category:
+            query = query.filter(Product.sub_category == sub_category)
+        if brand:
+            query = query.filter(Product.brand == brand)
+        if unit:
+            query = query.filter(Product.unit == unit)
+        if is_active is not None:
+            query = query.filter(Product.is_active == is_active)
+        if stock_status == "out_of_stock":
+            query = query.filter(Product.stock <= 0)
+        elif stock_status == "low_stock":
+            query = query.filter(Product.stock > 0, Product.min_stock > 0, Product.stock <= Product.min_stock)
+        elif stock_status == "in_stock":
+            query = query.filter(Product.stock > 0).filter(
+                (Product.min_stock <= 0) | (Product.stock > Product.min_stock)
+            )
+        return [product_to_dict(product) for product in query.all()]
+    finally:
+        db.close()
+
+
+@app.get("/products/lookup")
+def lookup_product_by_code(code: str, request: Request):
+    """Barcode/code scan lookup - used by the camera barcode scanner."""
+    normalized = str(code or "").strip()
+    if not normalized:
+        return {"status": "error", "message": "code is required"}
+    db: Session = SessionLocal()
+    try:
+        product = (
+            db.query(Product)
+            .filter(
+                (Product.barcode == normalized) | (Product.code == normalized),
+                Product.company_id == current_company_id(request),
+            )
+            .first()
+        )
+        if not product:
+            return {"status": "not_found"}
+        return {"status": "found", "product": product_to_dict(product)}
     finally:
         db.close()
 
 
 @app.post("/products")
-def create_product(data: ProductCreate):
+def create_product(data: ProductCreate, request: Request):
     db: Session = SessionLocal()
     try:
         opening_stock = float(data.stock or 0)
@@ -1302,11 +1533,25 @@ def create_product(data: ProductCreate):
             name=data.name,
             code=data.code or "",
             barcode=data.barcode or data.code or "",
+            barcode2=data.barcode2 or None,
+            barcode3=data.barcode3 or None,
+            sku=data.sku or "",
             unit=data.unit or "عدد",
             buy_price=float(accounting_money(data.buy_price or 0)),
             sell_price=float(accounting_money(sell_price)),
             price=float(accounting_money(sell_price)),
             stock=opening_stock,
+            min_stock=float(data.min_stock if data.min_stock is not None else (data.minimum_stock or 0)),
+            preferred_supplier_id=data.preferred_supplier_id,
+            lead_time_days=data.lead_time_days or 0,
+            brand=data.brand or "",
+            main_category=data.main_category or "",
+            sub_category=data.sub_category or "",
+            image=data.image or "",
+            description=data.description,
+            count_in_pack=data.count_in_pack,
+            is_active=data.is_active,
+            company_id=current_company_id(request),
         )
         db.add(product)
         db.flush()
@@ -1314,18 +1559,23 @@ def create_product(data: ProductCreate):
         db.commit()
         db.refresh(product)
         return {"status": "created", **product_to_dict(product)}
-    except Exception as error:
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
 
 @app.put("/products/{product_id}")
-def update_product(product_id: int, data: ProductCreate):
+def update_product(product_id: int, data: ProductCreate, request: Request):
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = db.query(Product).filter(Product.id == product_id, Product.company_id == current_company_id(request)).first()
         if not product:
             return {"status": "error", "message": "Product not found"}
 
@@ -1359,29 +1609,51 @@ def update_product(product_id: int, data: ProductCreate):
         product.name = data.name
         product.code = data.code or product.code or ""
         product.barcode = data.barcode or data.code or product.barcode or ""
+        product.barcode2 = data.barcode2 or product.barcode2 or None
+        product.barcode3 = data.barcode3 or product.barcode3 or None
+        product.sku = data.sku if data.sku is not None else (product.sku or "")
         product.unit = data.unit or product.unit or "عدد"
         product.buy_price = float(accounting_money(data.buy_price or 0))
         product.sell_price = float(accounting_money(sell_price))
         product.price = float(accounting_money(sell_price))
         product.stock = requested_stock
+        product.min_stock = float(
+            data.min_stock if data.min_stock is not None
+            else data.minimum_stock if data.minimum_stock is not None
+            else (product.min_stock or 0)
+        )
+        product.preferred_supplier_id = data.preferred_supplier_id
+        product.lead_time_days = data.lead_time_days or 0
+        product.brand = data.brand if data.brand is not None else (product.brand or "")
+        product.main_category = data.main_category if data.main_category is not None else (product.main_category or "")
+        product.sub_category = data.sub_category if data.sub_category is not None else (product.sub_category or "")
+        product.image = data.image if data.image is not None else (product.image or "")
+        product.description = data.description if data.description is not None else product.description
+        product.count_in_pack = data.count_in_pack if data.count_in_pack is not None else product.count_in_pack
+        product.is_active = data.is_active
 
         if not has_inventory_history:
             sync_product_opening_general_ledger(db, product)
         db.commit()
         db.refresh(product)
         return {"status": "updated", **product_to_dict(product)}
-    except Exception as error:
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
 
 @app.delete("/products/{product_id}")
-def delete_product(product_id: int):
+def delete_product(product_id: int, request: Request):
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == product_id).first()
+        product = db.query(Product).filter(Product.id == product_id, Product.company_id == current_company_id(request)).first()
 
         if not product:
             db.close()
@@ -1406,6 +1678,7 @@ def delete_product(product_id: int):
         delete_source_voucher(
             "product_opening",
             product_id,
+            product.company_id,
             connection=db.connection(),
         )
         db.delete(product)
@@ -1414,10 +1687,17 @@ def delete_product(product_id: int):
 
         return {"status": "deleted", "id": product_id}
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
 
 def invoice_settled_amount(db: Session, invoice: Invoice, policy=None) -> float:
     policy = policy or {"decimal_places": 2, "rounding_mode": "half_up"}
@@ -1428,11 +1708,74 @@ def invoice_settled_amount(db: Session, invoice: Invoice, policy=None) -> float:
         AccountingEntry.source_id == invoice.id,
         AccountingEntry.source_type == settlement_type,
     ).all()
+    # Net (not gross) sum: a void reversal (see app/invoice_payments.py's
+    # _execute_void) posts a SECOND entry of the same source_type with
+    # debit/credit swapped from the original, rather than deleting the
+    # original row - summing net lets that cancel out correctly. Every
+    # pre-existing receipt/payment entry only ever populated one side
+    # (credit for a receipt, debit for a payment), so this is unchanged
+    # behavior for all of them; it only newly enables reversal entries to
+    # actually reduce the settled amount.
     raw_total = (
-        sum(float(entry.credit or 0) for entry in entries)
+        sum(float(entry.credit or 0) - float(entry.debit or 0) for entry in entries)
         if settlement_type == "receipt"
-        else sum(float(entry.debit or 0) for entry in entries)
+        else sum(float(entry.debit or 0) - float(entry.credit or 0) for entry in entries)
     )
+    # Refunds (app/invoice_payments.py's _execute_refund) deliberately post
+    # the OPPOSITE settlement type from this invoice's normal one - e.g. a
+    # sale invoice's receipts are refunded via a 'payment' leg, not a
+    # same-type reversal the way a void is. apply_settlement only ever
+    # allows that opposite type to post against an invoice as a refund
+    # (is_refund=True), so any opposite-type entry found here is a real
+    # refund and must reduce the settled amount, the same way a void's
+    # same-type reversal already does above.
+    opposite_type = "payment" if settlement_type == "receipt" else "receipt"
+    refund_entries = db.query(AccountingEntry).filter(
+        AccountingEntry.source_id == invoice.id,
+        AccountingEntry.source_type == opposite_type,
+    ).all()
+    raw_total -= (
+        sum(float(entry.credit or 0) - float(entry.debit or 0) for entry in refund_entries)
+        if opposite_type == "receipt"
+        else sum(float(entry.debit or 0) - float(entry.credit or 0) for entry in refund_entries)
+    )
+    # Cleared cheques linked to this invoice also count as confirmed
+    # settlement (app/accounting/treasury.py). A cheque's own
+    # accounting_entries row uses source_type="cheque_received"/
+    # "cheque_payable", not "receipt"/"payment" - deliberately excluded from
+    # the sum above while pending (see invoice_settlement_breakdown's
+    # separate pending_cheque_amount in app/invoice_payments.py). Once
+    # cleared it's real cash and must count here; the customer's own ledger
+    # balance was already adjusted when the cheque was received, so this
+    # does NOT touch accounting_entries again - only this invoice-level
+    # figure changes on clearance.
+    #
+    # Deliberately read-only: does NOT call treasury.py's _ensure_schema()
+    # here, because that performs an unconditional write
+    # (ensure_company_id_column's UPDATE ... WHERE company_id IS NULL) even
+    # when there's nothing to update. This function is called from several
+    # read-only report/list code paths that may already be running inside
+    # someone else's open write transaction (e.g. change_requests.py's
+    # approve_request); adding a second write there deadlocks SQLite
+    # ("database is locked"). The treasury_cheques table/column are already
+    # guaranteed to exist by the time any request runs (main.py's own
+    # startup sequence, ensure_company_scoping_columns(), covers
+    # treasury_cheques unconditionally) - the sqlite_master existence check
+    # below only guards the narrow case of a table that's never been
+    # created on a brand-new/never-migrated database (e.g. a fresh test
+    # DB). Checking existence first (rather than try/except on the real
+    # query) avoids a failed statement invalidating the caller's session
+    # transaction, since this function is often called mid-transaction.
+    table_exists = db.execute(text(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='treasury_cheques'"
+    )).scalar()
+    cleared_cheques = 0
+    if table_exists:
+        cleared_cheques = db.execute(text("""
+            SELECT COALESCE(SUM(amount), 0) FROM treasury_cheques
+            WHERE invoice_id=:invoice_id AND status='cleared'
+        """), {"invoice_id": invoice.id}).scalar() or 0
+    raw_total += float(cleared_cheques)
     return float(accounting_money(
         raw_total,
         policy["decimal_places"],
@@ -1459,11 +1802,14 @@ def linked_invoice_settlements(db: Session, invoice_id: int):
     ).all()
 
 
-def validate_invoice_products(db: Session, data: InvoiceCreate):
+def validate_invoice_products(db: Session, data: InvoiceCreate, company_id: int = None):
     quantities = aggregate_item_quantities(data.items)
     products = {}
     for product_id, required_quantity in quantities.items():
-        product = db.query(Product).filter(Product.id == product_id).first()
+        query = db.query(Product).filter(Product.id == product_id)
+        if company_id is not None:
+            query = query.filter(Product.company_id == company_id)
+        product = query.first()
         if not product:
             raise ValueError(f"Product with id {product_id} not found")
         if data.invoice_type in {"sale", "return_buy"} and float(product.stock or 0) < required_quantity:
@@ -1498,14 +1844,15 @@ def reverse_invoice_stock(invoice_type: str, product: Product, quantity: float):
 
 
 def add_invoice_customer_entry(db: Session, invoice: Invoice):
+    invoice_no = localized_digits(invoice.id, "fa")
     if invoice.invoice_type == "sale":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice.id}", debit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور فروش شماره {invoice_no}", debit=invoice.total_amount)
     elif invoice.invoice_type == "buy":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice.id}", credit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"فاکتور خرید شماره {invoice_no}", credit=invoice.total_amount)
     elif invoice.invoice_type == "return_sale":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice.id}", credit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی فروش شماره {invoice_no}", credit=invoice.total_amount)
     elif invoice.invoice_type == "return_buy":
-        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice.id}", debit=invoice.total_amount)
+        add_customer_entry(db, invoice.customer_id, "invoice", invoice.id, f"مرجوعی خرید شماره {invoice_no}", debit=invoice.total_amount)
 
 
 def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, products, policy=None):
@@ -1515,7 +1862,7 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
         policy["decimal_places"],
         policy["rounding_mode"],
     )
-    description = f"ثبت خودکار فاکتور شماره {invoice.id}"
+    description = f"ثبت خودکار فاکتور شماره {localized_digits(invoice.id, 'fa')}"
     total = float(policy_money(invoice.total_amount))
     subtotal = float(policy_money(getattr(invoice, "subtotal", 0) or 0))
     discount = float(policy_money(
@@ -1567,6 +1914,7 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
         delete_source_voucher(
             "invoice",
             invoice.id,
+            invoice.company_id,
             connection=db.connection(),
         )
         return
@@ -1576,6 +1924,7 @@ def post_invoice_to_general_ledger(db: Session, invoice: Invoice, items, product
         invoice.id,
         description,
         lines,
+        invoice.company_id,
         voucher_date=_entity_date(invoice.created_at),
         connection=db.connection(),
     )
@@ -1615,30 +1964,52 @@ def post_transaction_to_general_ledger(
         entry.id,
         description,
         lines,
+        entry.company_id,
         connection=db.connection(),
     )
 
 
 @app.post("/invoices")
-def create_invoice(data: InvoiceCreate):
+def create_invoice(data: InvoiceCreate, request: Request):
+    key = request.headers.get("Idempotency-Key")
+    request_hash = hashlib.sha256(data.json().encode("utf-8")).hexdigest()
+    company_id = current_company_id(request)
+    try:
+        created_by = int(request.state.auth.get("sub"))
+    except (AttributeError, TypeError, ValueError):
+        created_by = None
+    return run_idempotent(
+        key, "POST /invoices", company_id, request_hash,
+        lambda: _create_invoice_impl(data, company_id, created_by=created_by),
+    )
+
+
+def _create_invoice_impl(data: InvoiceCreate, company_id: int, created_by: Optional[int] = None):
+    """Core invoice-creation logic, scoped to a specific company_id passed in
+    directly. The HTTP route above derives company_id from the caller's JWT;
+    internal, non-HTTP callers (recurring invoice generation, catalog order
+    conversion) call this directly with the owning record's own company_id,
+    since they have no Request to derive it from.
+
+    `data.payment_status` is accepted for backward-compat with older callers
+    but otherwise ignored - payment_status is always backend-derived from
+    `data.payments` (see app/invoice_payments.py), never client-supplied."""
     db: Session = SessionLocal()
     try:
         if data.invoice_type not in ALLOWED_INVOICE_TYPES:
             raise ValueError("Invalid invoice_type")
-        if data.payment_status not in ALLOWED_PAYMENT_STATUSES:
-            raise ValueError("Invalid payment_status")
-        if data.payment_status != "unpaid":
-            raise ValueError("New invoices must start with unpaid payment_status")
-        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == data.customer_id, Customer.company_id == company_id).first()
         if not customer:
             raise ValueError("Customer not found")
-        policy = financial_policy_values(db.connection())
+        policy = financial_policy_values(db.connection(), company_id)
         totals = calculate_invoice_totals(
             data.items, data.discount_percent, data.tax_percent, data.shipping_cost,
             decimal_places=policy["decimal_places"],
             rounding_mode=policy["rounding_mode"],
         )
-        products = validate_invoice_products(db, data)
+        products = validate_invoice_products(db, data, company_id)
+        company_settings = get_or_create_settings(db, company_id)
+        industry_fields = sanitize_industry_fields(company_settings.industry or "general", data.industry_fields)
         invoice = Invoice(
             invoice_type=data.invoice_type,
             customer_id=data.customer_id,
@@ -1647,6 +2018,11 @@ def create_invoice(data: InvoiceCreate):
             status="draft" if data.invoice_type == "proforma" else "final",
             invoice_note=data.invoice_note,
             qr_enabled=data.qr_enabled,
+            payment_terms_days=data.payment_terms_days,
+            due_date=resolve_invoice_due_date(data.payment_terms_days, data.due_date),
+            company_id=company_id,
+            source=data.source or "desk",
+            industry_fields_json=json.dumps(industry_fields, ensure_ascii=False),
         )
         db.add(invoice)
         db.flush()
@@ -1658,42 +2034,104 @@ def create_invoice(data: InvoiceCreate):
                 quantity=item.quantity,
                 unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
                 total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
+                warehouse_id=item.warehouse_id,
+                company_id=company_id,
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
+            apply_warehouse_delta(
+                db, item.warehouse_id, item.product_id,
+                invoice_warehouse_delta(data.invoice_type, item.quantity),
+                company_id,
+            )
         add_invoice_customer_entry(db, invoice)
         post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
+
+        # Atomic split/multi-method payment collection (Phase 1 payment
+        # workflow) - still inside this function's single db session/
+        # try-except-rollback block, so a failure on leg 2 of a split
+        # payment rolls back items, stock, invoice GL, AND leg 1 for free.
+        settlement_type = expected_settlement_type(data.invoice_type)
+        for payment in data.payments:
+            if payment.method not in ALLOWED_PAYMENT_METHODS:
+                raise ValueError(f"Invalid payment method: {payment.method}")
+            if payment.method == "cheque":
+                cheque_result = create_invoice_cheque_leg(db.connection(), invoice, {
+                    "transaction_type": settlement_type,
+                    "amount": payment.amount,
+                    "cheque_number": payment.cheque_number,
+                    "bank_name": payment.cheque_bank_name,
+                    "branch_name": payment.cheque_branch_name,
+                    "issue_date": datetime.utcnow().date().isoformat(),
+                    "due_date": payment.cheque_due_date or datetime.utcnow().date().isoformat(),
+                    "note": payment.note,
+                }, company_id)
+                insert_payment_allocation(
+                    db, invoice, cheque_result["entry_id"], payment, settlement_type,
+                    created_by, company_id, cheque_id=cheque_result["cheque_id"],
+                )
+            else:
+                entry = apply_settlement(
+                    db, policy, customer, invoice, settlement_type,
+                    payment.amount, payment.method, payment.note,
+                    allow_overpayment=payment.allow_overpayment,
+                )
+                db.flush()
+                insert_payment_allocation(db, invoice, entry.id, payment, settlement_type, created_by, company_id)
+
+        if data.installment_plan:
+            create_installment_schedule(db, invoice, data.installment_plan, company_id)
+
+        sync_invoice_payment_status(db, invoice, policy)
+        invoice.amount_paid = invoice_settled_amount(db, invoice, policy)
+
         db.commit()
         db.refresh(invoice)
+        if invoice.invoice_type == "sale":
+            broadcaster.publish(
+                "new_invoice",
+                company_id,
+                invoice_id=invoice.id,
+                customer_id=invoice.customer_id,
+                total_amount=invoice.total_amount,
+            )
+        for item in data.items:
+            publish_low_stock_if_needed(products[item.product_id])
+        breakdown = invoice_settlement_breakdown(db, invoice, policy)
         return {
             "status": "created", "invoice_id": invoice.id,
             "invoice_type": invoice.invoice_type, "customer_id": invoice.customer_id,
             "total_amount": invoice.total_amount, "payment_status": invoice.payment_status,
-            "items_count": len(data.items),
+            "amount_paid": invoice.amount_paid,
+            "items_count": len(data.items), "source": invoice.source or "desk",
+            "settlement": breakdown,
         }
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
 
 @app.put("/invoices/{invoice_id}")
-def update_invoice(invoice_id: int, data: InvoiceCreate):
+def update_invoice(invoice_id: int, data: InvoiceCreate, request: Request):
     db: Session = SessionLocal()
     try:
+        company_id = current_company_id(request)
         if data.invoice_type not in ALLOWED_INVOICE_TYPES:
             raise ValueError("Invalid invoice_type")
         if data.payment_status not in ALLOWED_PAYMENT_STATUSES:
             raise ValueError("Invalid payment_status")
-        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
         if not invoice:
             raise ValueError("Invoice not found")
         if linked_invoice_settlements(db, invoice_id):
             raise ValueError("Cannot edit an invoice with linked payment or receipt transactions")
-        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == data.customer_id, Customer.company_id == company_id).first()
         if not customer:
             raise ValueError("Customer not found")
         old_customer_id = invoice.customer_id
@@ -1702,19 +2140,24 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
             product = db.query(Product).filter(Product.id == old_item.product_id).first()
             if product:
                 reverse_invoice_stock(invoice.invoice_type, product, old_item.quantity)
+                apply_warehouse_delta(
+                    db, old_item.warehouse_id, old_item.product_id,
+                    -invoice_warehouse_delta(invoice.invoice_type, old_item.quantity),
+                    company_id,
+                )
             db.delete(old_item)
         db.query(AccountingEntry).filter(
             AccountingEntry.source_type == "invoice",
             AccountingEntry.source_id == invoice_id,
         ).delete(synchronize_session=False)
         db.flush()
-        policy = financial_policy_values(db.connection())
+        policy = financial_policy_values(db.connection(), company_id)
         totals = calculate_invoice_totals(
             data.items, data.discount_percent, data.tax_percent, data.shipping_cost,
             decimal_places=policy["decimal_places"],
             rounding_mode=policy["rounding_mode"],
         )
-        products = validate_invoice_products(db, data)
+        products = validate_invoice_products(db, data, company_id)
         invoice.invoice_type = data.invoice_type
         invoice.customer_id = data.customer_id
         for key, value in totals.items():
@@ -1723,6 +2166,8 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
         invoice.status = "draft" if data.invoice_type == "proforma" else "final"
         invoice.invoice_note = data.invoice_note
         invoice.qr_enabled = data.qr_enabled
+        invoice.payment_terms_days = data.payment_terms_days
+        invoice.due_date = resolve_invoice_due_date(data.payment_terms_days, data.due_date)
         for item in data.items:
             product = products[item.product_id]
             db.add(InvoiceItem(
@@ -1731,8 +2176,15 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
                 quantity=item.quantity,
                 unit_price=float(accounting_money(item.unit_price, policy["decimal_places"], policy["rounding_mode"])),
                 total_price=float(accounting_money(float(item.quantity) * float(item.unit_price), policy["decimal_places"], policy["rounding_mode"])),
+                warehouse_id=item.warehouse_id,
+                company_id=company_id,
             ))
             apply_invoice_stock(data.invoice_type, product, item.quantity)
+            apply_warehouse_delta(
+                db, item.warehouse_id, item.product_id,
+                invoice_warehouse_delta(data.invoice_type, item.quantity),
+                company_id,
+            )
         add_invoice_customer_entry(db, invoice)
         post_invoice_to_general_ledger(db, invoice, data.items, products, policy)
         db.flush()
@@ -1750,61 +2202,182 @@ def update_invoice(invoice_id: int, data: InvoiceCreate):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.post("/invoices/{invoice_id}/convert")
+def convert_proforma_invoice(invoice_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
+        if not invoice:
+            raise ValueError("Invoice not found")
+        if invoice.invoice_type != "proforma":
+            raise ValueError("Only a proforma invoice can be converted")
+
+        items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
+        product_ids = [item.product_id for item in items]
+        products = {
+            product.id: product
+            for product in db.query(Product).filter(Product.id.in_(product_ids), Product.company_id == company_id).all()
+        }
+        policy = financial_policy_values(db.connection(), company_id)
+
+        invoice.invoice_type = "sale"
+        invoice.status = "final"
+
+        for item in items:
+            product = products.get(item.product_id)
+            if not product:
+                raise ValueError("Product no longer exists")
+            apply_invoice_stock("sale", product, item.quantity)
+            apply_warehouse_delta(
+                db, item.warehouse_id, item.product_id,
+                invoice_warehouse_delta("sale", item.quantity),
+                company_id,
+            )
+
+        add_invoice_customer_entry(db, invoice)
+        post_invoice_to_general_ledger(db, invoice, items, products, policy)
+        db.commit()
+        db.refresh(invoice)
+        broadcaster.publish(
+            "new_invoice",
+            company_id,
+            invoice_id=invoice.id,
+            customer_id=invoice.customer_id,
+            total_amount=invoice.total_amount,
+        )
+        for item in items:
+            product = products.get(item.product_id)
+            if product:
+                publish_low_stock_if_needed(product)
+        return {
+            "status": "converted", "invoice_id": invoice.id,
+            "invoice_type": invoice.invoice_type, "total_amount": invoice.total_amount,
+        }
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.post("/api/catalog/orders/{order_id}/mark-converted")
+def convert_catalog_order_to_invoice(order_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        order = db.query(CatalogOrder).filter(CatalogOrder.id == order_id, CatalogOrder.company_id == company_id).first()
+        if not order:
+            raise ValueError("Order not found")
+        if order.status == "converted":
+            return {"status": "converted", "invoice_id": order.converted_invoice_id}
+        if order.status != "pending":
+            raise ValueError("Only a pending order can be converted")
+
+        try:
+            raw_items = json.loads(order.items_json or "[]")
+        except (TypeError, ValueError):
+            raw_items = []
+        if not raw_items:
+            raise ValueError("Order has no items")
+
+        customer = None
+        if order.customer_phone:
+            customer = (
+                db.query(Customer)
+                .filter(
+                    (Customer.phone == order.customer_phone)
+                    | (Customer.mobile == order.customer_phone),
+                    Customer.company_id == company_id,
+                )
+                .first()
+            )
+        if not customer:
+            customer = Customer(
+                name=order.customer_name or "Catalog customer",
+                phone=order.customer_phone or "",
+                customer_type="customer",
+                company_id=company_id,
+            )
+            db.add(customer)
+            db.flush()
+
+        invoice_items = []
+        for raw in raw_items:
+            product = db.query(Product).filter(Product.id == raw.get("product_id"), Product.company_id == company_id).first()
+            if not product:
+                continue
+            unit_price = float(getattr(product, "sell_price", None) or getattr(product, "price", 0) or 0)
+            invoice_items.append(InvoiceItemCreate(
+                product_id=product.id,
+                quantity=float(raw.get("quantity") or 1),
+                unit_price=unit_price,
+            ))
+        if not invoice_items:
+            raise ValueError("None of the ordered products exist anymore")
+
+        # Commit the (possibly new) customer now - _create_invoice_impl() runs in
+        # its own SessionLocal(), so it needs the customer row already committed.
+        db.commit()
+
+        result = _create_invoice_impl(InvoiceCreate(
+            invoice_type="sale",
+            customer_id=customer.id,
+            items=invoice_items,
+            invoice_note=f"سفارش کاتالوگ #{order.id}" + (f" - {order.note}" if order.note else ""),
+        ), company_id)
+        if result.get("status") != "created":
+            raise ValueError(result.get("message") or "Failed to create invoice")
+
+        order.status = "converted"
+        order.converted_invoice_id = result["invoice_id"]
+        db.commit()
+        return {"status": "converted", "invoice_id": result["invoice_id"]}
+    except ValueError as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
 
 @app.get("/invoices")
-def list_invoices():
+def list_invoices(request: Request):
     db: Session = SessionLocal()
     try:
-        invoices = db.query(Invoice).order_by(Invoice.id.desc()).all()
+        company_id = current_company_id(request)
+        policy = financial_policy_values(db.connection(), company_id)
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).order_by(Invoice.id.desc()).all()
         result = []
 
         for inv in invoices:
             total_amount = float(inv.total_amount or 0)
-
-            receipt_sum = (
-                db.query(AccountingEntry)
-                .filter(
-                    AccountingEntry.source_type == "receipt",
-                    AccountingEntry.source_id == inv.id,
-                )
-                .all()
-            )
-
-            payment_sum = (
-                db.query(AccountingEntry)
-                .filter(
-                    AccountingEntry.source_type == "payment",
-                    AccountingEntry.source_id == inv.id,
-                )
-                .all()
-            )
-
-            received_amount = sum(float(e.credit or 0) for e in receipt_sum)
-            paid_amount = sum(float(e.debit or 0) for e in payment_sum)
-
-            if inv.invoice_type in ["sale", "return_buy"]:
-                settled_amount = received_amount
-            elif inv.invoice_type in ["buy", "return_sale"]:
-                settled_amount = paid_amount
-            else:
-                settled_amount = 0
-
+            # invoice_settled_amount() is the single source of truth (net
+            # sum, so void reversals correctly cancel out - see its
+            # docstring) - this list view previously duplicated a gross-sum
+            # version of the same computation that a void wouldn't affect.
+            settled_amount = invoice_settled_amount(db, inv, policy)
             remaining_amount = max(total_amount - settled_amount, 0)
-
-            if total_amount <= 0:
-                settlement_status = "paid"
-            elif settled_amount <= 0:
-                settlement_status = "unpaid"
-            elif settled_amount < total_amount:
-                settlement_status = "partial"
-            else:
-                settlement_status = "paid"
+            settlement_status = display_payment_status(inv.payment_status, total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
+            breakdown = invoice_settlement_breakdown(db, inv, policy)
 
             result.append({
                 "id": inv.id,
@@ -1818,49 +2391,242 @@ def list_invoices():
                 "tax_amount": float(getattr(inv, "tax_amount", 0) or 0),
                 "shipping_cost": float(getattr(inv, "shipping_cost", 0) or 0),
                 "total_amount": total_amount,
-                "received_amount": received_amount,
-                "paid_amount": paid_amount,
+                "received_amount": settled_amount if inv.invoice_type in ("sale", "return_buy") else 0,
+                "paid_amount": settled_amount if inv.invoice_type in ("buy", "return_sale") else 0,
                 "settled_amount": settled_amount,
+                "amount_paid": settled_amount,
                 "remaining_amount": remaining_amount,
                 "payment_status": settlement_status,
                 "settlement_status": settlement_status,
+                "settlement": breakdown,
                 "status": getattr(inv, "status", "final"),
                 "invoice_note": getattr(inv, "invoice_note", "") or "",
                 "qr_enabled": bool(getattr(inv, "qr_enabled", True)),
+                "payment_terms_days": int(getattr(inv, "payment_terms_days", 0) or 0),
+                "due_date": getattr(inv, "due_date", "") or "",
+                "industry_fields": _load_industry_fields(getattr(inv, "industry_fields_json", "")),
                 "created_at": inv.created_at,
             })
 
         db.close()
         return result
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
+
+
+@app.get("/invoices/{invoice_id}")
+def get_invoice(invoice_id: int, request: Request):
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        inv = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
+        if not inv:
+            return {"status": "error", "message": "Invoice not found"}
+
+        policy = financial_policy_values(db.connection(), company_id)
+        total_amount = float(inv.total_amount or 0)
+        # invoice_settled_amount() is the single source of truth (net sum,
+        # so void reversals correctly cancel out) - see its docstring.
+        settled_amount = invoice_settled_amount(db, inv, policy)
+        received_amount = settled_amount if inv.invoice_type in ("sale", "return_buy") else 0
+        paid_amount = settled_amount if inv.invoice_type in ("buy", "return_sale") else 0
+        remaining_amount = max(total_amount - settled_amount, 0)
+        settlement_status = display_payment_status(inv.payment_status, total_amount, settled_amount, policy["decimal_places"], policy["rounding_mode"])
+        breakdown = invoice_settlement_breakdown(db, inv, policy)
+        ensure_invoice_payments_schema(db.connection())
+        allocations = db.connection().execute(text("""
+            SELECT * FROM invoice_payment_allocations WHERE invoice_id=:id AND company_id=:company_id ORDER BY id
+        """), {"id": invoice_id, "company_id": company_id}).mappings().all()
+
+        customer = db.query(Customer).filter(Customer.id == inv.customer_id).first() if inv.customer_id else None
+
+        items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
+        items_payload = []
+        for item in items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            items_payload.append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": product.name if product else "",
+                "quantity": float(item.quantity or 0),
+                "unit_price": float(item.unit_price or 0),
+                "total_price": float(item.total_price or 0),
+                "warehouse_id": item.warehouse_id,
+            })
+
+        result = {
+            "id": inv.id,
+            "invoice_type": inv.invoice_type,
+            "customer_id": inv.customer_id,
+            "customer_name": customer.name if customer else "",
+            "subtotal": float(getattr(inv, "subtotal", 0) or 0),
+            "discount_percent": float(getattr(inv, "discount_percent", 0) or 0),
+            "discount_amount": float(getattr(inv, "discount_amount", 0) or 0),
+            "tax_percent": float(getattr(inv, "tax_percent", 0) or 0),
+            "tax_amount": float(getattr(inv, "tax_amount", 0) or 0),
+            "shipping_cost": float(getattr(inv, "shipping_cost", 0) or 0),
+            "total_amount": total_amount,
+            "received_amount": received_amount,
+            "paid_amount": paid_amount,
+            "settled_amount": settled_amount,
+            "amount_paid": settled_amount,
+            "remaining_amount": remaining_amount,
+            "payment_status": settlement_status,
+            "settlement_status": settlement_status,
+            "settlement": breakdown,
+            "payments": [dict(row) for row in allocations],
+            "void_status": getattr(inv, "void_status", "active") or "active",
+            "status": getattr(inv, "status", "final"),
+            "invoice_note": getattr(inv, "invoice_note", "") or "",
+            "qr_enabled": bool(getattr(inv, "qr_enabled", True)),
+            "payment_terms_days": int(getattr(inv, "payment_terms_days", 0) or 0),
+            "due_date": getattr(inv, "due_date", "") or "",
+            "industry_fields": _load_industry_fields(getattr(inv, "industry_fields_json", "")),
+            "created_at": inv.created_at,
+            "items": items_payload,
+        }
+        db.close()
+        return result
+
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
 
 
 @app.post("/transactions")
-def create_payment_or_receipt(data: PaymentCreate):
+def create_payment_or_receipt(data: PaymentCreate, request: Request):
+    key = request.headers.get("Idempotency-Key")
+    request_hash = hashlib.sha256(data.json().encode("utf-8")).hexdigest()
+    company_id = current_company_id(request)
+    return run_idempotent(
+        key, "POST /transactions", company_id, request_hash,
+        lambda: _create_payment_or_receipt_impl(data, company_id),
+    )
+
+
+def _create_payment_or_receipt_impl(data: PaymentCreate, company_id: int):
+    """Core payment/receipt logic, scoped to a company_id passed in directly.
+    See _create_invoice_impl's docstring - same reason: the online payment
+    gateway's webhook callback (app/payment_gateway.py's _finalize_success)
+    has no Request/JWT to derive company_id from, so it calls this directly
+    with the owning PaymentSession's own company_id.
+
+    Thin wrapper around apply_settlement() (app/invoice_payments.py) - the
+    Phase 1 payment-workflow refactor extracted this function's core logic
+    so the exact same code posts a settlement whether triggered here or
+    from the atomic invoice+payment flow in _create_invoice_impl. Same
+    function name/signature preserved so payment_gateway.py's direct call
+    is unaffected."""
     db: Session = SessionLocal()
     try:
-        policy = financial_policy_values(db.connection())
+        policy = financial_policy_values(db.connection(), company_id)
         if data.transaction_type not in {"receipt", "payment"}:
             raise ValueError("transaction_type must be receipt or payment")
-        amount = float(accounting_money(
-            data.amount,
-            policy["decimal_places"],
-            policy["rounding_mode"],
-        ))
+        customer = db.query(Customer).filter(Customer.id == data.customer_id, Customer.company_id == company_id).first()
+        if not customer:
+            raise ValueError("Customer not found")
+
+        invoice = None
+        if data.invoice_id:
+            invoice = db.query(Invoice).filter(Invoice.id == data.invoice_id, Invoice.company_id == company_id).first()
+            if not invoice:
+                raise ValueError("Invoice not found")
+
+        entry = apply_settlement(db, policy, customer, invoice, data.transaction_type, data.amount, data.method, data.note)
+        settled = sync_invoice_payment_status(db, invoice, policy) if invoice else 0.0
+        if invoice:
+            invoice.amount_paid = settled
+        remaining = (
+            float(accounting_money(
+                invoice.total_amount - settled,
+                policy["decimal_places"],
+                policy["rounding_mode"],
+            ))
+            if invoice else None
+        )
+        db.commit()
+        if data.transaction_type == "receipt":
+            broadcaster.publish(
+                "payment_received",
+                company_id,
+                customer_id=data.customer_id,
+                amount=float(entry.credit or entry.debit or 0),
+                invoice_id=data.invoice_id,
+            )
+        return {
+            "status": "created",
+            "entry_id": entry.id,
+            "customer_id": data.customer_id,
+            "invoice_id": data.invoice_id,
+            "balance": customer_balance(db, data.customer_id),
+            "invoice_payment_status": invoice.payment_status if invoice else None,
+            "invoice_remaining": remaining,
+        }
+    except ValueError as error:
+        db.rollback()
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.put("/transactions/{transaction_id}")
+def update_transaction(transaction_id: int, data: PaymentCreate, request: Request):
+    # Reverses the old entry's side effects and applies the new one inside
+    # a single DB session/transaction, so a failure applying the new entry
+    # rolls back the reversal too - the frontend previously did this as two
+    # separate HTTP calls (delete, then create), which could permanently
+    # lose the original transaction if the create failed after the delete
+    # had already succeeded.
+    db: Session = SessionLocal()
+    try:
+        company_id = current_company_id(request)
+        entry = db.query(AccountingEntry).filter(AccountingEntry.id == transaction_id, AccountingEntry.company_id == company_id).first()
+        if not entry:
+            raise ValueError("Transaction not found")
+        if entry.source_type not in {"receipt", "payment"}:
+            raise ValueError("Only manual receipts/payments can be edited")
+
+        old_customer_id = entry.customer_id
+        old_source_type = entry.source_type
+        old_source_id = entry.source_id
+        old_linked_invoice = (
+            db.query(Invoice).filter(Invoice.id == old_source_id).first()
+            if old_source_id else None
+        )
+
+        delete_source_voucher(old_source_type, entry.id, company_id, connection=db.connection())
+        db.delete(entry)
+        db.flush()
+        if old_linked_invoice:
+            sync_invoice_payment_status(db, old_linked_invoice)
+
+        policy = financial_policy_values(db.connection(), company_id)
+        if data.transaction_type not in {"receipt", "payment"}:
+            raise ValueError("transaction_type must be receipt or payment")
+        amount = float(accounting_money(data.amount, policy["decimal_places"], policy["rounding_mode"]))
         if amount <= 0:
             raise ValueError("Amount must be greater than zero")
-        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        customer = db.query(Customer).filter(Customer.id == data.customer_id, Customer.company_id == company_id).first()
         if not customer:
             raise ValueError("Customer not found")
 
         invoice = None
         invoice_id = data.invoice_id if data.invoice_id else None
         if invoice_id:
-            invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+            invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
             if not invoice:
                 raise ValueError("Invoice not found")
             if invoice.customer_id != data.customer_id:
@@ -1889,7 +2655,7 @@ def create_payment_or_receipt(data: PaymentCreate):
                 description = f"دریافت از طرف حساب - فاکتور شماره {invoice_id}"
             if data.note:
                 description += f" - {data.note}"
-            entry = add_customer_entry(
+            new_entry = add_customer_entry(
                 db, data.customer_id, "receipt", invoice_id,
                 description, credit=amount,
             )
@@ -1899,7 +2665,7 @@ def create_payment_or_receipt(data: PaymentCreate):
                 description = f"پرداخت به طرف حساب - فاکتور شماره {invoice_id}"
             if data.note:
                 description += f" - {data.note}"
-            entry = add_customer_entry(
+            new_entry = add_customer_entry(
                 db, data.customer_id, "payment", invoice_id,
                 description, debit=amount,
             )
@@ -1914,11 +2680,14 @@ def create_payment_or_receipt(data: PaymentCreate):
             ))
             if invoice else None
         )
-        post_transaction_to_general_ledger(db, entry, data.method, invoice, policy)
+        post_transaction_to_general_ledger(db, new_entry, data.method, invoice, policy)
+        rebuild_customer_balances(db, old_customer_id)
+        if data.customer_id != old_customer_id:
+            rebuild_customer_balances(db, data.customer_id)
         db.commit()
         return {
-            "status": "created",
-            "entry_id": entry.id,
+            "status": "updated",
+            "entry_id": new_entry.id,
             "customer_id": data.customer_id,
             "invoice_id": invoice_id,
             "balance": customer_balance(db, data.customer_id),
@@ -1928,17 +2697,19 @@ def create_payment_or_receipt(data: PaymentCreate):
     except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
-    except Exception as error:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        return {"status": "error", "message": str(error)}
+        raise
     finally:
         db.close()
 
 
 @app.get("/transactions")
-def list_transactions():
+def list_transactions(request: Request):
     db: Session = SessionLocal()
-    entries = db.query(AccountingEntry).order_by(AccountingEntry.id.desc()).all()
+    entries = db.query(AccountingEntry).filter(AccountingEntry.company_id == current_company_id(request)).order_by(AccountingEntry.id.desc()).all()
 
     result = [
         {
@@ -1961,22 +2732,26 @@ def list_transactions():
 
 
 @app.get("/expenses")
-def list_expenses():
+def list_expenses(request: Request):
     with engine.connect() as conn:
-        rows = conn.execute(text("SELECT * FROM expenses ORDER BY id DESC")).mappings().all()
+        rows = conn.execute(
+            text("SELECT * FROM expenses WHERE company_id=:company_id ORDER BY id DESC"),
+            {"company_id": current_company_id(request)},
+        ).mappings().all()
         return [dict(row) for row in rows]
 
 
 @app.post("/expenses")
-def create_expense(data: ExpenseCreate):
+def create_expense(data: ExpenseCreate, request: Request):
     if data.amount <= 0:
         return {"status": "error", "message": "Amount must be greater than zero"}
+    company_id = current_company_id(request)
     try:
         with engine.begin() as conn:
             result = conn.execute(
                 text("""
-                    INSERT INTO expenses (title, category, amount, expense_date, note, created_at)
-                    VALUES (:title, :category, :amount, :expense_date, :note, :created_at)
+                    INSERT INTO expenses (title, category, amount, expense_date, note, created_at, company_id)
+                    VALUES (:title, :category, :amount, :expense_date, :note, :created_at, :company_id)
                 """),
                 {
                     "title": data.title,
@@ -1985,18 +2760,21 @@ def create_expense(data: ExpenseCreate):
                     "expense_date": data.expense_date or datetime.utcnow().date().isoformat(),
                     "note": data.note,
                     "created_at": datetime.utcnow(),
+                    "company_id": company_id,
                 },
             )
             expense_id = result.lastrowid
             amount = float(accounting_money(data.amount))
+            account_code = EXPENSE_CATEGORY_ACCOUNTS.get(data.category, EXPENSE_CATEGORY_ACCOUNTS["general"])
             post_balanced_voucher(
                 "expense",
                 expense_id,
                 f"ثبت خودکار هزینه: {data.title}",
                 [
-                    {"account_code": "5102", "debit": amount, "description": data.title},
+                    {"account_code": account_code, "debit": amount, "description": data.title},
                     {"account_code": "1101", "credit": amount, "description": data.title},
                 ],
+                company_id,
                 voucher_date=data.expense_date or datetime.utcnow().date().isoformat(),
                 connection=conn,
             )
@@ -2006,13 +2784,13 @@ def create_expense(data: ExpenseCreate):
 
 
 @app.delete("/expenses/{expense_id}")
-def delete_expense(expense_id: int):
+def delete_expense(expense_id: int, request: Request):
     try:
         with engine.begin() as conn:
-            delete_source_voucher("expense", expense_id, connection=conn)
+            delete_source_voucher("expense", expense_id, current_company_id(request), connection=conn)
             result = conn.execute(
-                text("DELETE FROM expenses WHERE id=:id"),
-                {"id": expense_id},
+                text("DELETE FROM expenses WHERE id=:id AND company_id=:company_id"),
+                {"id": expense_id, "company_id": current_company_id(request)},
             )
             if result.rowcount == 0:
                 return {"status": "error", "message": "Expense not found"}
@@ -2022,17 +2800,21 @@ def delete_expense(expense_id: int):
 
 
 @app.get("/stock-movements")
-def list_stock_movements():
+def list_stock_movements(request: Request):
     with engine.connect() as conn:
-        rows = conn.execute(text("SELECT * FROM stock_movements ORDER BY id DESC")).mappings().all()
+        rows = conn.execute(
+            text("SELECT * FROM stock_movements WHERE company_id=:company_id ORDER BY id DESC"),
+            {"company_id": current_company_id(request)},
+        ).mappings().all()
         return [dict(row) for row in rows]
 
 
 @app.post("/stock-movements")
-def create_stock_movement(data: StockMovementCreate):
+def create_stock_movement(data: StockMovementCreate, request: Request):
     db: Session = SessionLocal()
     try:
-        product = db.query(Product).filter(Product.id == data.product_id).first()
+        company_id = current_company_id(request)
+        product = db.query(Product).filter(Product.id == data.product_id, Product.company_id == company_id).first()
         if not product:
             raise ValueError("Product not found")
 
@@ -2067,14 +2849,15 @@ def create_stock_movement(data: StockMovementCreate):
         result = db.execute(
             text("""
                 INSERT INTO stock_movements
-                (warehouse, product_id, product_name, quantity,
-                 movement_type, movement_date, note, created_at)
+                (warehouse, warehouse_id, product_id, product_name, quantity,
+                 movement_type, movement_date, note, created_at, company_id)
                 VALUES
-                (:warehouse, :product_id, :product_name, :quantity,
-                 :movement_type, :movement_date, :note, :created_at)
+                (:warehouse, :warehouse_id, :product_id, :product_name, :quantity,
+                 :movement_type, :movement_date, :note, :created_at, :company_id)
             """),
             {
                 "warehouse": data.warehouse,
+                "warehouse_id": data.warehouse_id,
                 "product_id": data.product_id,
                 "product_name": product.name,
                 "quantity": quantity,
@@ -2082,10 +2865,12 @@ def create_stock_movement(data: StockMovementCreate):
                 "movement_date": movement_date,
                 "note": data.note,
                 "created_at": datetime.utcnow(),
+                "company_id": company_id,
             },
         )
         movement_id = result.lastrowid
         db.flush()
+        apply_warehouse_delta(db, data.warehouse_id, data.product_id, stock_delta, company_id)
         post_inventory_adjustment_general_ledger(
             db,
             movement_id,
@@ -2095,6 +2880,7 @@ def create_stock_movement(data: StockMovementCreate):
         )
         updated_stock = float(product.stock or 0)
         db.commit()
+        publish_low_stock_if_needed(product)
         return {
             "status": "created",
             "id": movement_id,
@@ -2103,19 +2889,29 @@ def create_stock_movement(data: StockMovementCreate):
             "stock_delta": stock_delta,
             "stock": updated_stock,
         }
-    except Exception as error:
+    except HTTPException:
+        db.rollback()
+        raise
+    except ValueError as error:
         db.rollback()
         return {"status": "error", "message": str(error)}
+    except Exception:
+        db.rollback()
+        # Anything not already a deliberate ValueError/HTTPException above
+        # must not echo str(error) to the caller - bare-raise and let the
+        # global handler return a sanitized message instead of leaking
+        # internals (SQL/schema detail etc.).
+        raise
     finally:
         db.close()
     
 
 @app.delete("/invoices/{invoice_id}")
-def delete_invoice(invoice_id: int):
+def delete_invoice(invoice_id: int, request: Request):
     db: Session = SessionLocal()
 
     try:
-        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == current_company_id(request)).first()
 
         if not invoice:
             db.close()
@@ -2156,7 +2952,7 @@ def delete_invoice(invoice_id: int):
         for item in items:
             db.delete(item)
 
-        delete_source_voucher("invoice", invoice_id, connection=db.connection())
+        delete_source_voucher("invoice", invoice_id, invoice.company_id, connection=db.connection())
         db.delete(invoice)
         db.flush()
 
@@ -2172,20 +2968,24 @@ def delete_invoice(invoice_id: int):
             "customer_id": customer_id,
         }
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {
-            "status": "error",
-            "message": str(e),
-        }
-    
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
+
 @app.delete("/transactions/{transaction_id}")
-def delete_transaction(transaction_id: int):
+def delete_transaction(transaction_id: int, request: Request):
     db: Session = SessionLocal()
 
     try:
-        entry = db.query(AccountingEntry).filter(AccountingEntry.id == transaction_id).first()
+        entry = db.query(AccountingEntry).filter(AccountingEntry.id == transaction_id, AccountingEntry.company_id == current_company_id(request)).first()
 
         if not entry:
             db.close()
@@ -2201,7 +3001,7 @@ def delete_transaction(transaction_id: int):
         if source_type in {"receipt", "payment"} and source_id:
             linked_invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
 
-        delete_source_voucher(source_type, entry.id, connection=db.connection())
+        delete_source_voucher(source_type, entry.id, entry.company_id, connection=db.connection())
         db.delete(entry)
         db.flush()
 
@@ -2221,24 +3021,29 @@ def delete_transaction(transaction_id: int):
             "source_id": source_id,
         }
 
-    except Exception as e:
+    except ValueError as error:
         db.rollback()
         db.close()
-        return {
-            "status": "error",
-            "message": str(e),
-        }
-    
+        return {"status": "error", "message": str(error)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        db.close()
+        raise
+
+
 @app.delete("/admin/reset-accounting-data")
-def reset_accounting_data():
+def reset_accounting_data(request: Request):
     db: Session = SessionLocal()
 
     try:
-        db.query(AccountingEntry).delete()
-        db.query(InvoiceItem).delete()
-        db.query(Invoice).delete()
-        db.query(Product).delete()
-        db.query(Customer).delete()
+        company_id = current_company_id(request)
+        db.query(AccountingEntry).filter(AccountingEntry.company_id == company_id).delete()
+        db.query(InvoiceItem).filter(InvoiceItem.company_id == company_id).delete()
+        db.query(Invoice).filter(Invoice.company_id == company_id).delete()
+        db.query(Product).filter(Product.company_id == company_id).delete()
+        db.query(Customer).filter(Customer.company_id == company_id).delete()
 
         db.commit()
 
@@ -2249,25 +3054,25 @@ def reset_accounting_data():
             "message": "All accounting data removed"
         }
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
         db.close()
 
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        raise
 
 
 @app.get("/dashboard-stats")
-def dashboard_stats():
+def dashboard_stats(request: Request):
     db: Session = SessionLocal()
     try:
-        payload = build_reports_payload(db)
+        company_id = current_company_id(request)
+        payload = build_reports_payload(db, company_id)
 
-        customers_count = db.query(Customer).count()
-        products_count = db.query(Product).count()
-        invoices_count = db.query(Invoice).count()
+        customers_count = db.query(Customer).filter(Customer.company_id == company_id).count()
+        products_count = db.query(Product).filter(Product.company_id == company_id).count()
+        invoices_count = db.query(Invoice).filter(Invoice.company_id == company_id).count()
 
         profit_loss = payload.get("profit_loss", {})
         cashflow = payload.get("cashflow", {})
@@ -2363,9 +3168,11 @@ def dashboard_stats():
 
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 def _entry_amount(entry):
@@ -2436,16 +3243,22 @@ def _last_month_keys(count=12):
     return list(reversed(keys))
 
 
-def _expense_rows():
+def _expense_rows(company_id: int):
     try:
         with engine.connect() as conn:
-            return [dict(row) for row in conn.execute(text("SELECT * FROM expenses")).mappings().all()]
+            return [
+                dict(row)
+                for row in conn.execute(
+                    text("SELECT * FROM expenses WHERE company_id=:company_id"),
+                    {"company_id": company_id},
+                ).mappings().all()
+            ]
     except Exception:
         return []
 
 
-def _expense_total():
-    return sum(_safe_float(row.get("amount")) for row in _expense_rows())
+def _expense_total(company_id: int):
+    return sum(_safe_float(row.get("amount")) for row in _expense_rows(company_id))
 
 
 def _parse_expense_date(row):
@@ -2462,51 +3275,23 @@ def _parse_expense_date(row):
 
 
 def _invoice_settlement(db: Session, invoice):
+    """Uses invoice_settled_amount()/calculate_payment_status() (the single
+    source of truth - net sum, so void reversals correctly cancel out) with
+    the default policy rather than threading the caller's company-specific
+    financial policy through every invoice_to_dict() call site - acceptable
+    here since this only shapes display data, not posting math."""
     total_amount = _safe_float(getattr(invoice, "total_amount", 0))
-
-    receipt_entries = (
-        db.query(AccountingEntry)
-        .filter(
-            AccountingEntry.source_type == "receipt",
-            AccountingEntry.source_id == invoice.id,
-        )
-        .all()
-    )
-
-    payment_entries = (
-        db.query(AccountingEntry)
-        .filter(
-            AccountingEntry.source_type == "payment",
-            AccountingEntry.source_id == invoice.id,
-        )
-        .all()
-    )
-
-    received_amount = sum(_safe_float(e.credit) for e in receipt_entries)
-    paid_amount = sum(_safe_float(e.debit) for e in payment_entries)
-
-    if invoice.invoice_type in ["sale", "return_buy"]:
-        settled_amount = received_amount
-    elif invoice.invoice_type in ["buy", "return_sale"]:
-        settled_amount = paid_amount
-    else:
-        settled_amount = 0
-
+    settled_amount = invoice_settled_amount(db, invoice)
+    received_amount = settled_amount if invoice.invoice_type in ("sale", "return_buy") else 0
+    paid_amount = settled_amount if invoice.invoice_type in ("buy", "return_sale") else 0
     remaining_amount = max(total_amount - settled_amount, 0)
-
-    if total_amount <= 0:
-        settlement_status = "paid"
-    elif settled_amount <= 0:
-        settlement_status = "unpaid"
-    elif settled_amount < total_amount:
-        settlement_status = "partial"
-    else:
-        settlement_status = "paid"
+    settlement_status = display_payment_status(getattr(invoice, "payment_status", None), total_amount, settled_amount)
 
     return {
         "received_amount": received_amount,
         "paid_amount": paid_amount,
         "settled_amount": settled_amount,
+        "amount_paid": settled_amount,
         "remaining_amount": remaining_amount,
         "settlement_status": settlement_status,
     }
@@ -2531,6 +3316,8 @@ def invoice_to_dict(db: Session, invoice):
         "payment_status": settlement["settlement_status"],
         "status": getattr(invoice, "status", "final"),
         "created_at": invoice.created_at,
+        "source": getattr(invoice, "source", "desk") or "desk",
+        "verification_code": invoice_verification_code(invoice.id, getattr(invoice, "company_id", None)),
         **settlement,
     }
 
@@ -2665,13 +3452,13 @@ def _build_monthly_charts(invoices, entries, expense_rows):
     return monthly_rows, [cash[key] for key in keys]
 
 
-def build_reports_payload(db: Session):
-    invoices = db.query(Invoice).all()
-    invoice_items = db.query(InvoiceItem).all()
-    customers = db.query(Customer).all()
-    products = db.query(Product).all()
-    entries = db.query(AccountingEntry).all()
-    expense_rows = _expense_rows()
+def build_reports_payload(db: Session, company_id: int):
+    invoices = db.query(Invoice).filter(Invoice.company_id == company_id).all()
+    invoice_items = db.query(InvoiceItem).filter(InvoiceItem.company_id == company_id).all()
+    customers = db.query(Customer).filter(Customer.company_id == company_id).all()
+    products = db.query(Product).filter(Product.company_id == company_id).all()
+    entries = db.query(AccountingEntry).filter(AccountingEntry.company_id == company_id).all()
+    expense_rows = _expense_rows(company_id)
 
     today, today_start = _today_bounds()
     week_start = _week_start()
@@ -2917,33 +3704,42 @@ def build_reports_payload(db: Session):
     }
 
 @app.get("/reports/overview")
-def reports_overview():
+def reports_overview(request: Request):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)
+        result = build_reports_payload(db, current_company_id(request))
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/profit-loss")
-def reports_profit_loss():
+def reports_profit_loss(request: Request):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)["profit_loss"]
+        result = build_reports_payload(db, current_company_id(request))["profit_loss"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
+
 
 @app.get("/reports/product-profit")
-def reports_product_profit():
+def reports_product_profit(request: Request = None):
+    return _reports_product_profit_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_product_profit_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        products = db.query(Product).all()
+        products = db.query(Product).filter(Product.company_id == company_id).all()
         rows = []
 
         for product in products:
@@ -3009,16 +3805,22 @@ def reports_product_profit():
 
         db.close()
         return {"items": rows}
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/customer-balances")
-def reports_customer_balances():
+def reports_customer_balances(request: Request = None):
+    return _reports_customer_balances_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_customer_balances_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        customers = db.query(Customer).all()
+        customers = db.query(Customer).filter(Customer.company_id == company_id).all()
         rows = []
 
         for customer in customers:
@@ -3077,17 +3879,21 @@ def reports_customer_balances():
             "debtors": debtors,
             "creditors": creditors,
         }
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/inventory-movements")
-def reports_inventory_movements():
+def reports_inventory_movements(request: Request = None):
+    company_id = current_company_id(request) if request else DEFAULT_COMPANY_ID
     try:
         with engine.connect() as conn:
             rows = conn.execute(
-                text("SELECT * FROM stock_movements ORDER BY id DESC")
+                text("SELECT * FROM stock_movements WHERE company_id=:company_id ORDER BY id DESC"),
+                {"company_id": company_id},
             ).mappings().all()
 
             return {"items": [dict(row) for row in rows]}
@@ -3095,35 +3901,43 @@ def reports_inventory_movements():
         return {"items": []}
 
 @app.get("/reports/trial-balance")
-def reports_trial_balance():
+def reports_trial_balance(request: Request):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)["trial_balance"]
+        result = build_reports_payload(db, current_company_id(request))["trial_balance"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/open-invoices")
-def reports_open_invoices():
+def reports_open_invoices(request: Request = None):
+    return _reports_open_invoices_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_open_invoices_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        payload = build_reports_payload(db)
+        payload = build_reports_payload(db, company_id)
         result = {"summary": payload["invoice_summary"], "items": payload["open_invoices"]}
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/cashflow")
-def reports_cashflow():
+def reports_cashflow(request: Request):
     db: Session = SessionLocal()
     try:
-        payload = build_reports_payload(db)
+        payload = build_reports_payload(db, current_company_id(request))
         result = {
             **payload["cashflow"],
             "receipts": payload["receipts"],
@@ -3131,58 +3945,80 @@ def reports_cashflow():
         }
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/top-customers")
-def reports_top_customers():
+def reports_top_customers(request: Request):
     db: Session = SessionLocal()
     try:
-        payload = build_reports_payload(db)
+        payload = build_reports_payload(db, current_company_id(request))
         result = {"debtors": payload["top_debtors"], "creditors": payload["top_creditors"]}
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/inventory")
-def reports_inventory():
+def reports_inventory(request: Request = None):
+    return _reports_inventory_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_inventory_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)["inventory"]
+        result = build_reports_payload(db, company_id)["inventory"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/sales")
-def reports_sales():
+def reports_sales(request: Request = None):
+    return _reports_sales_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_sales_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)["sales"]
+        result = build_reports_payload(db, company_id)["sales"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/reports/purchases")
-def reports_purchases():
+def reports_purchases(request: Request = None):
+    return _reports_purchases_impl(current_company_id(request) if request else DEFAULT_COMPANY_ID)
+
+
+def _reports_purchases_impl(company_id: int):
     db: Session = SessionLocal()
     try:
-        result = build_reports_payload(db)["purchases"]
+        result = build_reports_payload(db, company_id)["purchases"]
         db.close()
         return result
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.close()
-        return {"status": "error", "message": str(e)}
+        raise
 
 
 @app.get("/activity")
@@ -3190,16 +4026,6 @@ def activity_feed():
     return get_recent_activity()
 
 
-@app.get("/roles")
-def get_roles():
-    return {
-        "roles": [
-            {"key": "admin", "title": "Admin", "permissions": ["all"]},
-            {"key": "manager", "title": "Manager", "permissions": ["dashboard", "customers", "products", "invoices", "reports"]},
-            {"key": "accountant", "title": "Accountant", "permissions": ["dashboard", "invoices", "expenses", "reports", "exports"]},
-            {"key": "cashier", "title": "Cashier", "permissions": ["dashboard", "customers", "invoices"]},
-        ]
-    }
 
 
 @app.get("/backup/create")
@@ -3283,19 +4109,21 @@ def _print_page(title: str, body_html: str, language="fa"):
 @app.get("/print/invoice/{invoice_id}")
 def print_invoice_preview(
     invoice_id: int,
+    request: Request,
     page_size: str = "A4",
     template: str = "official",
     edit: int = 1,
     language: str = "fa",
 ):
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.company_id == company_id).first()
         if not invoice:
             db.close()
             return HTMLResponse("<h2>فاکتور پیدا نشد</h2>", status_code=404)
 
-        settings = get_or_create_settings(db)
+        settings = get_or_create_settings(db, company_id)
         customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
         items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
 
@@ -3695,26 +4523,36 @@ def print_invoice_preview(
         db.close()
         return _print_page(invoice_title, body, language)
 
-    except Exception as e:
+    except Exception:
         db.close()
-        return HTMLResponse(f"<h2>خطا</h2><pre>{_esc(e)}</pre>", status_code=500)
+        # Never echo the raw exception text (may contain SQL/internal detail)
+        # into this browser-rendered page - the real error is still logged
+        # server-side via the global handler's own logging path for any
+        # OTHER route; this one intentionally stays a friendly HTML page.
+        _logger.exception("Failed to render invoice print page")
+        return HTMLResponse(
+            f"<h2>{_print_label(language, 'خطا', 'Error')}</h2>"
+            f"<p>{_print_label(language, 'امکان تولید این صفحه وجود ندارد.', 'This page could not be generated.')}</p>",
+            status_code=500,
+        )
 
 @app.get("/print/transaction/{entry_id}")
-def print_transaction_receipt(entry_id: int, language: str = "fa"):
+def print_transaction_receipt(entry_id: int, request: Request, language: str = "fa"):
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        entry = db.query(AccountingEntry).filter(AccountingEntry.id == entry_id).first()
+        entry = db.query(AccountingEntry).filter(AccountingEntry.id == entry_id, AccountingEntry.company_id == company_id).first()
         if not entry:
             db.close()
             return HTMLResponse("<h2>Transaction not found</h2>", status_code=404)
 
         language = "fa" if language == "fa" else "en"
-        settings = get_or_create_settings(db)
+        settings = get_or_create_settings(db, company_id)
         customer = db.query(Customer).filter(Customer.id == entry.customer_id).first()
 
         invoice = None
         if entry.source_id:
-            invoice = db.query(Invoice).filter(Invoice.id == entry.source_id).first()
+            invoice = db.query(Invoice).filter(Invoice.id == entry.source_id, Invoice.company_id == company_id).first()
 
         is_receipt = entry.source_type == "receipt"
         title = (_print_label(language, "رسید دریافت", "Receipt") if is_receipt else _print_label(language, "رسید پرداخت", "Payment"))
@@ -3729,18 +4567,18 @@ def print_transaction_receipt(entry_id: int, language: str = "fa"):
           </div>
           <div style="text-align:left">
             <h1>{_esc(title)}</h1>
-            <div class="muted">{_print_label(language, 'شماره رسید:', 'Voucher number:')} #{entry.id}</div>
+            <div class="muted">{_print_label(language, 'شماره رسید:', 'Voucher number:')} #{localized_digits(entry.id, language)}</div>
             <div class="muted">{_print_label(language, 'تاریخ:', 'Date:')} {_fmt_date(entry.created_at, settings, language)}</div>
           </div>
         </div>
 
         <div class="grid">
           <div class="box"><div class="label">{_print_label(language, 'طرف حساب', 'Party')}</div><div class="value">{_esc(customer.name if customer else "-")}</div></div>
-          <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{_esc(getattr(customer, "phone", "") if customer else "-")}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'موبایل / تلفن', 'Mobile / Phone')}</div><div class="value">{_esc(localized_digits(getattr(customer, "phone", "") or "-", language) if customer else "-")}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'نوع سند', 'Document type')}</div><div class="value">{_esc(title)}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'مبلغ', 'Amount')}</div><div class="value">{_fmt_money(amount, settings, language)}</div></div>
           <div class="box"><div class="label">{_print_label(language, 'روش پرداخت', 'Payment method')}</div><div class="value">{_esc(method)}</div></div>
-          <div class="box"><div class="label">{_print_label(language, 'فاکتور مرتبط', 'Linked invoice')}</div><div class="value">{("#" + str(invoice.id)) if invoice else _print_label(language, 'بدون فاکتور', 'No linked invoice')}</div></div>
+          <div class="box"><div class="label">{_print_label(language, 'فاکتور مرتبط', 'Linked invoice')}</div><div class="value">{("#" + localized_digits(invoice.id, language)) if invoice else _print_label(language, 'بدون فاکتور', 'No linked invoice')}</div></div>
         </div>
 
         <div class="box" style="margin-top:16px">
@@ -3762,9 +4600,14 @@ def print_transaction_receipt(entry_id: int, language: str = "fa"):
         db.close()
         return _print_page(title, body, language)
 
-    except Exception as e:
+    except Exception:
         db.close()
-        return HTMLResponse(f"<h2>Error</h2><pre>{_esc(e)}</pre>", status_code=500)
+        _logger.exception("Failed to render transaction print page")
+        return HTMLResponse(
+            f"<h2>{_print_label(language, 'خطا', 'Error')}</h2>"
+            f"<p>{_print_label(language, 'امکان تولید این صفحه وجود ندارد.', 'This page could not be generated.')}</p>",
+            status_code=500,
+        )
 
 
 @app.get("/print/receipt/{entry_id}")
@@ -3774,15 +4617,18 @@ def print_receipt_alias(entry_id: int):
 
 @app.get("/export/invoices-pdf")
 def export_pdf(
+    request: Request,
     page_size: str = "A4",
     template: str = "official",
     orientation: str = "portrait",
     language: str = "fa",
 ):
+    _require_export_role(request)
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
-        invoices = db.query(Invoice).all()
-        settings = get_or_create_settings(db)
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).limit(MAX_EXPORT_ROWS).all()
+        settings = get_or_create_settings(db, company_id)
 
         customer_ids = [i.customer_id for i in invoices if getattr(i, "customer_id", None)]
         customers = {}
@@ -3801,28 +4647,27 @@ def export_pdf(
             filename="vetrix_invoices.pdf",
         )
 
-        db.close()
         return FileResponse(
             path,
             media_type="application/pdf",
             filename=f"vetrix_invoices_{page_size}_{template}.pdf",
         )
-
-    except Exception as e:
+    finally:
         db.close()
-        return {"status": "error", "message": str(e)}
 
 
 
 
 
 @app.get("/export/invoices-excel")
-def export_excel(language: str = "en"):
+def export_excel(request: Request, language: str = "en"):
+    _require_export_role(request)
+    company_id = current_company_id(request)
     db: Session = SessionLocal()
     try:
         language = "fa" if language == "fa" else "en"
-        invoices = db.query(Invoice).all()
-        settings = get_or_create_settings(db)
+        invoices = db.query(Invoice).filter(Invoice.company_id == company_id).limit(MAX_EXPORT_ROWS).all()
+        settings = get_or_create_settings(db, company_id)
         customer_ids = [item.customer_id for item in invoices if item.customer_id]
         customer_rows = (
             db.query(Customer).filter(Customer.id.in_(customer_ids)).all()

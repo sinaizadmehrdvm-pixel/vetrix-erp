@@ -1,10 +1,15 @@
 import sqlite3
+from contextlib import closing
 
 from app.backup import auto_backup
 
 
 def _seed_database(path):
-    with sqlite3.connect(path) as connection:
+    # closing() forces an actual connection.close() - sqlite3.Connection's
+    # own context manager only commits/rolls back, not closes, which left a
+    # file handle open long enough for the backup/restore calls further
+    # down these tests to hit a Windows PermissionError on rename/unlink.
+    with closing(sqlite3.connect(path)) as connection:
         for table in ("users", "customers", "products", "invoices", "accounting_entries"):
             connection.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY)')
         connection.execute("INSERT INTO users (id) VALUES (1)")
@@ -37,7 +42,7 @@ def test_restore_rehearsal_rejects_backup_missing_core_schema(tmp_path, monkeypa
     live = tmp_path / "live.db"
     backups = tmp_path / "backups"
     backups.mkdir()
-    with sqlite3.connect(live) as connection:
+    with closing(sqlite3.connect(live)) as connection:
         connection.execute("CREATE TABLE users (id INTEGER PRIMARY KEY)")
     monkeypatch.setattr(auto_backup, "_database_path", lambda: live)
     monkeypatch.setattr(auto_backup, "backup_directory", lambda: backups)

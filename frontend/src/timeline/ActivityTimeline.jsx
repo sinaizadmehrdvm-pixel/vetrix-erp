@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateTitle(title, t, language) {
@@ -22,8 +23,9 @@ function translateTitle(title, t, language) {
   return title;
 }
 
-export default function ActivityTimeline({ items = [] }) {
+export default function ActivityTimeline({ items = [], to = "/audit-trail" }) {
   const { t, language, n, dir } = useLanguage();
+  const fa = language === "fa";
 
   function localizeTime(value) {
     if (!value) return "-";
@@ -48,47 +50,68 @@ export default function ActivityTimeline({ items = [] }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("activityTimeline")}
-      </h2>
-
-      {items.length === 0 ? (
-        <p
+        <h2
           style={{
-            color: "#94a3b8",
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >
-          {t("noActivity")}
-        </p>
+          {t("activityTimeline")}
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : language === "ar" ? "عرض الكل ←" : language === "tr" ? "Tümünü gör →" : "View all →"}
+        </span>
+      </Link>
+
+      {items.length === 0 ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noActivity")}
+          </p>
+        </div>
       ) : (
         items.map((item, index) => (
           <div
             key={index}
             style={{
               padding: "14px 0",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              borderBottom: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
             <strong
               style={{
-                color: "#22d3ee",
+                color: "var(--erp-accent)",
                 display: "block",
                 marginBottom: 6,
                 fontSize: 16,
@@ -101,7 +124,7 @@ export default function ActivityTimeline({ items = [] }) {
 
             <div
               style={{
-                color: "#94a3b8",
+                color: "var(--erp-muted)",
                 fontSize: 13,
               }}
             >

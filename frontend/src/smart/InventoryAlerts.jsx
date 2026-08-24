@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
 
 function translateAlert(message, t, language) {
@@ -24,39 +25,61 @@ function translateAlert(message, t, language) {
   return message;
 }
 
-export default function InventoryAlerts({ alerts = [] }) {
+export default function InventoryAlerts({ alerts = [], to = "/products" }) {
   const { t, language, n, dir } = useLanguage();
+  const fa = language === "fa";
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
-          color: "white",
           marginBottom: 20,
-          fontSize: 24,
-          fontWeight: 900,
-          textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("inventoryAlerts")}
-      </h2>
-
-      {alerts.length === 0 ? (
-        <p
+        <h2
           style={{
-            color: "#94a3b8",
+            color: "var(--erp-text)",
+            fontSize: 24,
+            fontWeight: 900,
+            margin: 0,
             textAlign: dir === "rtl" ? "right" : "left",
           }}
         >
-          {t("noAlerts")}
-        </p>
+          {t("inventoryAlerts")}
+        </h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {fa ? "مشاهده همه ←" : language === "ar" ? "عرض الكل ←" : language === "tr" ? "Tümünü gör →" : "View all →"}
+        </span>
+      </Link>
+
+      {alerts.length === 0 ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noAlerts")}
+          </p>
+        </div>
       ) : (
         alerts.map((alert, index) => {
           const message = translateAlert(
@@ -66,12 +89,13 @@ export default function InventoryAlerts({ alerts = [] }) {
           );
 
           return (
-            <div
+            <Link
               key={alert.id || index}
+              to={to}
+              className="text-red-300"
               style={{
                 background: "rgba(239,68,68,0.15)",
                 border: "1px solid rgba(239,68,68,0.4)",
-                color: "#fca5a5",
                 padding: 14,
                 borderRadius: 16,
                 marginBottom: 12,
@@ -79,6 +103,7 @@ export default function InventoryAlerts({ alerts = [] }) {
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: 12,
+                textDecoration: "none",
               }}
             >
               <div
@@ -108,7 +133,7 @@ export default function InventoryAlerts({ alerts = [] }) {
               >
                 {n(alert.stock || 0)}
               </strong>
-            </div>
+            </Link>
           );
         })
       )}

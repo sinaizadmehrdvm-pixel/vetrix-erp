@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -9,7 +12,6 @@ import {
   Trash2,
   Wallet,
   UserRound,
-  CalendarDays,
   Edit3,
   Save,
   X,
@@ -18,12 +20,15 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
+import { confirmAction } from "../components/ui/confirmService";
 import {
   getCustomers,
   openAuthenticatedDocument,
   getTransactions,
   createTransaction,
+  updateTransaction,
   deleteTransaction,
 } from "../services/api";
 import { getCache, setCache } from "../storage/db";
@@ -43,26 +48,55 @@ const emptyForm = {
 };
 
 const inputClass =
-  "bg-slate-800 text-white placeholder-slate-400 border border-cyan-500/10 focus:border-cyan-400 rounded-2xl p-4 outline-none transition-all min-h-[58px]";
+  "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] placeholder-[var(--erp-muted)] border border-[var(--erp-border)] focus:border-[var(--erp-accent)] rounded-2xl p-4 outline-none transition-all min-h-[58px]";
 
-const faReasons = {
-  invoice_payment: "بابت فاکتور",
-  advance: "علی‌الحساب",
-  debt_settlement: "تسویه بدهی",
-  service_fee: "هزینه خدمات",
-  salary: "حقوق / دستمزد",
-  rent: "اجاره",
-  other: "سایر",
-};
+// Select's `className` only ever reaches its outer positioning wrapper,
+// never the trigger <button> that actually owns radius/padding/height -
+// passing `inputClass` there (as this form used to) silently no-ops on
+// the button while adding unwanted padding to the wrapper. Selects (and
+// the grouped JalaliDateField below) need this page's own control size
+// applied via `triggerClassName`/`groupClassName` instead, so every
+// control in the transaction-entry form actually renders at the same
+// 58px/16px-radius box the raw inputClass fields already use.
+const controlTriggerClass = "!rounded-2xl !p-4 !min-h-[58px]";
 
-const enReasons = {
-  invoice_payment: "Invoice payment",
-  advance: "Advance payment",
-  debt_settlement: "Debt settlement",
-  service_fee: "Service fee",
-  salary: "Salary",
-  rent: "Rent",
-  other: "Other",
+const REASON_LABELS = {
+  fa: {
+    invoice_payment: "بابت فاکتور",
+    advance: "علی‌الحساب",
+    debt_settlement: "تسویه بدهی",
+    service_fee: "هزینه خدمات",
+    salary: "حقوق / دستمزد",
+    rent: "اجاره",
+    other: "سایر",
+  },
+  ar: {
+    invoice_payment: "مقابل فاتورة",
+    advance: "دفعة مقدمة",
+    debt_settlement: "تسوية دين",
+    service_fee: "رسوم خدمة",
+    salary: "راتب / أجر",
+    rent: "إيجار",
+    other: "أخرى",
+  },
+  tr: {
+    invoice_payment: "Fatura karşılığı",
+    advance: "Avans ödemesi",
+    debt_settlement: "Borç kapatma",
+    service_fee: "Hizmet ücreti",
+    salary: "Maaş / ücret",
+    rent: "Kira",
+    other: "Diğer",
+  },
+  en: {
+    invoice_payment: "Invoice payment",
+    advance: "Advance payment",
+    debt_settlement: "Debt settlement",
+    service_fee: "Service fee",
+    salary: "Salary",
+    rent: "Rent",
+    other: "Other",
+  },
 };
 
 function toEnglishDigits(value) {
@@ -90,9 +124,8 @@ function todayByLanguage() {
 }
 
 function getReasonLabel(reason, language) {
-  return language === "fa"
-    ? faReasons[reason] || reason || "-"
-    : enReasons[reason] || reason || "-";
+  const map = REASON_LABELS[language] || REASON_LABELS.en;
+  return map[reason] || reason || "-";
 }
 
 function normalizeParty(party = {}) {
@@ -138,15 +171,23 @@ function normalizeTransaction(item = {}) {
 }
 
 export default function Transactions() {
-  const { t, money, language, dir, date } = useLanguage();
-  const fa = language === "fa";
+  const { t, money, language, dir, date, n, country } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState([]);
   const [parties, setParties] = useState([]);
   const [search, setSearch] = useState("");
+  // Optional `?customer_id=` deep link (e.g. the Field Sales module's
+  // "Receive Payment" quick action) prefills the receipt form so a rep
+  // doesn't have to re-find the customer they just visited.
+  const prefillCustomerId = searchParams.get("customer_id") || "";
   const [form, setForm] = useState({
     ...emptyForm,
     date: todayByLanguage(language),
+    party_id: prefillCustomerId,
+    type: prefillCustomerId ? "income" : emptyForm.type,
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -191,9 +232,12 @@ export default function Transactions() {
 
       setOfflineMode(true);
       setMessage(
-        fa
-          ? "اتصال به سرور برقرار نشد؛ تراکنش‌ها از حافظه آفلاین نمایش داده شدند."
-          : "Server unavailable; transactions loaded from offline cache."
+        tr(
+          "اتصال به سرور برقرار نشد؛ تراکنش‌ها از حافظه آفلاین نمایش داده شدند.",
+          "تعذّر الاتصال بالخادم؛ يتم عرض المعاملات من الذاكرة المؤقتة دون اتصال.",
+          "Sunucuya bağlanılamadı; işlemler çevrimdışı önbellekten gösteriliyor.",
+          "Server unavailable; transactions loaded from offline cache."
+        )
       );
     } finally {
       setLoading(false);
@@ -223,7 +267,7 @@ export default function Transactions() {
     const map = {
       cash: t("cash"),
       card: t("card"),
-      pos: fa ? "کارتخوان" : "POS",
+      pos: tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS"),
       bank: t("bank"),
       cheque: t("cheque"),
     };
@@ -233,20 +277,20 @@ export default function Transactions() {
 
   function transactionTypeLabel(item) {
     if (item.type === "income" || item.source_type === "receipt") {
-      return fa ? "دریافت" : "Receipt";
+      return tr("دریافت", "مقبوضات", "Tahsilat", "Receipt");
     }
     if (item.type === "outcome" || item.source_type === "payment") {
-      return fa ? "پرداخت" : "Payment";
+      return tr("پرداخت", "مدفوعات", "Ödeme", "Payment");
     }
-    if (item.source_type === "invoice") return fa ? "فاکتور" : "Invoice";
-    if (item.source_type === "opening_balance") return fa ? "مانده اول دوره" : "Opening balance";
+    if (item.source_type === "invoice") return tr("فاکتور", "فاتورة", "Fatura", "Invoice");
+    if (item.source_type === "opening_balance") return tr("مانده اول دوره", "الرصيد الافتتاحي", "Açılış bakiyesi", "Opening balance");
     return item.source_type || "-";
   }
 
   function transactionColor(item) {
     if (item.type === "income" || item.source_type === "receipt") return "#22c55e";
     if (item.type === "outcome" || item.source_type === "payment") return "#ef4444";
-    if (item.source_type === "invoice") return "#22d3ee";
+    if (item.source_type === "invoice") return "var(--erp-accent)";
     return "#f59e0b";
   }
 
@@ -308,44 +352,50 @@ export default function Transactions() {
 
   async function saveTransaction() {
     if (!form.party_id || !form.amount) {
-      alert(fa ? "طرف‌حساب و مبلغ را وارد کن" : "Enter party and amount");
+      toast.error(tr("طرف‌حساب و مبلغ را وارد کن", "أدخل الطرف والمبلغ", "Cari ve tutarı girin", "Enter party and amount"));
       return;
     }
 
     const amount = toNumber(form.amount);
 
     if (amount <= 0) {
-      alert(fa ? "مبلغ معتبر نیست" : "Invalid amount");
+      toast.error(tr("مبلغ معتبر نیست", "المبلغ غير صالح", "Geçersiz tutar", "Invalid amount"));
       return;
     }
 
     const payload = buildPayload();
+    // Generated once per submit attempt so a lost-response retry (network
+    // blip, double-click) reuses the same key instead of posting a second,
+    // independent settlement entry - same reasoning as Invoices.jsx's own
+    // idempotencyKey for invoice creation.
+    const idempotencyKey = editingId ? null : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
-      if (editingId) {
-        await deleteTransaction(editingId);
-      }
-
-      const result = await createTransaction(payload);
+      const result = editingId
+        ? await updateTransaction(editingId, payload)
+        : await createTransaction(payload, idempotencyKey);
 
       if (result?.status === "error") {
-        throw new Error(result.message || (fa ? "خطا در ثبت تراکنش" : "Transaction error"));
+        throw new Error(result.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Transaction error"));
       }
 
       resetForm();
       await load();
     } catch (error) {
       console.error("Save transaction error:", error);
-      alert(error.message || (fa ? "خطا در ثبت تراکنش" : "Error saving transaction"));
+      toast.error(error.message || tr("خطا در ثبت تراکنش", "خطأ في تسجيل المعاملة", "İşlem kaydedilirken hata oluştu", "Error saving transaction"));
     }
   }
 
   function editTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
-      alert(
-        fa
-          ? "فقط دریافت و پرداخت دستی قابل ویرایش است. فاکتور یا مانده اول دوره باید از صفحه خودش ویرایش شود."
-          : "Only manual receipts/payments can be edited. Edit invoices or opening balances from their own pages."
+      toast.error(
+        tr(
+          "فقط دریافت و پرداخت دستی قابل ویرایش است. فاکتور یا مانده اول دوره باید از صفحه خودش ویرایش شود.",
+          "يمكن تعديل المقبوضات والمدفوعات اليدوية فقط. يجب تعديل الفاتورة أو الرصيد الافتتاحي من صفحته الخاصة.",
+          "Yalnızca manuel tahsilat/ödeme düzenlenebilir. Fatura veya açılış bakiyesi kendi sayfasından düzenlenmelidir.",
+          "Only manual receipts/payments can be edited. Edit invoices or opening balances from their own pages."
+        )
       );
       return;
     }
@@ -367,15 +417,18 @@ export default function Transactions() {
 
   async function removeTransaction(item) {
     if (!["receipt", "payment"].includes(item.source_type)) {
-      alert(
-        fa
-          ? "این رکورد از فاکتور یا مانده اول دوره ساخته شده و از این صفحه حذف نمی‌شود."
-          : "This record is generated from invoice/opening balance and cannot be deleted here."
+      toast.error(
+        tr(
+          "این رکورد از فاکتور یا مانده اول دوره ساخته شده و از این صفحه حذف نمی‌شود.",
+          "تم إنشاء هذا السجل من فاتورة أو رصيد افتتاحي ولا يمكن حذفه من هذه الصفحة.",
+          "Bu kayıt bir faturadan veya açılış bakiyesinden oluşturuldu ve bu sayfadan silinemez.",
+          "This record is generated from invoice/opening balance and cannot be deleted here."
+        )
       );
       return;
     }
 
-    const ok = window.confirm(fa ? "آیا از حذف تراکنش مطمئنی؟" : "Delete this transaction?");
+    const ok = await confirmAction(tr("آیا از حذف تراکنش مطمئنی؟", "هل أنت متأكد من حذف المعاملة؟", "İşlemi silmek istediğinizden emin misiniz?", "Delete this transaction?"), { danger: true });
     if (!ok) return;
 
     try {
@@ -388,7 +441,7 @@ export default function Transactions() {
       await load();
     } catch (error) {
       console.error("Delete transaction error:", error);
-      alert(error.message || (fa ? "خطا در حذف تراکنش" : "Error deleting transaction"));
+      toast.error(error.message || tr("خطا در حذف تراکنش", "خطأ في حذف المعاملة", "İşlem silinirken hata oluştu", "Error deleting transaction"));
     }
   }
 
@@ -396,7 +449,7 @@ export default function Transactions() {
     try {
       await openAuthenticatedDocument(`/print/transaction/${item.id}`);
     } catch (error) {
-      alert(error.message || (fa ? "خطا در دریافت رسید" : "Receipt loading error"));
+      toast.error(error.message || tr("خطا در دریافت رسید", "خطأ في تحميل الإيصال", "Fiş alınırken hata oluştu", "Receipt loading error"));
     }
   }
 
@@ -413,21 +466,24 @@ export default function Transactions() {
     <div dir={dir} className="space-y-6" style={{ direction: dir }}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">{t("transactions")}</h1>
-          <p className="text-slate-400 mt-2">
-            {fa
-              ? "ثبت دریافت و پرداخت، مشاهده گردش حساب و چاپ رسید"
-              : "Create receipts/payments, review cashflow and print receipts"}
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">{t("transactions")}</h1>
+          <p className="text-[var(--erp-muted)] mt-2">
+            {tr(
+              "ثبت دریافت و پرداخت، مشاهده گردش حساب و چاپ رسید",
+              "تسجيل المقبوضات والمدفوعات، ومراجعة حركة الحساب، وطباعة الإيصال",
+              "Tahsilat ve ödeme kaydı, hesap hareketlerini görüntüleme ve fiş yazdırma",
+              "Create receipts/payments, review cashflow and print receipts"
+            )}
           </p>
         </div>
 
         <button
           type="button"
           onClick={load}
-          className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 border border-cyan-500/20"
+          className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 border border-[var(--erp-border)]"
         >
           <RefreshCw size={18} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
         </button>
       </div>
 
@@ -446,81 +502,77 @@ export default function Transactions() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <SummaryCard
-          title={fa ? "جمع دریافت" : "Total receipts"}
+          title={tr("جمع دریافت", "إجمالي المقبوضات", "Toplam tahsilat", "Total receipts")}
           value={money(totalIncome)}
           icon={<ArrowDownCircle size={28} />}
           color="#22c55e"
         />
         <SummaryCard
-          title={fa ? "جمع پرداخت" : "Total payments"}
+          title={tr("جمع پرداخت", "إجمالي المدفوعات", "Toplam ödeme", "Total payments")}
           value={money(totalOutcome)}
           icon={<ArrowUpCircle size={28} />}
           color="#ef4444"
         />
         <SummaryCard
-          title={fa ? "خالص نقدی" : "Net cash"}
+          title={tr("خالص نقدی", "صافي النقد", "Net nakit", "Net cash")}
           value={money(balance)}
           icon={<Wallet size={28} />}
-          color="#22d3ee"
+          color="var(--erp-accent)"
         />
       </div>
 
       <div
         style={{
-          background: "rgba(15,23,42,0.65)",
-          border: "1px solid rgba(34,211,238,0.18)",
+          background: "var(--erp-bg-soft)",
+          border: "1px solid var(--erp-border)",
           borderRadius: 28,
           padding: 20,
         }}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <select
+          <Select
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
-            className={inputClass}
-          >
-            <option value="income">{fa ? "دریافت" : "Receipt"}</option>
-            <option value="outcome">{fa ? "پرداخت" : "Payment"}</option>
-          </select>
+            onChange={(value) => setForm({ ...form, type: value })}
+            options={[
+              { value: "income", label: tr("دریافت", "مقبوضات", "Tahsilat", "Receipt") },
+              { value: "outcome", label: tr("پرداخت", "مدفوعات", "Ödeme", "Payment") },
+            ]}
+          />
 
-          <select
+          <Select
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            className={inputClass}
-          >
-            {Object.keys(faReasons).map((key) => (
-              <option key={key} value={key}>
-                {getReasonLabel(key, language)}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setForm({ ...form, reason: value })}
+            options={Object.keys(REASON_LABELS.fa).map((key) => ({
+              value: key,
+              label: getReasonLabel(key, language),
+            }))}
+          />
 
-          <select
+          <Select
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.party_id}
-            onChange={(e) => setForm({ ...form, party_id: e.target.value })}
-            className={inputClass}
-          >
-            <option value="">
-              {form.type === "income"
-                ? fa
-                  ? "انتخاب پرداخت‌کننده"
-                  : "Select payer"
-                : fa
-                ? "انتخاب دریافت‌کننده"
-                : "Select receiver"}
-            </option>
-
-            {parties.map((party) => (
-              <option key={party.id} value={party.id}>
-                {party.name}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setForm({ ...form, party_id: value })}
+            options={[
+              {
+                value: "",
+                label:
+                  form.type === "income"
+                    ? tr("انتخاب پرداخت‌کننده", "اختر الدافع", "Ödeyeni seçin", "Select payer")
+                    : tr("انتخاب دریافت‌کننده", "اختر المستلم", "Alıcıyı seçin", "Select receiver"),
+              },
+              ...parties.map((party) => ({ value: party.id, label: party.name })),
+            ]}
+          />
 
           <input
             type="text"
             inputMode="numeric"
-            value={fa ? toPersianDigits(form.amount) : form.amount}
+            value={language === "fa" ? toPersianDigits(form.amount) : form.amount}
             onChange={(e) =>
               setForm({
                 ...form,
@@ -531,53 +583,44 @@ export default function Transactions() {
             className={inputClass}
           />
 
-          <select
+          <Select
+            className="w-full"
+            triggerClassName={controlTriggerClass}
             value={form.method}
-            onChange={(e) => setForm({ ...form, method: e.target.value })}
-            className={inputClass}
-          >
-            <option value="cash">{t("cash")}</option>
-            <option value="pos">{fa ? "کارتخوان" : "POS"}</option>
-            <option value="card">{t("card")}</option>
-            <option value="bank">{t("bank")}</option>
-            <option value="cheque">{t("cheque")}</option>
-          </select>
+            onChange={(value) => setForm({ ...form, method: value })}
+            options={[
+              { value: "cash", label: t("cash") },
+              { value: "pos", label: tr("کارتخوان", "جهاز نقاط البيع", "POS cihazı", "POS") },
+              { value: "card", label: t("card") },
+              { value: "bank", label: t("bank") },
+              { value: "cheque", label: t("cheque") },
+            ]}
+          />
 
           <input
             type="text"
             inputMode="numeric"
-            value={fa ? toPersianDigits(form.invoice_id) : form.invoice_id}
+            value={language === "fa" ? toPersianDigits(form.invoice_id) : form.invoice_id}
             onChange={(e) => setForm({ ...form, invoice_id: cleanNumber(e.target.value) })}
-            placeholder={fa ? "شماره فاکتور مرتبط (اختیاری)" : "Linked invoice ID (optional)"}
+            placeholder={tr("شماره فاکتور مرتبط (اختیاری)", "رقم الفاتورة المرتبطة (اختياري)", "İlişkili fatura no (isteğe bağlı)", "Linked invoice ID (optional)")}
             className={inputClass}
           />
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              value={fa ? toPersianDigits(form.date) : form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              placeholder={fa ? "تاریخ شمسی مثل ۱۴۰۵/۰۳/۰۹" : "Date like 2026-05-30"}
-              className={inputClass}
-              style={{ width: "100%" }}
-            />
-
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, date: todayByLanguage(language) })}
-              className="px-4 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
-              style={{ minWidth: 105 }}
-            >
-              <CalendarDays size={17} />
-              {fa ? "امروز" : "Today"}
-            </button>
-          </div>
+          <JalaliDateField
+            value={form.date}
+            onChange={(isoDate) => setForm({ ...form, date: isoDate })}
+            fa={language === "fa"}
+            language={language}
+            country={country}
+            variant="grouped"
+            groupClassName="!rounded-2xl !min-h-[58px]"
+          />
         </div>
 
         <textarea
           value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder={fa ? "توضیحات تکمیلی" : "Additional description"}
+          onChange={(e) => setForm({ ...form, description: language === "fa" ? toPersianDigits(e.target.value) : e.target.value })}
+          placeholder={tr("توضیحات تکمیلی", "وصف إضافي", "Ek açıklama", "Additional description")}
           className={`${inputClass} w-full mt-3`}
           rows={3}
         />
@@ -600,17 +643,17 @@ export default function Transactions() {
             }}
           >
             {editingId ? <Save size={18} /> : <Plus size={18} />}
-            {editingId ? (fa ? "ذخیره ویرایش" : "Save Edit") : t("addTransaction")}
+            {editingId ? tr("ذخیره ویرایش", "حفظ التعديل", "Düzenlemeyi kaydet", "Save Edit") : t("addTransaction")}
           </button>
 
           {editingId && (
             <button
               type="button"
               onClick={resetForm}
-              className="px-5 py-3 rounded-2xl bg-slate-700 text-white font-black flex items-center gap-2"
+              className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-black flex items-center gap-2"
             >
               <X size={18} />
-              {fa ? "لغو ویرایش" : "Cancel Edit"}
+              {tr("لغو ویرایش", "إلغاء التعديل", "Düzenlemeyi iptal et", "Cancel Edit")}
             </button>
           )}
         </div>
@@ -618,87 +661,96 @@ export default function Transactions() {
 
       <div
         style={{
-          background: "rgba(15,23,42,0.65)",
-          border: "1px solid rgba(34,211,238,0.18)",
+          background: "var(--erp-bg-soft)",
+          border: "1px solid var(--erp-border)",
           borderRadius: 28,
           padding: 20,
         }}
       >
-        <div className="flex items-center gap-2 bg-slate-800 rounded-2xl px-4 py-3 mb-5">
+        {/* .vitalix-input-group (index.css) owns the rounded pill's border/
+            background/focus-within ring on the outer container - the bare
+            <input> gives up its own outline/border/box-shadow via that
+            same class's `> input` rule, so it never shows the browser's
+            square focus box inside the rounded pill. !rounded-2xl keeps
+            this page's existing 16px radius instead of the class's 12px
+            default. */}
+        <div className="vitalix-input-group !rounded-2xl flex items-center gap-2 px-4 py-3 mb-5">
           <Search size={18} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearch(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
             placeholder={t("searchTransaction")}
-            className="bg-transparent outline-none w-full text-white placeholder-slate-400"
+            className="min-w-0 flex-1 text-[var(--erp-text)] placeholder-[var(--erp-muted)]"
           />
         </div>
 
         {loading ? (
-          <p style={{ color: "#94a3b8" }}>{fa ? "در حال دریافت..." : "Loading..."}</p>
+          <p style={{ color: "var(--erp-muted)" }}>{tr("در حال دریافت...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}</p>
         ) : filteredTransactions.length === 0 ? (
-          <p style={{ color: "#94a3b8" }}>{t("noData")}</p>
+          <p style={{ color: "var(--erp-muted)" }}>{t("noData")}</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", color: "white" }}>
-              <thead>
-                <tr style={{ color: "#22d3ee" }}>
-                  <th className="p-3 text-start">{t("transactionType")}</th>
-                  <th className="p-3 text-start">{fa ? "بابت" : "Reason"}</th>
-                  <th className="p-3 text-start">{t("party")}</th>
-                  <th className="p-3 text-start">{t("method")}</th>
-                  <th className="p-3 text-start">{t("amount")}</th>
-                  <th className="p-3 text-start">{fa ? "مانده بعد" : "Balance after"}</th>
-                  <th className="p-3 text-start">{t("date")}</th>
-                  <th className="p-3 text-start">{t("actions")}</th>
-                </tr>
-              </thead>
+          <Table dir={dir} className="text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{t("transactionType")}</Th>
+              <Th>{tr("بابت", "السبب", "Sebep", "Reason")}</Th>
+              <Th>{t("party")}</Th>
+              <Th>{t("method")}</Th>
+              <Th align="end">{t("amount")}</Th>
+              <Th align="end">{tr("مانده بعد", "الرصيد بعد", "Sonraki bakiye", "Balance after")}</Th>
+              <Th>{t("date")}</Th>
+              <Th>{t("actions")}</Th>
+            </Thead>
 
-              <tbody>
-                {filteredTransactions.map((item) => (
-                  <tr key={item.id} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td className="p-3">
-                      <span style={{ color: transactionColor(item), fontWeight: 900 }}>
-                        {transactionTypeLabel(item)}
-                      </span>
-                    </td>
+            <Tbody>
+              {filteredTransactions.map((item, rowIndex) => (
+                <Tr key={item.id}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+                  <Td>
+                    <span style={{ color: transactionColor(item), fontWeight: 900 }}>
+                      {transactionTypeLabel(item)}
+                    </span>
+                  </Td>
 
-                    <td className="p-3">{getReasonLabel(item.reason, language)}</td>
+                  <Td>{getReasonLabel(item.reason, language)}</Td>
 
-                    <td className="p-3">
-                      {item.party_id || item.customer_id ? (
-                        <Link
-                          to={`/customers/${item.party_id || item.customer_id}`}
-                          className="text-cyan-300 font-bold inline-flex items-center gap-2"
-                        >
-                          <UserRound size={16} />
-                          {partyName(item.party_id || item.customer_id)}
-                        </Link>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+                  <Td>
+                    {item.party_id || item.customer_id ? (
+                      <Link
+                        to={`/customers/${item.party_id || item.customer_id}`}
+                        className="text-[var(--erp-accent)] font-bold inline-flex items-center gap-2"
+                      >
+                        <UserRound size={16} />
+                        {partyName(item.party_id || item.customer_id)}
+                      </Link>
+                    ) : (
+                      "-"
+                    )}
+                  </Td>
 
-                    <td className="p-3">{methodLabel(item.method)}</td>
-                    <td className="p-3 font-black">{money(item.amount)}</td>
-                    <td className="p-3 font-bold text-cyan-200">
-                      {item.balance_after ? money(item.balance_after) : "-"}
-                    </td>
-                    <td className="p-3">{displayDate(item.created_at || item.date)}</td>
+                  <Td>{methodLabel(item.method)}</Td>
+                  <Td align="end" className="font-black">{money(item.amount)}</Td>
+                  <Td align="end" className="font-bold text-[var(--erp-accent)]">
+                    {item.balance_after ? money(item.balance_after) : "-"}
+                  </Td>
+                  <Td>{displayDate(item.created_at || item.date)}</Td>
 
-                    <td className="p-3">
-                      <div className="flex gap-2">
+                  <Td>
+                    <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => editTransaction(item)}
-                          title={fa ? "ویرایش" : "Edit"}
+                          title={tr("ویرایش", "تعديل", "Düzenle", "Edit")}
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
-                            background: "rgba(34,211,238,0.18)",
-                            color: "#67e8f9",
+                            background: "var(--erp-glow)",
+                            color: "var(--erp-accent)",
                             cursor: "pointer",
                           }}
                         >
@@ -708,14 +760,17 @@ export default function Transactions() {
                         <button
                           type="button"
                           onClick={() => printTransactionReceipt(item)}
-                          title={fa ? "چاپ رسید" : "Print receipt"}
+                          title={tr("چاپ رسید", "طباعة الإيصال", "Fişi yazdır", "Print receipt")}
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
-                            background: "rgba(34,211,238,0.18)",
-                            color: "#67e8f9",
+                            background: "var(--erp-glow)",
+                            color: "var(--erp-accent)",
                             cursor: "pointer",
                           }}
                         >
@@ -725,26 +780,28 @@ export default function Transactions() {
                         <button
                           type="button"
                           onClick={() => removeTransaction(item)}
-                          title={fa ? "حذف" : "Delete"}
+                          title={tr("حذف", "حذف", "Sil", "Delete")}
+                          className="text-red-300"
                           style={{
                             width: 38,
                             height: 38,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderRadius: 12,
                             border: "none",
                             background: "rgba(239,68,68,0.18)",
-                            color: "#fca5a5",
                             cursor: "pointer",
                           }}
                         >
                           <Trash2 size={17} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </Tbody>
+            </Table>
         )}
       </div>
     </div>
@@ -755,11 +812,11 @@ function SummaryCard({ title, value, icon, color }) {
   return (
     <div
       style={{
-        background: "rgba(15,23,42,0.75)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "var(--erp-bg-soft)",
+        border: "1px solid var(--erp-border)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -767,7 +824,7 @@ function SummaryCard({ title, value, icon, color }) {
       }}
     >
       <div>
-        <div style={{ color: "#94a3b8", marginBottom: 8 }}>{title}</div>
+        <div style={{ color: "var(--erp-muted)", marginBottom: 8 }}>{title}</div>
         <div style={{ fontSize: 26, fontWeight: 900 }}>{value}</div>
       </div>
 

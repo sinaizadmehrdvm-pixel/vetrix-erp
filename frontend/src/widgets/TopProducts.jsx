@@ -1,96 +1,103 @@
+import { Link } from "react-router-dom";
+import { Package } from "lucide-react";
 import { useLanguage } from "../localization/useLanguage";
 
-export default function TopProducts({ products = [] }) {
-  const { t, n, money, dir } = useLanguage();
-
-  const gridColumns =
-    dir === "rtl" ? "110px 90px 1fr" : "1fr 90px 110px";
+export default function TopProducts({ products = [], to = "/products" }) {
+  const { t, n, money, dir, language } = useLanguage();
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <h2
+      <Link
+        to={to}
         style={{
           marginBottom: 18,
           textAlign: dir === "rtl" ? "right" : "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {t("topProducts")}
-      </h2>
+        <h2 style={{ margin: 0 }}>{t("topProducts")}</h2>
+        <span style={{ fontSize: 13, color: "var(--erp-accent)", fontWeight: 700 }}>
+          {tr("مشاهده همه ←", "عرض الكل ←", "Tümünü gör →", "View all →")}
+        </span>
+      </Link>
 
       {products.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>{t("noProducts")}</p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--erp-muted)", margin: 0 }}>{t("noProducts")}</p>
+        </div>
       ) : (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: gridColumns,
-              gap: 12,
-              paddingBottom: 10,
-              color: "#22d3ee",
-              fontWeight: 900,
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-              textAlign: dir === "rtl" ? "right" : "left",
-            }}
-          >
-            {dir === "rtl" ? (
-              <>
-                <span>{t("sell")}</span>
-                <span>{t("stock")}</span>
-                <span>{t("product")}</span>
-              </>
-            ) : (
-              <>
-                <span>{t("product")}</span>
-                <span>{t("stock")}</span>
-                <span>{t("sell")}</span>
-              </>
-            )}
-          </div>
-
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {products.map((p, index) => {
             const name = p.name || "-";
             const stock = n(p.stock || 0);
             const price = money(p.price || p.sell_price || 0);
 
             return (
-              <div
+              <Link
                 key={p.id || index}
+                to={`/products?q=${encodeURIComponent(name)}`}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: gridColumns,
-                  gap: 12,
-                  padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.08)",
-                  textAlign: dir === "rtl" ? "right" : "left",
+                  display: "flex",
                   alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "var(--erp-panel-solid)",
+                  minWidth: 0,
+                  textDecoration: "none",
+                  color: "inherit",
                 }}
               >
-                {dir === "rtl" ? (
-                  <>
-                    <span>{price}</span>
-                    <span>{stock}</span>
-                    <strong>{name}</strong>
-                  </>
-                ) : (
-                  <>
-                    <strong>{name}</strong>
-                    <span>{stock}</span>
-                    <span>{price}</span>
-                  </>
-                )}
-              </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      minWidth: 40,
+                      borderRadius: 12,
+                      background: "var(--erp-glow)",
+                      color: "var(--erp-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Package size={18} />
+                  </div>
+                  <div style={{ minWidth: 0, textAlign: dir === "rtl" ? "right" : "left" }}>
+                    <div style={{ fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {name}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--erp-muted)", whiteSpace: "nowrap" }}>
+                      {t("stock")}: {stock}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>{price}</div>
+              </Link>
             );
           })}
-        </>
+        </div>
       )}
     </div>
   );

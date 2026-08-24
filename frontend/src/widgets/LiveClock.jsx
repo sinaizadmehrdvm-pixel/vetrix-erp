@@ -16,11 +16,10 @@ export default function LiveClock() {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        color: "#22d3ee",
+        color: "var(--erp-accent)",
         fontWeight: 800,
-        background: "rgba(15,23,42,0.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 18,
         padding: "12px 18px",
       }}

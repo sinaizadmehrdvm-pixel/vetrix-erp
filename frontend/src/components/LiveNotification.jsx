@@ -4,9 +4,8 @@ export default function LiveNotification({ notifications = [] }) {
   const { t, language, n, dir } = useLanguage();
 
   function localizeTitle(item) {
-    if (language !== "fa") return item.title;
-
-    if (item.title_fa) return item.title_fa;
+    if (language === "en") return item.title;
+    if (language === "fa" && item.title_fa) return item.title_fa;
 
     const value = String(item.title || "").toLowerCase();
 
@@ -51,12 +50,15 @@ export default function LiveNotification({ notifications = [] }) {
 
   return (
     <div
+      className="erp-surface"
       style={{
-        background: "rgba(15,23,42,0.9)",
         borderRadius: 24,
         padding: 20,
-        color: "white",
+        color: "var(--erp-text)",
         direction: dir,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <h2
@@ -71,14 +73,17 @@ export default function LiveNotification({ notifications = [] }) {
       </h2>
 
       {notifications.length === 0 ? (
-        <p
-          style={{
-            color: "#94a3b8",
-            textAlign: dir === "rtl" ? "right" : "left",
-          }}
-        >
-          {t("noNotifications")}
-        </p>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p
+            style={{
+              color: "var(--erp-muted)",
+              textAlign: dir === "rtl" ? "right" : "left",
+              margin: 0,
+            }}
+          >
+            {t("noNotifications")}
+          </p>
+        </div>
       ) : (
         notifications.map((item, index) => (
           <div
@@ -93,7 +98,7 @@ export default function LiveNotification({ notifications = [] }) {
                   : item.type === "warning"
                   ? "rgba(245,158,11,0.18)"
                   : "rgba(16,185,129,0.18)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid var(--erp-border)",
               textAlign: dir === "rtl" ? "right" : "left",
             }}
           >
@@ -101,7 +106,7 @@ export default function LiveNotification({ notifications = [] }) {
 
             <div
               style={{
-                color: "#94a3b8",
+                color: "var(--erp-muted)",
                 marginTop: 4,
                 lineHeight: 1.8,
               }}

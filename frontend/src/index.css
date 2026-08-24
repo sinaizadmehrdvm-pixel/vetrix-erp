@@ -1,16 +1,123 @@
 @import "tailwindcss";
 
 :root {
-  --erp-bg: #071028;
-  --erp-bg-soft: #0b1736;
-  --erp-panel: rgba(15, 30, 65, 0.86);
-  --erp-panel-solid: #132347;
-  --erp-text: #f8fafc;
-  --erp-muted: #94a3b8;
-  --erp-accent: #22d3ee;
-  --erp-accent-2: #34d399;
-  --erp-border: rgba(34, 211, 238, 0.18);
-  --erp-glow: rgba(34, 211, 238, 0.2);
+  /* VITALIX default identity: neutral near-black navy base (NOT
+     teal-tinted - surfaces stay neutral so electric cyan and metallic
+     copper-gold read as deliberate accents against them, not as "one
+     more teal rectangle"). Cyan/gold are reserved for accent/active/
+     focus/highlight use per the brand-light system below, not for the
+     base surface hue itself. */
+  --erp-bg: #05070a;
+  --erp-bg-soft: #0a1017;
+  --erp-panel: rgba(17, 24, 32, 0.86);
+  --erp-panel-solid: #131b24;
+  --erp-text: #e6edf1;
+  --erp-muted: #8a99a8;
+  --erp-accent: #00d6d0;
+  --erp-accent-2: #e2a45e;
+  /* Text color for content sitting directly on a solid/gradient
+     --erp-accent|-accent-2 fill (primary/accent buttons, etc.) - every
+     theme preset's accent pair is deliberately bright/saturated, so one
+     near-black constant reads correctly across all of them instead of
+     needing a per-theme override. */
+  --erp-on-accent: #04121b;
+  /* Neutral slate border - deliberately NOT accent-tinted, so every
+     card/table/input edge in the app doesn't carry a cyan halo by
+     default. Cyan shows up where it's meant to: --erp-glow (hover/
+     active fills), focus rings, and the brand-light system below. */
+  --erp-border: rgba(148, 163, 184, 0.14);
+  --erp-glow: rgba(0, 214, 208, 0.16);
+  /* Restrained warm counterpart to --erp-glow, for the "occasional gold/
+     bronze reflection" surfaces ask for (brand halo, active nav's tiny
+     gold detail, KPI accent edges) - used sparingly, never as a base. */
+  --erp-glow-gold: color-mix(in srgb, var(--erp-accent-2) 20%, transparent);
+  /* Subtle top inner-edge highlight for elevated surfaces (erp-surface,
+     Card) - the "catches a little light" cue that reads as crafted/
+     three-dimensional instead of a flat filled rectangle. */
+  --erp-surface-highlight: rgba(255, 255, 255, 0.06);
+  /* Recessed-field depth for inputs/selects/textareas - a subtle inward
+     shadow so controls read as "cut into" the surface rather than sitting
+     flush on top of it, echoed at focus alongside the accent ring. */
+  --erp-inset-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  /* Radius scale - collapses the ~14 different radius values that had
+     accumulated ad hoc across pages (8/10/11/12/13/14/15/16/17/18/20/
+     22/24/28px) down to 3 deliberate steps, reused by the shared ui/
+     components. Not themed - roundness is a shape choice, not a color
+     one, so it stays constant across every theme preset below. */
+  --erp-radius-sm: 8px;
+  --erp-radius-md: 12px;
+  --erp-radius-lg: 16px;
+
+  /* Elevation - one restrained shadow for cards/panels/modals, replacing
+     the heavy 0 18px 55px look used ad hoc across pages. Enterprise SaaS
+     shadows are a soft hint of depth, not a dramatic drop shadow. */
+  --erp-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.14);
+
+  /* Semantic status colors - one token per meaning (success/warning/
+     danger), reused by Badge and status text everywhere instead of each
+     page hardcoding a Tailwind pastel class (text-green-300, etc.) that
+     then has to be patched separately per theme - see the light-theme
+     override block below for why that approach broke down. "Info" is
+     intentionally not a separate token: it reuses --erp-accent, since
+     every theme already has its own accent hue and a fixed blue would
+     clash with, say, the violet or rose presets. */
+  --erp-success: #86efac;
+  --erp-success-soft: rgba(34, 197, 94, 0.14);
+  --erp-warning: #fde68a;
+  --erp-warning-soft: rgba(245, 158, 11, 0.14);
+  --erp-danger: #fca5a5;
+  --erp-danger-soft: rgba(239, 68, 68, 0.14);
+
+  /* Solid action-button colors - distinct from the -soft pill tokens
+     above (Badge/Button's success|danger variants intentionally stay
+     pale/restrained). These back the *opaque* filled action buttons
+     (approve/reject/withdraw, clear/bounce/cancel, etc.) that ~17 files
+     had each hardcoded identically as literal hex - status colors, not
+     brand colors, so they intentionally don't track --erp-accent and
+     stay constant across theme presets/light mode like any other solid
+     button fill would. */
+  --erp-success-solid: #166534;
+  --erp-success-solid-text: #dcfce7;
+  --erp-danger-solid: #7f1d1d;
+  --erp-danger-solid-text: #fee2e2;
+  --erp-warning-solid: #78350f;
+  --erp-warning-solid-text: #fef3c7;
+
+  /* Identity-color palette for UserAvatar's initials fallback (GitHub/
+     Slack-style: a person's color stays the same regardless of theme, so
+     it stays recognizable) - deliberately constant across every theme
+     preset/light mode below, like the solid action-button colors above. */
+  --erp-avatar-1: #00d6d0; --erp-avatar-2: #7c5cff; --erp-avatar-3: #ff6b6b; --erp-avatar-4: #ffb020;
+  --erp-avatar-5: #22c55e; --erp-avatar-6: #3b82f6; --erp-avatar-7: #ec4899; --erp-avatar-8: #14b8a6;
+  --erp-avatar-initials-text: #fff;
+  /* Photo-overlay scrim for AvatarUploadButton's hover camera icon -
+     mirrors Modal.jsx's own bg-black/70 backdrop reasoning: a translucent
+     scrim over a photo, not page chrome, so it stays constant across themes. */
+  --erp-avatar-overlay: rgba(0, 0, 0, 0.45);
+
+  /* Elevation tiers - --erp-shadow (above) stays the resting-card depth
+     everything already used; these two add a raised/hover step and a
+     floating/modal step on top of it, so "premium" surfaces (Modal, a
+     hovered Card, the Sidebar edge) read as one consistent depth system
+     instead of each place inventing its own shadow. */
+  --erp-elevation-1: var(--erp-shadow);
+  --erp-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.10), 0 16px 40px rgba(0, 0, 0, 0.22);
+  --erp-elevation-3: 0 4px 8px rgba(0, 0, 0, 0.14), 0 28px 70px rgba(0, 0, 0, 0.32);
+
+  /* Glow tiers - --erp-glow (above) is the existing "resting" tint used
+     for focus rings/hover fills; -soft/-strong give hover/idle-ambient
+     and active/emphasis states a matching intensity without each
+     component picking its own opacity. */
+  --erp-glow-soft: color-mix(in srgb, var(--erp-accent) 10%, transparent);
+  --erp-glow-strong: color-mix(in srgb, var(--erp-accent) 32%, transparent);
+
+  /* Motion - shared timing so hover/press/open transitions feel like one
+     system rather than each component picking its own duration/easing. */
+  --erp-duration-fast: 150ms;
+  --erp-duration-base: 220ms;
+  --erp-duration-slow: 320ms;
+  --erp-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :root[data-theme="ocean"] { --erp-bg:#061827; --erp-bg-soft:#082f49; --erp-panel:#0c3048e6; --erp-panel-solid:#0e3a55; --erp-accent:#38bdf8; --erp-accent-2:#2dd4bf; --erp-border:#38bdf833; --erp-glow:#38bdf838; }
@@ -18,17 +125,468 @@
 :root[data-theme="violet"] { --erp-bg:#130d27; --erp-bg-soft:#211440; --erp-panel:#2b1d50e6; --erp-panel-solid:#352460; --erp-accent:#a78bfa; --erp-accent-2:#f0abfc; --erp-border:#a78bfa33; --erp-glow:#a78bfa38; }
 :root[data-theme="rose"] { --erp-bg:#24101b; --erp-bg-soft:#3a1627; --erp-panel:#4a1c31e6; --erp-panel-solid:#572139; --erp-accent:#fb7185; --erp-accent-2:#f9a8d4; --erp-border:#fb718533; --erp-glow:#fb718538; }
 :root[data-theme="gold"] { --erp-bg:#201706; --erp-bg-soft:#34250a; --erp-panel:#46320de6; --erp-panel-solid:#513b12; --erp-accent:#fbbf24; --erp-accent-2:#fde68a; --erp-border:#fbbf2433; --erp-glow:#fbbf2438; }
-:root[data-theme="light"] { --erp-bg:#eef5fb; --erp-bg-soft:#ffffff; --erp-panel:#fffffff0; --erp-panel-solid:#e5eef8; --erp-text:#10233d; --erp-muted:#52657b; --erp-accent:#0284c7; --erp-accent-2:#059669; --erp-border:#0284c733; --erp-glow:#0284c726; }
+:root[data-theme="light"] {
+  /* VITALIX in light mode: same cyan/copper identity, but the canvas and
+     card interiors are now deliberately differentiated neutral tones
+     (not three near-identical pale-blue rectangles) - a cool-gray canvas,
+     crisp white major surfaces, a faintly warmer off-white for card
+     interiors - so tonal layering is visible without leaning on color. */
+  --erp-bg:#eef1f4; --erp-bg-soft:#ffffff; --erp-panel:#ffffffeb; --erp-panel-solid:#f7f7f5;
+  --erp-text:#10181f; --erp-muted:#5c6b79; --erp-accent:#0891b2; --erp-accent-2:#b8752f;
+  /* Neutral charcoal border (not accent-tinted) - see the :root comment
+     for why; the same "everything looks teal" trap applies here too. */
+  --erp-border: rgba(15, 23, 42, 0.10);
+  --erp-glow:#0891b220;
+  --erp-glow-gold: color-mix(in srgb, var(--erp-accent-2) 16%, transparent);
+  --erp-surface-highlight: rgba(255, 255, 255, 0.85);
+  --erp-inset-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.07);
+  /* Dark, readable tones instead of the pale defaults above - same values
+     already proven correct for this theme in the text-color override
+     block that follows, so Badge/status text stays consistent with it. */
+  --erp-success:#15803d; --erp-success-soft: rgba(21, 128, 61, 0.10);
+  --erp-warning:#b45309; --erp-warning-soft: rgba(180, 83, 9, 0.10);
+  --erp-danger:#b91c1c; --erp-danger-soft: rgba(185, 28, 28, 0.10);
+  /* Deeper, more deliberate shadow steps than a typical flat admin panel -
+     "expensive" light-mode elevation instead of a barely-there tint. */
+  --erp-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.08);
+  --erp-elevation-1: var(--erp-shadow);
+  --erp-elevation-2: 0 3px 6px rgba(15, 23, 42, 0.06), 0 18px 40px rgba(15, 23, 42, 0.11);
+  --erp-elevation-3: 0 6px 12px rgba(15, 23, 42, 0.08), 0 30px 70px rgba(15, 23, 42, 0.16);
+}
+
+/* Status pills/badges across the app pair a light pastel Tailwind text
+   shade (e.g. text-emerald-300) with a translucent tinted background
+   (e.g. bg-emerald-500/10) - readable on this app's dark panels, but
+   nearly invisible on the light theme's near-white background. Rather
+   than hand-edit every badge in ~20 files, override the text color for
+   these specific utility classes only in light mode, using a strong
+   same-hue shade per color family so the semantic meaning (green =
+   success, red/rose = danger, amber/yellow = warning, blue/cyan/indigo/
+   violet = info) is unchanged. Background/border tints are left as-is -
+   only the text contrast was broken. */
+:root[data-theme="light"] :is(.text-red-50, .text-red-100, .text-red-200, .text-red-300) { color: #b91c1c; }
+:root[data-theme="light"] :is(.text-rose-50, .text-rose-100, .text-rose-200, .text-rose-300) { color: #be123c; }
+:root[data-theme="light"] :is(.text-pink-50, .text-pink-100, .text-pink-200, .text-pink-300) { color: #be185d; }
+:root[data-theme="light"] :is(.text-orange-50, .text-orange-100, .text-orange-200, .text-orange-300) { color: #c2410c; }
+:root[data-theme="light"] :is(.text-amber-50, .text-amber-100, .text-amber-200, .text-amber-300) { color: #b45309; }
+:root[data-theme="light"] :is(.text-yellow-50, .text-yellow-100, .text-yellow-200, .text-yellow-300) { color: #a16207; }
+:root[data-theme="light"] :is(.text-lime-50, .text-lime-100, .text-lime-200, .text-lime-300) { color: #4d7c0f; }
+:root[data-theme="light"] :is(.text-green-50, .text-green-100, .text-green-200, .text-green-300) { color: #15803d; }
+:root[data-theme="light"] :is(.text-emerald-50, .text-emerald-100, .text-emerald-200, .text-emerald-300) { color: #047857; }
+:root[data-theme="light"] :is(.text-teal-50, .text-teal-100, .text-teal-200, .text-teal-300) { color: #0f766e; }
+:root[data-theme="light"] :is(.text-cyan-50, .text-cyan-100, .text-cyan-200, .text-cyan-300) { color: #0e7490; }
+:root[data-theme="light"] :is(.text-sky-50, .text-sky-100, .text-sky-200, .text-sky-300) { color: #0369a1; }
+:root[data-theme="light"] :is(.text-blue-50, .text-blue-100, .text-blue-200, .text-blue-300) { color: #1d4ed8; }
+:root[data-theme="light"] :is(.text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300) { color: #4338ca; }
+:root[data-theme="light"] :is(.text-violet-50, .text-violet-100, .text-violet-200, .text-violet-300) { color: #6d28d9; }
+:root[data-theme="light"] :is(.text-purple-50, .text-purple-100, .text-purple-200, .text-purple-300) { color: #7e22ce; }
+:root[data-theme="light"] :is(.text-fuchsia-50, .text-fuchsia-100, .text-fuchsia-200, .text-fuchsia-300) { color: #a21caf; }
 
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--erp-accent) transparent; }
+/* Premium scrollbar for Chromium/WebKit (Firefox already gets the thin
+   accent-on-transparent look via scrollbar-color above). Track/thumb only
+   - no display:none tricks, so keyboard/wheel scrolling stays native. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--erp-border); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--erp-accent); background-clip: padding-box; }
 body { margin:0; padding:0; background:var(--erp-bg); color:var(--erp-text); font-family:Arial, Helvetica, sans-serif; transition:background .25s ease,color .25s ease; }
 button, a, input, select, textarea { transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease; }
 button:hover, a:hover { transform:translateY(-1px); }
-.erp-layout, .erp-main { background:var(--erp-bg) !important; color:var(--erp-text) !important; }
-.erp-sidebar { background:var(--erp-bg-soft) !important; border-color:var(--erp-border) !important; }
-.erp-surface { background:var(--erp-panel); border:1px solid var(--erp-border); box-shadow:0 18px 50px rgba(0,0,0,.16); backdrop-filter:blur(16px); }
+.erp-layout { background:var(--erp-bg) !important; color:var(--erp-text) !important; }
+/* Premium depth wash for the main content canvas - two very-low-opacity
+   brand-tinted radial glows over the flat base color, token-driven so it
+   auto-adapts to every theme preset (dark default and light alike) instead
+   of each page having to invent its own ambient background. Pages that set
+   their own inline background (e.g. Dashboard) simply paint over this. */
+.erp-main {
+  background:
+    radial-gradient(circle at 6% -10%, color-mix(in srgb, var(--erp-accent) 6%, transparent), transparent 40%),
+    radial-gradient(circle at 100% -6%, color-mix(in srgb, var(--erp-accent-2) 5%, transparent), transparent 36%),
+    var(--erp-bg) !important;
+  color:var(--erp-text) !important;
+}
+/* Sidebar depth wash - subtle top-down accent tint (layered into the
+   background itself, not a pseudo-element) so the panel reads as an
+   integrated, dimensional part of the shell instead of a flat solid slab. */
+.erp-sidebar {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--erp-accent) 7%, transparent), transparent 40%),
+    radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--erp-accent-2) 5%, transparent), transparent 45%),
+    var(--erp-bg-soft) !important;
+  border-color:var(--erp-border) !important;
+}
+/* Elevated "glass" surface - the shared premium-card look used by
+   erp-surface/Card. Token-driven elevation (not a hardcoded shadow) plus
+   a 1px inner top highlight, so panels read as crafted/three-dimensional
+   in both themes instead of a flat filled rectangle. */
+.erp-surface {
+  background:var(--erp-panel);
+  border:1px solid var(--erp-border);
+  box-shadow: var(--erp-elevation-1), inset 0 1px 0 0 var(--erp-surface-highlight);
+  backdrop-filter:blur(16px);
+}
+/* Depth level 1 - major page sections (flat, opaque bg-soft, no blur) -
+   one tonal step below the level-2 "glass" erp-surface look above, so a
+   page can nest cards/tables (level 2) inside a section (level 1) with a
+   visibly different, non-blurred surface instead of two identical panels
+   stacked on each other. */
+.erp-level-1 {
+  background: var(--erp-bg-soft);
+  border: 1px solid var(--erp-border);
+  box-shadow: 0 1px 0 0 var(--erp-surface-highlight) inset;
+}
+.erp-surface-hover { transition: transform var(--erp-duration-base) var(--erp-ease), box-shadow var(--erp-duration-base) var(--erp-ease), border-color var(--erp-duration-base) var(--erp-ease); }
+.erp-surface-hover:hover { transform: translateY(-2px); box-shadow: var(--erp-elevation-2); border-color: var(--erp-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .erp-surface-hover:hover { transform: none; }
+}
 .erp-accent { color:var(--erp-accent) !important; }
 .erp-focus:focus { outline:none; box-shadow:0 0 0 3px var(--erp-glow); }
+.erp-table-row { transition: background-color 120ms ease; }
+.erp-table-row:hover { background-color: var(--erp-glow); }
+
+@keyframes erp-fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.erp-fade-in { animation: erp-fade-in-up .28s ease both; }
+
+/* VITALIX brand logo - traveling light + load-in reveal + hover glow.
+   transform/opacity only (no animated blur/filter) so it stays cheap even
+   on the login screen's already-animated background. */
+@keyframes brand-shimmer-sweep {
+  0% { transform: translateX(0) skewX(-14deg); }
+  45% { transform: translateX(320%) skewX(-14deg); }
+  100% { transform: translateX(320%) skewX(-14deg); }
+}
+/* translateX is physical, not logical (see design system §7) - the band
+   starts at inset-inline-start:-70% (which flips side under RTL) but a
+   single positive translateX would keep pushing it further offscreen in
+   RTL instead of sweeping across the logo, so RTL gets its own
+   mirrored-direction keyframe, same pattern as the sidebar nav hover. */
+@keyframes brand-shimmer-sweep-rtl {
+  0% { transform: translateX(0) skewX(-14deg); }
+  45% { transform: translateX(-320%) skewX(-14deg); }
+  100% { transform: translateX(-320%) skewX(-14deg); }
+}
+.brand-logo-shimmer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -70%;
+  width: 55%;
+  background: linear-gradient(115deg,
+    transparent 8%,
+    rgba(226, 164, 94, .55) 32%,
+    rgba(255, 255, 255, .75) 50%,
+    rgba(0, 214, 208, .55) 68%,
+    transparent 92%);
+  mix-blend-mode: screen;
+  transform: translateX(0) skewX(-14deg);
+  animation-name: brand-shimmer-sweep;
+  animation-timing-function: cubic-bezier(.4, 0, .2, 1);
+  animation-iteration-count: infinite;
+  pointer-events: none;
+}
+[dir="rtl"] .brand-logo-shimmer { animation-name: brand-shimmer-sweep-rtl; }
+@keyframes brand-logo-reveal-anim {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.brand-logo-reveal { animation: brand-logo-reveal-anim .7s cubic-bezier(.16,1,.3,1) both; }
+.brand-logo-hover { transition: transform .25s ease, filter .25s ease; }
+/* Hero-only (Login) - dissolves the source asset's square opaque-
+   background edge into a soft radial fade instead of a hard cutoff, so
+   the mark reads as glowing/integrated into the brand-halo stage behind
+   it rather than an image pasted in a box. Static mask, no motion. */
+.brand-logo-wrap-hero {
+  -webkit-mask-image: radial-gradient(ellipse 68% 68% at 50% 50%, black 68%, transparent 100%);
+  mask-image: radial-gradient(ellipse 68% 68% at 50% 50%, black 68%, transparent 100%);
+}
+
+/* Primary/accent button hover sweep - a light band crosses the button on
+   hover only (not continuously), transform-only. */
+.vitalix-btn-sweep::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -40%;
+  width: 35%;
+  background: linear-gradient(115deg, transparent 10%, rgba(255, 255, 255, .55) 50%, transparent 90%);
+  transform: translateX(-40%) skewX(-16deg);
+  transition: transform .55s var(--erp-ease);
+  pointer-events: none;
+}
+.vitalix-btn-sweep:hover::after { transform: translateX(340%) skewX(-16deg); }
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-btn-sweep::after { display: none; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .brand-logo-hover:hover { transform: scale(1.015); filter: drop-shadow(0 0 18px var(--erp-glow)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-shimmer { animation: none; opacity: .3; transform: translateX(120%) skewX(-14deg); }
+  .brand-logo-reveal { animation: none; opacity: 1; transform: none; }
+  .brand-logo-hover:hover { transform: none; }
+}
+
+/* Idle ambient aura behind the full logo - two very-low-opacity radial
+   glows (cyan primary, gold counterpart), opacity/scale pulse only. */
+@keyframes brand-logo-ambient-anim {
+  0%, 100% { opacity: .5; transform: scale(1); }
+  50% { opacity: .85; transform: scale(1.06); }
+}
+.brand-logo-ambient {
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 40%, var(--erp-glow-strong), transparent 60%),
+    radial-gradient(circle at 65% 60%, color-mix(in srgb, var(--erp-accent-2) 22%, transparent), transparent 65%);
+  filter: blur(28px);
+  animation: brand-logo-ambient-anim 9s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-ambient { animation: none; opacity: .6; }
+}
+
+/* Reusable brand-light "stage" - a dual-tone (cyan primary, gold
+   secondary) vignette wash that any wrapper around BrandLogo can apply so
+   the mark reads as integrated into a lit stage instead of an image
+   pasted into a box (Sidebar brand zone, Login hero). Background-only
+   (not a pseudo-element) so it always paints behind the logo regardless
+   of stacking context, and opacity-only animation for the "extremely
+   slow breathing" cue. */
+.vitalix-brand-halo {
+  position: relative;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, color-mix(in srgb, var(--erp-accent) 16%, transparent), transparent 68%),
+    radial-gradient(ellipse 55% 45% at 64% 70%, color-mix(in srgb, var(--erp-accent-2) 11%, transparent), transparent 70%);
+  animation: vitalix-brand-halo-breathe 10s ease-in-out infinite;
+}
+@keyframes vitalix-brand-halo-breathe {
+  0%, 100% { opacity: .75; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-brand-halo { animation: none; opacity: .9; }
+}
+/* Light theme needs more saturation for the same wash to register against
+   a near-white surface (a white canvas has far less contrast headroom
+   than the dark default's near-black one), so the brand zone doesn't read
+   as flat/administrative there. */
+:root[data-theme="light"] .vitalix-brand-halo {
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, color-mix(in srgb, var(--erp-accent) 24%, transparent), transparent 68%),
+    radial-gradient(ellipse 55% 45% at 64% 70%, color-mix(in srgb, var(--erp-accent-2) 18%, transparent), transparent 70%);
+}
+/* Thin cyan-to-gold light line - an "edge reflection" cue used beneath a
+   hero logo placement. Static (no motion) so it stays a restrained detail
+   rather than another moving element. */
+.vitalix-brand-reflection {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--erp-accent) 50%, transparent) 35%, color-mix(in srgb, var(--erp-accent-2) 50%, transparent) 65%, transparent);
+  opacity: .55;
+}
+
+/* VitalixLoader ambient ring - opacity/scale only. */
+@keyframes vitalix-loader-pulse-anim {
+  0%, 100% { opacity: .25; transform: scale(.85); }
+  50% { opacity: .6; transform: scale(1); }
+}
+.vitalix-loader-pulse {
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--erp-glow-strong), transparent 70%);
+  animation: vitalix-loader-pulse-anim 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+/* Fainter gold ring, out of phase with the cyan pulse above - dual-tone
+   "alive" breathing instead of a single-color spinner glow. */
+.vitalix-loader-pulse-gold {
+  background: radial-gradient(circle, var(--erp-glow-gold), transparent 70%);
+  animation-duration: 3.1s;
+  animation-delay: .6s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-loader-pulse { animation: none; opacity: .4; }
+  .vitalix-loader-pulse-gold { animation: none; opacity: .3; }
+}
+
+/* Skeleton shimmer - background-position only. */
+@keyframes erp-skeleton-sweep {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.erp-skeleton {
+  background: linear-gradient(100deg, var(--erp-panel-solid) 30%, var(--erp-glow) 50%, var(--erp-panel-solid) 70%);
+  background-size: 200% 100%;
+  animation: erp-skeleton-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .erp-skeleton { animation: none; background: var(--erp-panel-solid); }
+}
+
+/* Tooltip - CSS-only, hover/focus-triggered. */
+.vitalix-sidebar-resize-handle:hover { background: var(--erp-accent); opacity: 0.35; }
+.vitalix-tooltip { position: relative; display: inline-flex; }
+.vitalix-tooltip-bubble {
+  position: absolute;
+  z-index: 60;
+  pointer-events: none;
+  padding: 6px 10px;
+  border-radius: var(--erp-radius-sm);
+  background: var(--erp-panel-solid);
+  border: 1px solid var(--erp-border);
+  color: var(--erp-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--erp-elevation-2);
+  opacity: 0;
+  transition: opacity var(--erp-duration-fast) var(--erp-ease), transform var(--erp-duration-fast) var(--erp-ease);
+}
+.vitalix-tooltip[data-side="top"] .vitalix-tooltip-bubble { bottom: calc(100% + 8px); inset-inline-start: 50%; transform: translate(-50%, 4px) scale(.96); }
+.vitalix-tooltip[data-side="top"]:hover .vitalix-tooltip-bubble,
+.vitalix-tooltip[data-side="top"]:focus-within .vitalix-tooltip-bubble { transform: translate(-50%, 0) scale(1); opacity: 1; }
+.vitalix-tooltip[data-side="end"] .vitalix-tooltip-bubble { inset-inline-start: calc(100% + 8px); top: 50%; transform: translate(-4px, -50%) scale(.96); }
+.vitalix-tooltip[data-side="end"]:hover .vitalix-tooltip-bubble,
+.vitalix-tooltip[data-side="end"]:focus-within .vitalix-tooltip-bubble { transform: translate(0, -50%) scale(1); opacity: 1; }
+
+/* Sidebar nav item - subtle hover motion (translate toward main content,
+   RTL-aware) + icon/text color shift. Active state is set inline (needs
+   the isActive flag from NavLink); hover is CSS-only so it doesn't fight
+   that inline style. */
+.sidebar-menu-item { transition: transform var(--erp-duration-fast) var(--erp-ease), background-color var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease); }
+.sidebar-menu-item:not(.is-active):hover { background: var(--erp-glow) !important; color: var(--erp-accent) !important; }
+/* Active nav item should feel "illuminated" - a restrained warm glow
+   behind the otherwise-cyan icon, the tiny gold detail the brand-light
+   system calls for on active/primary identity elements. Static (icon
+   itself doesn't move), so it adds warmth without extra motion. */
+.sidebar-menu-item.is-active .sidebar-menu-icon {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--erp-accent-2) 45%, transparent));
+}
+/* Group-title toggle - subtle hover response, distinct from a nav item's
+   own hover (no translateX lift; this is a section header, not a
+   destination). */
+.sidebar-group-toggle { transition: background-color var(--erp-duration-fast) var(--erp-ease), color var(--erp-duration-fast) var(--erp-ease); }
+.sidebar-group-toggle:hover { background: var(--erp-glow) !important; color: var(--erp-accent) !important; }
+[dir="ltr"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(3px); }
+[dir="rtl"] .sidebar-menu-item:not(.is-active):hover { transform: translateX(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-menu-item:hover { transform: none; }
+}
+
+/* Dashboard hero ambient drift - background-position only, ~24s loop,
+   low-opacity gradients so it reads as "alive" without being distracting. */
+@keyframes vitalix-ambient-drift {
+  0% { background-position: 0% 0%, 100% 0%, 0 0; }
+  50% { background-position: 15% 10%, 85% 12%, 0 0; }
+  100% { background-position: 0% 0%, 100% 0%, 0 0; }
+}
+.vitalix-ambient-bg { animation: vitalix-ambient-drift 24s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .vitalix-ambient-bg { animation: none; }
+}
+
+/* Sidebar context-zone rows (Language/Company/Search) - hairline divider
+   between whichever rows actually render (CompanySwitcher renders nothing
+   for non-super-admins), so the group always reads as one panel. Softer
+   than a full-strength border for calmer rhythm between rows that are
+   already grouped inside one bordered container. */
+.vitalix-context-zone { background: var(--erp-panel-solid); }
+.vitalix-context-zone > * + * { border-top: 1px solid color-mix(in srgb, var(--erp-border) 65%, transparent); }
+/* Light theme's panel-solid sits close to white, so the context zone can
+   read as "just another white box" - a faint brand tint (not a darker
+   border) gives it a little identity without losing the clean look. */
+:root[data-theme="light"] .vitalix-context-zone {
+  background: color-mix(in srgb, var(--erp-panel-solid) 92%, var(--erp-accent) 8%);
+}
+
+/* Toolbar icon buttons (theme/collapse/etc.) - one shared size/shape. */
+.vitalix-toolbar-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; transition: background-color var(--erp-duration-fast) var(--erp-ease), transform var(--erp-duration-fast) var(--erp-ease); }
+.vitalix-toolbar-btn:hover { background: var(--erp-glow); }
+
+/* Shared "recessed field" control chrome (Field.jsx's Input/Select/
+   Textarea) - self-contained resting+focus box-shadow (inset depth, then
+   inset depth + accent ring together) so it doesn't fight the generic
+   .erp-focus rule used elsewhere for non-field controls. */
+.vitalix-control-inset {
+  box-shadow: var(--erp-inset-shadow);
+  transition: box-shadow var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease);
+}
+.vitalix-control-inset:hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--erp-border) 55%, var(--erp-accent) 45%);
+}
+.vitalix-control-inset:focus {
+  outline: none;
+  border-color: var(--erp-accent);
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-glow);
+}
+/* Semantic error state - a danger-toned ring instead of the accent one,
+   available to any control (or .vitalix-input-group below) that needs it
+   via the `error` prop on Field.jsx's Input/Select/Textarea. */
+.vitalix-control-error {
+  border-color: var(--erp-danger) !important;
+}
+.vitalix-control-error:focus {
+  border-color: var(--erp-danger) !important;
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-danger-soft);
+}
+
+/* Composite "icon + input [+ clear button]" controls (search bars, date
+   fields, prefix/suffix groups) - the OUTER wrapper carries the rounded
+   chrome and gets the focus ring via :focus-within, since clicking
+   anywhere in the group focuses the inner input; styling only the bare
+   <input> would leave the icon/button areas looking unfocused. Reuses
+   the same inset-depth language as .vitalix-control-inset. */
+.vitalix-input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-md);
+  background: var(--erp-panel-solid);
+  box-shadow: var(--erp-inset-shadow);
+  transition: box-shadow var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease);
+}
+.vitalix-input-group:hover:not(:focus-within) {
+  border-color: color-mix(in srgb, var(--erp-border) 55%, var(--erp-accent) 45%);
+}
+.vitalix-input-group:focus-within {
+  border-color: var(--erp-accent);
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-glow);
+}
+.vitalix-input-group.vitalix-control-error { box-shadow: var(--erp-inset-shadow); }
+.vitalix-input-group.vitalix-control-error:focus-within {
+  box-shadow: var(--erp-inset-shadow), 0 0 0 3px var(--erp-danger-soft);
+}
+/* Flush modifier - for a group already embedded inside a parent that
+   supplies its own border/panel chrome (e.g. Sidebar's context zone),
+   so nesting doesn't produce a visible "box inside a box". The resting
+   state is fully transparent; the focus ring still appears on
+   :focus-within since that's a separate, higher-specificity rule, not
+   an inline override that would have suppressed it in every state. */
+.vitalix-input-group.vitalix-input-group--flush {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: var(--erp-radius-sm);
+}
+.vitalix-input-group.vitalix-input-group--flush:focus-within {
+  border-color: var(--erp-accent);
+  box-shadow: 0 0 0 3px var(--erp-glow);
+}
+/* The inner input/textarea gives up its own chrome entirely - the group
+   owns background/border/radius/focus so there's never a double ring. */
+.vitalix-input-group > input,
+.vitalix-input-group > textarea {
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  min-width: 0;
+}
 
 
 /* Responsive and accessible application shell */
@@ -52,11 +610,27 @@ body { overflow: hidden; }
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
-.erp-mobile-menu, .erp-sidebar-backdrop { display: none; }
+.erp-mobile-menu, .erp-sidebar-backdrop, .erp-sidebar-mobile-close-row { display: none; }
+/* Global focus ring - box-shadow, not outline. `outline` does not reliably
+   clip to an element's border-radius across browsers/element types (text
+   inputs/selects in particular), which is exactly what produced "square
+   ring on a rounded control" everywhere. box-shadow always follows the
+   shadowed element's own border-radius, so a single blanket rule here
+   fixes every rounded control in the app at once - Field/Select/Button
+   and every still-hand-rolled input alike - without per-page patches.
+   The `outline` is kept transparent (not removed) so layout/spacing is
+   identical to a real outline, and forced-colors mode below restores a
+   real one for high-contrast accessibility, where box-shadow is ignored. */
 :where(button, a, input, select, textarea):focus-visible {
-  outline: 3px solid var(--erp-accent);
+  outline: 2px solid transparent;
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--erp-glow);
+  box-shadow: 0 0 0 2px var(--erp-accent), 0 0 0 5px var(--erp-glow);
+}
+@media (forced-colors: active) {
+  :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid CanvasText;
+    box-shadow: none;
+  }
 }
 button:disabled { cursor: not-allowed; transform: none !important; }
 table { max-width: 100%; }
@@ -121,6 +695,77 @@ img, svg { max-width: 100%; }
   .erp-sidebar .sidebar-menu-item { min-height: 44px; }
   .erp-surface { border-radius: 18px; }
   h1 { overflow-wrap: anywhere; }
+
+  /* Mobile drawer gets its OWN compact brand header: a close-button row
+     (below) stacked directly above a short horizontal icon+"VITALIX/
+     Enterprise Suite" row - not the desktop vertical "stage" (which also
+     carries a reflection line + ambient glow sized for a full-height
+     sidebar). Reusing the desktop layout at drawer width just squeezed
+     it; this is the dedicated mobile composition the design calls for. */
+  .erp-sidebar .vitalix-brand-halo {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding-block: 4px !important;
+  }
+  .erp-sidebar .vitalix-brand-product-context { display: none !important; }
+  /* Clamps the compact logo+text composite's own inline width (100% of
+     the sidebar's own width on desktop) so it shares the row with the
+     theme toggle instead of crowding it out. max-width always wins over
+     an inline width, regardless of specificity. */
+  .erp-sidebar .brand-logo-hover { max-width: 200px; }
+  /* Smaller icon/text sizes for the mobile brand row (42-48px mark,
+     17-19px wordmark, 9-10px subtitle) vs. the larger desktop sizes set
+     inline in BrandLogo.jsx - the icon slot fills via imageBox's own
+     width:100%, so overriding just the slot's width is enough to resize
+     the actual rendered icon too. */
+  .erp-sidebar .vitalix-brand-icon-slot { width: 44px !important; }
+  .erp-sidebar .vitalix-brand-wordmark { font-size: 18px !important; }
+  .erp-sidebar .vitalix-brand-subtitle { font-size: 10px !important; }
+  /* The toolbar pill's own `self-end` (Tailwind, meaningful when the
+     brand-halo was column-direction on desktop) fights the row-direction
+     override above - align-self overrides the container's align-items for
+     that one child regardless of !important elsewhere, so it needs its
+     own override back to centered. */
+  .erp-sidebar .vitalix-brand-toolbar { align-self: center !important; }
+  /* Desktop-only mouse-drag affordance - meaningless in a drawer whose
+     width is hard-pinned by !important above, and otherwise sits on top
+     of the mobile close button's tap target since both are flush against
+     the same inline-end edge. */
+  .vitalix-sidebar-resize-handle { display: none !important; }
+  .erp-sidebar-mobile-close-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+  .erp-sidebar-mobile-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--erp-radius-sm);
+    border: 1px solid var(--erp-border);
+    background: var(--erp-panel-solid);
+    color: var(--erp-text);
+    flex-shrink: 0;
+  }
+  /* Collapse-to-rail has no meaningful use inside an already-off-canvas
+     drawer (it's either open or closed, not "collapsed") - only the theme
+     toggle stays in the mobile utility row. */
+  .erp-sidebar .vitalix-toolbar-collapse-btn { display: none; }
+  /* Belt-and-suspenders: MainLayout only unmounts .erp-mobile-menu while
+     the drawer is open, which is what actually keeps it from stacking
+     visually above the open drawer (.erp-mobile-menu is z-index:55,
+     .erp-sidebar is z-index:50) - if it were ever rendered anyway, this
+     hides it defensively rather than relying solely on that JS state
+     staying correct forever. */
+  .erp-layout:has(.erp-sidebar.is-open) .erp-mobile-menu { display: none !important; }
+  /* Slightly tighter than the desktop 18px top padding, since the drawer
+     already spends space on its own close-button row above the brand
+     block. */
+  .erp-sidebar { padding-top: 12px !important; }
 }
 @media (max-width: 520px) {
   .erp-main { padding-inline: 9px; }
@@ -156,7 +801,22 @@ img, svg { max-width: 100%; }
 .erp-data-table th { position: sticky; top: 0; background: var(--erp-panel-solid); color: var(--erp-accent); }
 .erp-import-metrics { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 9px; }
 .erp-main :where(input, select, textarea) { min-height: 42px; }
-.erp-main :where(button, [role="button"]) { min-height: 42px; }
+/* App-wide button sizing standard - pages were each hand-styling their
+   own buttons (Tailwind classes like px-4 py-3 vs px-5 py-3, or inline
+   style={{padding:"10px 13px"}}), so the same kind of action ("Save",
+   "Refresh") ended up a visibly different height/font/roundness from
+   page to page. Height/font/radius are forced here since they're safe
+   to unify regardless of button content; padding is intentionally not
+   forced, since small square icon-only buttons (e.g. a 40x40px trash
+   icon in a table row) would overflow/clip if given the same
+   horizontal padding as a labeled "Save" button. */
+.erp-main :where(button, [role="button"]) {
+  min-height: 44px;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  border-radius: var(--erp-radius-md) !important;
+  box-sizing: border-box;
+}
 @media (max-width: 640px) {
   .erp-import-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .erp-main :where(.grid) { min-width: 0; }
@@ -223,8 +883,15 @@ img, svg { max-width: 100%; }
   -webkit-overflow-scrolling: touch;
 }
 .erp-main :where(.overflow-x-auto, .erp-table-scroll):focus-visible {
-  outline: 3px solid var(--erp-accent);
+  outline: 2px solid transparent;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--erp-accent), 0 0 0 5px var(--erp-glow);
+}
+@media (forced-colors: active) {
+  .erp-main :where(.overflow-x-auto, .erp-table-scroll):focus-visible {
+    outline: 2px solid CanvasText;
+    box-shadow: none;
+  }
 }
 .erp-main :where(.tabular-nums, [data-numeric]) { font-variant-numeric: tabular-nums; }
 .erp-main :where([dir="ltr"]) { unicode-bidi: isolate; }
@@ -244,10 +911,38 @@ img, svg { max-width: 100%; }
 }
 
 @media print {
+  /* Overriding the design tokens themselves (not just body/.erp-main) means
+     every existing `style={{ background: "var(--erp-panel)" }}` inline
+     usage across the app - there are dozens - resolves to a light color on
+     paper automatically, regardless of which theme (including dark) was
+     active on screen. This is the root-cause fix for report/card panels
+     that otherwise kept their dark backgrounds when printed. */
+  :root {
+    --erp-bg: #ffffff; --erp-bg-soft: #ffffff; --erp-panel: #ffffff; --erp-panel-solid: #f8fafc;
+    --erp-text: #111827; --erp-muted: #52657b; --erp-border: #cbd5e1; --erp-glow: transparent;
+    --erp-shadow: none;
+  }
   body { overflow: visible; background: #fff; color: #111827; }
-  .erp-sidebar, .erp-mobile-menu, .erp-sidebar-backdrop, .erp-skip-link { display: none !important; }
+  .erp-sidebar, .erp-mobile-menu, .erp-sidebar-backdrop, .erp-skip-link, .no-print { display: none !important; }
   .erp-layout, .erp-main { display: block; height: auto; overflow: visible; background: #fff !important; color: #111827 !important; }
   .erp-main { padding: 0; }
   .erp-main :where(.overflow-x-auto, .erp-table-scroll) { overflow: visible; border: 0; }
   .erp-main :where(table) { min-width: 0; color: #111827; }
+
+  /* Shared report primitives (components/reports/ReportHeader.jsx,
+     ReportFooter.jsx): repeat the table header on every printed page and
+     never split a data row across a page break. */
+  .erp-report-table thead { display: table-header-group; }
+  .erp-report-table tfoot { display: table-footer-group; }
+  .erp-report-table tr { page-break-inside: avoid; }
+  .erp-report-footer { page-break-inside: avoid; }
+
+  /* "Page X of Y" - degrades gracefully (no page numbers, not a fake
+     "Page 1 of 1") on browsers that don't support the CSS Paged Media
+     counter(pages) total-page counter in print. */
+  .erp-report-page-number::after { content: counter(page) " / " counter(pages); }
+}
+
+@page {
+  margin: 14mm 12mm;
 }

@@ -20,7 +20,10 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../localization/useLanguage";
-import { API_URL, getAuthHeaders, getCustomers } from "../services/api";
+import { toPersianDigits } from "../localization/helpers";
+import { getCustomers, getCrmCustomerProfile } from "../services/api";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import Select from "../components/ui/Select";
 
 function toNumber(value) {
   return Number(
@@ -67,14 +70,14 @@ function customerScore(item) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-function scoreLevel(score, fa) {
+function scoreLevel(score, language) {
   if (score >= 85) return { key: "vip", label: "VIP", color: "text-yellow-300", bg: "bg-yellow-400/10", border: "border-yellow-400/20" };
-  if (score >= 70) return { key: "gold", label: fa ? "طلایی" : "Gold", color: "text-emerald-300", bg: "bg-emerald-400/10", border: "border-emerald-400/20" };
-  if (score >= 50) return { key: "normal", label: fa ? "معمولی" : "Normal", color: "text-cyan-300", bg: "bg-cyan-400/10", border: "border-cyan-400/20" };
-  return { key: "risk", label: fa ? "پرریسک" : "At risk", color: "text-rose-300", bg: "bg-rose-400/10", border: "border-rose-400/20" };
+  if (score >= 70) return { key: "gold", label: language === "fa" ? "طلایی" : language === "ar" ? "ذهبي" : language === "tr" ? "Altın" : "Gold", color: "text-emerald-300", bg: "bg-emerald-400/10", border: "border-emerald-400/20" };
+  if (score >= 50) return { key: "normal", label: language === "fa" ? "معمولی" : language === "ar" ? "عادي" : language === "tr" ? "Normal" : "Normal", color: "text-cyan-300", bg: "bg-cyan-400/10", border: "border-cyan-400/20" };
+  return { key: "risk", label: language === "fa" ? "پرریسک" : language === "ar" ? "عالي المخاطر" : language === "tr" ? "Riskli" : "At risk", color: "text-rose-300", bg: "bg-rose-400/10", border: "border-rose-400/20" };
 }
 
-function riskStatus(item, fa) {
+function riskStatus(item, language) {
   const balance = getBalance(item);
   const debt = Math.max(balance, 0);
   const creditLimit = toNumber(item.credit_limit);
@@ -82,8 +85,8 @@ function riskStatus(item, fa) {
   if (creditLimit > 0 && debt > creditLimit) {
     return {
       level: "critical",
-      label: fa ? "عبور از سقف اعتبار" : "Over credit limit",
-      text: fa ? "تماس فوری برای تسویه یا بازبینی اعتبار" : "Urgent settlement or credit review",
+      label: language === "fa" ? "عبور از سقف اعتبار" : language === "ar" ? "تجاوز حد الائتمان" : language === "tr" ? "Kredi limiti aşıldı" : "Over credit limit",
+      text: language === "fa" ? "تماس فوری برای تسویه یا بازبینی اعتبار" : language === "ar" ? "تواصل فوري للتسوية أو مراجعة الائتمان" : language === "tr" ? "Acil tahsilat veya kredi limiti gözden geçirme" : "Urgent settlement or credit review",
       color: "text-rose-300",
       bg: "bg-rose-500/10",
       border: "border-rose-400/20",
@@ -94,8 +97,8 @@ function riskStatus(item, fa) {
   if (debt > 0) {
     return {
       level: "warning",
-      label: fa ? "نیازمند پیگیری" : "Needs follow-up",
-      text: fa ? "پیگیری دریافت مطالبات" : "Follow up receivables",
+      label: language === "fa" ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip gerekiyor" : "Needs follow-up",
+      text: language === "fa" ? "پیگیری دریافت مطالبات" : language === "ar" ? "متابعة تحصيل المستحقات" : language === "tr" ? "Alacak tahsilatını takip edin" : "Follow up receivables",
       color: "text-amber-300",
       bg: "bg-amber-500/10",
       border: "border-amber-400/20",
@@ -106,8 +109,8 @@ function riskStatus(item, fa) {
   if (balance < 0) {
     return {
       level: "creditor",
-      label: fa ? "بستانکار" : "Creditor",
-      text: fa ? "حساب بستانکار است" : "Customer has credit balance",
+      label: language === "fa" ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacaklı" : "Creditor",
+      text: language === "fa" ? "حساب بستانکار است" : language === "ar" ? "الحساب دائن" : language === "tr" ? "Hesap alacaklı durumda" : "Customer has credit balance",
       color: "text-emerald-300",
       bg: "bg-emerald-500/10",
       border: "border-emerald-400/20",
@@ -117,8 +120,8 @@ function riskStatus(item, fa) {
 
   return {
     level: "healthy",
-    label: fa ? "سالم" : "Healthy",
-    text: fa ? "ارتباط را حفظ کن و تعامل بعدی را ثبت کن" : "Keep engagement active",
+    label: language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy",
+    text: language === "fa" ? "ارتباط را حفظ کن و تعامل بعدی را ثبت کن" : language === "ar" ? "حافظ على التواصل وسجّل التفاعل القادم" : language === "tr" ? "İlişkiyi sürdürün ve bir sonraki etkileşimi kaydedin" : "Keep engagement active",
     color: "text-cyan-300",
     bg: "bg-cyan-500/10",
     border: "border-cyan-400/20",
@@ -140,7 +143,6 @@ function normalizeCustomer(item) {
 
 export default function CrmDashboard() {
   const { language, dir, n, money } = useLanguage();
-  const fa = language === "fa";
 
   const [customers, setCustomers] = useState([]);
   const [insights, setInsights] = useState({});
@@ -162,9 +164,7 @@ export default function CrmDashboard() {
       await Promise.all(
         normalized.slice(0, 30).map(async (c) => {
           try {
-            const res = await fetch(`${API_URL}/api/crm/customer-insight/${c.id}`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            insightMap[c.id] = data;
+            insightMap[c.id] = await getCrmCustomerProfile(c.id);
           } catch {
             insightMap[c.id] = null;
           }
@@ -173,7 +173,7 @@ export default function CrmDashboard() {
       setInsights(insightMap);
     } catch (error) {
       console.error("CRM loading error:", error);
-      setMessage(fa ? "خطا در دریافت اطلاعات CRM" : "CRM loading error");
+      setMessage(language === "fa" ? "خطا در دریافت اطلاعات CRM" : language === "ar" ? "خطأ في تحميل بيانات CRM" : language === "tr" ? "CRM verileri yüklenirken hata oluştu" : "CRM loading error");
     } finally {
       setLoading(false);
     }
@@ -189,8 +189,8 @@ export default function CrmDashboard() {
     return customers.map((item) => {
       const apiInsight = insights[item.id];
       const score = toNumber(apiInsight?.score) || customerScore(item);
-      const level = scoreLevel(score, fa);
-      const risk = riskStatus(item, fa);
+      const level = scoreLevel(score, language);
+      const risk = riskStatus(item, language);
 
       return {
         ...item,
@@ -200,7 +200,7 @@ export default function CrmDashboard() {
         insight: apiInsight?.message || risk.text,
       };
     });
-  }, [customers, insights, fa]);
+  }, [customers, insights, language]);
 
   const summary = useMemo(() => {
     return enriched.reduce(
@@ -263,17 +263,21 @@ export default function CrmDashboard() {
       style={{
         direction: dir,
         background:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), #071028",
+          "radial-gradient(circle at top left, var(--erp-glow), transparent 35%), radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 35%), var(--erp-bg)",
       }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl font-black text-cyan-400">
-            {fa ? "مرکز CRM هوشمند" : "Smart CRM Center"}
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
+            {language === "fa" ? "مرکز CRM هوشمند" : language === "ar" ? "مركز CRM الذكي" : language === "tr" ? "Akıllı CRM Merkezi" : "Smart CRM Center"}
           </h1>
-          <p className="text-slate-400 mt-2">
-            {fa
+          <p className="text-[var(--erp-muted)] mt-2">
+            {language === "fa"
               ? "تحلیل مشتریان، امتیاز وفاداری، ریسک اعتباری، پیگیری مطالبات و پیشنهاد اقدام بعدی"
+              : language === "ar"
+              ? "تحليل العملاء، درجة الولاء، مخاطر الائتمان، متابعة المستحقات، واقتراح الإجراء التالي"
+              : language === "tr"
+              ? "Müşteri analitiği, sadakat puanı, kredi riski, takip ve önerilen sonraki adım"
               : "Customer analytics, loyalty score, credit risk, follow-up and next-best-action"}
           </p>
         </div>
@@ -282,10 +286,10 @@ export default function CrmDashboard() {
           type="button"
           onClick={load}
           disabled={loading}
-          className="px-5 py-3 rounded-2xl bg-slate-800 text-cyan-200 border border-cyan-500/20 font-black flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] border border-[var(--erp-border)] font-black flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          {fa ? "به‌روزرسانی" : "Refresh"}
+          {language === "fa" ? "به‌روزرسانی" : language === "ar" ? "تحديث" : language === "tr" ? "Yenile" : "Refresh"}
         </button>
       </div>
 
@@ -297,44 +301,43 @@ export default function CrmDashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
-        <CrmStat icon={<Users />} title={fa ? "کل مشتریان" : "Customers"} value={n(summary.total)} color="text-cyan-300" />
-        <CrmStat icon={<Crown />} title={fa ? "VIP" : "VIP"} value={n(summary.vip)} color="text-yellow-300" />
-        <CrmStat icon={<PhoneCall />} title={fa ? "نیازمند پیگیری" : "Follow-up"} value={n(summary.followup)} color="text-amber-300" />
-        <CrmStat icon={<ShieldAlert />} title={fa ? "ریسک اعتباری" : "Credit risk"} value={n(summary.critical)} color="text-rose-300" />
-        <CrmStat icon={<Activity />} title={fa ? "میانگین امتیاز" : "Avg score"} value={`${n(avgScore)}/100`} color="text-emerald-300" />
+        <CrmStat icon={<Users />} title={language === "fa" ? "کل مشتریان" : language === "ar" ? "إجمالي العملاء" : language === "tr" ? "Toplam Müşteri" : "Customers"} value={n(summary.total)} color="text-[var(--erp-accent)]" />
+        <CrmStat icon={<Crown />} title={language === "fa" ? "VIP" : language === "ar" ? "VIP" : language === "tr" ? "VIP" : "VIP"} value={n(summary.vip)} color="text-yellow-300" />
+        <CrmStat icon={<PhoneCall />} title={language === "fa" ? "نیازمند پیگیری" : language === "ar" ? "بحاجة إلى متابعة" : language === "tr" ? "Takip Gereken" : "Follow-up"} value={n(summary.followup)} color="text-amber-300" />
+        <CrmStat icon={<ShieldAlert />} title={language === "fa" ? "ریسک اعتباری" : language === "ar" ? "مخاطر ائتمانية" : language === "tr" ? "Kredi Riski" : "Credit risk"} value={n(summary.critical)} color="text-rose-300" />
+        <CrmStat icon={<Activity />} title={language === "fa" ? "میانگین امتیاز" : language === "ar" ? "متوسط الدرجة" : language === "tr" ? "Ortalama Puan" : "Avg score"} value={`${n(avgScore)}/${n(100)}`} color="text-emerald-300" />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5">
-        <CrmHero fa={fa} n={n} money={money} avgScore={avgScore} debt={summary.debt} credit={summary.credit} followup={summary.followup} />
-        <NextBestActions fa={fa} money={money} items={riskCustomers} />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch">
+        <CrmHero language={language} n={n} money={money} avgScore={avgScore} debt={summary.debt} credit={summary.credit} followup={summary.followup} />
+        <NextBestActions language={language} money={money} items={riskCustomers} />
+        <TopCustomers language={language} n={n} money={money} items={topCustomers} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[.8fr_1.2fr] gap-5">
-        <TopCustomers fa={fa} n={n} money={money} items={topCustomers} />
-        <CustomerList
-          fa={fa}
-          n={n}
-          money={money}
-          items={filtered}
-          query={query}
-          setQuery={setQuery}
-          filter={filter}
-          setFilter={setFilter}
-        />
-      </div>
+      <CustomerList
+        language={language}
+        dir={dir}
+        n={n}
+        money={money}
+        items={filtered}
+        query={query}
+        setQuery={setQuery}
+        filter={filter}
+        setFilter={setFilter}
+      />
     </div>
   );
 }
 
 function CrmStat({ icon, title, value, color }) {
   return (
-    <div className="rounded-3xl bg-slate-900/70 border border-cyan-500/20 p-5 shadow-2xl">
+    <div className="rounded-3xl bg-[var(--erp-panel)] border border-[var(--erp-border)] p-5 shadow-2xl">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-slate-400 text-sm font-bold">{title}</div>
+          <div className="text-[var(--erp-muted)] text-sm font-bold">{title}</div>
           <div className={`text-3xl font-black mt-3 ${color}`}>{value}</div>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 text-cyan-300 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
           {icon}
         </div>
       </div>
@@ -342,33 +345,33 @@ function CrmStat({ icon, title, value, color }) {
   );
 }
 
-function CrmHero({ fa, n, money, avgScore, debt, credit, followup }) {
+function CrmHero({ language, n, money, avgScore, debt, credit, followup }) {
   const scoreColor = avgScore >= 75 ? "text-emerald-300" : avgScore >= 50 ? "text-amber-300" : "text-rose-300";
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-6 shadow-2xl">
-      <div className="absolute -top-24 -left-24 w-72 h-72 bg-cyan-400/10 rounded-full blur-3xl" />
+    <div className="relative overflow-hidden rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-6 shadow-2xl">
+      <div className="absolute -top-24 -left-24 w-72 h-72 bg-[var(--erp-glow)] rounded-full blur-3xl" />
       <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-purple-400/10 rounded-full blur-3xl" />
 
       <div className="relative">
-        <div className="flex items-center gap-2 text-cyan-300 font-black text-xl mb-4">
+        <div className="flex items-center gap-2 text-[var(--erp-accent)] font-black text-xl mb-4">
           <Sparkles />
-          {fa ? "تحلیل کلی ارتباط با مشتری" : "Customer relationship intelligence"}
+          {language === "fa" ? "تحلیل کلی ارتباط با مشتری" : language === "ar" ? "تحليل شامل للعلاقة مع العميل" : language === "tr" ? "Genel müşteri ilişkisi analizi" : "Customer relationship intelligence"}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-5 items-center">
           <div>
             <div className={`text-7xl font-black ${scoreColor}`}>{n(avgScore)}</div>
-            <div className="text-slate-400 mt-2">{fa ? "امتیاز میانگین CRM" : "Average CRM score"}</div>
-            <div className="h-3 bg-slate-800 rounded-full overflow-hidden mt-4">
+            <div className="text-[var(--erp-muted)] mt-2">{language === "fa" ? "امتیاز میانگین CRM" : language === "ar" ? "متوسط درجة CRM" : language === "tr" ? "Ortalama CRM puanı" : "Average CRM score"}</div>
+            <div className="h-3 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden mt-4">
               <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${avgScore}%` }} />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <MiniBox title={fa ? "مطالبات" : "Receivables"} value={money(debt)} icon={<Wallet size={18} />} color="text-rose-300" />
-            <MiniBox title={fa ? "بستانکاری" : "Credit"} value={money(credit)} icon={<CreditCard size={18} />} color="text-emerald-300" />
-            <MiniBox title={fa ? "پیگیری فعال" : "Active follow-up"} value={n(followup)} icon={<PhoneCall size={18} />} color="text-amber-300" />
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+            <MiniBox title={language === "fa" ? "مطالبات" : language === "ar" ? "المستحقات" : language === "tr" ? "Alacaklar" : "Receivables"} value={money(debt)} icon={<Wallet size={18} />} color="text-rose-300" />
+            <MiniBox title={language === "fa" ? "بستانکاری" : language === "ar" ? "الرصيد الدائن" : language === "tr" ? "Alacaklı Bakiye" : "Credit"} value={money(credit)} icon={<CreditCard size={18} />} color="text-emerald-300" />
+            <MiniBox title={language === "fa" ? "پیگیری فعال" : language === "ar" ? "متابعة نشطة" : language === "tr" ? "Aktif takip" : "Active follow-up"} value={n(followup)} icon={<PhoneCall size={18} />} color="text-amber-300" />
           </div>
         </div>
       </div>
@@ -378,26 +381,26 @@ function CrmHero({ fa, n, money, avgScore, debt, credit, followup }) {
 
 function MiniBox({ title, value, icon, color }) {
   return (
-    <div className="rounded-2xl bg-slate-800/80 border border-white/5 p-4">
+    <div className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
       <div className={`mb-2 ${color}`}>{icon}</div>
-      <div className="text-slate-400 text-xs font-bold">{title}</div>
+      <div className="text-[var(--erp-muted)] text-xs font-bold">{title}</div>
       <div className={`font-black text-lg mt-2 ${color}`}>{value}</div>
     </div>
   );
 }
 
-function NextBestActions({ fa, money, items }) {
+function NextBestActions({ language, money, items }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
-      <h2 className="text-cyan-300 font-black text-xl mb-4 flex items-center gap-2">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
         <Star />
-        {fa ? "اقدام پیشنهادی بعدی" : "Next-best-actions"}
+        {language === "fa" ? "اقدام پیشنهادی بعدی" : language === "ar" ? "الإجراءات المقترحة التالية" : language === "tr" ? "Önerilen sonraki adımlar" : "Next-best-actions"}
       </h2>
 
       <div className="space-y-3">
         {items.length === 0 && (
           <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-4 text-emerald-200">
-            {fa ? "مشتری پرریسک مهمی دیده نشد." : "No important at-risk customer detected."}
+            {language === "fa" ? "مشتری پرریسک مهمی دیده نشد." : language === "ar" ? "لم يتم العثور على عميل عالي المخاطر." : language === "tr" ? "Önemli riskli bir müşteri bulunamadı." : "No important at-risk customer detected."}
           </div>
         )}
 
@@ -406,15 +409,15 @@ function NextBestActions({ fa, money, items }) {
             <div className="flex items-start gap-3">
               <div className={item.risk.color}>{item.risk.icon}</div>
               <div className="flex-1">
-                <div className="text-white font-black">{item.name}</div>
-                <div className="text-slate-300 text-sm mt-1">{item.risk.text}</div>
-                <div className="text-xs text-slate-400 mt-2">
-                  {fa ? "مانده: " : "Balance: "}
+                <div className="text-[var(--erp-text)] font-black">{item.name}</div>
+                <div className="text-[var(--erp-muted)] text-sm mt-1">{item.risk.text}</div>
+                <div className="text-xs text-[var(--erp-muted)] mt-2">
+                  {language === "fa" ? "مانده: " : language === "ar" ? "الرصيد: " : language === "tr" ? "Bakiye: " : "Balance: "}
                   <b className={item.risk.color}>{money(Math.abs(getBalance(item)))}</b>
                 </div>
               </div>
-              <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs">
-                {fa ? "پرونده" : "Profile"}
+              <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-black text-xs">
+                {language === "fa" ? "پرونده" : language === "ar" ? "الملف" : language === "tr" ? "Profil" : "Profile"}
               </Link>
             </div>
           </div>
@@ -424,154 +427,169 @@ function NextBestActions({ fa, money, items }) {
   );
 }
 
-function TopCustomers({ fa, n, money, items }) {
+function TopCustomers({ language, n, money, items }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
-      <h2 className="text-cyan-300 font-black text-xl mb-4 flex items-center gap-2">
+    <div className="rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl mb-4 flex items-center gap-2">
         <TrendingUp />
-        {fa ? "ارزشمندترین مشتریان" : "Top customer value"}
+        {language === "fa" ? "ارزشمندترین مشتریان" : language === "ar" ? "أعلى العملاء قيمةً" : language === "tr" ? "En değerli müşteriler" : "Top customer value"}
       </h2>
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-slate-800/70 p-4 border border-white/5">
+          <Link
+            key={item.id}
+            to={`/customers/${item.id}`}
+            className="block rounded-2xl bg-[var(--erp-panel-solid)] p-4 border border-[var(--erp-border)] hover:border-[var(--erp-accent)] transition-colors erp-focus"
+            aria-label={language === "fa" ? `باز کردن پرونده ${item.name}` : `Open ${item.name}'s profile`}
+          >
             <div className="flex items-center justify-between gap-3 mb-2">
               <div>
-                <div className="font-black text-white">{item.name}</div>
-                <div className="text-xs text-slate-400">{item.phone || (fa ? "بدون شماره" : "No phone")}</div>
+                <div className="font-black text-[var(--erp-text)]">{item.name}</div>
+                <div className="text-xs text-[var(--erp-muted)]">{item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : (language === "fa" ? "بدون شماره" : language === "ar" ? "بدون رقم" : language === "tr" ? "Numara yok" : "No phone")}</div>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color} ${item.level.border}`}>
                 {item.level.label}
               </span>
             </div>
-            <div className="h-2 bg-slate-900 rounded-full overflow-hidden mb-2">
+            <div className="h-2 bg-[var(--erp-bg-soft)] rounded-full overflow-hidden mb-2">
               <div className="h-full bg-cyan-400" style={{ width: `${item.score}%` }} />
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">{fa ? "امتیاز" : "Score"}: {n(item.score)}</span>
-              <span className="text-slate-300 font-bold">{money(Math.abs(getBalance(item)))}</span>
+              <span className="text-[var(--erp-muted)]">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}: {n(item.score)}</span>
+              <span className="text-[var(--erp-muted)] font-bold">{money(Math.abs(getBalance(item)))}</span>
             </div>
-          </div>
+          </Link>
         ))}
 
-        {items.length === 0 && <div className="text-slate-400">{fa ? "داده‌ای وجود ندارد." : "No data."}</div>}
+        {items.length === 0 && <div className="text-[var(--erp-muted)]">{language === "fa" ? "داده‌ای وجود ندارد." : language === "ar" ? "لا توجد بيانات." : language === "tr" ? "Veri yok." : "No data."}</div>}
       </div>
     </div>
   );
 }
 
-function CustomerList({ fa, n, money, items, query, setQuery, filter, setFilter }) {
+function CustomerList({ language, dir, n, money, items, query, setQuery, filter, setFilter }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-900/70 p-5 shadow-2xl">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <h2 className="text-cyan-300 font-black text-xl flex items-center gap-2">
-          <Users />
-          {fa ? "لیست تحلیلی مشتریان" : "Customer analytics list"}
-        </h2>
+    <div className="min-w-0 rounded-[2rem] border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5 shadow-2xl">
+      <h2 className="text-[var(--erp-accent)] font-black text-xl flex items-center gap-2 mb-4">
+        <Users />
+        {language === "fa" ? "لیست تحلیلی مشتریان" : language === "ar" ? "قائمة تحليل العملاء" : language === "tr" ? "Müşteri analiz listesi" : "Customer analytics list"}
+      </h2>
 
-        <div className="flex gap-2 flex-wrap">
-          <div className="bg-slate-800 rounded-2xl px-3 py-2 flex items-center gap-2">
-            <Search size={16} className="text-cyan-300" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={fa ? "جستجو..." : "Search..."}
-              className="bg-transparent outline-none text-white placeholder-slate-500 w-44"
-            />
-          </div>
+      {/* Search + filter toolbar: a full-width, 2-equal-column row
+          (repeat(2, minmax(0,1fr)) via grid-cols-2). DOM order is
+          [search, filter] and grid auto-placement follows the inherited
+          `dir` on its own, so this naturally reads search-start/
+          filter-end in LTR and filter-start/search-end in RTL without any
+          dir-conditional JS. Stacks to 1 column (search first) below the
+          sm breakpoint. The outer card's `overflow-hidden` (removed above)
+          was clipping this Select's popup whenever it opened near the
+          card edge - Table.jsx already owns its own horizontal-scroll
+          wrapper and corner radius, so the outer clip was never needed
+          for the table and only existed as dead legacy chrome. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <label className="vitalix-input-group flex items-center gap-2" style={{ padding: "0 12px", minHeight: 44 }}>
+          <Search size={16} className="text-[var(--erp-accent)] shrink-0" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
+            placeholder={language === "fa" ? "جستجو..." : language === "ar" ? "بحث..." : language === "tr" ? "Ara..." : "Search..."}
+            aria-label={language === "fa" ? "جستجوی مشتریان" : language === "ar" ? "بحث العملاء" : language === "tr" ? "Müşteri ara" : "Search customers"}
+            className="min-w-0 flex-1"
+            style={{ color: "var(--erp-text)", padding: "10px 0" }}
+          />
+        </label>
 
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-slate-800 text-white rounded-2xl px-3 py-2 outline-none"
-          >
-            <option value="all">{fa ? "همه" : "All"}</option>
-            <option value="vip">VIP</option>
-            <option value="followup">{fa ? "پیگیری" : "Follow-up"}</option>
-            <option value="risk">{fa ? "ریسک" : "Risk"}</option>
-            <option value="healthy">{fa ? "سالم" : "Healthy"}</option>
-          </select>
-        </div>
+        <Select
+          value={filter}
+          onChange={(value) => setFilter(value)}
+          className="w-full"
+          options={[
+            { value: "all", label: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All" },
+            { value: "vip", label: "VIP" },
+            { value: "followup", label: language === "fa" ? "پیگیری" : language === "ar" ? "متابعة" : language === "tr" ? "Takip" : "Follow-up" },
+            { value: "risk", label: language === "fa" ? "ریسک" : language === "ar" ? "مخاطر" : language === "tr" ? "Risk" : "Risk" },
+            { value: "healthy", label: language === "fa" ? "سالم" : language === "ar" ? "سليم" : language === "tr" ? "Sağlıklı" : "Healthy" },
+          ]}
+        />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead>
-            <tr className="text-cyan-300 border-b border-cyan-500/20">
-              <th className="p-3 text-right">{fa ? "مشتری" : "Customer"}</th>
-              <th className="p-3 text-right">{fa ? "امتیاز" : "Score"}</th>
-              <th className="p-3 text-right">{fa ? "وضعیت" : "Status"}</th>
-              <th className="p-3 text-right">{fa ? "مانده" : "Balance"}</th>
-              <th className="p-3 text-right">{fa ? "اقدام بعدی" : "Next action"}</th>
-              <th className="p-3 text-right">{fa ? "عملیات" : "Actions"}</th>
-            </tr>
-          </thead>
+      <Table dir={dir} className="min-w-[900px] text-sm">
+        <Thead>
+          <Th className="w-12">#</Th>
+          <Th>{language === "fa" ? "مشتری" : language === "ar" ? "العميل" : language === "tr" ? "Müşteri" : "Customer"}</Th>
+          <Th align="center">{language === "fa" ? "امتیاز" : language === "ar" ? "الدرجة" : language === "tr" ? "Puan" : "Score"}</Th>
+          <Th align="center">{language === "fa" ? "وضعیت" : language === "ar" ? "الحالة" : language === "tr" ? "Durum" : "Status"}</Th>
+          <Th align="center">{language === "fa" ? "مانده" : language === "ar" ? "الرصيد" : language === "tr" ? "Bakiye" : "Balance"}</Th>
+          <Th align="center">{language === "fa" ? "اقدام بعدی" : language === "ar" ? "الإجراء التالي" : language === "tr" ? "Sonraki adım" : "Next action"}</Th>
+          <Th align="center">{language === "fa" ? "عملیات" : language === "ar" ? "الإجراءات" : language === "tr" ? "İşlemler" : "Actions"}</Th>
+        </Thead>
 
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-b border-slate-800 hover:bg-cyan-500/5">
-                <td className="p-3">
-                  <div className="font-black text-white">{item.name}</div>
-                  <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+        <Tbody>
+          {items.map((item, rowIndex) => (
+            <Tr key={item.id} className="hover:bg-[var(--erp-glow)]">
+              <Td className="text-[var(--erp-muted)] font-bold">{n(rowIndex + 1)}</Td>
+              <Td className="whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-[var(--erp-text)]">{item.name}</span>
+                  <span className="text-xs text-[var(--erp-muted)] flex items-center gap-1">
                     <PhoneCall size={12} />
-                    {item.phone || "-"}
-                  </div>
-                </td>
-
-                <td className="p-3 min-w-[150px]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-black ${item.level.bg} ${item.level.color}`}>
-                      {item.level.label}
-                    </span>
-                    <span className="text-slate-400 text-xs">{n(item.score)}/100</span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${item.score}%` }} />
-                  </div>
-                </td>
-
-                <td className="p-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black ${item.risk.bg} ${item.risk.color}`}>
-                    {item.risk.label}
+                    {item.phone ? (language === "fa" ? toPersianDigits(item.phone) : item.phone) : "-"}
                   </span>
-                </td>
+                </div>
+              </Td>
 
-                <td className={`p-3 font-black ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-cyan-300"}`}>
-                  {money(Math.abs(getBalance(item)))}
-                </td>
+              <Td align="center" className="min-w-[150px] whitespace-nowrap">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap ${item.level.bg} ${item.level.color}`}>
+                    {item.level.label}
+                  </span>
+                  <span className="text-[var(--erp-muted)] text-xs">{n(item.score)}/{n(100)}</span>
+                </div>
+                <div className="h-2 bg-[var(--erp-panel-solid)] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-rose-400 via-amber-300 to-emerald-400" style={{ width: `${item.score}%` }} />
+                </div>
+              </Td>
 
-                <td className="p-3 text-slate-300">
-                  <div className="flex items-center gap-1 text-xs">
-                    <CalendarClock size={13} className="text-cyan-300" />
-                    {item.risk.text}
-                  </div>
-                </td>
+              <Td align="center" className="whitespace-nowrap">
+                <span className={`px-3 py-1 rounded-full text-xs font-black whitespace-nowrap ${item.risk.bg} ${item.risk.color}`}>
+                  {item.risk.label}
+                </span>
+              </Td>
 
-                <td className="p-3">
-                  <div className="flex gap-2">
-                    <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-cyan-500/20 text-cyan-200 font-bold flex items-center gap-1">
-                      <Eye size={15} />
-                      {fa ? "پرونده" : "Profile"}
-                    </Link>
-                    <Link to="/invoices" className="px-3 py-2 rounded-xl bg-slate-700 text-white font-bold flex items-center gap-1">
-                      <Receipt size={15} />
-                      {fa ? "فاکتور" : "Invoice"}
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            ))}
+              <Td align="center" className={`font-black whitespace-nowrap ${getBalance(item) > 0 ? "text-rose-300" : getBalance(item) < 0 ? "text-emerald-300" : "text-[var(--erp-accent)]"}`}>
+                {money(Math.abs(getBalance(item)))}
+              </Td>
 
-            {items.length === 0 && (
-              <tr>
-                <td colSpan="6" className="p-8 text-center text-slate-400">
-                  {fa ? "موردی یافت نشد." : "No customer found."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              <Td align="center" className="text-[var(--erp-muted)] whitespace-nowrap">
+                <div className="flex items-center justify-center gap-1 text-xs">
+                  <CalendarClock size={13} className="text-[var(--erp-accent)] shrink-0" />
+                  {item.risk.text}
+                </div>
+              </Td>
+
+              <Td align="center" className="whitespace-nowrap">
+                <div className="flex items-center justify-center gap-2 flex-nowrap">
+                  <Link to={`/customers/${item.id}`} className="px-3 py-2 rounded-xl bg-[var(--erp-glow)] text-[var(--erp-accent)] font-bold flex items-center gap-1 whitespace-nowrap">
+                    <Eye size={15} />
+                    {language === "fa" ? "پرونده" : language === "ar" ? "الملف" : language === "tr" ? "Profil" : "Profile"}
+                  </Link>
+                  <Link to="/invoices" className="px-3 py-2 rounded-xl bg-[var(--erp-panel-solid)] text-[var(--erp-text)] font-bold flex items-center gap-1 whitespace-nowrap">
+                    <Receipt size={15} />
+                    {language === "fa" ? "فاکتور" : language === "ar" ? "فاتورة" : language === "tr" ? "Fatura" : "Invoice"}
+                  </Link>
+                </div>
+              </Td>
+            </Tr>
+          ))}
+
+          {items.length === 0 && (
+            <EmptyRow colSpan={7}>
+              {language === "fa" ? "موردی یافت نشد." : language === "ar" ? "لم يتم العثور على أي عنصر." : language === "tr" ? "Sonuç bulunamadı." : "No customer found."}
+            </EmptyRow>
+          )}
+        </Tbody>
+      </Table>
     </div>
   );
 }

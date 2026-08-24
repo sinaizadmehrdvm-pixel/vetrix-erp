@@ -2,14 +2,18 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 
+from app.catalog_messaging import ingest_catalog_order_message, is_catalog_order_message
 from app.change_requests import _ensure_schema, _event
 from app.database import engine
+
+_BINDING_CODE_PATTERN = re.compile(r"^[0-9a-fA-F]{8}$")
 
 router = APIRouter(prefix="/api/inbound-voice", tags=["Verified Voice Webhooks"])
 
@@ -55,7 +59,7 @@ def _allowed_sender(sender):
         raise HTTPException(status_code=403, detail="Voice sender is not allow-listed")
 
 
-def _service_user_id(conn):
+def _service_user(conn):
     try:
         user_id = int(_required_secret("VETRIX_VOICE_SERVICE_USER_ID"))
     except ValueError:
@@ -63,7 +67,7 @@ def _service_user_id(conn):
             status_code=503, detail="VETRIX_VOICE_SERVICE_USER_ID must be numeric"
         )
     user = conn.execute(
-        text("SELECT id, role FROM users WHERE id=:id"), {"id": user_id}
+        text("SELECT id, role, company_id FROM users WHERE id=:id"), {"id": user_id}
     ).mappings().first()
     if not user:
         raise HTTPException(status_code=503, detail="Voice service user does not exist")
@@ -72,7 +76,7 @@ def _service_user_id(conn):
             status_code=503,
             detail="Voice service user must not be an administrator",
         )
-    return user_id
+    return user_id, user["company_id"]
 
 
 def _ensure_inbound_schema(conn):
@@ -89,6 +93,8 @@ def _ensure_inbound_schema(conn):
             FOREIGN KEY(change_request_id) REFERENCES managed_change_requests(id)
         )
     """))
+    from app.company_scope import ensure_company_id_column
+    ensure_company_id_column(conn, "inbound_voice_events")
 
 
 def _ingest(source, event_id, sender, message_reference, transcript, media_reference):
@@ -110,34 +116,36 @@ def _ingest(source, event_id, sender, message_reference, transcript, media_refer
         """), {"source": source, "event_id": clean_event}).scalar()
         if existing:
             return {"status": "duplicate", "request_id": existing}
-        actor = _service_user_id(conn)
+        actor, company_id = _service_user(conn)
         created = conn.execute(text("""
             INSERT INTO managed_change_requests
               (source, source_reference, audio_reference, transcript, action_type,
                target_id, proposed_changes, status, requested_by, requested_at,
-               submitted_at)
+               submitted_at, company_id)
             VALUES
               (:source, :source_reference, '', :transcript, 'note_only',
-               NULL, '{}', 'needs_transcript_review', :actor, :now, NULL)
+               NULL, '{}', 'needs_transcript_review', :actor, :now, NULL, :company_id)
         """), {
             "source": source,
             "source_reference": str(message_reference or "")[:500],
             "transcript": clean_transcript,
             "actor": actor,
             "now": _now(),
+            "company_id": company_id,
         })
         request_id = created.lastrowid
         recorded = conn.execute(text("""
             INSERT OR IGNORE INTO inbound_voice_events
               (source, external_event_id, sender_reference,
-               change_request_id, received_at)
-            VALUES (:source, :event_id, :sender, :request_id, :now)
+               change_request_id, received_at, company_id)
+            VALUES (:source, :event_id, :sender, :request_id, :now, :company_id)
         """), {
             "source": source,
             "event_id": clean_event,
             "sender": str(sender)[:300],
             "request_id": request_id,
             "now": _now(),
+            "company_id": company_id,
         })
         if recorded.rowcount == 0:
             conn.execute(
@@ -281,12 +289,70 @@ def run_connection_diagnostics(request: Request):
     return result
 
 
+def _try_executive_agent(chat_id: str, text_body: str):
+    """Executive Agent handling for an already-HMAC-verified Telegram
+    update (Task 05, Section 13) - tried BEFORE the existing catalog-order/
+    voice flow below, but returns None (never touching anything) unless
+    the message is either a binding code or comes from an already-verified,
+    bound chat, so every prior behavior for every other sender is
+    unchanged. Only a real, non-empty text message from a chat bound to a
+    real admin/accountant VETRIX user ever reaches answer_question()."""
+    if not text_body.strip():
+        return None
+    from app.executive_agent.agent import answer_question, resolve_telegram_binding, verify_binding_code
+    from app.telegram_utils import send_telegram_message
+
+    candidate_code = text_body.strip()
+    if _BINDING_CODE_PATTERN.fullmatch(candidate_code):
+        outcome = verify_binding_code(chat_id, candidate_code, engine=engine)
+        if outcome is not None:
+            company_id = outcome.get("company_id")
+            if outcome["status"] == "expired":
+                reply = "This binding code has expired. Generate a new one in VETRIX and try again."
+            else:
+                reply = "This Telegram chat is now linked to your VETRIX account. Ask a question any time, e.g. \"today's summary\"."
+            try:
+                send_telegram_message(company_id, chat_id, reply)
+            except ValueError:
+                pass
+            return {"status": "handled"}
+
+    binding = resolve_telegram_binding(chat_id, engine=engine)
+    if not binding:
+        return None
+    user_id, role, company_id = binding
+    result = answer_question(user_id, role, company_id, text_body.strip(), None, "telegram", "fa", engine=engine)
+    try:
+        send_telegram_message(company_id, chat_id, result["text"])
+    except ValueError:
+        pass
+    return {"status": "handled"}
+
+
 @router.post("/telegram")
 async def telegram_webhook(request: Request):
     _verify_telegram_secret(
         request.headers.get("X-Telegram-Bot-Api-Secret-Token")
     )
     payload = await request.json()
+    message = payload.get("message") or payload.get("channel_post") or {}
+    text_body = message.get("text") or message.get("caption") or ""
+    chat = message.get("chat") or {}
+    agent_result = _try_executive_agent(str(chat.get("id") or ""), text_body)
+    if agent_result is not None:
+        return agent_result
+    if is_catalog_order_message(text_body):
+        chat = message.get("chat") or {}
+        sender = str(chat.get("id") or "")
+        sender_name = chat.get("first_name") or chat.get("username") or ""
+        return ingest_catalog_order_message(
+            source="telegram",
+            event_id=payload.get("update_id"),
+            sender=sender,
+            sender_name=sender_name,
+            message_text=text_body,
+            message_reference=f"{sender}:{message.get('message_id')}",
+        )
     return _ingest("telegram", **_telegram_voice(payload))
 
 
@@ -311,4 +377,26 @@ async def whatsapp_webhook(request: Request):
         payload = json.loads(body)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    try:
+        value = payload["entry"][0]["changes"][0]["value"]
+        message = value["messages"][0]
+    except (KeyError, IndexError, TypeError):
+        message = None
+
+    if message is not None:
+        text_body = message.get("text", {}).get("body", "")
+        if is_catalog_order_message(text_body):
+            sender = str(message.get("from") or "")
+            contacts = value.get("contacts") or [{}]
+            sender_name = (contacts[0].get("profile") or {}).get("name", "")
+            return ingest_catalog_order_message(
+                source="whatsapp",
+                event_id=message.get("id"),
+                sender=sender,
+                sender_name=sender_name,
+                message_text=text_body,
+                message_reference=message.get("id") or "",
+            )
+
     return _ingest("whatsapp", **_whatsapp_voice(payload))

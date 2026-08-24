@@ -1,10 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import text
 
 from app.database import engine
+from app.company_scope import current_company_id
 
 router = APIRouter(prefix="/api/accounting/aging", tags=["Receivables & Payables"])
 MONEY_STEP = Decimal("0.01")
@@ -37,31 +38,51 @@ def _bucket(days_overdue):
 
 @router.get("")
 def aging_report(
+    request: Request,
     as_of: str | None = None,
     terms_days: int = Query(default=30, ge=0, le=365),
     include_settled: bool = False,
 ):
+    company_id = current_company_id(request)
     report_date = _parse_as_of(as_of)
     with engine.begin() as conn:
+        # settled_amount must NET both sides of each settlement type (not
+        # just sum one column), and must SUBTRACT the opposite type as a
+        # refund - this mirrors main.py's invoice_settled_amount() exactly
+        # (the canonical settlement calculation used for payment_status/
+        # amount_paid everywhere else), so this report can never disagree
+        # with an invoice's own status. Without netting, a void's reversal
+        # entry (same source_type, debit/credit swapped) was invisible to
+        # a plain SUM(credit)/SUM(debit); without the opposite-type
+        # subtraction, a refund (app/invoice_payments.py's _execute_refund,
+        # which deliberately posts the OPPOSITE settlement type) was
+        # invisible too - both previously left this report showing a
+        # voided/refunded invoice as still fully settled.
         rows = conn.execute(text("""
             SELECT i.id AS invoice_id, i.invoice_type, i.total_amount,
-                   i.payment_status, i.created_at, c.id AS customer_id,
+                   i.payment_status, i.created_at, i.due_date AS invoice_due_date,
+                   c.id AS customer_id,
                    c.name AS customer_name, c.customer_type, c.credit_limit,
-                   COALESCE(SUM(CASE
-                     WHEN e.source_type='receipt' THEN e.credit
-                     WHEN e.source_type='payment' THEN e.debit
-                     ELSE 0 END), 0) AS settled_amount
+                   CASE WHEN i.invoice_type IN ('sale', 'return_buy') THEN
+                     COALESCE(SUM(CASE WHEN e.source_type='receipt' THEN e.credit-e.debit ELSE 0 END), 0)
+                     - COALESCE(SUM(CASE WHEN e.source_type='payment' THEN e.debit-e.credit ELSE 0 END), 0)
+                   ELSE
+                     COALESCE(SUM(CASE WHEN e.source_type='payment' THEN e.debit-e.credit ELSE 0 END), 0)
+                     - COALESCE(SUM(CASE WHEN e.source_type='receipt' THEN e.credit-e.debit ELSE 0 END), 0)
+                   END AS settled_amount
             FROM invoices i
             JOIN customers c ON c.id=i.customer_id
             LEFT JOIN accounting_entries e
               ON e.source_id=i.id
              AND e.source_type IN ('receipt', 'payment')
+             AND e.company_id=i.company_id
             WHERE i.invoice_type IN ('sale', 'return_buy', 'buy', 'return_sale')
               AND DATE(i.created_at) <= :as_of
+              AND i.company_id=:company_id
             GROUP BY i.id, i.invoice_type, i.total_amount, i.payment_status,
                      i.created_at, c.id, c.name, c.customer_type, c.credit_limit
             ORDER BY i.created_at, i.id
-        """), {"as_of": report_date.isoformat()}).mappings().all()
+        """), {"as_of": report_date.isoformat(), "company_id": company_id}).mappings().all()
 
         buckets = {
             key: {"receivable": 0.0, "payable": 0.0, "count": 0}
@@ -77,7 +98,14 @@ def aging_report(
                 continue
 
             invoice_date = datetime.fromisoformat(str(row["created_at"])).date()
-            due_date = invoice_date + timedelta(days=terms_days)
+            invoice_due_date = row["invoice_due_date"]
+            if invoice_due_date:
+                try:
+                    due_date = date.fromisoformat(str(invoice_due_date)[:10])
+                except ValueError:
+                    due_date = invoice_date + timedelta(days=terms_days)
+            else:
+                due_date = invoice_date + timedelta(days=terms_days)
             days_overdue = max((report_date - due_date).days, 0)
             bucket = _bucket(days_overdue)
             side = (

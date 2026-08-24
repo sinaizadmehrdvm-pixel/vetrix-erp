@@ -19,9 +19,29 @@ import {
   Star,
   Sparkles,
   CheckCircle2,
+  Link2,
+  ShieldOff,
+  FileDown,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLanguage } from "../localization/useLanguage";
-import { getCustomerLedger } from "../services/api";
+import { toPersianDigits } from "../localization/helpers";
+import JalaliDateField from "../components/forms/JalaliDateField";
+import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
+import {
+  createCustomerPortalLink,
+  createSupplierPortalLink,
+  getCustomerLedger,
+  getCustomerPortalStatus,
+  getSupplierPortalStatus,
+  revokeCustomerPortalAccess,
+  revokeSupplierPortalAccess,
+  getCrmNotes,
+  createCrmNote,
+  getCrmTasks,
+  createCrmTask,
+  exportCustomerProfilePdf,
+} from "../services/api";
 
 function toNumber(value) {
   const cleaned = String(value ?? "")
@@ -33,9 +53,13 @@ function toNumber(value) {
 }
 
 function balanceLabel(balance, language) {
-  if (balance > 0) return language === "fa" ? "بدهکار" : "Debtor";
-  if (balance < 0) return language === "fa" ? "بستانکار" : "Creditor";
-  return language === "fa" ? "تسویه شده" : "Settled";
+  if (balance > 0) {
+    return language === "fa" ? "بدهکار" : language === "ar" ? "مدين" : language === "tr" ? "Borçlu" : "Debtor";
+  }
+  if (balance < 0) {
+    return language === "fa" ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacaklı" : "Creditor";
+  }
+  return language === "fa" ? "تسویه شده" : language === "ar" ? "مسوّى" : language === "tr" ? "Kapatıldı" : "Settled";
 }
 
 function sourceLabel(sourceType, language) {
@@ -54,6 +78,36 @@ function sourceLabel(sourceType, language) {
     payment: "پرداخت به طرف حساب",
   };
 
+  const ar = {
+    opening_balance: "الرصيد الافتتاحي",
+    invoice: "فاتورة بيع",
+    sale: "فاتورة بيع",
+    buy: "فاتورة شراء",
+    purchase: "فاتورة شراء",
+    return_sale: "مرتجع بيع",
+    sale_return: "مرتجع بيع",
+    return_buy: "مرتجع شراء",
+    buy_return: "مرتجع شراء",
+    purchase_return: "مرتجع شراء",
+    receipt: "قبض من الطرف",
+    payment: "دفعة إلى الطرف",
+  };
+
+  const tr = {
+    opening_balance: "Açılış bakiyesi",
+    invoice: "Satış faturası",
+    sale: "Satış faturası",
+    buy: "Alış faturası",
+    purchase: "Alış faturası",
+    return_sale: "Satış iadesi",
+    sale_return: "Satış iadesi",
+    return_buy: "Alış iadesi",
+    buy_return: "Alış iadesi",
+    purchase_return: "Alış iadesi",
+    receipt: "Cariden tahsilat",
+    payment: "Cariye ödeme",
+  };
+
   const en = {
     opening_balance: "Opening balance",
     invoice: "Sales invoice",
@@ -69,7 +123,8 @@ function sourceLabel(sourceType, language) {
     payment: "Payment to party",
   };
 
-  return (language === "fa" ? fa : en)[sourceType] || sourceType || "-";
+  const table = language === "fa" ? fa : language === "ar" ? ar : language === "tr" ? tr : en;
+  return table[sourceType] || sourceType || "-";
 }
 
 function getDebit(row) {
@@ -108,8 +163,16 @@ export default function CustomerDetails() {
   const [newNote, setNewNote] = useState("");
   const [followupDate, setFollowupDate] = useState("");
   const [crmMessage, setCrmMessage] = useState("");
+  const [portalEnabled, setPortalEnabled] = useState(false);
+  const [portalLink, setPortalLink] = useState("");
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [supplierPortalEnabled, setSupplierPortalEnabled] = useState(false);
+  const [supplierPortalLink, setSupplierPortalLink] = useState("");
+  const [supplierPortalBusy, setSupplierPortalBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
-  const isFa = language === "fa";
+  const tr = (faText, arText, trText, enText) =>
+    language === "fa" ? faText : language === "ar" ? arText : language === "tr" ? trText : enText;
 
   function formatDate(value) {
     return value ? date(value, { month: "long" }) : "-";
@@ -125,7 +188,7 @@ export default function CustomerDetails() {
       setLedger(Array.isArray(data.ledger) ? data.ledger : []);
     } catch (err) {
       console.error("Customer ledger error:", err);
-      setError(err.message || (isFa ? "خطا در دریافت پرونده طرف‌حساب" : "Error loading party ledger"));
+      setError(err.message || tr("خطا در دریافت پرونده طرف‌حساب", "خطأ في جلب ملف حساب العميل", "Cari dosyası alınırken hata oluştu", "Error loading party ledger"));
     } finally {
       setLoading(false);
     }
@@ -138,63 +201,163 @@ export default function CustomerDetails() {
   }, [id]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const saved = JSON.parse(localStorage.getItem(`vetrix_crm_${id}`) || "{}");
-        setCrmNotes(Array.isArray(saved.notes) ? saved.notes : []);
-        setFollowupDate(saved.followupDate || "");
-      } catch {
-        setCrmNotes([]);
-        setFollowupDate("");
-      }
-    }, 0);
-    return () => clearTimeout(timer);
+    let active = true;
+    getCustomerPortalStatus(id)
+      .then((data) => { if (active) setPortalEnabled(Boolean(data?.enabled)); })
+      .catch(() => {});
+    return () => { active = false; };
   }, [id]);
 
-  function saveCrmState(nextNotes = crmNotes, nextFollowup = followupDate) {
-    localStorage.setItem(
-      `vetrix_crm_${id}`,
-      JSON.stringify({ notes: nextNotes, followupDate: nextFollowup, updated_at: new Date().toISOString() })
-    );
+  useEffect(() => {
+    let active = true;
+    getSupplierPortalStatus(id)
+      .then((data) => { if (active) setSupplierPortalEnabled(Boolean(data?.enabled)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+
+  async function generatePortalLink() {
+    setPortalBusy(true);
+    try {
+      const data = await createCustomerPortalLink(id);
+      setPortalLink(`${window.location.origin}/portal/${data.token}`);
+      setPortalEnabled(true);
+      toast.success(tr("لینک پورتال ساخته شد.", "تم إنشاء رابط البوابة.", "Portal bağlantısı oluşturuldu.", "Portal link created."));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPortalBusy(false);
+    }
   }
 
-  function addCrmNote() {
+  async function revokePortalLink() {
+    setPortalBusy(true);
+    try {
+      await revokeCustomerPortalAccess(id);
+      setPortalEnabled(false);
+      setPortalLink("");
+      toast.success(tr("دسترسی پورتال لغو شد.", "تم إلغاء الوصول إلى البوابة.", "Portal erişimi iptal edildi.", "Portal access revoked."));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setPortalBusy(false);
+    }
+  }
+
+  async function copyPortalLink() {
+    try {
+      await navigator.clipboard.writeText(portalLink);
+      toast.success(tr("لینک کپی شد.", "تم نسخ الرابط.", "Bağlantı kopyalandı.", "Link copied."));
+    } catch {
+      toast.error(tr("کپی خودکار ممکن نشد.", "تعذّر النسخ التلقائي.", "Otomatik kopyalama başarısız oldu.", "Couldn't copy automatically."));
+    }
+  }
+
+  async function generateSupplierPortalLink() {
+    setSupplierPortalBusy(true);
+    try {
+      const data = await createSupplierPortalLink(id);
+      setSupplierPortalLink(`${window.location.origin}/supplier-portal/${data.token}`);
+      setSupplierPortalEnabled(true);
+      toast.success(tr("لینک پورتال تأمین‌کننده ساخته شد.", "تم إنشاء رابط بوابة المورد.", "Tedarikçi portal bağlantısı oluşturuldu.", "Supplier portal link created."));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSupplierPortalBusy(false);
+    }
+  }
+
+  async function revokeSupplierPortalLink() {
+    setSupplierPortalBusy(true);
+    try {
+      await revokeSupplierPortalAccess(id);
+      setSupplierPortalEnabled(false);
+      setSupplierPortalLink("");
+      toast.success(tr("دسترسی پورتال تأمین‌کننده لغو شد.", "تم إلغاء الوصول إلى بوابة المورد.", "Tedarikçi portal erişimi iptal edildi.", "Supplier portal access revoked."));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSupplierPortalBusy(false);
+    }
+  }
+
+  async function copySupplierPortalLink() {
+    try {
+      await navigator.clipboard.writeText(supplierPortalLink);
+      toast.success(tr("لینک کپی شد.", "تم نسخ الرابط.", "Bağlantı kopyalandı.", "Link copied."));
+    } catch {
+      toast.error(tr("کپی خودکار ممکن نشد.", "تعذّر النسخ التلقائي.", "Otomatik kopyalama başarısız oldu.", "Couldn't copy automatically."));
+    }
+  }
+
+  async function loadCrmState() {
+    try {
+      const [notes, tasks] = await Promise.all([getCrmNotes(id), getCrmTasks(id)]);
+      setCrmNotes(Array.isArray(notes) ? notes : []);
+      const openTasks = (Array.isArray(tasks) ? tasks : [])
+        .filter((t) => t.status !== "done" && t.due_date)
+        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+      setFollowupDate(openTasks[0]?.due_date || "");
+    } catch {
+      setCrmNotes([]);
+      setFollowupDate("");
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => { void loadCrmState(); }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function addCrmNote() {
     if (!newNote.trim()) return;
-    const note = {
-      id: Date.now(),
-      text: newNote.trim(),
-      created_at: new Date().toISOString(),
-      type: "note",
-    };
-    const next = [note, ...crmNotes];
-    setCrmNotes(next);
-    saveCrmState(next, followupDate);
-    setNewNote("");
-    setCrmMessage(isFa ? "یادداشت CRM ذخیره شد." : "CRM note saved.");
+    try {
+      await createCrmNote(id, { text: newNote.trim() });
+      setNewNote("");
+      setCrmMessage(tr("یادداشت CRM ذخیره شد.", "تم حفظ ملاحظة CRM.", "CRM notu kaydedildi.", "CRM note saved."));
+      await loadCrmState();
+    } catch (err) {
+      toast.error(err.message || tr("خطا در ذخیره یادداشت", "خطأ في حفظ الملاحظة", "Not kaydedilirken hata oluştu", "Error saving note"));
+    }
   }
 
-  function saveFollowupDate(value) {
-    setFollowupDate(value);
-    saveCrmState(crmNotes, value);
-    setCrmMessage(isFa ? "تاریخ پیگیری ذخیره شد." : "Follow-up date saved.");
+  async function saveFollowupDate(value) {
+    try {
+      await createCrmTask(id, {
+        title: tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki takip", "Next follow-up"),
+        due_date: value,
+        status: "open",
+      });
+      setFollowupDate(value);
+      setCrmMessage(tr("تاریخ پیگیری ذخیره شد.", "تم حفظ تاريخ المتابعة.", "Takip tarihi kaydedildi.", "Follow-up date saved."));
+    } catch (err) {
+      toast.error(err.message || tr("خطا در ذخیره تاریخ پیگیری", "خطأ في حفظ تاريخ المتابعة", "Takip tarihi kaydedilirken hata oluştu", "Error saving follow-up date"));
+    }
   }
 
   function whatsappMessage() {
     const balance = finance?.balance || 0;
     if (balance > 0) {
-      return isFa
-        ? `سلام ${party?.name || ""} عزیز، مانده حساب شما ${money(balance)} است. لطفاً جهت تسویه یا هماهنگی با ما در ارتباط باشید.`
-        : `Hello ${party?.name || ""}, your outstanding balance is ${money(balance)}. Please contact us for settlement.`;
+      return tr(
+        `سلام ${party?.name || ""} عزیز، مانده حساب شما ${money(balance)} است. لطفاً جهت تسویه یا هماهنگی با ما در ارتباط باشید.`,
+        `مرحباً ${party?.name || ""} الكريم، رصيد حسابك ${money(balance)}. يرجى التواصل معنا للتسوية أو التنسيق.`,
+        `Sayın ${party?.name || ""}, hesap bakiyeniz ${money(balance)}. Lütfen mutabakat veya bilgi için bizimle iletişime geçin.`,
+        `Hello ${party?.name || ""}, your outstanding balance is ${money(balance)}. Please contact us for settlement.`
+      );
     }
-    return isFa
-      ? `سلام ${party?.name || ""} عزیز، ممنون از همکاری شما. جهت سفارش یا پیگیری بعدی در خدمت شما هستیم.`
-      : `Hello ${party?.name || ""}, thank you for your cooperation. We are ready for your next order or follow-up.`;
+    return tr(
+      `سلام ${party?.name || ""} عزیز، ممنون از همکاری شما. جهت سفارش یا پیگیری بعدی در خدمت شما هستیم.`,
+      `مرحباً ${party?.name || ""} الكريم، نشكر لكم تعاونكم. نحن في خدمتكم لأي طلب أو متابعة لاحقة.`,
+      `Sayın ${party?.name || ""}, iş birliğiniz için teşekkür ederiz. Yeni bir sipariş veya sonraki takip için hizmetinizdeyiz.`,
+      `Hello ${party?.name || ""}, thank you for your cooperation. We are ready for your next order or follow-up.`
+    );
   }
 
   function openWhatsApp() {
     const phone = String(party?.mobile || party?.phone || "").replace(/[^0-9]/g, "");
     if (!phone) {
-      alert(isFa ? "شماره موبایل/تلفن ثبت نشده است." : "No phone/mobile number is saved.");
+      toast.error(tr("شماره موبایل/تلفن ثبت نشده است.", "لم يتم تسجيل رقم الهاتف/الجوال.", "Telefon/cep telefonu numarası kayıtlı değil.", "No phone/mobile number is saved."));
       return;
     }
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage())}`, "_blank");
@@ -285,13 +448,36 @@ export default function CustomerDetails() {
     const level = score >= 80 ? "vip" : score >= 60 ? "active" : finance.balance > 0 ? "followup" : "normal";
     const suggestion =
       finance.balance > 0
-        ? (isFa ? "پیگیری مطالبات و ثبت نتیجه تماس پیشنهاد می‌شود." : "Follow up receivables and log the call result.")
+        ? tr(
+            "پیگیری مطالبات و ثبت نتیجه تماس پیشنهاد می‌شود.",
+            "يُنصح بمتابعة المستحقات وتسجيل نتيجة الاتصال.",
+            "Alacakların takibi ve görüşme sonucunun kaydedilmesi önerilir.",
+            "Follow up receivables and log the call result."
+          )
         : normalizedLedger.length === 0
-        ? (isFa ? "برای این مشتری هنوز گردش مالی ثبت نشده است؛ اولین تعامل را ثبت کن." : "No financial activity yet; register the first interaction.")
-        : (isFa ? "ارتباط با مشتری حفظ شود و پیشنهاد خرید مجدد ارسال گردد." : "Maintain relationship and send a reorder proposal.");
+        ? tr(
+            "برای این مشتری هنوز گردش مالی ثبت نشده است؛ اولین تعامل را ثبت کن.",
+            "لم يتم تسجيل أي نشاط مالي لهذا العميل بعد؛ سجّل أول تفاعل.",
+            "Bu müşteri için henüz finansal hareket kaydedilmedi; ilk etkileşimi kaydedin.",
+            "No financial activity yet; register the first interaction."
+          )
+        : tr(
+            "ارتباط با مشتری حفظ شود و پیشنهاد خرید مجدد ارسال گردد.",
+            "حافظ على التواصل مع العميل وأرسل عرض إعادة الشراء.",
+            "Müşteri ile iletişim sürdürülmeli ve yeniden sipariş teklifi gönderilmelidir.",
+            "Maintain relationship and send a reorder proposal."
+          );
 
-    return { score, level, suggestion };
-  }, [party, normalizedLedger, finance, isFa]);
+    const levelLabels = {
+      vip: tr("ویژه", "مميز", "VIP", "VIP"),
+      active: tr("فعال", "نشط", "Aktif", "Active"),
+      followup: tr("نیازمند پیگیری", "يحتاج إلى متابعة", "Takip gerekiyor", "Needs follow-up"),
+      normal: tr("عادی", "عادي", "Normal", "Normal"),
+    };
+
+    return { score, level, levelLabel: levelLabels[level] || level, suggestion };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [party, normalizedLedger, finance, language]);
 
   const crmTimeline = useMemo(() => {
     const ledgerEvents = normalizedLedger.slice(-8).map((row) => ({
@@ -319,10 +505,64 @@ export default function CustomerDetails() {
     window.print();
   }
 
+  async function exportProfilePdf() {
+    setPdfBusy(true);
+    try {
+      const identityPairs = [
+        [tr("نام", "الاسم", "Ad", "Name"), party.name],
+        [tr("نوع طرف‌حساب", "نوع الطرف", "Cari türü", "Party type"), party.customer_type || party.party_type || "-"],
+        [tr("تلفن", "الهاتف", "Telefon", "Phone"), party.phone || party.mobile || "-"],
+        [tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email"), party.email || "-"],
+        [tr("شهر", "المدينة", "Şehir", "City"), party.city || "-"],
+        [tr("آدرس", "العنوان", "Adres", "Address"), party.address || "-"],
+        [tr("شناسه ملی", "الرقم الوطني", "Kimlik no", "National ID"), party.national_id || "-"],
+        [tr("کد اقتصادی", "الرمز الاقتصادي", "Ekonomik kod", "Economic code"), party.economic_code || "-"],
+        [tr("سقف اعتبار", "حد الائتمان", "Kredi limiti", "Credit limit"), money(toNumber(party.credit_limit))],
+      ];
+      const summaryPairs = [
+        [tr("بدهکار", "مدين", "Borçlu", "Debtor"), money(finance.debtor)],
+        [tr("بستانکار", "دائن", "Alacaklı", "Creditor"), money(finance.creditor)],
+        [tr("مانده", "الرصيد", "Bakiye", "Balance"), `${money(Math.abs(finance.balance))} (${balanceLabel(finance.balance, language)})`],
+        [tr("دریافتی‌ها", "المقبوضات", "Tahsilat", "Received"), money(finance.received)],
+        [tr("پرداختی‌ها", "المدفوعات", "Ödemeler", "Paid"), money(finance.paid)],
+      ];
+      const ledgerHeaders = [
+        tr("تاریخ", "التاريخ", "Tarih", "Date"),
+        tr("شرح", "الوصف", "Açıklama", "Description"),
+        tr("بدهکار", "مدين", "Borç", "Debit"),
+        tr("بستانکار", "دائن", "Alacak", "Credit"),
+        tr("مانده", "الرصيد", "Bakiye", "Balance"),
+      ];
+      const ledgerRows = visibleRows.map((row) => [
+        formatDate(row.date || row.created_at),
+        row.description || sourceLabel(row.source_type, language),
+        row.debit ? money(toNumber(row.debit)) : "-",
+        row.credit ? money(toNumber(row.credit)) : "-",
+        money(toNumber(row.shownBalance)),
+      ]);
+
+      await exportCustomerProfilePdf(
+        {
+          title: tr(`پرونده طرف‌حساب: ${party.name}`, `ملف الطرف: ${party.name}`, `Cari profili: ${party.name}`, `Customer profile: ${party.name}`),
+          identity_pairs: identityPairs,
+          summary_pairs: summaryPairs,
+          ledger_headers: ledgerHeaders,
+          ledger_rows: ledgerRows,
+          language,
+        },
+        `vetrix-customer-${id}-profile.pdf`
+      );
+    } catch (err) {
+      toast.error(err.message || tr("خروجی گرفتن ناموفق بود", "فشل التصدير", "Dışa aktarma başarısız oldu", "Export failed"));
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   if (loading && !party) {
     return (
-      <div dir={dir} className="text-cyan-300 p-8">
-        {isFa ? "در حال بارگذاری..." : "Loading..."}
+      <div dir={dir} className="text-[var(--erp-accent)] p-8">
+        {tr("در حال بارگذاری...", "جارٍ التحميل...", "Yükleniyor...", "Loading...")}
       </div>
     );
   }
@@ -335,9 +575,9 @@ export default function CustomerDetails() {
         </div>
         <Link
           to="/customers"
-          className="inline-flex mt-4 px-4 py-3 rounded-xl bg-cyan-400 text-slate-950 font-black"
+          className="inline-flex mt-4 px-4 py-3 rounded-xl bg-[var(--erp-accent)] text-slate-950 font-black"
         >
-          {isFa ? "بازگشت" : "Back"}
+          {tr("بازگشت", "رجوع", "Geri", "Back")}
         </Link>
       </div>
     );
@@ -351,18 +591,27 @@ export default function CustomerDetails() {
         <div className="flex gap-2 flex-wrap">
           <Link
             to="/customers"
-            className="px-4 py-3 rounded-2xl bg-cyan-400 text-slate-950 font-black flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-accent)] text-slate-950 font-black flex items-center gap-2"
           >
             <ArrowLeft size={18} />
-            {isFa ? "بازگشت" : "Back"}
+            {tr("بازگشت", "رجوع", "Geri", "Back")}
           </Link>
 
           <button
             onClick={printPage}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2"
           >
             <Printer size={18} />
-            {isFa ? "چاپ پرونده" : "Print"}
+            {tr("چاپ پرونده", "طباعة الملف", "Dosyayı yazdır", "Print")}
+          </button>
+
+          <button
+            onClick={exportProfilePdf}
+            disabled={pdfBusy}
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
+          >
+            <FileDown size={18} />
+            {pdfBusy ? tr("در حال ساخت...", "جارٍ الإنشاء...", "Oluşturuluyor...", "Generating...") : tr("خروجی PDF پرونده", "تصدير PDF للملف", "Profili PDF olarak indir", "Export profile PDF")}
           </button>
 
           <button
@@ -370,75 +619,160 @@ export default function CustomerDetails() {
             className="px-4 py-3 rounded-2xl bg-emerald-500/20 text-emerald-200 font-black flex items-center gap-2 border border-emerald-400/20"
           >
             <MessageCircle size={18} />
-            {isFa ? "واتساپ" : "WhatsApp"}
+            {tr("واتساپ", "واتساب", "WhatsApp", "WhatsApp")}
           </button>
 
           <button
             onClick={load}
             disabled={loading}
-            className="px-4 py-3 rounded-2xl bg-slate-800 text-cyan-200 font-black flex items-center gap-2 disabled:opacity-60"
+            className="px-4 py-3 rounded-2xl bg-[var(--erp-panel-solid)] text-[var(--erp-accent)] font-black flex items-center gap-2 disabled:opacity-60"
           >
             <RefreshCcw size={18} />
-            {isFa ? "به‌روزرسانی" : "Refresh"}
+            {tr("به‌روزرسانی", "تحديث", "Yenile", "Refresh")}
           </button>
+
+          {portalEnabled ? (
+            <button
+              onClick={revokePortalLink}
+              disabled={portalBusy}
+              className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
+            >
+              <ShieldOff size={18} />
+              {tr("لغو پورتال مشتری", "إلغاء بوابة العميل", "Müşteri portalını iptal et", "Revoke customer portal")}
+            </button>
+          ) : (
+            <button
+              onClick={generatePortalLink}
+              disabled={portalBusy}
+              className="px-4 py-3 rounded-2xl bg-indigo-500/15 text-indigo-200 font-black flex items-center gap-2 border border-indigo-400/20 disabled:opacity-60"
+            >
+              <Link2 size={18} />
+              {tr("ساخت لینک پورتال مشتری", "إنشاء رابط بوابة العميل", "Müşteri portal bağlantısı oluştur", "Create customer portal link")}
+            </button>
+          )}
+
+          {(party.customer_type === "supplier" || party.customer_type === "both") && (
+            supplierPortalEnabled ? (
+              <button
+                onClick={revokeSupplierPortalLink}
+                disabled={supplierPortalBusy}
+                className="px-4 py-3 rounded-2xl bg-red-500/15 text-red-200 font-black flex items-center gap-2 border border-red-400/20 disabled:opacity-60"
+              >
+                <ShieldOff size={18} />
+                {tr("لغو پورتال تأمین‌کننده", "إلغاء بوابة المورد", "Tedarikçi portalını iptal et", "Revoke supplier portal")}
+              </button>
+            ) : (
+              <button
+                onClick={generateSupplierPortalLink}
+                disabled={supplierPortalBusy}
+                className="px-4 py-3 rounded-2xl bg-teal-500/15 text-teal-200 font-black flex items-center gap-2 border border-teal-400/20 disabled:opacity-60"
+              >
+                <Link2 size={18} />
+                {tr("ساخت لینک پورتال تأمین‌کننده", "إنشاء رابط بوابة المورد", "Tedarikçi portal bağlantısı oluştur", "Create supplier portal link")}
+              </button>
+            )
+          )}
         </div>
 
         <div className="text-right">
-          <h1 className="text-4xl font-black text-cyan-400">
-            {isFa ? "پرونده ۳۶۰ درجه طرف‌حساب" : "Customer 360 Profile"}
+          <h1 className="text-4xl font-black text-[var(--erp-accent)]">
+            {tr("پرونده ۳۶۰ درجه طرف‌حساب", "ملف العميل الشامل 360", "Müşteri 360 Derece Profili", "Customer 360 Profile")}
           </h1>
-          <p className="text-slate-400 mt-2">
-            {isFa ? `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}` : `Complete finance and CRM profile #${party.id}`}
+          <p className="text-[var(--erp-muted)] mt-2">
+            {tr(
+              `پرونده کامل مالی، CRM، پیگیری و ارتباطات طرف‌حساب #${n(party.id)}`,
+              `ملف مالي وCRM ومتابعة واتصالات كامل للعميل رقم #${n(party.id)}`,
+              `Cari için tam finans, CRM, takip ve iletişim dosyası #${n(party.id)}`,
+              `Complete finance and CRM profile #${party.id}`
+            )}
           </p>
         </div>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      {portalLink && (
+        <div className="bg-indigo-500/10 border border-indigo-400/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px] font-mono text-sm text-indigo-200 break-all">{portalLink}</div>
+          <button
+            onClick={copyPortalLink}
+            className="px-4 py-2 rounded-xl bg-indigo-400 text-slate-950 font-black flex-shrink-0"
+          >
+            {tr("کپی لینک", "نسخ الرابط", "Bağlantıyı kopyala", "Copy link")}
+          </button>
+        </div>
+      )}
+
+      {supplierPortalLink && (
+        <div className="bg-teal-500/10 border border-teal-400/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px] font-mono text-sm text-teal-200 break-all">{supplierPortalLink}</div>
+          <button
+            onClick={copySupplierPortalLink}
+            className="px-4 py-2 rounded-xl bg-teal-400 text-slate-950 font-black flex-shrink-0"
+          >
+            {tr("کپی لینک", "نسخ الرابط", "Bağlantıyı kopyala", "Copy link")}
+          </button>
+        </div>
+      )}
+
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-3xl font-black text-white">{party.name}</h2>
-            <div className="text-cyan-300 font-bold mt-1">{party.customer_type || "customer"}</div>
+            <h2 className="text-3xl font-black text-[var(--erp-text)]">{party.name}</h2>
+            <div className="text-[var(--erp-accent)] font-bold mt-1">
+              {
+                {
+                  customer: tr("مشتری", "عميل", "Müşteri", "Customer"),
+                  supplier: tr("تامین‌کننده", "مورد", "Tedarikçi", "Supplier"),
+                  both: tr("مشتری و تامین‌کننده", "عميل ومورد", "Müşteri ve Tedarikçi", "Customer & supplier"),
+                }[party.customer_type || "customer"] || tr("مشتری", "عميل", "Müşteri", "Customer")
+              }
+            </div>
           </div>
-          <div className="w-16 h-16 rounded-3xl bg-cyan-400/10 text-cyan-300 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-3xl bg-[var(--erp-glow)] text-[var(--erp-accent)] flex items-center justify-center">
             <UserRound size={34} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Info icon={<Phone size={17} />} label={isFa ? "شماره تماس" : "Phone"} value={party.phone || "-"} />
-          <Info icon={<Mail size={17} />} label={isFa ? "ایمیل" : "Email"} value={party.email || "-"} />
-          <Info icon={<MapPin size={17} />} label={isFa ? "شهر" : "City"} value={party.city || "-"} />
-          <Info icon={<MapPin size={17} />} label={isFa ? "آدرس" : "Address"} value={party.address || "-"} />
-          <Info icon={<CreditCard size={17} />} label={isFa ? "کد ملی/شناسه" : "National ID"} value={party.national_id || "-"} />
-          <Info icon={<CreditCard size={17} />} label={isFa ? "کد اقتصادی" : "Economic Code"} value={party.economic_code || "-"} />
-          <Info icon={<UserRound size={17} />} label={isFa ? "شخص رابط" : "Contact"} value={party.contact_person || "-"} />
-          <Info icon={<Wallet size={17} />} label={isFa ? "سقف اعتبار" : "Credit Limit"} value={money(toNumber(party.credit_limit))} />
+          <Info icon={<Phone size={17} />} label={tr("شماره تماس", "رقم الهاتف", "Telefon Numarası", "Phone")} value={(language === "fa" ? toPersianDigits(party.phone) : party.phone) || "-"} />
+          <Info icon={<Mail size={17} />} label={tr("ایمیل", "البريد الإلكتروني", "E-posta", "Email")} value={party.email || "-"} />
+          <Info icon={<MapPin size={17} />} label={tr("شهر", "المدينة", "Şehir", "City")} value={party.city || "-"} />
+          <Info icon={<MapPin size={17} />} label={tr("آدرس", "العنوان", "Adres", "Address")} value={party.address || "-"} />
+          <Info icon={<CreditCard size={17} />} label={tr("کد ملی/شناسه", "الرقم الوطني/المعرف", "Kimlik/Vergi No", "National ID")} value={party.national_id || "-"} />
+          <Info icon={<CreditCard size={17} />} label={tr("کد اقتصادی", "الرمز الاقتصادي", "Vergi Kodu", "Economic Code")} value={party.economic_code || "-"} />
+          <Info icon={<UserRound size={17} />} label={tr("شخص رابط", "الشخص المسؤول", "İlgili Kişi", "Contact")} value={party.contact_person || "-"} />
+          <Info icon={<Wallet size={17} />} label={tr("سقف اعتبار", "حد الائتمان", "Kredi Limiti", "Credit Limit")} value={money(toNumber(party.credit_limit))} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         <Kpi
-          title={isFa ? "مانده حساب" : "Balance"}
+          title={tr("مانده حساب", "الرصيد", "Bakiye", "Balance")}
           value={money(Math.abs(finance.balance))}
-          hint={isFa ? `${party.name} ${balanceLabel(finance.balance, language)} است` : balanceLabel(finance.balance, language)}
-          color={finance.balance > 0 ? "#fca5a5" : finance.balance < 0 ? "#86efac" : "#22d3ee"}
+          hint={tr(
+            `${party.name} ${balanceLabel(finance.balance, language)} است`,
+            balanceLabel(finance.balance, language),
+            balanceLabel(finance.balance, language),
+            balanceLabel(finance.balance, language)
+          )}
+          color={finance.balance === 0 ? "#22d3ee" : undefined}
+          colorClassName={finance.balance > 0 ? "text-red-300" : finance.balance < 0 ? "text-green-300" : undefined}
           icon={<Wallet size={20} />}
         />
-        <Kpi title={isFa ? "بدهکار" : "Debtor"} value={money(finance.debtor)} color="#fca5a5" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "بستانکار" : "Creditor"} value={money(finance.creditor)} color="#86efac" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "مانده اول دوره" : "Opening"} value={money(Math.abs(finance.opening))} hint={balanceLabel(finance.opening, language)} color="#22d3ee" icon={<Wallet size={20} />} />
-        <Kpi title={isFa ? "آخرین فعالیت" : "Last activity"} value={finance.lastActivity ? formatDate(finance.lastActivity.date || finance.lastActivity.created_at) : "-"} icon={<Clock size={20} />} />
-        <Kpi title={isFa ? "تعداد تراکنش" : "Transactions"} value={n(normalizedLedger.length)} icon={<ArrowRightLeft size={20} />} />
-        <Kpi title={isFa ? "جمع بدهکار" : "Total debit"} value={money(finance.totalDebit)} icon={<ArrowRightLeft size={20} />} />
-        <Kpi title={isFa ? "جمع بستانکار" : "Total credit"} value={money(finance.totalCredit)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("بدهکار", "مدين", "Borçlu", "Debtor")} value={money(finance.debtor)} colorClassName="text-red-300" icon={<Wallet size={20} />} />
+        <Kpi title={tr("بستانکار", "دائن", "Alacaklı", "Creditor")} value={money(finance.creditor)} colorClassName="text-green-300" icon={<Wallet size={20} />} />
+        <Kpi title={tr("مانده اول دوره", "الرصيد الافتتاحي", "Açılış Bakiyesi", "Opening")} value={money(Math.abs(finance.opening))} hint={balanceLabel(finance.opening, language)} color="#22d3ee" icon={<Wallet size={20} />} />
+        <Kpi title={tr("آخرین فعالیت", "آخر نشاط", "Son İşlem", "Last activity")} value={finance.lastActivity ? formatDate(finance.lastActivity.date || finance.lastActivity.created_at) : "-"} icon={<Clock size={20} />} />
+        <Kpi title={tr("تعداد تراکنش", "عدد المعاملات", "İşlem Sayısı", "Transactions")} value={n(normalizedLedger.length)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("جمع بدهکار", "إجمالي المدين", "Toplam Borç", "Total debit")} value={money(finance.totalDebit)} icon={<ArrowRightLeft size={20} />} />
+        <Kpi title={tr("جمع بستانکار", "إجمالي الدائن", "Toplam Alacak", "Total credit")} value={money(finance.totalCredit)} icon={<ArrowRightLeft size={20} />} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5">
-        <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
-            <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2">
+            <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
               <Sparkles size={24} />
-              {isFa ? "هوش ارتباط با مشتری" : "Customer Intelligence"}
+              {tr("هوش ارتباط با مشتری", "ذكاء العميل", "Müşteri Zekası", "Customer Intelligence")}
             </h2>
             <span className={`px-4 py-2 rounded-2xl font-black ${customerIntelligence.score >= 80 ? "bg-yellow-400/10 text-yellow-300" : customerIntelligence.score >= 60 ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>
               <Star size={16} className="inline mx-1" /> {n(customerIntelligence.score)}/100
@@ -446,29 +780,29 @@ export default function CustomerDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            <Info icon={<BellRing size={17} />} label={isFa ? "پیگیری بعدی" : "Next follow-up"} value={followupDate || (isFa ? "ثبت نشده" : "Not set")} />
-            <Info icon={<CheckCircle2 size={17} />} label={isFa ? "وضعیت CRM" : "CRM Status"} value={customerIntelligence.level} />
-            <Info icon={<MessageCircle size={17} />} label={isFa ? "یادداشت‌ها" : "Notes"} value={n(crmNotes.length)} />
+            <Info icon={<BellRing size={17} />} label={tr("پیگیری بعدی", "المتابعة القادمة", "Sonraki Takip", "Next follow-up")} value={followupDate ? date(followupDate) : tr("ثبت نشده", "غير محدد", "Belirtilmedi", "Not set")} />
+            <Info icon={<CheckCircle2 size={17} />} label={tr("وضعیت CRM", "حالة CRM", "CRM Durumu", "CRM Status")} value={customerIntelligence.levelLabel} />
+            <Info icon={<MessageCircle size={17} />} label={tr("یادداشت‌ها", "الملاحظات", "Notlar", "Notes")} value={n(crmNotes.length)} />
           </div>
 
-          <div className="rounded-2xl bg-cyan-500/10 border border-cyan-400/20 p-4 text-cyan-100 font-bold mb-5">
+          <div className="rounded-2xl bg-[var(--erp-glow)] border border-[var(--erp-border)] p-4 text-[var(--erp-accent)] font-bold mb-5">
             {customerIntelligence.suggestion}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3 mb-4">
-            <input
+            <JalaliDateField
               value={followupDate}
-              onChange={(e) => saveFollowupDate(e.target.value)}
-              type="text"
-              className="bg-slate-800 text-white rounded-2xl p-4 outline-none border border-cyan-500/10"
-              placeholder={isFa ? "مثال: ۱۴۰۵/۰۴/۲۵" : "Example: 2026/07/16"}
+              onChange={saveFollowupDate}
+              fa={language === "fa"}
+              language={language}
+              className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
             />
             <button
               onClick={openWhatsApp}
               className="bg-emerald-500/20 text-emerald-200 border border-emerald-400/20 rounded-2xl font-black flex items-center justify-center gap-2"
             >
               <MessageCircle size={18} />
-              {isFa ? "پیام آماده واتساپ" : "WhatsApp message"}
+              {tr("پیام آماده واتساپ", "رسالة واتساب جاهزة", "Hazır WhatsApp Mesajı", "WhatsApp message")}
             </button>
           </div>
 
@@ -481,169 +815,166 @@ export default function CustomerDetails() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-3">
             <textarea
               value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
+              onChange={(e) => setNewNote(language === "fa" ? toPersianDigits(e.target.value) : e.target.value)}
               rows={3}
-              className="bg-slate-800 text-white rounded-2xl p-4 outline-none border border-cyan-500/10"
-              placeholder={isFa ? "یادداشت تماس، مذاکره، قول پرداخت یا درخواست مشتری..." : "Call note, negotiation, payment promise or customer request..."}
+              className="bg-[var(--erp-panel-solid)] text-[var(--erp-text)] rounded-2xl p-4 outline-none border border-[var(--erp-border)]"
+              placeholder={tr(
+                "یادداشت تماس، مذاکره، قول پرداخت یا درخواست مشتری...",
+                "ملاحظة اتصال، مفاوضة، وعد بالدفع أو طلب العميل...",
+                "Görüşme notu, müzakere, ödeme sözü veya müşteri talebi...",
+                "Call note, negotiation, payment promise or customer request..."
+              )}
             />
             <button
               onClick={addCrmNote}
-              className="bg-cyan-400 text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2"
+              className="bg-[var(--erp-accent)] text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2"
             >
               <Plus size={18} />
-              {isFa ? "ثبت" : "Add"}
+              {tr("ثبت", "إضافة", "Ekle", "Add")}
             </button>
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
-          <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2 mb-5">
+        <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2 mb-5">
             <Clock size={24} />
-            {isFa ? "تایم‌لاین مشتری" : "Customer timeline"}
+            {tr("تایم‌لاین مشتری", "الجدول الزمني للعميل", "Müşteri Zaman Çizelgesi", "Customer timeline")}
           </h2>
           <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
             {crmTimeline.map((event) => (
-              <div key={event.id} className="rounded-2xl bg-slate-800/70 border border-white/5 p-4">
+              <div key={event.id} className="rounded-2xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] p-4">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="text-white font-black text-sm">{event.title}</div>
+                  <div className="text-[var(--erp-text)] font-black text-sm">{event.title}</div>
                   <span className={`text-xs px-2 py-1 rounded-full ${event.type === "crm" ? "bg-cyan-400/10 text-cyan-300" : "bg-emerald-400/10 text-emerald-300"}`}>
-                    {event.type === "crm" ? (isFa ? "CRM" : "CRM") : (isFa ? "مالی" : "Finance")}
+                    {event.type === "crm" ? "CRM" : tr("مالی", "مالي", "Finansal", "Finance")}
                   </span>
                 </div>
-                <div className="text-xs text-slate-400 flex items-center justify-between gap-2">
+                <div className="text-xs text-[var(--erp-muted)] flex items-center justify-between gap-2">
                   <span>{formatDate(event.date)}</span>
-                  {event.amount ? <b className="text-cyan-300">{money(event.amount)}</b> : null}
+                  {event.amount ? <b className="text-[var(--erp-accent)]">{money(event.amount)}</b> : null}
                 </div>
               </div>
             ))}
 
             {crmTimeline.length === 0 && (
-              <div className="text-slate-400">{isFa ? "هنوز رویدادی ثبت نشده است." : "No timeline events yet."}</div>
+              <div className="text-[var(--erp-muted)]">{tr("هنوز رویدادی ثبت نشده است.", "لم يتم تسجيل أي حدث بعد.", "Henüz bir olay kaydedilmedi.", "No timeline events yet.")}</div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+      <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
         <div className="flex flex-wrap justify-between gap-3 mb-5">
-          <h2 className="text-2xl font-black text-cyan-400 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-[var(--erp-accent)] flex items-center gap-2">
             <FileText size={24} />
-            {isFa ? "صورت‌حساب" : "Ledger"}
+            {tr("صورت‌حساب", "كشف الحساب", "Hesap Ekstresi", "Ledger")}
           </h2>
 
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode("all")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "all" ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-white"
+                viewMode === "all" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
-              {isFa ? "دفتر کل" : "All"}
+              {tr("دفتر کل", "الكل", "Tümü", "All")}
             </button>
 
             <button
               onClick={() => setViewMode("bank")}
               className={`px-4 py-2 rounded-xl font-black ${
-                viewMode === "bank" ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-white"
+                viewMode === "bank" ? "bg-[var(--erp-accent)] text-slate-950" : "bg-[var(--erp-panel-solid)] text-[var(--erp-text)]"
               }`}
             >
-              {isFa ? "ریزگردش بانکی" : "Bank"}
+              {tr("ریزگردش بانکی", "الحركة البنكية", "Banka Hareketi", "Bank")}
             </button>
           </div>
         </div>
 
         {viewMode === "all" ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="text-cyan-300 border-b border-cyan-500/20">
-                  <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
-                  <th className="p-3 text-right">{isFa ? "شرح" : "Description"}</th>
-                  <th className="p-3 text-right">{isFa ? "بدهکار" : "Debit"}</th>
-                  <th className="p-3 text-right">{isFa ? "بستانکار" : "Credit"}</th>
-                  <th className="p-3 text-right">{isFa ? "مانده حساب" : "Account balance"}</th>
-                  <th className="p-3 text-right">{isFa ? "وضعیت" : "Status"}</th>
-                </tr>
-              </thead>
+          <Table dir={dir} className="min-w-[900px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+              <Th>{tr("شرح", "البيان", "Açıklama", "Description")}</Th>
+              <Th align="end">{tr("بدهکار", "مدين", "Borç", "Debit")}</Th>
+              <Th align="end">{tr("بستانکار", "دائن", "Alacak", "Credit")}</Th>
+              <Th align="end">{tr("مانده حساب", "رصيد الحساب", "Hesap Bakiyesi", "Account balance")}</Th>
+              <Th>{tr("وضعیت", "الحالة", "Durum", "Status")}</Th>
+            </Thead>
 
-              <tbody>
-                {visibleRows.map((row, index) => {
-                  const bal = toNumber(row.computedBalance ?? getRowBalance(row));
+            <Tbody>
+              {visibleRows.map((row, index) => {
+                const bal = toNumber(row.computedBalance ?? getRowBalance(row));
 
-                  return (
-                    <tr key={`${row.id}-${index}`} className="border-b border-slate-800 hover:bg-cyan-500/5">
-                      <td className="p-3 text-slate-200">{formatDate(row.date || row.created_at)}</td>
-                      <td className="p-3">
-                        <div className="font-black text-white">
-                          {row.description || sourceLabel(row.source_type, language)}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {sourceLabel(row.source_type, language)} {row.source_id ? `#${n(row.source_id)}` : ""}
-                        </div>
-                      </td>
-                      <td className="p-3 text-rose-300 font-black">
-                        {toNumber(row.debit) ? money(row.debit) : "-"}
-                      </td>
-                      <td className="p-3 text-emerald-300 font-black">
-                        {toNumber(row.credit) ? money(row.credit) : "-"}
-                      </td>
-                      <td className="p-3 text-cyan-300 font-black">{money(Math.abs(bal))}</td>
-                      <td className="p-3 text-white font-black">{balanceLabel(bal, language)}</td>
-                    </tr>
-                  );
-                })}
-
-                {visibleRows.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
-                      {isFa ? "هنوز گردش حسابی ثبت نشده است" : "No ledger rows"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="text-cyan-300 border-b border-cyan-500/20">
-                  <th className="p-3 text-right">{isFa ? "تاریخ" : "Date"}</th>
-                  <th className="p-3 text-right">{isFa ? "شرح عملیات بانکی" : "Bank transaction"}</th>
-                  <th className="p-3 text-right">{isFa ? "ورود وجه" : "Inflow"}</th>
-                  <th className="p-3 text-right">{isFa ? "خروج وجه" : "Outflow"}</th>
-                  <th className="p-3 text-right">{isFa ? "مانده نقد/بانک" : "Cash/Bank balance"}</th>
-                  <th className="p-3 text-right">{isFa ? "نوع" : "Type"}</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {bankRows.map((row, index) => (
-                  <tr key={`${row.id}-${index}`} className="border-b border-slate-800 hover:bg-cyan-500/5">
-                    <td className="p-3 text-slate-200">{formatDate(row.date || row.created_at)}</td>
-                    <td className="p-3">
-                      <div className="font-black text-white">
+                return (
+                  <Tr key={`${row.id}-${index}`}>
+                    <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                    <Td className="text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</Td>
+                    <Td>
+                      <div className="font-black text-[var(--erp-text)]">
                         {row.description || sourceLabel(row.source_type, language)}
                       </div>
-                      <div className="text-xs text-slate-500">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
-                    </td>
-                    <td className="p-3 text-emerald-300 font-black">{row.inflow ? money(row.inflow) : "-"}</td>
-                    <td className="p-3 text-rose-300 font-black">{row.outflow ? money(row.outflow) : "-"}</td>
-                    <td className="p-3 text-cyan-300 font-black">{money(Math.abs(row.cashBalance))}</td>
-                    <td className="p-3 text-white font-black">{sourceLabel(row.source_type, language)}</td>
-                  </tr>
-                ))}
+                      <div className="text-xs text-[var(--erp-muted)]">
+                        {sourceLabel(row.source_type, language)} {row.source_id ? `#${n(row.source_id)}` : ""}
+                      </div>
+                    </Td>
+                    <Td align="end" className="text-rose-300 font-black">
+                      {toNumber(row.debit) ? money(row.debit) : "-"}
+                    </Td>
+                    <Td align="end" className="text-emerald-300 font-black">
+                      {toNumber(row.credit) ? money(row.credit) : "-"}
+                    </Td>
+                    <Td align="end" className="text-[var(--erp-accent)] font-black">{money(Math.abs(bal))}</Td>
+                    <Td className="text-[var(--erp-text)] font-black">{balanceLabel(bal, language)}</Td>
+                  </Tr>
+                );
+              })}
 
-                {bankRows.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
-                      {isFa ? "هنوز دریافت یا پرداخت بانکی ثبت نشده است" : "No bank transaction has been registered yet"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              {visibleRows.length === 0 && (
+                <EmptyRow colSpan={7}>
+                  {tr("هنوز گردش حسابی ثبت نشده است", "لم يتم تسجيل أي حركة حساب بعد", "Henüz hesap hareketi kaydedilmedi", "No ledger rows")}
+                </EmptyRow>
+              )}
+            </Tbody>
+          </Table>
+        ) : (
+          <Table dir={dir} className="min-w-[900px] text-sm">
+            <Thead>
+              <Th className="w-12">#</Th>
+              <Th>{tr("تاریخ", "التاريخ", "Tarih", "Date")}</Th>
+              <Th>{tr("شرح عملیات بانکی", "بيان العملية البنكية", "Banka İşlemi Açıklaması", "Bank transaction")}</Th>
+              <Th align="end">{tr("ورود وجه", "الوارد", "Giren Tutar", "Inflow")}</Th>
+              <Th align="end">{tr("خروج وجه", "الصادر", "Çıkan Tutar", "Outflow")}</Th>
+              <Th align="end">{tr("مانده نقد/بانک", "رصيد النقد/البنك", "Nakit/Banka Bakiyesi", "Cash/Bank balance")}</Th>
+              <Th>{tr("نوع", "النوع", "Tür", "Type")}</Th>
+            </Thead>
+
+            <Tbody>
+              {bankRows.map((row, index) => (
+                <Tr key={`${row.id}-${index}`}>
+                  <Td className="text-[var(--erp-muted)] font-bold">{n(index + 1)}</Td>
+                  <Td className="text-[var(--erp-text)]">{formatDate(row.date || row.created_at)}</Td>
+                  <Td>
+                    <div className="font-black text-[var(--erp-text)]">
+                      {row.description || sourceLabel(row.source_type, language)}
+                    </div>
+                    <div className="text-xs text-[var(--erp-muted)]">{row.source_id ? `#${n(row.source_id)}` : ""}</div>
+                  </Td>
+                  <Td align="end" className="text-emerald-300 font-black">{row.inflow ? money(row.inflow) : "-"}</Td>
+                  <Td align="end" className="text-rose-300 font-black">{row.outflow ? money(row.outflow) : "-"}</Td>
+                  <Td align="end" className="text-[var(--erp-accent)] font-black">{money(Math.abs(row.cashBalance))}</Td>
+                  <Td className="text-[var(--erp-text)] font-black">{sourceLabel(row.source_type, language)}</Td>
+                </Tr>
+              ))}
+
+              {bankRows.length === 0 && (
+                <EmptyRow colSpan={7}>
+                  {tr("هنوز دریافت یا پرداخت بانکی ثبت نشده است", "لم يتم تسجيل أي قبض أو دفع بنكي بعد", "Henüz banka tahsilatı veya ödemesi kaydedilmedi", "No bank transaction has been registered yet")}
+                </EmptyRow>
+              )}
+            </Tbody>
+          </Table>
         )}
       </div>
     </div>
@@ -652,32 +983,32 @@ export default function CustomerDetails() {
 
 function Info({ icon, label, value }) {
   return (
-    <div className="bg-slate-800/80 border border-white/5 rounded-2xl p-4">
-      <div className="text-slate-400 text-xs flex items-center gap-2 mb-2">
+    <div className="bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] rounded-2xl p-4">
+      <div className="text-[var(--erp-muted)] text-xs flex items-center gap-2 mb-2">
         {icon}
         {label}
       </div>
-      <div className="text-white font-black">{value}</div>
+      <div className="text-[var(--erp-text)] font-black">{value}</div>
     </div>
   );
 }
 
-function Kpi({ title, value, hint, color = "#22d3ee", icon }) {
+function Kpi({ title, value, hint, color = "#22d3ee", colorClassName, icon }) {
   return (
-    <div className="bg-slate-900/60 border border-cyan-500/20 rounded-3xl p-5">
+    <div className="bg-[var(--erp-bg-soft)] border border-[var(--erp-border)] rounded-3xl p-5">
       <div className="flex justify-between items-start">
         <div>
-          <div className="text-slate-300 font-bold mb-3">{title}</div>
-          <div className="text-3xl font-black" style={{ color }}>
+          <div className="text-[var(--erp-muted)] font-bold mb-3">{title}</div>
+          <div className={`text-3xl font-black${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
             {value}
           </div>
           {hint && (
-            <div className="text-xs mt-2" style={{ color }}>
+            <div className={`text-xs mt-2${colorClassName ? ` ${colorClassName}` : ""}`} style={colorClassName ? undefined : { color }}>
               {hint}
             </div>
           )}
         </div>
-        <div className="text-cyan-300 bg-cyan-400/10 w-10 h-10 rounded-2xl flex items-center justify-center">
+        <div className="text-[var(--erp-accent)] bg-[var(--erp-glow)] w-10 h-10 rounded-2xl flex items-center justify-center">
           {icon}
         </div>
       </div>
