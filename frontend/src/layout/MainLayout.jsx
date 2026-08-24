@@ -32,22 +32,23 @@ export default function MainLayout() {
       ? "Ana menüyü aç"
       : "Open main navigation";
 
+  function closeNavigation({ restoreFocus = false } = {}) {
+    setNavigationOpen(false);
+    // The trigger button unmounts while the drawer is open (see below), so
+    // this only has something to focus once it remounts on the next
+    // render - requestAnimationFrame gives that remount a chance to commit
+    // first.
+    if (restoreFocus) window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+  }
+
   useEffect(() => {
     if (!navigationOpen) return undefined;
     const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setNavigationOpen(false);
-        window.requestAnimationFrame(() => menuButtonRef.current?.focus());
-      }
+      if (event.key === "Escape") closeNavigation({ restoreFocus: true });
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [navigationOpen]);
-
-  function closeNavigation({ restoreFocus = false } = {}) {
-    setNavigationOpen(false);
-    if (restoreFocus) window.requestAnimationFrame(() => menuButtonRef.current?.focus());
-  }
 
   return (
     <div className="erp-layout" dir={dir}>
@@ -60,26 +61,30 @@ export default function MainLayout() {
           ? "Ana içeriğe geç"
           : "Skip to main content"}
       </a>
-      <button
-        ref={menuButtonRef}
-        type="button"
-        className="erp-mobile-menu"
-        onClick={() => setNavigationOpen(true)}
-        aria-label={menuLabel}
-        aria-expanded={navigationOpen}
-        aria-controls="erp-primary-navigation"
-      >
-        <Menu size={22} aria-hidden="true" />
-        <span>
-          {language === "fa"
-            ? "منو"
-            : language === "ar"
-            ? "القائمة"
-            : language === "tr"
-            ? "Menü"
-            : "Menu"}
-        </span>
-      </button>
+      {/* Hidden while the drawer is open - Sidebar renders its own close
+          (X) control in that state, so the two never show at once. */}
+      {!navigationOpen && (
+        <button
+          ref={menuButtonRef}
+          type="button"
+          className="erp-mobile-menu"
+          onClick={() => setNavigationOpen(true)}
+          aria-label={menuLabel}
+          aria-expanded={navigationOpen}
+          aria-controls="erp-primary-navigation"
+        >
+          <Menu size={22} aria-hidden="true" />
+          <span>
+            {language === "fa"
+              ? "منو"
+              : language === "ar"
+              ? "القائمة"
+              : language === "tr"
+              ? "Menü"
+              : "Menu"}
+          </span>
+        </button>
+      )}
 
       {navigationOpen && (
         <button
@@ -98,7 +103,11 @@ export default function MainLayout() {
         />
       )}
 
-      <Sidebar mobileOpen={navigationOpen} onNavigate={() => closeNavigation()} />
+      <Sidebar
+        mobileOpen={navigationOpen}
+        onNavigate={() => closeNavigation()}
+        onCloseDrawer={() => closeNavigation({ restoreFocus: true })}
+      />
 
       <main id="main-content" className="erp-main" tabIndex={-1}>
         <OfflineStatusBanner />

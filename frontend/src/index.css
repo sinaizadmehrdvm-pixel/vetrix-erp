@@ -429,6 +429,7 @@ button:hover, a:hover { transform:translateY(-1px); }
 }
 
 /* Tooltip - CSS-only, hover/focus-triggered. */
+.vitalix-sidebar-resize-handle:hover { background: var(--erp-accent); opacity: 0.35; }
 .vitalix-tooltip { position: relative; display: inline-flex; }
 .vitalix-tooltip-bubble {
   position: absolute;
@@ -609,7 +610,7 @@ body { overflow: hidden; }
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
-.erp-mobile-menu, .erp-sidebar-backdrop { display: none; }
+.erp-mobile-menu, .erp-sidebar-backdrop, .erp-sidebar-mobile-close-row { display: none; }
 /* Global focus ring - box-shadow, not outline. `outline` does not reliably
    clip to an element's border-radius across browsers/element types (text
    inputs/selects in particular), which is exactly what produced "square
@@ -694,6 +695,77 @@ img, svg { max-width: 100%; }
   .erp-sidebar .sidebar-menu-item { min-height: 44px; }
   .erp-surface { border-radius: 18px; }
   h1 { overflow-wrap: anywhere; }
+
+  /* Mobile drawer gets its OWN compact brand header: a close-button row
+     (below) stacked directly above a short horizontal icon+"VITALIX/
+     Enterprise Suite" row - not the desktop vertical "stage" (which also
+     carries a reflection line + ambient glow sized for a full-height
+     sidebar). Reusing the desktop layout at drawer width just squeezed
+     it; this is the dedicated mobile composition the design calls for. */
+  .erp-sidebar .vitalix-brand-halo {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding-block: 4px !important;
+  }
+  .erp-sidebar .vitalix-brand-product-context { display: none !important; }
+  /* Clamps the compact logo+text composite's own inline width (100% of
+     the sidebar's own width on desktop) so it shares the row with the
+     theme toggle instead of crowding it out. max-width always wins over
+     an inline width, regardless of specificity. */
+  .erp-sidebar .brand-logo-hover { max-width: 200px; }
+  /* Smaller icon/text sizes for the mobile brand row (42-48px mark,
+     17-19px wordmark, 9-10px subtitle) vs. the larger desktop sizes set
+     inline in BrandLogo.jsx - the icon slot fills via imageBox's own
+     width:100%, so overriding just the slot's width is enough to resize
+     the actual rendered icon too. */
+  .erp-sidebar .vitalix-brand-icon-slot { width: 44px !important; }
+  .erp-sidebar .vitalix-brand-wordmark { font-size: 18px !important; }
+  .erp-sidebar .vitalix-brand-subtitle { font-size: 10px !important; }
+  /* The toolbar pill's own `self-end` (Tailwind, meaningful when the
+     brand-halo was column-direction on desktop) fights the row-direction
+     override above - align-self overrides the container's align-items for
+     that one child regardless of !important elsewhere, so it needs its
+     own override back to centered. */
+  .erp-sidebar .vitalix-brand-toolbar { align-self: center !important; }
+  /* Desktop-only mouse-drag affordance - meaningless in a drawer whose
+     width is hard-pinned by !important above, and otherwise sits on top
+     of the mobile close button's tap target since both are flush against
+     the same inline-end edge. */
+  .vitalix-sidebar-resize-handle { display: none !important; }
+  .erp-sidebar-mobile-close-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+  .erp-sidebar-mobile-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--erp-radius-sm);
+    border: 1px solid var(--erp-border);
+    background: var(--erp-panel-solid);
+    color: var(--erp-text);
+    flex-shrink: 0;
+  }
+  /* Collapse-to-rail has no meaningful use inside an already-off-canvas
+     drawer (it's either open or closed, not "collapsed") - only the theme
+     toggle stays in the mobile utility row. */
+  .erp-sidebar .vitalix-toolbar-collapse-btn { display: none; }
+  /* Belt-and-suspenders: MainLayout only unmounts .erp-mobile-menu while
+     the drawer is open, which is what actually keeps it from stacking
+     visually above the open drawer (.erp-mobile-menu is z-index:55,
+     .erp-sidebar is z-index:50) - if it were ever rendered anyway, this
+     hides it defensively rather than relying solely on that JS state
+     staying correct forever. */
+  .erp-layout:has(.erp-sidebar.is-open) .erp-mobile-menu { display: none !important; }
+  /* Slightly tighter than the desktop 18px top padding, since the drawer
+     already spends space on its own close-button row above the brand
+     block. */
+  .erp-sidebar { padding-top: 12px !important; }
 }
 @media (max-width: 520px) {
   .erp-main { padding-inline: 9px; }
