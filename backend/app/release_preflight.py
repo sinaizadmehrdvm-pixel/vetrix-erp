@@ -12,11 +12,8 @@ from app.system_health import build_system_health
 from app.version import APP_VERSION, PILOT_RELEASE_ID
 
 router = APIRouter(prefix="/api/system", tags=["Release Readiness"])
-# Task 08: the pilot candidate built from this exact commit range (Tasks
-# 01-07). Follows the repository's existing v{major}.{minor}.{patch} git-tag
-# convention (see CHANGELOG.md) with a -pilot.N suffix, rather than a
-# separate parallel identifier - bump the trailing counter if a second pilot
-# candidate is cut from the same 1.4.0 baseline.
+# Release identifier follows the repository's v{major}.{minor}.{patch}
+# git-tag convention (see CHANGELOG.md).
 
 RELEASE_TABLES = {
     "accounting_approval_requests",
