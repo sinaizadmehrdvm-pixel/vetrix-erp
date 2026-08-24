@@ -11,6 +11,33 @@ import {
 import { Table, Thead, Th, Tbody, Tr, Td, EmptyRow } from "../components/ui/Table";
 import JalaliDateField from "../components/forms/JalaliDateField";
 import Select from "../components/ui/Select";
+import { INDUSTRY_LABELS } from "../localization/industryLabels";
+
+const COMPANY_TYPE_LABELS = {
+  sole_proprietorship: { fa: "تک‌مالکیتی", ar: "مؤسسة فردية", tr: "Şahıs şirketi", en: "Sole proprietorship" },
+  partnership: { fa: "مشارکتی", ar: "شراكة", tr: "Adi ortaklık", en: "Partnership" },
+  llc: { fa: "با مسئولیت محدود", ar: "ذات مسؤولية محدودة", tr: "Limited şirket", en: "LLC" },
+  corporation: { fa: "سهامی", ar: "شركة مساهمة", tr: "Anonim şirket", en: "Corporation" },
+  cooperative: { fa: "تعاونی", ar: "تعاونية", tr: "Kooperatif", en: "Cooperative" },
+  other: { fa: "سایر", ar: "أخرى", tr: "Diğer", en: "Other" },
+};
+
+const GOAL_STATUS_LABELS = {
+  not_started: { fa: "شروع‌نشده", ar: "لم يبدأ", tr: "Başlamadı", en: "Not started" },
+  in_progress: { fa: "در حال انجام", ar: "قيد التنفيذ", tr: "Devam ediyor", en: "In progress" },
+  completed: { fa: "تکمیل‌شده", ar: "مكتمل", tr: "Tamamlandı", en: "Completed" },
+  at_risk: { fa: "در معرض خطر", ar: "معرض للخطر", tr: "Risk altında", en: "At risk" },
+  cancelled: { fa: "لغوشده", ar: "ملغى", tr: "İptal edildi", en: "Cancelled" },
+};
+
+const DOCUMENT_TYPE_LABELS = {
+  registration: { fa: "ثبت شرکت", ar: "التسجيل", tr: "Tescil", en: "Registration" },
+  tax: { fa: "مالیاتی", ar: "ضريبي", tr: "Vergi", en: "Tax" },
+  license: { fa: "مجوز", ar: "ترخيص", tr: "Lisans", en: "License" },
+  contract: { fa: "قرارداد", ar: "عقد", tr: "Sözleşme", en: "Contract" },
+  certification: { fa: "گواهینامه", ar: "شهادة", tr: "Sertifika", en: "Certification" },
+  other: { fa: "سایر", ar: "أخرى", tr: "Diğer", en: "Other" },
+};
 
 const cardClass = "rounded-2xl border border-[var(--erp-border)] bg-[var(--erp-panel)] p-5";
 const inputClass = "w-full p-3 rounded-xl bg-[var(--erp-panel-solid)] border border-[var(--erp-border)] outline-none focus:ring-2 focus:ring-cyan-400";
@@ -132,7 +159,7 @@ export default function CompanyProfile() {
                   onChange={(value) => set("company_type", value)}
                   options={[
                     { value: "", label: "—" },
-                    ...["sole_proprietorship", "partnership", "llc", "corporation", "cooperative", "other"].map((v) => ({ value: v, label: v })),
+                    ...Object.keys(COMPANY_TYPE_LABELS).map((v) => ({ value: v, label: COMPANY_TYPE_LABELS[v][language] || COMPANY_TYPE_LABELS[v].en })),
                   ]}
                 />
               </label>
@@ -147,7 +174,7 @@ export default function CompanyProfile() {
           {tab === "activity" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className={labelClass}><span className={labelTextClass}>{tr("فعالیت اصلی", "النشاط الرئيسي", "Ana faaliyet", "Main activity")}</span><input className={inputClass} value={pd(draft.main_activity)} onChange={(e) => set("main_activity", toEnglishDigits(e.target.value))} /></label>
-              <label className={labelClass}><span className={labelTextClass}>{tr("صنعت (از تنظیمات)", "الصناعة (من الإعدادات)", "Sektör (Ayarlardan)", "Industry (from Settings)")}</span><input className={inputClass} value={profile.industry} disabled /></label>
+              <label className={labelClass}><span className={labelTextClass}>{tr("صنعت (از تنظیمات)", "الصناعة (من الإعدادات)", "Sektör (Ayarlardan)", "Industry (from Settings)")}</span><input className={inputClass} value={INDUSTRY_LABELS[profile.industry]?.[language] || INDUSTRY_LABELS[profile.industry]?.en || profile.industry || ""} disabled /></label>
               <label className={labelClass + " md:col-span-2"}><span className={labelTextClass}>{tr("توضیح فعالیت", "وصف النشاط", "Faaliyet açıklaması", "Activity description")}</span><textarea rows={2} className={inputClass} value={pd(draft.activity_description)} onChange={(e) => set("activity_description", toEnglishDigits(e.target.value))} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("دسته‌های کسب‌وکار", "فئات الأعمال", "İş kategorileri", "Business categories")}</span><input className={inputClass} value={pd(draft.business_categories)} onChange={(e) => set("business_categories", toEnglishDigits(e.target.value))} /></label>
               <label className={labelClass}><span className={labelTextClass}>{tr("محصولات/خدمات", "المنتجات/الخدمات", "Ürün/Hizmetler", "Products/Services")}</span><input className={inputClass} value={pd(draft.products_services)} onChange={(e) => set("products_services", toEnglishDigits(e.target.value))} /></label>
@@ -289,7 +316,7 @@ function GoalsPanel({ tr, n, date, language }) {
                   <Select
                     value={g.status}
                     onChange={(value) => changeStatus(g, value)}
-                    options={["not_started", "in_progress", "completed", "at_risk", "cancelled"].map((s) => ({ value: s, label: s }))}
+                    options={Object.keys(GOAL_STATUS_LABELS).map((s) => ({ value: s, label: GOAL_STATUS_LABELS[s][language] || GOAL_STATUS_LABELS[s].en }))}
                   />
                 </Td>
                 <Td>{g.target_date ? date(g.target_date) : "—"}</Td>
@@ -367,7 +394,7 @@ function DocumentsPanel({ tr, n, date, language }) {
           className="w-40"
           value={documentType}
           onChange={(value) => setDocumentType(value)}
-          options={["registration", "tax", "license", "contract", "certification", "other"].map((t) => ({ value: t, label: t }))}
+          options={Object.keys(DOCUMENT_TYPE_LABELS).map((t) => ({ value: t, label: DOCUMENT_TYPE_LABELS[t][language] || DOCUMENT_TYPE_LABELS[t].en }))}
         />
         <input className={inputClass + " flex-1 min-w-[160px]"} placeholder={tr("عنوان", "العنوان", "Başlık", "Title")} value={pd(title)} onChange={(e) => setTitle(toEnglishDigits(e.target.value))} />
         <JalaliDateField className={inputClass + " w-40"} value={expiryDate} onChange={(iso) => setExpiryDate(iso)} language={language} placeholder={tr("تاریخ انقضا", "تاريخ الانتهاء", "Son geçerlilik", "Expiry date")} />
@@ -387,7 +414,7 @@ function DocumentsPanel({ tr, n, date, language }) {
             {items.length === 0 ? <EmptyRow colSpan={5}>{tr("مدرکی بارگذاری نشده.", "لا توجد مستندات.", "Belge yok.", "No documents uploaded.")}</EmptyRow> : items.map((d, i) => (
               <Tr key={d.id}>
                 <Td className="text-[var(--erp-muted)] font-bold">{n(i + 1)}</Td>
-                <Td>{d.document_type}</Td>
+                <Td>{DOCUMENT_TYPE_LABELS[d.document_type]?.[language] || DOCUMENT_TYPE_LABELS[d.document_type]?.en || d.document_type}</Td>
                 <Td className="font-bold">{pd(d.title)}</Td>
                 <Td>{d.expiry_date ? date(d.expiry_date) : "—"}</Td>
                 <Td align="end" className="flex gap-2 justify-end">

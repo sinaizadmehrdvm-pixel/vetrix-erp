@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { INDUSTRY_LABELS } from "../localization/industryLabels";
 import {
   Building2,
   Save,
@@ -26,6 +27,7 @@ import Field, { Input, Textarea } from "../components/ui/Field";
 import Select from "../components/ui/Select";
 import PaymentProvidersCard from "../components/settings/PaymentProvidersCard";
 import ExecutiveAgentSettingsCard from "../components/settings/ExecutiveAgentSettingsCard";
+import { compressImage } from "../utils/imageCompression";
 
 const emptySettings = {
   company_name: "",
@@ -78,13 +80,6 @@ const emptySettings = {
   backup_email_frequency_hours: 168,
   last_backup_email_at: "",
   industry: "general",
-};
-
-const INDUSTRY_LABELS = {
-  general: { fa: "عمومی", ar: "عام", tr: "Genel", en: "General" },
-  veterinary: { fa: "دامپزشکی", ar: "بيطري", tr: "Veterinerlik", en: "Veterinary" },
-  human_medical: { fa: "پزشکی انسانی", ar: "طبي بشري", tr: "İnsan sağlığı", en: "Human medical" },
-  pharmacy: { fa: "داروخانه", ar: "صيدلية", tr: "Eczane", en: "Pharmacy" },
 };
 
 function toPersianDigits(value) {
@@ -156,43 +151,6 @@ function cleanNumber(value) {
 function toNumber(value) {
   const num = Number(cleanNumber(value));
   return Number.isFinite(num) ? num : 0;
-}
-
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      img.onload = () => {
-        const max = 700;
-        let { width, height } = img;
-
-        if (width > height && width > max) {
-          height = Math.round((height * max) / width);
-          width = max;
-        } else if (height > max) {
-          width = Math.round((width * max) / height);
-          height = max;
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        resolve(canvas.toDataURL("image/jpeg", 0.72));
-      };
-
-      img.onerror = reject;
-      img.src = reader.result;
-    };
-
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 export default function Settings() {
