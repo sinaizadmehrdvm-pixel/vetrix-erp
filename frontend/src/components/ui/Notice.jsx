@@ -12,7 +12,7 @@ export default function Notice({ tone = "info", icon: Icon, className = "", chil
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2 }}
       role={tone === "danger" ? "alert" : undefined}
-      className={["rounded-[var(--erp-radius-lg)] p-4 text-sm font-medium", className].join(" ")}
+      className={["min-w-0 break-words rounded-[var(--erp-radius-lg)] p-4 text-sm font-medium", className].join(" ")}
       style={style}
     >
       {Icon ? <Icon className="mb-2" size={22} /> : null}

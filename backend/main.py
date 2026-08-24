@@ -155,6 +155,7 @@ from app.accounting.treasury import create_invoice_cheque_leg
 from app.approvals.engine import router as approvals_engine_router
 from app.invoice_verification import router as invoice_verification_router, verification_code as invoice_verification_code
 from app.message_templates import router as message_templates_router
+from app.version import APP_VERSION, PILOT_RELEASE_ID
 
 
 
@@ -467,7 +468,7 @@ ensure_company_scoping_columns()
 
 app = FastAPI(
     title="Vetrix ERP",
-    version="1.4.0"
+    version=APP_VERSION,
 )
 
 _logger = logging.getLogger(__name__)
@@ -1111,7 +1112,7 @@ def publish_low_stock_if_needed(product: Product):
 
 @app.get("/")
 def root():
-    return {"message": "Vetrix ERP Backend Running", "version": "1.4.0", "status": "online"}
+    return {"message": "Vetrix ERP Backend Running", "version": APP_VERSION, "status": "online"}
 
 
 @app.get("/health")
@@ -1134,8 +1135,8 @@ def health():
         content={
             "status": "ok" if database_status == "reachable" else "unhealthy",
             "database": database_status,
-            "version": "1.4.0",
-            "pilot_release_id": "v1.4.0-pilot.1",
+            "version": APP_VERSION,
+            "pilot_release_id": PILOT_RELEASE_ID,
         },
     )
 
