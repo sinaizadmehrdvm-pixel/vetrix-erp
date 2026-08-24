@@ -311,7 +311,12 @@ export default function Login() {
           />
 
           <div className="relative mb-6 lg:hidden">
-            <BrandLogo variant="compact" size={200} />
+            {/* size bumped 200->220 to compensate for BrandLogo's shared
+                compact-icon size increase (a Sidebar fix) - without this,
+                the larger icon+gap would eat into "ACCOUNTING"'s text
+                column here too, since this call site still uses a fixed
+                composite width rather than Sidebar's responsive "100%". */}
+            <BrandLogo variant="compact" size={220} />
           </div>
 
           <div className="relative flex items-center justify-between gap-3 mb-2">
