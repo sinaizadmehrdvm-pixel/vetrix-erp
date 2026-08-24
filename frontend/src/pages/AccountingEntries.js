@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import JalaliDateField from "../components/forms/JalaliDateField";
+import Select from "../components/ui/Select";
 import { getAccountingChart } from "../services/accountingApi";
 import {
   cancelAccountingVoucher,
@@ -23,12 +24,25 @@ const ACCOUNT_TYPE_AR = { asset: "الأصول", liability: "الالتزاما�
 const ACCOUNT_TYPE_TR = { asset: "Varlıklar", liability: "Yükümlülükler", equity: "Özkaynaklar", revenue: "Gelir", expense: "Giderler", contra: "Düzenleyici Hesap" };
 
 const emptyLine = { account_id: "", description: "", debit: "", credit: "" };
+let lineIdSeq = 0;
+// A stable id (not the array index) so each row's <Select> keeps its own
+// component instance - and with it, its own open/popup-position state -
+// when a line above/below it is added or removed. Index-based keys would
+// let React reassign an open dropdown's instance to a different line's
+// data mid-reflow, leaving its portaled popup's fixed-position coordinates
+// stale (no scroll/resize event fires on that reflow to trigger a recalc).
+function makeLine() { return { ...emptyLine, _id: ++lineIdSeq }; }
 function h(tag, props, ...children) { return React.createElement(tag, props, ...children); }
 function toNumber(value) { return Number(String(value ?? "0").replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[^\d.-]/g, "")) || 0; }
 
 export default function AccountingEntries() {
   const { language, dir, money, n, date } = useLanguage();
   const dateInputClass = "bg-[var(--erp-panel-solid)] text-[var(--erp-text)] border border-[var(--erp-border)] rounded-2xl p-3";
+  // Matches `styles.input`'s own look (16px radius, ~44px tall) so the
+  // shared Select's trigger sits flush with the plain native inputs
+  // beside it on this page, instead of Select's own default 12px-radius/
+  // 44px trigger look standing out.
+  const selectTriggerClass = "!rounded-2xl !p-3 !min-h-[44px]";
   const [accounts, setAccounts] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -43,7 +57,7 @@ export default function AccountingEntries() {
     voucher_date: new Date().toISOString().slice(0, 10),
     description: "",
     status: "draft",
-    lines: [{ ...emptyLine }, { ...emptyLine }],
+    lines: [makeLine(), makeLine()],
   });
 
   async function load() {
@@ -95,7 +109,7 @@ export default function AccountingEntries() {
   function patchLine(index, key, value) {
     setForm(prev => ({ ...prev, lines: prev.lines.map((line, i) => i === index ? { ...line, [key]: value } : line) }));
   }
-  function addLine() { setForm(prev => ({ ...prev, lines: [...prev.lines, { ...emptyLine }] })); }
+  function addLine() { setForm(prev => ({ ...prev, lines: [...prev.lines, makeLine()] })); }
   function removeLine(index) {
     setForm(prev => ({ ...prev, lines: prev.lines.length <= 2 ? prev.lines : prev.lines.filter((_, i) => i !== index) }));
   }
@@ -116,7 +130,7 @@ export default function AccountingEntries() {
       };
       await createAccountingVoucher(payload);
       setMessage(status === "posted" ? (language === "fa" ? "سند قطعی شد." : language === "ar" ? "تم ترحيل السند." : language === "tr" ? "Fiş kesinleştirildi." : "Voucher posted.") : (language === "fa" ? "سند ذخیره شد." : language === "ar" ? "تم حفظ السند." : language === "tr" ? "Fiş kaydedildi." : "Voucher saved."));
-      setForm({ voucher_date: new Date().toISOString().slice(0, 10), description: "", status: "draft", lines: [{ ...emptyLine }, { ...emptyLine }] });
+      setForm({ voucher_date: new Date().toISOString().slice(0, 10), description: "", status: "draft", lines: [makeLine(), makeLine()] });
       await load();
     } catch (e) { setMessage(e.message || (language === "fa" ? "خطا در ثبت سند" : language === "ar" ? "خطأ في حفظ السند" : language === "tr" ? "Fiş kaydetme hatası" : "Voucher save error")); }
   }
@@ -141,17 +155,25 @@ export default function AccountingEntries() {
 
   function reportFilters() {
     return h("div", { style: { ...styles.card, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 } },
-      h("select", { style: styles.input, value: filters.status, onChange: e => setFilters({ ...filters, status: e.target.value }) },
-        h("option", { value: "posted" }, language === "fa" ? "فقط قطعی" : language === "ar" ? "المرحّل فقط" : language === "tr" ? "Yalnızca Kesinleşmiş" : "Posted only"),
-        h("option", { value: "draft" }, language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft"),
-        h("option", { value: "all" }, language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All")
-      ),
+      h(Select, {
+        className: "w-full", triggerClassName: selectTriggerClass,
+        value: filters.status, onChange: value => setFilters({ ...filters, status: value }),
+        options: [
+          { value: "posted", label: language === "fa" ? "فقط قطعی" : language === "ar" ? "المرحّل فقط" : language === "tr" ? "Yalnızca Kesinleşmiş" : "Posted only" },
+          { value: "draft", label: language === "fa" ? "پیش‌نویس" : language === "ar" ? "مسودة" : language === "tr" ? "Taslak" : "Draft" },
+          { value: "all", label: language === "fa" ? "همه" : language === "ar" ? "الكل" : language === "tr" ? "Tümü" : "All" },
+        ],
+      }),
       h(JalaliDateField, { className: dateInputClass, value: filters.from_date, onChange: iso => setFilters({ ...filters, from_date: iso }), fa: language === "fa", language }),
       h(JalaliDateField, { className: dateInputClass, value: filters.to_date, onChange: iso => setFilters({ ...filters, to_date: iso }), fa: language === "fa", language }),
-      h("select", { style: styles.input, value: filters.account_id, onChange: e => setFilters({ ...filters, account_id: e.target.value }) },
-        h("option", { value: "" }, language === "fa" ? "همه حساب‌ها" : language === "ar" ? "جميع الحسابات" : language === "tr" ? "Tüm Hesaplar" : "All accounts"),
-        accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}`))
-      ),
+      h(Select, {
+        className: "w-full", triggerClassName: selectTriggerClass,
+        value: filters.account_id, onChange: value => setFilters({ ...filters, account_id: value }),
+        options: [
+          { value: "", label: language === "fa" ? "همه حساب‌ها" : language === "ar" ? "جميع الحسابات" : language === "tr" ? "Tüm Hesaplar" : "All accounts" },
+          ...accounts.map(acc => ({ value: acc.id, label: `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}` })),
+        ],
+      }),
       h("button", { onClick: load, style: { ...styles.btn, background: "var(--erp-accent)", color: "#020617" } }, loading ? "..." : language === "fa" ? "اعمال فیلتر" : language === "ar" ? "تطبيق" : language === "tr" ? "Uygula" : "Apply")
     );
   }
@@ -197,11 +219,15 @@ export default function AccountingEntries() {
               h("th", { style: styles.th }, language === "fa" ? "بستانکار" : language === "ar" ? "دائن" : language === "tr" ? "Alacak" : "Credit"),
               h("th", { style: styles.th }, "")
             )),
-            h("tbody", null, form.lines.map((line, index) => h("tr", { key: index },
-              h("td", { style: { padding: 6 } }, h("select", { style: styles.input, value: line.account_id, onChange: e => patchLine(index, "account_id", e.target.value) },
-                h("option", { value: "" }, language === "fa" ? "انتخاب حساب" : language === "ar" ? "اختر الحساب" : language === "tr" ? "Hesap Seç" : "Select account"),
-                accounts.map(acc => h("option", { key: acc.id, value: acc.id }, `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}`))
-              )),
+            h("tbody", null, form.lines.map((line, index) => h("tr", { key: line._id },
+              h("td", { style: { padding: 6 } }, h(Select, {
+                className: "w-full", triggerClassName: selectTriggerClass,
+                value: line.account_id, onChange: value => patchLine(index, "account_id", value),
+                options: [
+                  { value: "", label: language === "fa" ? "انتخاب حساب" : language === "ar" ? "اختر الحساب" : language === "tr" ? "Hesap Seç" : "Select account" },
+                  ...accounts.map(acc => ({ value: acc.id, label: `${language === "fa" ? toPersianDigits(acc.code) : acc.code} - ${acc.name}` })),
+                ],
+              })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.description, onChange: e => patchLine(index, "description", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "شرح ردیف" : language === "ar" ? "وصف البند" : language === "tr" ? "Satır Açıklaması" : "Line description" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.debit, onChange: e => patchLine(index, "debit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),
               h("td", { style: { padding: 6 } }, h("input", { style: styles.input, value: line.credit, onChange: e => patchLine(index, "credit", language === "fa" ? toPersianDigits(e.target.value) : e.target.value), placeholder: language === "fa" ? "۰" : "0" })),

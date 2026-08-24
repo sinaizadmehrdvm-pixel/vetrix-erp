@@ -15,6 +15,11 @@ import Select from "../components/ui/Select";
 import StatsCard from "../widgets/StatsCard";
 import Skeleton from "../components/ui/Skeleton";
 
+// `color` is a literal hex string, not a `var(--erp-*)` token, because it
+// seeds a native `<input type="color">` (line ~254) - that control's
+// `value` must be a real `#rrggbb` string, CSS custom properties aren't
+// resolvable there. It's also a per-account user-editable tag color, not
+// themed app chrome, so it has no reason to track the active theme anyway.
 const emptyForm = { code: "", name: "", account_type: "asset", level: "group", parent_id: "", normal_balance: "debit", description: "", color: "#22d3ee", is_active: true };
 const types = ["asset", "liability", "equity", "revenue", "expense", "contra"];
 const levels = ["group", "ledger", "subsidiary", "detail"];
@@ -135,12 +140,14 @@ export default function AccountingCore() {
               />
             </label>
 
-            {/* Deliberate internal scroll region - the list can grow long,
-                but the page itself shouldn't, per the "no unnecessary
-                page-level scrolling" ask. Capped relative to the viewport
-                (not just a flat px value) so it doesn't force the card
-                taller than available space on short viewports. */}
-            <div className="space-y-2" style={{ maxHeight: "min(620px, 60vh)", overflowY: "auto" }}>
+            {/* No internal max-height/scroll region here - a capped inner
+                scroll area nested inside the page's own natural scroll
+                (every other list page in the app just lets the page
+                scroll) read as two competing scrollbars rather than one,
+                which is what "dominated the page" in practice. The list
+                grows to its full natural height and the page scrolls
+                once, the same way the rest of the app already works. */}
+            <div className="space-y-2">
               {loading && accounts.length === 0 ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <Skeleton key={index} height={56} radius="var(--erp-radius-md)" />
